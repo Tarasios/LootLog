@@ -1,0 +1,16 @@
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Go server
+/server/duobudget-server
+/server/*.exe
+/server/data/
+*.db
+*.db-wal
+*.db-shm
+
+# Local env
+.env
