@@ -1,0 +1,53 @@
+# Static analysis configuration for DuoBudget.
+#
+# Strict flutter_lints: on top of the recommended lint set we turn on the
+# analyzer's strict type-checking modes and treat the things that most often
+# hide bugs (missing returns, unawaited futures, etc.) as errors. Generated
+# code (*.g.dart, *.drift.dart, *.freezed.dart) is excluded because it is not
+# hand-written and should not be held to these rules.
+
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+  errors:
+    # Correctness issues we never want to merge past.
+    missing_required_param: error
+    missing_return: error
+    todo: ignore
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.drift.dart"
+    - "**/*.freezed.dart"
+    - "**/*.mocks.dart"
+
+linter:
+  rules:
+    # Correctness / async safety
+    - always_declare_return_types
+    - avoid_dynamic_calls
+    - avoid_slow_async_io
+    - avoid_type_to_string
+    - cancel_subscriptions
+    - close_sinks
+    - discarded_futures
+    - unawaited_futures
+    - no_adjacent_strings_in_list
+    - throw_in_finally
+    - unnecessary_statements
+
+    # Immutability — DuoBudget is event-sourced; domain values are immutable.
+    - prefer_final_locals
+    - prefer_final_in_for_each
+    - avoid_field_initializers_in_const_classes
+
+    # Style / consistency
+    - prefer_single_quotes
+    - directives_ordering
+    - require_trailing_commas
+    - sort_pub_dependencies
+    - unnecessary_lambdas
+    - use_super_parameters
