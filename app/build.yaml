@@ -1,0 +1,11 @@
+# Build configuration for code generation.
+#
+# `store_date_time_values_as_text` makes drift persist DateTime columns as
+# ISO-8601 UTC text rather than Unix seconds, so event `occurredAt` / `createdAt`
+# round-trip losslessly (sub-second precision is preserved).
+targets:
+  $default:
+    builders:
+      drift_dev:
+        options:
+          store_date_time_values_as_text: true

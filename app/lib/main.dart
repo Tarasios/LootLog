@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-void main() {
-  runApp(const ProviderScope(child: DuoBudgetApp()));
+import 'data/app_runtime.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final overrides = await buildDataLayerOverrides();
+  runApp(ProviderScope(overrides: overrides, child: const DuoBudgetApp()));
 }
 
 /// Root of the DuoBudget application.
