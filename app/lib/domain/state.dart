@@ -99,6 +99,42 @@ class SliceMonth {
   bool get overspent => overspendCents > 0;
 }
 
+/// Derived configuration of a recurring expense ("equipment maintenance").
+/// Exposed on the read-model so the dashboard's equipment-maintenance summary
+/// and the spoils ritual's variable-actual step read it from the reducer rather
+/// than re-deriving it from the event log.
+class RecurringExpenseState {
+  const RecurringExpenseState({
+    required this.expenseId,
+    required this.name,
+    required this.ownership,
+    required this.kind,
+    required this.amountCents,
+    required this.startMonth,
+    this.endMonth,
+  });
+
+  final String expenseId;
+  final String name;
+  final PartyOwnership ownership;
+  final RecurringKind kind;
+
+  /// The fixed amount, or the estimate for a variable expense.
+  final int amountCents;
+  final Month startMonth;
+  final Month? endMonth;
+
+  bool get isShared => ownership is SharedParty;
+
+  String? get ownerUserId =>
+      ownership is PersonalParty ? (ownership as PersonalParty).userId : null;
+
+  /// Whether this expense is expected to run in [month].
+  bool activeIn(Month month) =>
+      !startMonth.isAfter(month) &&
+      (endMonth == null || !month.isAfter(endMonth!));
+}
+
 /// Derived state of a savings-goal quest.
 class QuestState {
   const QuestState({
@@ -351,6 +387,8 @@ class HouseholdState {
     required this.deductibleByYear,
     required this.recurringByUserMonth,
     required this.incomeByUserMonth,
+    required this.recurringExpenses,
+    required this.variableActuals,
   });
 
   final Settings settings;
@@ -377,7 +415,18 @@ class HouseholdState {
   /// Income keyed by `"userId|yyyy-MM"`.
   final Map<String, int> incomeByUserMonth;
 
+  /// Recurring-expense configuration, keyed by `expenseId`.
+  final Map<String, RecurringExpenseState> recurringExpenses;
+
+  /// Recorded variable-expense actuals, keyed by `"expenseId|yyyy-MM"`.
+  final Map<String, int> variableActuals;
+
   static String monthKey(String id, Month month) => '$id|${month.toKey()}';
+
+  /// The recorded actual for a variable recurring expense in [month], or null
+  /// when none has been recorded yet (the estimate still stands).
+  int? variableActualFor(String expenseId, Month month) =>
+      variableActuals[monthKey(expenseId, month)];
 
   int vaultOf(String userId) => vaultCents[userId] ?? 0;
 
