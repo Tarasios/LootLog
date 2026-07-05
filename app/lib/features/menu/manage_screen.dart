@@ -13,6 +13,7 @@ import '../budget_setup/budget_setup_screen.dart';
 import '../networth/networth_screen.dart';
 import '../quests/quests_screen.dart';
 import '../settings/settings_screen.dart';
+import '../sync/sync_hubs_screen.dart';
 import '../warchest/warchest_screen.dart';
 
 class ManageScreen extends ConsumerWidget {
@@ -66,6 +67,12 @@ class ManageScreen extends ConsumerWidget {
               ),
             ),
           const Divider(),
+          _Entry(
+            icon: Icons.sync,
+            title: 'Sync & hubs',
+            subtitle: 'Host a hub, pair devices, sync over the LAN',
+            onTap: () => SyncHubsScreen.open(context),
+          ),
           _Entry(
             icon: Icons.settings_outlined,
             title: 'Settings',

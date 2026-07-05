@@ -52,8 +52,10 @@ class _Builder {
   final Map<String, RecurringExpenseSet> recurringCfg = {};
   final Map<String, AccountBalanceRecorded> accounts = {};
 
-  // Purchases and their receipts.
+  // Purchases and their receipts. Receipt attach/detach events are buffered
+  // here and applied once all purchases are gathered (see [_applyReceipts]).
   final Map<String, _PurchaseAcc> purchases = {};
+  final List<Event> _receiptEvents = [];
 
   // Variable-expense actuals, keyed "expenseId|month".
   final Map<String, int> variableActuals = {};
@@ -98,10 +100,12 @@ class _Builder {
           p.voided = true;
         }
       case ReceiptAttached():
-        purchases[e.purchaseId]?.receipts[e.sha256] =
-            ReceiptRef(sha256: e.sha256, mimeType: e.mimeType, sizeBytes: e.sizeBytes);
       case ReceiptDetached():
-        purchases[e.purchaseId]?.receipts.remove(e.sha256);
+        // Buffer receipt events and bind them after every purchase has been
+        // gathered, so a receipt whose envelope happens to sort before its
+        // purchase (same `occurredAt`, id tie-break) still attaches. Keeps the
+        // reduction order-independent.
+        _receiptEvents.add(e);
       case BudgetSliceSet():
         final existing = slices[e.sliceId];
         final created = existing == null
@@ -222,7 +226,29 @@ class _Builder {
     return others.isEmpty ? null : others.first;
   }
 
+  /// Binds buffered receipt attach/detach events onto their purchases. Events
+  /// arrive here in canonical `(occurredAt, eventId)` order, so a later detach
+  /// correctly cancels a prior attach, and an attach that sorted ahead of its
+  /// purchase now finds it. Receipts referencing an unknown purchase are ignored.
+  void _applyReceipts() {
+    for (final e in _receiptEvents) {
+      switch (e) {
+        case ReceiptAttached():
+          purchases[e.purchaseId]?.receipts[e.sha256] = ReceiptRef(
+            sha256: e.sha256,
+            mimeType: e.mimeType,
+            sizeBytes: e.sizeBytes,
+          );
+        case ReceiptDetached():
+          purchases[e.purchaseId]?.receipts.remove(e.sha256);
+        default:
+          break;
+      }
+    }
+  }
+
   HouseholdState build() {
+    _applyReceipts();
     for (final u in userIds) {
       vault.putIfAbsent(u, () => 0);
     }

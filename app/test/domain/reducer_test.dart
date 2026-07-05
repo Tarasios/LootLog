@@ -755,6 +755,47 @@ void main() {
       expect(shuffledState.debugSnapshot(), sortedState.debugSnapshot());
     });
 
+    test('a receipt attaches regardless of its order vs. the purchase', () {
+      final add = buy(
+        id: 'p',
+        target: const SliceCharge('g'),
+        amount: 4250,
+        at: day(2026, 1, 4),
+      );
+      final attachAfter = ReceiptAttached(
+        eventId: 'zzzz-after-add', // sorts AFTER `add` by eventId
+        deviceId: 'd',
+        userId: u1,
+        occurredAt: day(2026, 1, 4), // same instant as the purchase
+        createdAt: day(2026, 1, 4),
+        purchaseId: 'p',
+        sha256: 'a' * 64,
+        mimeType: 'image/jpeg',
+        sizeBytes: 10,
+      );
+      final attachBefore = ReceiptAttached(
+        eventId: 'aaaa-before-add', // sorts BEFORE `add` by eventId
+        deviceId: 'd',
+        userId: u1,
+        occurredAt: day(2026, 1, 4),
+        createdAt: day(2026, 1, 4),
+        purchaseId: 'p',
+        sha256: 'b' * 64,
+        mimeType: 'image/jpeg',
+        sizeBytes: 10,
+      );
+      final slc = slice(id: 'g', ownership: const GroupSlice(), limit: 40000);
+
+      // Whether the attach sorts before or after the purchase, the receipt must
+      // land on the purchase — the reduction is order-independent.
+      final withAfter = reduce([slc, add, attachAfter], asOf: day(2026, 2, 20));
+      expect(withAfter.purchases['p']!.receipts.length, 1);
+
+      final withBefore = reduce([slc, attachBefore, add], asOf: day(2026, 2, 20));
+      expect(withBefore.purchases['p']!.receipts.length, 1,
+          reason: 'a receipt attached before its purchase must still bind');
+    });
+
     test('duplicate events are idempotent', () {
       final e = slice(id: 'g', ownership: const GroupSlice(), limit: 40000);
       final p = buy(id: 'p', target: const SliceCharge('g'), amount: 10000,
