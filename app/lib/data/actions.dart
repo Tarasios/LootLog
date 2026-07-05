@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/event.dart';
 import '../domain/ids.dart';
 import '../domain/state.dart';
+import '../domain/time.dart';
 import '../domain/value_types.dart';
 import 'blobs/blob_store.dart';
 import 'blobs/media_ingest.dart';
@@ -207,6 +208,84 @@ class HouseholdActions {
       mimeType: ingested.mimeType,
       sizeBytes: ingested.sizeBytes,
     );
+  }
+
+  /// Records a variable recurring expense's actual for [month] (spoils step 1).
+  Future<void> recordVariableActual({
+    required String expenseId,
+    required Month month,
+    required int actualCents,
+  }) async {
+    final now = DateTime.now().toUtc();
+    await db.eventsDao.appendEvents([
+      VariableExpenseRecorded(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        expenseId: expenseId,
+        month: month,
+        actualCents: actualCents,
+      ),
+    ]);
+  }
+
+  /// Records one slice's month-close allocation (spoils step 2). The
+  /// [allocations] must sum to that slice's leftover; the reducer validates
+  /// nothing beyond replaying them, so callers build them from the ritual.
+  Future<void> allocateLeftover({
+    required String forUserId,
+    required Month month,
+    required String sliceId,
+    required List<Allocation> allocations,
+  }) async {
+    final now = DateTime.now().toUtc();
+    await db.eventsDao.appendEvents([
+      LeftoverAllocated(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        forUserId: forUserId,
+        month: month,
+        sliceId: sliceId,
+        allocations: allocations,
+      ),
+    ]);
+  }
+
+  /// Signs a pending war-chest writ. The reducer rejects self-approval, so this
+  /// is only meaningful when [meUserId] is not the proposer.
+  Future<void> approveWithdrawal(String proposalId) async {
+    final now = DateTime.now().toUtc();
+    await db.eventsDao.appendEvents([
+      PoolWithdrawalApproved(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        proposalId: proposalId,
+        byUserId: meUserId,
+      ),
+    ]);
+  }
+
+  /// Cancels (declines) a pending war-chest writ.
+  Future<void> cancelWithdrawal(String proposalId) async {
+    final now = DateTime.now().toUtc();
+    await db.eventsDao.appendEvents([
+      PoolWithdrawalCancelled(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        proposalId: proposalId,
+      ),
+    ]);
   }
 
   /// Removes a receipt reference from a purchase (the blob itself is retained
