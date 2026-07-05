@@ -11,6 +11,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../../domain/event.dart';
+import '../../domain/ids.dart';
 import '../setup/local_setup.dart';
 import 'tables.dart';
 
@@ -139,6 +140,146 @@ class SyncDao extends DatabaseAccessor<AppDatabase> with _$SyncDaoMixin {
   EventsDao get attachedTo => db.eventsDao;
 }
 
+/// A page of hosted events plus the `seq` cursor to resume from.
+class HostedPage {
+  const HostedPage({required this.events, required this.cursor});
+
+  final List<Event> events;
+  final int cursor;
+}
+
+/// Data-access object for a device **acting as a hub**: its stable identity,
+/// the tokens it has issued, and the monotonic per-hub sequence it assigns to
+/// every event it hosts.
+///
+/// Sequencing is arrival-ordered: [assignSeqs] gives a `seq` to every event in
+/// the log that lacks one, so both locally authored events and events pushed by
+/// paired devices become visible to `GET /events?after=`. Because `seq` is only
+/// ever handed to not-yet-sequenced events, an assigned `seq` is stable forever
+/// and cursors never miss or replay a row.
+@DriftAccessor(tables: [Events, HostedEventSeq, HubConfigRows, HubDeviceTokens])
+class HubHostDao extends DatabaseAccessor<AppDatabase> with _$HubHostDaoMixin {
+  HubHostDao(super.db);
+
+  /// This device's hub identity, creating it on first call. The [hubId] and
+  /// [pairingSecret] are only generated when absent; passing them lets a caller
+  /// (e.g. the e2e harness) pin deterministic values on a fresh database.
+  Future<HubConfigRow> ensureConfig({String? hubId, String? pairingSecret}) async {
+    final existing =
+        await (select(hubConfigRows)..where((t) => t.id.equals(0)))
+            .getSingleOrNull();
+    if (existing != null) {
+      return existing;
+    }
+    final row = HubConfigRow(
+      id: 0,
+      hubId: hubId ?? uuidv7(),
+      pairingSecret: pairingSecret ?? uuidv7(),
+    );
+    await into(hubConfigRows).insert(row);
+    return row;
+  }
+
+  /// Assigns a `seq` to every hosted event that lacks one and returns the new
+  /// high-water mark. Idempotent: events already sequenced are left untouched.
+  Future<int> assignSeqs() async {
+    final assigned = selectOnly(hostedEventSeq)
+      ..addColumns([hostedEventSeq.eventId]);
+    final query = select(events)
+      ..where((t) => t.eventId.isNotInQuery(assigned))
+      ..orderBy([(t) => OrderingTerm(expression: t.eventId)]);
+    final pending = await query.get();
+    if (pending.isNotEmpty) {
+      await batch((b) {
+        b.insertAll(
+          hostedEventSeq,
+          [
+            for (final r in pending)
+              HostedEventSeqCompanion.insert(eventId: r.eventId),
+          ],
+          mode: InsertMode.insertOrIgnore,
+        );
+      });
+    }
+    return maxSeq();
+  }
+
+  /// The highest `seq` this hub has assigned (0 if it hosts nothing yet).
+  Future<int> maxSeq() async {
+    final expr = hostedEventSeq.seq.max();
+    final q = selectOnly(hostedEventSeq)..addColumns([expr]);
+    final row = await q.getSingleOrNull();
+    return row?.read(expr) ?? 0;
+  }
+
+  /// Up to [limit] hosted events with `seq > after`, in `seq` order, paired with
+  /// the `seq` to resume from (the last row's seq, or [after] when the page is
+  /// empty). Pagination-safe: a caller advances its cursor to [HostedPage.cursor]
+  /// and repeats until a short page signals it has caught up.
+  Future<HostedPage> eventsAfter(int after, {int limit = 500}) async {
+    final rows = await (select(events).join([
+      innerJoin(
+        hostedEventSeq,
+        hostedEventSeq.eventId.equalsExp(events.eventId),
+      ),
+    ])
+          ..where(hostedEventSeq.seq.isBiggerThanValue(after))
+          ..orderBy([OrderingTerm(expression: hostedEventSeq.seq)])
+          ..limit(limit))
+        .get();
+    final events0 = [
+      for (final r in rows) db.eventsDao._eventFromRow(r.readTable(events)),
+    ];
+    final cursor =
+        rows.isEmpty ? after : rows.last.read(hostedEventSeq.seq)!;
+    return HostedPage(events: events0, cursor: cursor);
+  }
+
+  /// Records a device token issued at pairing. Idempotent on the token.
+  Future<void> issueToken(String token, String deviceName) async {
+    await into(hubDeviceTokens).insertOnConflictUpdate(
+      HubDeviceTokenRow(
+        token: token,
+        deviceName: deviceName,
+        pairedAt: DateTime.now().toUtc(),
+      ),
+    );
+  }
+
+  /// Whether [token] is a token this hub issued.
+  Future<bool> isValidToken(String token) async {
+    final row = await (select(hubDeviceTokens)
+          ..where((t) => t.token.equals(token)))
+        .getSingleOrNull();
+    return row != null;
+  }
+}
+
+/// Data-access object for the hubs this device is paired with **as a client**.
+@DriftAccessor(tables: [PairedHubs])
+class PairedHubDao extends DatabaseAccessor<AppDatabase>
+    with _$PairedHubDaoMixin {
+  PairedHubDao(super.db);
+
+  /// All hubs this device syncs with.
+  Future<List<PairedHubRow>> all() =>
+      (select(pairedHubs)..orderBy([(t) => OrderingTerm(expression: t.hubId)]))
+          .get();
+
+  /// Watches the paired hubs for the sync-status UI.
+  Stream<List<PairedHubRow>> watch() =>
+      (select(pairedHubs)..orderBy([(t) => OrderingTerm(expression: t.hubId)]))
+          .watch();
+
+  /// Adds or updates a pairing.
+  Future<void> upsert(PairedHubRow row) =>
+      into(pairedHubs).insertOnConflictUpdate(row);
+
+  /// Forgets a hub (unpairs it).
+  Future<void> remove(String hubId) =>
+      (delete(pairedHubs)..where((t) => t.hubId.equals(hubId))).go();
+}
+
 /// Data-access object for device-local setup (timezone, profiles, "me").
 @DriftAccessor(tables: [LocalSetupRows])
 class LocalSetupDao extends DatabaseAccessor<AppDatabase>
@@ -184,12 +325,38 @@ class LocalSetupDao extends DatabaseAccessor<AppDatabase>
 
 /// The DuoBudget local database.
 @DriftDatabase(
-  tables: [Events, HubCursors, HubPushLog, Snapshots, LocalSetupRows],
-  daos: [EventsDao, SyncDao, LocalSetupDao],
+  tables: [
+    Events,
+    HubCursors,
+    HubPushLog,
+    HostedEventSeq,
+    HubConfigRows,
+    HubDeviceTokens,
+    PairedHubs,
+    Snapshots,
+    LocalSetupRows,
+  ],
+  daos: [EventsDao, SyncDao, HubHostDao, PairedHubDao, LocalSetupDao],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) => m.createAll(),
+        onUpgrade: (m, from, to) async {
+          // v2 adds the hub-hosting and client-pairing tables. Nothing in the
+          // append-only event log changes, so the upgrade only creates the new
+          // bookkeeping tables.
+          if (from < 2) {
+            await m.createTable(hostedEventSeq);
+            await m.createTable(hubConfigRows);
+            await m.createTable(hubDeviceTokens);
+            await m.createTable(pairedHubs);
+          }
+        },
+      );
 }

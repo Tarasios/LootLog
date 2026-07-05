@@ -60,6 +60,58 @@ class HubPushLog extends Table {
   Set<Column<Object>> get primaryKey => {hubId, eventId};
 }
 
+/// The per-hub monotonic sequence, assigned by a device **acting as a hub**.
+/// Every event this hub hosts (locally authored or pushed by a paired device)
+/// gets exactly one `seq` here, in arrival order. `GET /events?after=<seq>`
+/// streams rows in `seq` order, so a client cursor never misses or re-sees an
+/// event even as new events with earlier `occurredAt` arrive later.
+@DataClassName('HostedEventRow')
+class HostedEventSeq extends Table {
+  IntColumn get seq => integer().autoIncrement()();
+  TextColumn get eventId => text().unique()();
+}
+
+/// Singleton (id = 0) identity for this device **when it hosts a hub**: the
+/// stable `hubId` clients key their cursor on, and the pairing secret a device
+/// must present to `POST /pair`. Generated on first hub start; stable across
+/// restarts so a killed-and-restarted hub keeps serving the same cursors.
+@DataClassName('HubConfigRow')
+class HubConfigRows extends Table {
+  IntColumn get id => integer().withDefault(const Constant(0))();
+  TextColumn get hubId => text()();
+  TextColumn get pairingSecret => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// A device token this hub has issued to a paired device via `POST /pair`.
+/// Presented as a bearer token on every subsequent request. Persisted so tokens
+/// survive a hub restart.
+@DataClassName('HubDeviceTokenRow')
+class HubDeviceTokens extends Table {
+  TextColumn get token => text()();
+  TextColumn get deviceName => text()();
+  DateTimeColumn get pairedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {token};
+}
+
+/// A hub this device is paired with **as a client**. Holds everything needed to
+/// reach the hub each sync cycle: its `hubId` (the cursor key), base URL, and
+/// the bearer token issued at pairing. A device may pair with many hubs.
+@DataClassName('PairedHubRow')
+class PairedHubs extends Table {
+  TextColumn get hubId => text()();
+  TextColumn get baseUrl => text()();
+  TextColumn get deviceToken => text()();
+  TextColumn get name => text().withDefault(const Constant(''))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {hubId};
+}
+
 /// Reserved for future reducer memoization: a serialized `HouseholdState` valid
 /// up to some event. Schema only — nothing reads or writes this yet.
 @DataClassName('SnapshotRow')
