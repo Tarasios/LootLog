@@ -1,0 +1,371 @@
+/// The shared budget-slice editor, used from both Settings and Budget setup.
+///
+/// Every field on a slice lives here: ownership (personal to either member, or a
+/// group slice), monthly limit, per-slice pool tithe %, default leftover policy,
+/// tax-deductible default, an optional emergency-fund contribution off the top,
+/// and an optional pet link. Saving appends a single [BudgetSliceSet]; the
+/// reducer treats it as last-writer-wins, so this same screen creates and edits.
+library;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../data/actions.dart';
+import '../../data/providers.dart';
+import '../../domain/money.dart';
+import '../../domain/state.dart';
+import '../../domain/value_types.dart';
+import '../../ui/money_input.dart';
+import '../../ui/theme.dart';
+import '../household_context.dart';
+
+class SliceEditorScreen extends ConsumerStatefulWidget {
+  const SliceEditorScreen({super.key, this.existing, this.defaultOwnership});
+
+  /// The slice being edited, or null to create a new one.
+  final SliceConfig? existing;
+
+  /// Pre-selected ownership when creating (e.g. from a member column in setup).
+  final SliceOwnership? defaultOwnership;
+
+  static Future<void> open(
+    BuildContext context, {
+    SliceConfig? existing,
+    SliceOwnership? defaultOwnership,
+  }) =>
+      Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => SliceEditorScreen(
+          existing: existing,
+          defaultOwnership: defaultOwnership,
+        ),
+      ));
+
+  @override
+  ConsumerState<SliceEditorScreen> createState() => _SliceEditorScreenState();
+}
+
+/// A three-way ownership choice for the editor's segmented control.
+enum _OwnerChoice { me, partner, group }
+
+class _SliceEditorScreenState extends ConsumerState<SliceEditorScreen> {
+  late final TextEditingController _name;
+  late final TextEditingController _limit;
+  late final TextEditingController _tithe;
+  late final TextEditingController _emergencyAmount;
+
+  _OwnerChoice _owner = _OwnerChoice.me;
+  LeftoverDestination _policy = const CarryInSlice();
+  String? _policyQuestId;
+  bool _taxDefault = false;
+  bool _emergencyOn = false;
+  String? _emergencyFundId;
+  String? _petId;
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.existing;
+    _name = TextEditingController(text: e?.name ?? '');
+    _limit = TextEditingController(
+        text: e == null ? '' : Money(e.limitCents).format());
+    _tithe = TextEditingController(text: (e?.poolTithePct ?? 0).toString());
+    _emergencyAmount = TextEditingController(
+      text: (e?.emergencyContributionCents ?? 0) > 0
+          ? Money(e!.emergencyContributionCents).format()
+          : '',
+    );
+    _taxDefault = e?.taxDeductibleByDefault ?? false;
+    _petId = e?.petId;
+    if (e != null && e.emergencyFundId != null &&
+        e.emergencyContributionCents > 0) {
+      _emergencyOn = true;
+      _emergencyFundId = e.emergencyFundId;
+    }
+    final policy = e?.defaultLeftoverPolicy ?? const CarryInSlice();
+    _policy = policy;
+    if (policy is QuestDestination) _policyQuestId = policy.questId;
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _limit.dispose();
+    _tithe.dispose();
+    _emergencyAmount.dispose();
+    super.dispose();
+  }
+
+  void _initOwner(String meId, String partnerId) {
+    final e = widget.existing;
+    final o = e?.ownership ?? widget.defaultOwnership;
+    if (o is GroupSlice) {
+      _owner = _OwnerChoice.group;
+    } else if (o is PersonalSlice) {
+      _owner = o.userId == partnerId ? _OwnerChoice.partner : _OwnerChoice.me;
+    }
+  }
+
+  bool _ownerInitialized = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final setup = ref.watch(localSetupProvider).value;
+    final state = ref.watch(householdStateProvider).value;
+    if (setup == null || state == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (!_ownerInitialized) {
+      _initOwner(setup.me.userId, setup.partner.userId);
+      _ownerInitialized = true;
+    }
+    final names = ref.watch(userNamesProvider);
+    final isGroup = _owner == _OwnerChoice.group;
+    final quests = state.quests.values
+        .where((q) => !q.abandoned)
+        .toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+    final funds = state.emergencyFunds.values.toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+    final pets = state.pets.values.toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.existing == null ? 'New slice' : 'Edit slice'),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        children: [
+          TextField(
+            controller: _name,
+            decoration: const InputDecoration(labelText: 'Name'),
+            textCapitalization: TextCapitalization.words,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Text('Owner', style: AppText.sectionLabel(context)),
+          const SizedBox(height: AppSpacing.sm),
+          SegmentedButton<_OwnerChoice>(
+            segments: [
+              ButtonSegment(
+                value: _OwnerChoice.me,
+                label: Text(names[setup.me.userId] ?? 'Me'),
+              ),
+              ButtonSegment(
+                value: _OwnerChoice.partner,
+                label: Text(names[setup.partner.userId] ?? 'Partner'),
+              ),
+              const ButtonSegment(
+                value: _OwnerChoice.group,
+                label: Text('Group'),
+              ),
+            ],
+            selected: {_owner},
+            onSelectionChanged: (s) => setState(() => _owner = s.first),
+          ),
+          if (isGroup)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.sm),
+              child: Text(
+                'Group slices are funded 50/50 off the top; leftover flows '
+                'automatically to the war chest.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          const SizedBox(height: AppSpacing.lg),
+          TextField(
+            controller: _limit,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Monthly limit',
+              prefixText: r'$',
+            ),
+          ),
+          if (!isGroup) ...[
+            const SizedBox(height: AppSpacing.lg),
+            TextField(
+              controller: _tithe,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Pool tithe %',
+                helperText: 'Taken from discretionary leftover into the war chest',
+                suffixText: '%',
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text('Default leftover policy', style: AppText.sectionLabel(context)),
+            const SizedBox(height: AppSpacing.sm),
+            _policySelector(quests),
+          ],
+          const SizedBox(height: AppSpacing.lg),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Tax-deductible by default'),
+            value: _taxDefault,
+            onChanged: (v) => setState(() => _taxDefault = v),
+          ),
+          const Divider(height: AppSpacing.xl),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Emergency fund contribution'),
+            subtitle: const Text('Fixed amount off the top each month'),
+            value: _emergencyOn,
+            onChanged: funds.isEmpty
+                ? null
+                : (v) => setState(() => _emergencyOn = v),
+          ),
+          if (funds.isEmpty)
+            Text(
+              'Create an emergency fund in Settings first.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          if (_emergencyOn && funds.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            DropdownButtonFormField<String>(
+              initialValue: _emergencyFundId ?? funds.first.fundId,
+              decoration: const InputDecoration(labelText: 'Fund'),
+              items: [
+                for (final f in funds)
+                  DropdownMenuItem(value: f.fundId, child: Text(f.name)),
+              ],
+              onChanged: (v) => setState(() => _emergencyFundId = v),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextField(
+              controller: _emergencyAmount,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Monthly contribution',
+                prefixText: r'$',
+              ),
+            ),
+          ],
+          const Divider(height: AppSpacing.xl),
+          DropdownButtonFormField<String?>(
+            initialValue: _petId,
+            decoration: const InputDecoration(labelText: 'Pet (optional)'),
+            items: [
+              const DropdownMenuItem(value: null, child: Text('None')),
+              for (final p in pets)
+                DropdownMenuItem(value: p.petId, child: Text(p.name)),
+            ],
+            onChanged: (v) => setState(() => _petId = v),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          FilledButton(
+            onPressed: () => _save(setup.me.userId, setup.partner.userId),
+            child: const Text('Save slice'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _policySelector(List<QuestState> quests) {
+    // Encode the current selection as a stable token for the dropdown.
+    String token() {
+      final p = _policy;
+      return switch (p) {
+        CarryInSlice() => 'carry',
+        Discretionary() => 'discretionary',
+        QuestDestination() => 'quest',
+      };
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DropdownButtonFormField<String>(
+          initialValue: token(),
+          items: const [
+            DropdownMenuItem(value: 'carry', child: Text('Carry in slice')),
+            DropdownMenuItem(
+                value: 'discretionary', child: Text('Convert to discretionary')),
+            DropdownMenuItem(value: 'quest', child: Text('Attack a quest')),
+          ],
+          onChanged: (v) => setState(() {
+            switch (v) {
+              case 'carry':
+                _policy = const CarryInSlice();
+              case 'discretionary':
+                _policy = const Discretionary();
+              case 'quest':
+                _policyQuestId ??= quests.isEmpty ? null : quests.first.questId;
+                _policy = _policyQuestId == null
+                    ? const CarryInSlice()
+                    : QuestDestination(_policyQuestId!);
+            }
+          }),
+        ),
+        if (token() == 'quest' && quests.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.md),
+            child: DropdownButtonFormField<String>(
+              initialValue: _policyQuestId ?? quests.first.questId,
+              decoration: const InputDecoration(labelText: 'Quest'),
+              items: [
+                for (final q in quests)
+                  DropdownMenuItem(value: q.questId, child: Text(q.name)),
+              ],
+              onChanged: (v) => setState(() {
+                _policyQuestId = v;
+                if (v != null) _policy = QuestDestination(v);
+              }),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _save(String meId, String partnerId) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final actions = ref.read(householdActionsProvider);
+    if (actions == null) return;
+
+    final name = _name.text.trim();
+    if (name.isEmpty) {
+      messenger.showSnackBar(const SnackBar(content: Text('Name is required')));
+      return;
+    }
+    final limit = tryParseMoneyCents(_limit.text);
+    if (limit == null) {
+      messenger
+          .showSnackBar(const SnackBar(content: Text('Enter a valid limit')));
+      return;
+    }
+    final isGroup = _owner == _OwnerChoice.group;
+    final ownership = switch (_owner) {
+      _OwnerChoice.me => PersonalSlice(meId),
+      _OwnerChoice.partner => PersonalSlice(partnerId),
+      _OwnerChoice.group => const GroupSlice(),
+    };
+    final tithe = isGroup ? 0 : (tryParsePercent(_tithe.text) ?? 0);
+    final policy = isGroup ? const Discretionary() : _policy;
+
+    EmergencyContribution? emergency;
+    if (_emergencyOn && _emergencyFundId != null) {
+      final amount = tryParseMoneyCents(_emergencyAmount.text);
+      if (amount == null || amount <= 0) {
+        messenger.showSnackBar(const SnackBar(
+            content: Text('Enter a valid emergency contribution')));
+        return;
+      }
+      emergency =
+          EmergencyContribution(fundId: _emergencyFundId!, amountCents: amount);
+    }
+
+    await actions.setSlice(
+      sliceId: widget.existing?.sliceId,
+      name: name,
+      ownership: ownership,
+      limitCents: limit,
+      poolTithePct: tithe,
+      defaultLeftoverPolicy: policy,
+      taxDeductibleByDefault: _taxDefault,
+      emergencyContribution: emergency,
+      petId: _petId,
+    );
+    navigator.pop();
+  }
+}

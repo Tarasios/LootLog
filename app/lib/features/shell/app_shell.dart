@@ -16,6 +16,7 @@ import '../activity/activity_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../entry/expense_entry_screen.dart';
 import '../ledger/ledger_screen.dart';
+import '../menu/manage_screen.dart';
 import '../ocr/ocr_confirm_screen.dart';
 import '../spoils/spoils_screen.dart';
 
@@ -79,8 +80,13 @@ class _AppShellState extends ConsumerState<AppShell> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_title),
-        actions: const [
-          SpoilsEntryButton(),
+        actions: [
+          const SpoilsEntryButton(),
+          IconButton(
+            tooltip: 'Manage',
+            icon: const Icon(Icons.menu),
+            onPressed: () => ManageScreen.open(context),
+          ),
         ],
       ),
       body: _paneBody(_pane, showActivity: true),
@@ -119,8 +125,13 @@ class _AppShellState extends ConsumerState<AppShell> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_title),
-        actions: const [
-          SpoilsEntryButton(),
+        actions: [
+          const SpoilsEntryButton(),
+          IconButton(
+            tooltip: 'Manage',
+            icon: const Icon(Icons.menu),
+            onPressed: () => ManageScreen.open(context),
+          ),
         ],
       ),
       floatingActionButton: _fab(context),
