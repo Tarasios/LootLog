@@ -22,13 +22,16 @@ Convergence relies on two properties rather than conflict resolution:
 - **Blobs are content-addressed** (`blobs/<sha256>`), so duplicate uploads are
   harmless.
 
-Hub endpoints: `POST /pair` -> `deviceToken`; `POST /events` (batch, idempotent,
-assigns a per-hub monotonic `hub_seq`); `GET /events?after=<seq>`;
-`PUT /blobs/<sha256>` (idempotent, hash-verified, 20MB cap); `GET
-/blobs/<sha256>`. Pairing is via QR `{url, pairingSecret}`; tokens live in
-`flutter_secure_storage`. A file-based fallback (`.dbevents` /
-`.dbevents.zip`) supports offline transfer and is likewise idempotent on
-import.
+Hub endpoints: `POST /pair` -> `{hubId, deviceToken}`; `POST /events` (batch,
+idempotent, assigns a per-hub monotonic `hub_seq`); `GET /events?after=<seq>`
+(returns a page plus the `seq` cursor to resume from); `PUT /blobs/<sha256>`
+(idempotent, hash-verified, 20 MB cap); `GET`/`HEAD /blobs/<sha256>`. Pairing
+carries `{url, pairingSecret}` (a QR payload, also enterable by hand on desktop);
+the issued bearer token and per-hub cursor are persisted in the local store so a
+device resumes cleanly after a restart. A file-based fallback (`.dbevents` /
+`.dbevents.zip`) supports offline transfer and is likewise idempotent on import,
+verifying every blob against its hash before anything is applied. See
+`docs/protocol.md` for the full wire format.
 
 ## Consequences
 
@@ -40,3 +43,9 @@ import.
   via a status indicator, never blocking dialogs.
 - Multi-hub duplication costs some redundant transfer, which we accept as the
   price of having no server.
+- Bearer tokens are kept in the local database alongside the per-hub cursor
+  rather than `flutter_secure_storage`. This keeps the whole sync path a pure
+  Dart library that the `tool/e2e.sh` harness can exercise headlessly over real
+  sockets. A token only grants LAN sync access to household data both devices
+  already share; moving it behind secure storage remains an option if the threat
+  model tightens.

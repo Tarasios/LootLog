@@ -11,12 +11,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/actions.dart';
 import '../../data/providers.dart';
+import '../../data/sync/sync_service.dart';
 import '../../game/adventure_screen.dart';
 import '../../game/skin_prefs.dart';
 import '../activity/activity_model.dart';
+import '../budget_setup/budget_setup_screen.dart';
 import '../household_context.dart';
 import '../spoils/spoils_screen.dart';
-import '../sync/sync_status.dart';
 import 'dashboard_model.dart';
 import 'dashboard_view.dart';
 
@@ -36,7 +37,7 @@ class DashboardScreen extends ConsumerWidget {
     final events = ref.watch(eventLogProvider).value ?? const [];
     final meUserId = ref.watch(meUserIdProvider);
     final names = ref.watch(userNamesProvider);
-    final syncStatus = ref.watch(syncStatusProvider);
+    final syncStatus = ref.watch(liveSyncStatusProvider);
 
     if (state == null || meUserId == null) {
       return const Center(child: CircularProgressIndicator());
@@ -71,6 +72,9 @@ class DashboardScreen extends ConsumerWidget {
         onCancelWithdrawal: (id) {
           if (actions != null) unawaited(actions.cancelWithdrawal(id));
         },
+        onGetStarted: () => unawaited(Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const BudgetSetupScreen()),
+        )),
       ),
     );
   }

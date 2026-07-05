@@ -91,6 +91,9 @@ flutter:
   # grey placeholder at runtime, so shipping real art needs no code change.
   assets:
     - assets/game/
+    # App icon + splash master art (placeholders). Regenerate the platform
+    # launcher icons and the splash logo with tool/generate_branding.dart.
+    - assets/branding/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

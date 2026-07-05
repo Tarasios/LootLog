@@ -202,21 +202,24 @@ pull cursor per hub. Event idempotency by `eventId` makes multi-hub convergence
 safe with **no conflict logic**; blobs are content-addressed, so duplication is
 harmless. Every device syncs with every reachable paired hub each cycle.
 
-**Hub endpoints**
-- `POST /pair {pairingSecret, deviceName} -> deviceToken`
-- `POST /events` — batch, idempotent, assigns a per-hub monotonic `hub_seq`
-- `GET /events?after=<seq>`
+**Hub endpoints** (full wire format in [`protocol.md`](protocol.md))
+- `POST /pair {pairingSecret, deviceName} -> {hubId, deviceToken}`
+- `POST /events` — batch, idempotent, assigns a per-hub monotonic `seq`
+- `GET /events?after=<seq>` — a page plus the `seq` cursor to resume from
 - `PUT /blobs/<sha256>` — idempotent, hash-verified, 20MB cap
-- `GET /blobs/<sha256>`
+- `GET`/`HEAD /blobs/<sha256>`
 
-Pairing is via a QR code `{url, pairingSecret}`; device tokens live in
-`flutter_secure_storage`.
+Pairing carries `{url, pairingSecret}` (a QR payload, also enterable by hand on
+desktop). The issued bearer token and per-hub cursor are persisted in the local
+store so a device resumes after a restart.
 
 **Fallback: export/import.** `.dbevents` (JSON lines) or `.dbevents.zip`
-(`events.jsonl` + `blobs/`). Import is idempotent.
+(`events.jsonl` + `blobs/`). Import is idempotent and hash-verifies every blob
+before applying anything.
 
 Everything works **offline indefinitely**. Failures are **silent-but-visible**
-via a status indicator — never blocking dialogs.
+via a status indicator — never blocking dialogs. `tool/e2e.sh` exercises the whole
+sync path — two hubs plus a third client over real sockets — end to end.
 
 ## 11. Gamification (a pure presentation skin)
 

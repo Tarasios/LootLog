@@ -1,19 +1,12 @@
-/// The sync status indicator. Multi-hub sync is a later phase; until it lands
-/// this surfaces a truthful "local only" state. The indicator is a pure widget
-/// driven by a [SyncStatus], so it drops straight into the dashboard now and the
-/// sync client can feed it a live status later without touching the UI.
+/// The sync status indicator: a pure widget driven by a [SyncStatus]. The live
+/// state is produced by `SyncService` and exposed via `liveSyncStatusProvider`
+/// (`data/sync/sync_service.dart`); this file owns only the enum and chip so the
+/// UI/data split stays clean.
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../ui/theme.dart';
-
-/// The current sync status. Multi-hub sync is a later phase; until it lands the
-/// household runs local-only, which this reports truthfully. The sync client
-/// will override this provider with a live status.
-final syncStatusProvider =
-    Provider<SyncStatus>((ref) => SyncStatus.localOnly);
 
 /// The coarse state of local-network sync, as the status chip presents it.
 enum SyncStatus {
