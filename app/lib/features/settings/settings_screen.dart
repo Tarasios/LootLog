@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/actions.dart';
 import '../../data/providers.dart';
+import '../../game/skin_prefs.dart';
 import '../../ui/theme.dart';
 import '../library/receipt_library_screen.dart';
 import '../slices/slice_list_screen.dart';
@@ -52,6 +53,12 @@ class SettingsScreen extends ConsumerWidget {
               'Reserve caches', const EmergencyFundsScreen()),
           _nav(context, Icons.pets_outlined, 'Pets',
               'Party members and their sprites', const PetsScreen()),
+          const _SectionHeader('Appearance'),
+          _SkinTile(
+            skin: ref.watch(appSkinProvider),
+            onChanged: (s) =>
+                unawaited(ref.read(appSkinProvider.notifier).select(s)),
+          ),
           const _SectionHeader('Rules'),
           ListTile(
             leading: const Icon(Icons.hourglass_bottom),
@@ -156,6 +163,67 @@ class SettingsScreen extends ConsumerWidget {
     if (result != null) {
       await ref.read(householdActionsProvider)?.changeSetting(key, result);
     }
+  }
+}
+
+/// The Classic / Adventure skin chooser. Both render identical numbers; the
+/// choice only swaps the dashboard's presentation widgets.
+class _SkinTile extends StatelessWidget {
+  const _SkinTile({required this.skin, required this.onChanged});
+
+  final AppSkin skin;
+  final ValueChanged<AppSkin> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.sm,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.videogame_asset_outlined),
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Theme'),
+                    Text(
+                      'Classic ledger or the dungeon adventure skin',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          SegmentedButton<AppSkin>(
+            segments: const [
+              ButtonSegment(
+                value: AppSkin.classic,
+                label: Text('Classic'),
+                icon: Icon(Icons.dashboard_outlined),
+              ),
+              ButtonSegment(
+                value: AppSkin.adventure,
+                label: Text('Adventure'),
+                icon: Icon(Icons.castle_outlined),
+              ),
+            ],
+            selected: {skin},
+            onSelectionChanged: (s) => onChanged(s.first),
+          ),
+        ],
+      ),
+    );
   }
 }
 

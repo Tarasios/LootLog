@@ -50,11 +50,16 @@ class SpoilsSheetView extends StatefulWidget {
     required this.ritual,
     required this.onConfirm,
     this.onDismiss,
+    this.intro,
   });
 
   final SpoilsRitual ritual;
   final ValueChanged<SpoilsResult> onConfirm;
   final VoidCallback? onDismiss;
+
+  /// An optional scene rendered above the steps — the adventure skin uses it for
+  /// the "settling accounts with the quartermaster" opening. Null in Classic.
+  final Widget? intro;
 
   @override
   State<SpoilsSheetView> createState() => _SpoilsSheetViewState();
@@ -226,6 +231,10 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
               AppSpacing.md,
             ),
             children: [
+              if (widget.intro != null) ...[
+                widget.intro!,
+                const SizedBox(height: AppSpacing.lg),
+              ],
               if (_hasStep1) ...[
                 _stepLabel(context, 1, 'Record variable actuals'),
                 for (final t in r.variableTallies) _tallyTile(context, t),

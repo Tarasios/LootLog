@@ -10,6 +10,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/actions.dart';
 import '../../data/providers.dart';
+import '../../game/adventure_spoils.dart';
+import '../../game/skin_prefs.dart';
 import '../../ui/theme.dart';
 import '../household_context.dart';
 import 'spoils_model.dart';
@@ -31,6 +33,9 @@ Future<void> openSpoilsRitual(BuildContext context, WidgetRef ref) async {
   );
   if (ritual == null) return;
 
+  final adventure = ref.read(appSkinProvider) == AppSkin.adventure;
+  final intro = adventure ? AdventureSpoilsRecap(ritual: ritual) : null;
+
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -46,6 +51,7 @@ Future<void> openSpoilsRitual(BuildContext context, WidgetRef ref) async {
         ),
         child: SpoilsSheetView(
           ritual: ritual,
+          intro: intro,
           onDismiss: () => Navigator.of(context).maybePop(),
           onConfirm: (result) async {
             Navigator.of(context).pop();

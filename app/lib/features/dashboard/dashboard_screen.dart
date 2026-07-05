@@ -11,6 +11,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/actions.dart';
 import '../../data/providers.dart';
+import '../../game/adventure_screen.dart';
+import '../../game/skin_prefs.dart';
 import '../activity/activity_model.dart';
 import '../household_context.dart';
 import '../spoils/spoils_screen.dart';
@@ -25,6 +27,11 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // The Adventure skin renders the same providers through the game widgets.
+    if (ref.watch(appSkinProvider) == AppSkin.adventure) {
+      return const AdventureDashboardScreen();
+    }
+
     final state = ref.watch(householdStateProvider).value;
     final events = ref.watch(eventLogProvider).value ?? const [];
     final meUserId = ref.watch(meUserIdProvider);
