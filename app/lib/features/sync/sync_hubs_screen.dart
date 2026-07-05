@@ -1,0 +1,387 @@
+/// The "Sync & Hubs" screen: host a LAN hub, pair with hubs, and sync on demand.
+///
+/// Sync is peer-to-peer over the local network with no accounts or servers. A
+/// desktop hosts a hub (a small HTTP server); phones and the other desktop pair
+/// to it and converge. Everything here is non-blocking — failures surface as a
+/// status line and a snackbar, never a modal that stops the household cold.
+library;
+
+import 'dart:async';
+import 'dart:io';
+
+import 'package:file_selector/file_selector.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../data/db/database.dart';
+import '../../data/export/event_export.dart';
+import '../../data/sync/sync_service.dart';
+import '../../ui/theme.dart';
+import 'sync_status.dart';
+
+class SyncHubsScreen extends ConsumerStatefulWidget {
+  const SyncHubsScreen({super.key});
+
+  static Future<void> open(BuildContext context) => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const SyncHubsScreen()),
+      );
+
+  @override
+  ConsumerState<SyncHubsScreen> createState() => _SyncHubsScreenState();
+}
+
+class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
+  HostedHubInfo? _hosted;
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final service = ref.watch(syncServiceProvider);
+    final status = ref.watch(liveSyncStatusProvider);
+    final pairedAsync = ref.watch(pairedHubsProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Sync & hubs'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.md),
+            child: Center(child: SyncStatusIndicator(status: status)),
+          ),
+        ],
+      ),
+      body: service == null
+          ? const _NotReady()
+          : ListView(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              children: [
+                _hostCard(service),
+                const SizedBox(height: AppSpacing.lg),
+                _pairedCard(pairedAsync),
+                const SizedBox(height: AppSpacing.lg),
+                _pairCard(service),
+                const SizedBox(height: AppSpacing.lg),
+                _backupCard(service),
+              ],
+            ),
+      floatingActionButton: service == null
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: _busy ? null : () => _syncNow(service),
+              icon: const Icon(Icons.sync),
+              label: const Text('Sync now'),
+            ),
+    );
+  }
+
+  Widget _hostCard(SyncService service) {
+    final hosted = _hosted;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Host a hub', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: AppSpacing.xs),
+            const Text(
+              'Run this device as a hub so your phones (and the other desktop) '
+              'can pair and sync over the local network.',
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            if (hosted == null)
+              FilledButton.icon(
+                onPressed: _busy ? null : () => _startHub(service),
+                icon: const Icon(Icons.wifi_tethering),
+                label: const Text('Start hub'),
+              )
+            else ...[
+              _copyRow('Pairing secret', hosted.pairingSecret),
+              for (final url in hosted.lanUrls) _copyRow('Address', url),
+              if (hosted.lanUrls.isEmpty)
+                _copyRow('Port', hosted.port.toString()),
+              const SizedBox(height: AppSpacing.sm),
+              OutlinedButton.icon(
+                onPressed: _busy ? null : () => _stopHub(service),
+                icon: const Icon(Icons.stop_circle_outlined),
+                label: const Text('Stop hub'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _pairedCard(AsyncValue<List<PairedHubRow>> pairedAsync) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Paired hubs', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: AppSpacing.xs),
+            pairedAsync.when(
+              loading: () => const LinearProgressIndicator(),
+              error: (e, _) => Text('Could not load hubs: $e'),
+              data: (hubs) => hubs.isEmpty
+                  ? const _EmptyHubs()
+                  : Column(
+                      children: [
+                        for (final h in hubs)
+                          ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.hub_outlined),
+                            title: Text(h.name.isEmpty ? h.hubId : h.name),
+                            subtitle: Text(h.baseUrl),
+                          ),
+                      ],
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _pairCard(SyncService service) {
+    final urlCtrl = TextEditingController();
+    final secretCtrl = TextEditingController();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Pair with a hub',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: AppSpacing.xs),
+            const Text(
+              'Enter the address and pairing secret shown on the hosting device.',
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextField(
+              controller: urlCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Address',
+                hintText: 'http://192.168.1.20:8787',
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextField(
+              controller: secretCtrl,
+              decoration: const InputDecoration(labelText: 'Pairing secret'),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            FilledButton.icon(
+              onPressed: _busy
+                  ? null
+                  : () => _pair(service, urlCtrl.text.trim(),
+                      secretCtrl.text.trim()),
+              icon: const Icon(Icons.link),
+              label: const Text('Pair'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _backupCard(SyncService service) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Backup & restore',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: AppSpacing.xs),
+            const Text(
+              'When two devices can’t reach a hub, export a .dbevents.zip and '
+              'import it on the other. Import is safe to repeat — events and '
+              'receipts are matched by id and content hash.',
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.sm,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _busy ? null : () => _export(service),
+                  icon: const Icon(Icons.upload_file),
+                  label: const Text('Export'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _busy ? null : () => _import(service),
+                  icon: const Icon(Icons.download),
+                  label: const Text('Import'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _copyRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(label,
+                style: Theme.of(context).textTheme.labelMedium),
+          ),
+          Expanded(child: SelectableText(value)),
+          IconButton(
+            icon: const Icon(Icons.copy, size: 18),
+            tooltip: 'Copy',
+            onPressed: () {
+              unawaited(Clipboard.setData(ClipboardData(text: value)));
+              _snack('Copied');
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _startHub(SyncService service) async {
+    setState(() => _busy = true);
+    try {
+      final info = await service.startHub();
+      setState(() => _hosted = info);
+    } on Object catch (e) {
+      _snack('Could not start hub: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _stopHub(SyncService service) async {
+    setState(() => _busy = true);
+    await service.stopHub();
+    if (mounted) {
+      setState(() {
+        _hosted = null;
+        _busy = false;
+      });
+    }
+  }
+
+  Future<void> _pair(SyncService service, String url, String secret) async {
+    if (url.isEmpty || secret.isEmpty) {
+      _snack('Enter both an address and a pairing secret');
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await service.pair(url, secret);
+      _snack('Paired and synced');
+    } on Object catch (e) {
+      _snack('Pairing failed: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _export(SyncService service) async {
+    setState(() => _busy = true);
+    try {
+      final bytes = await service.exportArchive();
+      final location = await getSaveLocation(
+        suggestedName: 'duobudget-backup.dbevents.zip',
+      );
+      if (location == null) return;
+      final data = XFile.fromData(
+        Uint8List.fromList(bytes),
+        mimeType: 'application/zip',
+        name: 'duobudget-backup.dbevents.zip',
+      );
+      await data.saveTo(location.path);
+      _snack('Exported backup');
+    } on Object catch (e) {
+      _snack('Export failed: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _import(SyncService service) async {
+    const group = XTypeGroup(
+      label: 'DuoBudget backup',
+      extensions: ['zip', 'dbevents'],
+    );
+    final file = await openFile(acceptedTypeGroups: [group]);
+    if (file == null) return;
+    setState(() => _busy = true);
+    try {
+      final bytes = await file.readAsBytes();
+      final count = file.name.endsWith('.dbevents')
+          ? await service.importJsonl(String.fromCharCodes(bytes))
+          : await service.importArchive(bytes);
+      _snack('Imported $count events');
+    } on BlobIntegrityException {
+      // A receipt's bytes didn't match its hash — a corrupt or tampered file.
+      _snack('Import blocked: a receipt in this file is corrupt or tampered.');
+    } on ImportException {
+      _snack("Import failed: this file isn't a valid DuoBudget backup.");
+    } on FileSystemException {
+      _snack('Import failed: could not read that file.');
+    } on Object catch (e) {
+      _snack('Import failed: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _syncNow(SyncService service) async {
+    setState(() => _busy = true);
+    try {
+      final result = await service.syncNow();
+      _snack(result.allOk
+          ? 'Synced (${result.pulled} in, ${result.pushed} out)'
+          : 'Some hubs were unreachable');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _EmptyHubs extends StatelessWidget {
+  const _EmptyHubs();
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        child: Text(
+          'No hubs paired yet. This device works fully offline — pair a hub to '
+          'share with your partner.',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+        ),
+      );
+}
+
+class _NotReady extends StatelessWidget {
+  const _NotReady();
+  @override
+  Widget build(BuildContext context) => const Center(
+        child: Padding(
+          padding: EdgeInsets.all(AppSpacing.lg),
+          child: Text('Finish first-run setup to enable sync.'),
+        ),
+      );
+}

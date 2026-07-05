@@ -5,6 +5,7 @@
 library;
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
@@ -28,6 +29,16 @@ class _ReceiptLibraryScreenState extends ConsumerState<ReceiptLibraryScreen> {
   bool _loading = true;
   bool _busy = false;
   String? _lastResult;
+
+  /// Whether the chosen root can be written to. It can be recreated if only the
+  /// folder itself is gone, but not if its containing location (an unplugged
+  /// drive, a deleted parent) has vanished.
+  bool get _rootAvailable {
+    final root = _root;
+    if (root == null) return true;
+    final dir = Directory(root);
+    return dir.existsSync() || dir.parent.existsSync();
+  }
 
   @override
   void initState() {
@@ -75,6 +86,10 @@ class _ReceiptLibraryScreenState extends ConsumerState<ReceiptLibraryScreen> {
                   _root ?? 'Not set',
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
+                if (_root != null && !_rootAvailable) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  _MissingRootBanner(),
+                ],
                 const SizedBox(height: AppSpacing.md),
                 Wrap(
                   spacing: AppSpacing.sm,
@@ -96,7 +111,8 @@ class _ReceiptLibraryScreenState extends ConsumerState<ReceiptLibraryScreen> {
                     style: Theme.of(context).textTheme.bodySmall),
                 const SizedBox(height: AppSpacing.sm),
                 FilledButton.icon(
-                  onPressed: _root == null || _busy ? null : _projectNow,
+                  onPressed:
+                      _root == null || _busy || !_rootAvailable ? null : _projectNow,
                   icon: _busy
                       ? const SizedBox(
                           width: 18,
@@ -134,6 +150,12 @@ class _ReceiptLibraryScreenState extends ConsumerState<ReceiptLibraryScreen> {
     final state = ref.read(householdStateProvider).value;
     final blobs = ref.read(blobStoreProvider);
     if (root == null || state == null) return;
+    if (!_rootAvailable) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('The receipt-library folder is no longer available.'),
+      ));
+      return;
+    }
     setState(() => _busy = true);
     try {
       final written = await projectReceiptLibrary(root, state, blobs);
@@ -143,5 +165,39 @@ class _ReceiptLibraryScreenState extends ConsumerState<ReceiptLibraryScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+}
+
+/// A warning shown when the chosen library folder's location has disappeared
+/// (e.g. an external drive was unplugged). The projection is disabled until the
+/// user reconnects it or picks a new folder — never a silent failure.
+class _MissingRootBanner extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer,
+        borderRadius: AppRadii.card,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.folder_off_outlined, color: scheme.onErrorContainer),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              "This folder isn't available right now. Reconnect the drive or "
+              'choose a new folder to rebuild the library.',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: scheme.onErrorContainer),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

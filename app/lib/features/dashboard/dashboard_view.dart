@@ -22,11 +22,15 @@ class DashboardCallbacks {
     this.onOpenSpoils,
     this.onApproveWithdrawal,
     this.onCancelWithdrawal,
+    this.onGetStarted,
   });
 
   final VoidCallback? onOpenSpoils;
   final void Function(String proposalId)? onApproveWithdrawal;
   final void Function(String proposalId)? onCancelWithdrawal;
+
+  /// Opens budget setup from the new-household empty state.
+  final VoidCallback? onGetStarted;
 }
 
 class DashboardView extends StatelessWidget {
@@ -59,6 +63,10 @@ class DashboardView extends StatelessWidget {
       ),
       children: [
         _header(context),
+        if (_isNewHousehold) ...[
+          const SizedBox(height: AppSpacing.md),
+          _GetStartedCard(onGetStarted: callbacks.onGetStarted),
+        ],
         if (model.spoils != null) ...[
           const SizedBox(height: AppSpacing.md),
           _SpoilsBanner(
@@ -101,6 +109,9 @@ class DashboardView extends StatelessWidget {
     );
   }
 
+  /// A household with no slices and no quests has never been set up.
+  bool get _isNewHousehold => model.slices.isEmpty && model.quests.isEmpty;
+
   Widget _header(BuildContext context) {
     return Row(
       children: [
@@ -114,6 +125,56 @@ class DashboardView extends StatelessWidget {
         ),
         SyncStatusIndicator(status: syncStatus),
       ],
+    );
+  }
+}
+
+/// The new-household empty state: a warm, single-call-to-action card shown when
+/// no budgets or quests exist yet. Everything else on the dashboard renders its
+/// own "nothing yet" text, but this is the one place we actively guide setup.
+class _GetStartedCard extends StatelessWidget {
+  const _GetStartedCard({this.onGetStarted});
+
+  final VoidCallback? onGetStarted;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return _Card(
+      color: scheme.primaryContainer,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.rocket_launch_outlined, color: scheme.onPrimaryContainer),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                'Welcome to your household',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: scheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Start by carving your monthly budget into slices — one each for the '
+            'two of you, plus shared ones like groceries. Everything else '
+            '(quests, the war chest, receipts) builds from there.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: scheme.onPrimaryContainer,
+                ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          FilledButton.icon(
+            onPressed: onGetStarted,
+            icon: const Icon(Icons.tune),
+            label: const Text('Set up budgets'),
+          ),
+        ],
+      ),
     );
   }
 }

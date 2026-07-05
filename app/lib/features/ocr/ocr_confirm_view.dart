@@ -190,6 +190,14 @@ class _OcrConfirmViewState extends State<OcrConfirmView> {
 
   Widget _scannedBanner(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    // The scan detected nothing usable (unsupported platform, or a receipt we
+    // couldn't read). Say so plainly and point at the keypad — never a dead end.
+    final noResult = widget.scan.bestTotalCents == null &&
+        widget.scan.merchantGuess == null &&
+        widget.scan.candidateDate == null;
+    final subtitle = noResult
+        ? "Couldn't read this receipt — enter the amount below"
+        : 'Scanned — check the amount before saving';
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -202,7 +210,12 @@ class _OcrConfirmViewState extends State<OcrConfirmView> {
             width: 44,
             height: 44,
             child: widget.receiptThumbnail ??
-                Icon(Icons.receipt_long_outlined, color: scheme.primary),
+                Icon(
+                  noResult
+                      ? Icons.image_search_outlined
+                      : Icons.receipt_long_outlined,
+                  color: scheme.primary,
+                ),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -212,7 +225,7 @@ class _OcrConfirmViewState extends State<OcrConfirmView> {
                 Text('Receipt attached',
                     style: Theme.of(context).textTheme.titleSmall),
                 Text(
-                  'Scanned — check the amount before saving',
+                  subtitle,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
