@@ -710,6 +710,19 @@ class _Builder {
       deductibleByYear: deductibleByYear,
       recurringByUserMonth: recurringByUserMonth,
       incomeByUserMonth: income,
+      recurringExpenses: {
+        for (final r in recurringCfg.values)
+          r.expenseId: RecurringExpenseState(
+            expenseId: r.expenseId,
+            name: r.name,
+            ownership: r.ownership,
+            kind: r.kind,
+            amountCents: r.amountCents,
+            startMonth: r.startMonth,
+            endMonth: r.endMonth,
+          ),
+      },
+      variableActuals: Map<String, int>.from(variableActuals),
     );
   }
 

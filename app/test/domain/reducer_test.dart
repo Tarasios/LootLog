@@ -520,6 +520,67 @@ void main() {
       expect(s.recurringChargeFor(u1, const Month(2026, 3)), 0);
       expect(s.recurringChargeFor(u1, const Month(2026, 4)), 0);
     });
+
+    test('read-model exposes recurring configs and variable actuals', () {
+      final s = reduce([
+        RecurringExpenseSet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: u1,
+          occurredAt: day(2026, 1, 1),
+          createdAt: day(2026, 1, 1),
+          expenseId: 'rent',
+          name: 'Rent',
+          ownership: const SharedParty(),
+          kind: RecurringKind.fixed,
+          amountCents: 120000,
+          startMonth: const Month(2026, 1),
+        ),
+        RecurringExpenseSet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: u1,
+          occurredAt: day(2026, 1, 1),
+          createdAt: day(2026, 1, 1),
+          expenseId: 'util',
+          name: 'Utilities',
+          ownership: const PersonalParty(u1),
+          kind: RecurringKind.variable,
+          amountCents: 8000,
+          startMonth: const Month(2026, 1),
+          endMonth: const Month(2026, 6),
+        ),
+        VariableExpenseRecorded(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: u1,
+          occurredAt: day(2026, 2, 3),
+          createdAt: day(2026, 2, 3),
+          expenseId: 'util',
+          month: const Month(2026, 1),
+          actualCents: 9500,
+        ),
+      ], asOf: day(2026, 2, 10));
+
+      expect(s.recurringExpenses.length, 2);
+      final util = s.recurringExpenses['util']!;
+      expect(util.name, 'Utilities');
+      expect(util.kind, RecurringKind.variable);
+      expect(util.amountCents, 8000);
+      expect(util.ownership, const PersonalParty(u1));
+      expect(util.activeIn(const Month(2025, 12)), isFalse);
+      expect(util.activeIn(const Month(2026, 1)), isTrue);
+      expect(util.activeIn(const Month(2026, 6)), isTrue);
+      expect(util.activeIn(const Month(2026, 7)), isFalse);
+
+      final rent = s.recurringExpenses['rent']!;
+      expect(rent.ownership, const SharedParty());
+      expect(rent.activeIn(const Month(2027, 1)), isTrue); // no end month
+
+      expect(s.variableActualFor('util', const Month(2026, 1)), 9500);
+      expect(s.variableActualFor('util', const Month(2026, 2)), isNull);
+      expect(s.variableActualFor('rent', const Month(2026, 1)), isNull);
+    });
   });
 
   group('emergency funds', () {
