@@ -21,6 +21,7 @@ import '../../data/ocr/text_recognizer.dart';
 import '../../data/providers.dart';
 import '../../domain/state.dart';
 import '../../domain/value_types.dart';
+import '../../game/skin_prefs.dart';
 import '../../ui/theme.dart';
 import '../entry/expense_entry_view.dart' show formatMoney;
 
@@ -177,10 +178,26 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
   Widget _taxTile(PurchaseState purchase, bool inheritedDefault) {
     final effective = purchase.taxDeductible ?? inheritedDefault;
     final overridden = purchase.taxDeductible != null;
+    // Tax stays unobtrusive: in the adventure skin a deductible purchase carries
+    // a small scroll-seal here on the detail sheet and nowhere else.
+    final adventure = ref.watch(appSkinProvider) == AppSkin.adventure;
+    final scheme = Theme.of(context).colorScheme;
     return SwitchListTile(
       contentPadding: EdgeInsets.zero,
       secondary: const Icon(Icons.receipt_long_outlined),
-      title: const Text('Tax deductible'),
+      title: Row(
+        children: [
+          const Text('Tax deductible'),
+          if (adventure && effective)
+            Padding(
+              padding: const EdgeInsets.only(left: AppSpacing.sm),
+              child: Tooltip(
+                message: 'Scroll seal — counts toward the tax package',
+                child: Icon(Icons.approval, size: 18, color: scheme.tertiary),
+              ),
+            ),
+        ],
+      ),
       subtitle: Text(
         overridden
             ? 'Overriding default (${inheritedDefault ? 'yes' : 'no'})'

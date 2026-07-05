@@ -85,10 +85,12 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  # Adventure-skin pixel art. Names and frame counts are documented in
+  # docs/art-assets.md; placeholders are regenerable via
+  # tool/generate_placeholder_sprites.dart. Missing files degrade to a labelled
+  # grey placeholder at runtime, so shipping real art needs no code change.
+  assets:
+    - assets/game/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
