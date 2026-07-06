@@ -655,6 +655,171 @@ void main() {
       // Chest was 30000 group leftover, minus 4000 ransack.
       expect(s.warChest.balanceCents, 26000);
     });
+
+    test('contribution does not accrue for months that have not started', () {
+      final events = [
+        EmergencyFundSet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: u1,
+          occurredAt: day(2026, 1, 1),
+          createdAt: day(2026, 1, 1),
+          fundId: 'f',
+          name: 'Vet',
+        ),
+        slice(
+          id: 's',
+          ownership: const PersonalSlice(u1),
+          limit: 10000,
+          emergency:
+              const EmergencyContribution(fundId: 'f', amountCents: 2000),
+        ),
+        // A recurring expense whose endMonth is far in the future drags the
+        // reducer's month sweep out to December, but that must not conjure
+        // emergency contributions for months that have not begun yet.
+        RecurringExpenseSet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: u1,
+          occurredAt: day(2026, 1, 1),
+          createdAt: day(2026, 1, 1),
+          expenseId: 'rent',
+          name: 'Rent',
+          ownership: const SharedParty(),
+          kind: RecurringKind.fixed,
+          amountCents: 120000,
+          startMonth: const Month(2026, 1),
+          endMonth: const Month(2026, 12),
+        ),
+      ];
+      // Read inside January: only January's start instant is <= asOf, so only
+      // one month's contribution should have accrued (not all twelve).
+      final s = reduce(events, asOf: day(2026, 1, 20));
+      expect(s.emergencyFunds['f']!.balanceCents, 2000);
+    });
+
+    test('fund balance is unaffected by a future recurring endMonth', () {
+      EmergencyFundSet fund() => EmergencyFundSet(
+            eventId: _seq.id(),
+            deviceId: 'd',
+            userId: u1,
+            occurredAt: day(2026, 1, 1),
+            createdAt: day(2026, 1, 1),
+            fundId: 'f',
+            name: 'Vet',
+          );
+      BudgetSliceSet contributingSlice() => slice(
+            id: 's',
+            ownership: const PersonalSlice(u1),
+            limit: 10000,
+            emergency:
+                const EmergencyContribution(fundId: 'f', amountCents: 2000),
+          );
+
+      // Identical inputs except one household also carries a recurring expense
+      // that runs months into the future.
+      final withoutRecurring = reduce(
+        [fund(), contributingSlice()],
+        asOf: day(2026, 1, 20),
+      );
+      final withFutureRecurring = reduce(
+        [
+          fund(),
+          contributingSlice(),
+          RecurringExpenseSet(
+            eventId: _seq.id(),
+            deviceId: 'd',
+            userId: u1,
+            occurredAt: day(2026, 1, 1),
+            createdAt: day(2026, 1, 1),
+            expenseId: 'rent',
+            name: 'Rent',
+            ownership: const SharedParty(),
+            kind: RecurringKind.fixed,
+            amountCents: 120000,
+            startMonth: const Month(2026, 1),
+            endMonth: const Month(2026, 12),
+          ),
+        ],
+        asOf: day(2026, 1, 20),
+      );
+
+      expect(
+        withFutureRecurring.emergencyFunds['f']!.balanceCents,
+        withoutRecurring.emergencyFunds['f']!.balanceCents,
+      );
+      expect(withoutRecurring.emergencyFunds['f']!.balanceCents, 2000);
+    });
+
+    test('current started month still accrues off the top at month start', () {
+      final events = [
+        EmergencyFundSet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: u1,
+          occurredAt: day(2026, 1, 1),
+          createdAt: day(2026, 1, 1),
+          fundId: 'f',
+          name: 'Vet',
+        ),
+        slice(
+          id: 's',
+          ownership: const PersonalSlice(u1),
+          limit: 10000,
+          emergency:
+              const EmergencyContribution(fundId: 'f', amountCents: 2000),
+        ),
+      ];
+      // Read on January 2nd, before any spending: the contribution is present
+      // from the month's start, not gated on month close.
+      final s = reduce(events, asOf: day(2026, 1, 2));
+      expect(s.emergencyFunds['f']!.balanceCents, 2000);
+    });
+
+    test(
+        'future-dated emergency purchase is still processed as a recorded fact',
+        () {
+      // Documents the chosen behavior: the future-gate applies ONLY to the
+      // automatic contribution schedule. A purchase is an explicitly recorded
+      // event, so a future-dated emergency purchase still processes at read
+      // time and surfaces a ransack now rather than being silently deferred.
+      final events = [
+        EmergencyFundSet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: u1,
+          occurredAt: day(2026, 1, 1),
+          createdAt: day(2026, 1, 1),
+          fundId: 'f',
+          name: 'Vet',
+        ),
+        TaxRefundRecorded(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: u1,
+          occurredAt: day(2026, 1, 2),
+          createdAt: day(2026, 1, 2),
+          amountCents: 30000,
+        ),
+        slice(
+          id: 's',
+          ownership: const PersonalSlice(u1),
+          limit: 5000,
+          emergency:
+              const EmergencyContribution(fundId: 'f', amountCents: 1000),
+        ),
+        // Purchase dated two months out, read in January.
+        buy(id: 'em', target: const EmergencyCharge('f'), amount: 5000,
+            by: u1, note: 'surgery', at: day(2026, 3, 15)),
+      ];
+      final s = reduce(events, asOf: day(2026, 1, 20));
+      // Only January's 1000 contribution has accrued (Feb/Mar are future-
+      // gated); the future purchase still fires, ransacking excess 4000.
+      expect(s.emergencyFunds['f']!.balanceCents, 0);
+      expect(s.ransacks, hasLength(1));
+      expect(s.ransacks.single.excessCents, 4000);
+      expect(s.warChest.balanceCents, 26000);
+    });
   });
 
   group('shared purchases restore both users on void', () {

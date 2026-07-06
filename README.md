@@ -27,6 +27,11 @@ _Placeholders — drop real captures in `docs/screenshots/`._
 
 ## Quick start — a new household
 
+> New here? The **[household setup guide](docs/setup-guide.md)** walks two people
+> through the whole thing step by step — install, pairing, budgets, daily use,
+> month close, backup, and troubleshooting — with a printable one-page fridge
+> sheet at the end.
+
 DuoBudget is peer-to-peer, so start on the machine that stays on: a desktop.
 
 1. **First run (desktop).** Launch the app and complete first-run setup: the
@@ -147,5 +152,6 @@ Domain logic, the game adapter, the OCR parser and the receipt-library naming ar
 developed test-first. Money is integer cents everywhere; domain rows are never
 updated or deleted — corrections are compensating events. See
 [`CLAUDE.md`](CLAUDE.md) for the full invariants and [`docs/`](docs/) for
-architecture, the [sync protocol](docs/protocol.md), the
-[release guide](docs/release.md), and the [ADRs](docs/adr/).
+architecture, the [household setup guide](docs/setup-guide.md), the
+[sync protocol](docs/protocol.md), the [release guide](docs/release.md), and the
+[ADRs](docs/adr/).
