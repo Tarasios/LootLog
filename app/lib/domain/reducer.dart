@@ -412,10 +412,14 @@ class _Builder {
             );
           }
 
-          // Emergency-contribution schedule (accrues every active month,
-          // regardless of spending).
+          // Emergency-contribution schedule (accrues off the top every active
+          // month that has already started, regardless of spending). Months
+          // whose start instant is still in the future — reached only because
+          // the sweep extends to a recurring expense's future endMonth or a
+          // future-dated purchase — must not accrue yet.
           if (cfg.emergencyFundId != null &&
-              cfg.emergencyContributionCents > 0) {
+              cfg.emergencyContributionCents > 0 &&
+              !m.startInstantUtc().isAfter(now)) {
             fundSchedule.putIfAbsent(cfg.emergencyFundId!, () => []).add(
                   _FundContribution(
                     m.startInstantUtc(),
