@@ -201,7 +201,7 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
       subtitle: Text(
         overridden
             ? 'Overriding default (${inheritedDefault ? 'yes' : 'no'})'
-            : 'Inherits slice default (${inheritedDefault ? 'yes' : 'no'})',
+            : 'Inherits category default (${inheritedDefault ? 'yes' : 'no'})',
       ),
       value: effective,
       onChanged: _busy

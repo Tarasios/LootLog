@@ -14,6 +14,7 @@ import '../../game/adventure_spoils.dart';
 import '../../game/skin_prefs.dart';
 import '../../ui/theme.dart';
 import '../household_context.dart';
+import '../report/report_screen.dart';
 import 'spoils_model.dart';
 import 'spoils_sheet.dart';
 
@@ -54,8 +55,14 @@ Future<void> openSpoilsRitual(BuildContext context, WidgetRef ref) async {
           intro: intro,
           onDismiss: () => Navigator.of(context).maybePop(),
           onConfirm: (result) async {
-            Navigator.of(context).pop();
+            final navigator = Navigator.of(context);
+            navigator.pop();
             await _apply(actions, ritual, result);
+            // Close the floor with the month's report — the ritual summary.
+            if (navigator.mounted) {
+              await ReportScreen.open(navigator.context,
+                  initialMonth: ritual.month);
+            }
           },
         ),
       ),

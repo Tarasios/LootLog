@@ -73,7 +73,7 @@ class _ReceiptLibraryScreenState extends ConsumerState<ReceiptLibraryScreen> {
               children: [
                 Text(
                   'The receipt library mirrors your receipts into an ordinary '
-                  'folder, organized by year, slice, and date. It is a '
+                  'folder, organized by year, category, and date. It is a '
                   'regenerable projection: rebuilding always produces the same '
                   'files, and any edits you make inside the folder are '
                   'overwritten.',

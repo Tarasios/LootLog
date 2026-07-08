@@ -26,7 +26,64 @@ class Settings {
       );
 }
 
-/// The configuration of a budget slice, plus the month it first appeared.
+/// A **main category** — the coarse grouping every budget category belongs to.
+/// Its [colorArgb] is the single source of colour for the monthly spend report
+/// (a pie by main category) and is the key used for quest-tithe matching. The
+/// eight documented defaults are [defaultMainCategories]; households may rename,
+/// recolour, or add to them via `MainCategorySet` events (last-writer-wins).
+class MainCategory {
+  const MainCategory({
+    required this.id,
+    required this.name,
+    required this.colorArgb,
+    required this.sortOrder,
+  });
+
+  final String id;
+  final String name;
+
+  /// A 32-bit ARGB colour (e.g. `0xFF4E79A7`).
+  final int colorArgb;
+  final int sortOrder;
+
+  MainCategory copyWith({String? name, int? colorArgb, int? sortOrder}) =>
+      MainCategory(
+        id: id,
+        name: name ?? this.name,
+        colorArgb: colorArgb ?? this.colorArgb,
+        sortOrder: sortOrder ?? this.sortOrder,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is MainCategory &&
+      other.id == id &&
+      other.name == name &&
+      other.colorArgb == colorArgb &&
+      other.sortOrder == sortOrder;
+
+  @override
+  int get hashCode => Object.hash(id, name, colorArgb, sortOrder);
+}
+
+/// The eight documented default main categories, in display order. Their colours
+/// (a colourblind-friendly qualitative palette) drive the spend report. The
+/// reducer always seeds these, so every household has them even with no
+/// `MainCategorySet` events on the log.
+const List<MainCategory> defaultMainCategories = [
+  MainCategory(id: 'housing', name: 'Housing', colorArgb: 0xFF4E79A7, sortOrder: 0),
+  MainCategory(id: 'food', name: 'Food', colorArgb: 0xFFF28E2B, sortOrder: 1),
+  MainCategory(id: 'transport', name: 'Transport', colorArgb: 0xFFE15759, sortOrder: 2),
+  MainCategory(id: 'health', name: 'Health', colorArgb: 0xFF76B7B2, sortOrder: 3),
+  MainCategory(
+      id: 'entertainment', name: 'Entertainment', colorArgb: 0xFF59A14F, sortOrder: 4),
+  MainCategory(id: 'pets', name: 'Pets', colorArgb: 0xFFEDC948, sortOrder: 5),
+  MainCategory(id: 'savings', name: 'Savings', colorArgb: 0xFFB07AA1, sortOrder: 6),
+  MainCategory(id: 'misc', name: 'Misc', colorArgb: 0xFF9C755F, sortOrder: 7),
+];
+
+/// The configuration of a budget category (internal type name retained;
+/// `BudgetSliceSet` stays on the wire), plus the month it first appeared.
 class SliceConfig {
   const SliceConfig({
     required this.sliceId,
@@ -37,6 +94,7 @@ class SliceConfig {
     required this.defaultLeftoverPolicy,
     required this.taxDeductibleByDefault,
     required this.createdMonth,
+    this.mainCategoryId,
     this.emergencyFundId,
     this.emergencyContributionCents = 0,
     this.petId,
@@ -50,6 +108,11 @@ class SliceConfig {
   final LeftoverDestination defaultLeftoverPolicy;
   final bool taxDeductibleByDefault;
   final Month createdMonth;
+
+  /// The [MainCategory] this budget category rolls up to, or null when
+  /// unassigned (older categories, or ones created before a main category was
+  /// picked). Reports bucket unassigned spend under "Uncategorized".
+  final String? mainCategoryId;
   final String? emergencyFundId;
   final int emergencyContributionCents;
   final String? petId;
@@ -396,6 +459,7 @@ class HouseholdState {
     required this.settings,
     required this.userIds,
     required this.members,
+    required this.mainCategories,
     required this.slices,
     required this.sliceMonths,
     required this.quests,
@@ -421,6 +485,10 @@ class HouseholdState {
   /// Every declared household member, keyed by `memberId`. Adults also appear in
   /// [userIds]; dependents and pets do not (they carry no ledger).
   final Map<String, MemberState> members;
+
+  /// Main categories keyed by id, always including [defaultMainCategories]
+  /// (any `MainCategorySet` events override or extend them).
+  final Map<String, MainCategory> mainCategories;
   final Map<String, SliceConfig> slices;
 
   /// Keyed by `"sliceId|yyyy-MM"`.

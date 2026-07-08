@@ -420,7 +420,7 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
             spacing: AppSpacing.sm,
             children: [
               ChoiceChip(
-                label: const Text('Carry in slice'),
+                label: const Text('Carry in category'),
                 selected: dest == _Dest.carry,
                 onSelected: (_) =>
                     setState(() => _dest[s.sliceId] = _Dest.carry),

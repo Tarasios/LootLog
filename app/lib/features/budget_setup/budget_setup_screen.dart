@@ -1,7 +1,7 @@
-/// Budget setup: both members' personal slices side by side, group slices below,
-/// income per member, and a "copy from last month" that carries the previous
-/// month's income forward. Slices themselves persist across months, so setup
-/// edits them in place via the shared slice editor.
+/// Budget setup: both members' personal categories side by side, group
+/// categories below, income per member, and a "copy from last month" that
+/// carries the previous month's income forward. Categories themselves persist
+/// across months, so setup edits them in place via the shared category editor.
 library;
 
 import 'package:flutter/material.dart';
@@ -14,9 +14,9 @@ import '../../domain/time.dart';
 import '../../domain/value_types.dart';
 import '../../ui/format.dart';
 import '../../ui/theme.dart';
+import '../categories/category_editor_screen.dart';
 import '../household_context.dart';
 import '../shell/app_shell.dart' show kWideBreakpoint;
-import '../slices/slice_editor_screen.dart';
 import 'budget_setup_model.dart';
 
 class BudgetSetupScreen extends ConsumerStatefulWidget {
@@ -152,17 +152,17 @@ class _MemberColumn extends ConsumerWidget {
             if (column.slices.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                child: Text('No personal slices',
+                child: Text('No personal categories',
                     style: Theme.of(context).textTheme.bodySmall),
               ),
             const SizedBox(height: AppSpacing.sm),
             OutlinedButton.icon(
-              onPressed: () => SliceEditorScreen.open(
+              onPressed: () => CategoryEditorScreen.open(
                 context,
                 defaultOwnership: PersonalSlice(column.userId),
               ),
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add slice'),
+              label: const Text('Add category'),
             ),
           ],
         ),
@@ -185,24 +185,24 @@ class _GroupSection extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Group slices',
+            Text('Group categories',
                 style: Theme.of(context).textTheme.titleMedium),
             const Divider(),
             for (final s in slices) _SliceRow(sliceId: s.sliceId, slice: s),
             if (slices.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                child: Text('No group slices',
+                child: Text('No group categories',
                     style: Theme.of(context).textTheme.bodySmall),
               ),
             const SizedBox(height: AppSpacing.sm),
             OutlinedButton.icon(
-              onPressed: () => SliceEditorScreen.open(
+              onPressed: () => CategoryEditorScreen.open(
                 context,
                 defaultOwnership: const GroupSlice(),
               ),
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add group slice'),
+              label: const Text('Add group category'),
             ),
           ],
         ),
@@ -232,7 +232,7 @@ class _SliceRow extends ConsumerWidget {
       trailing: const Icon(Icons.edit_outlined, size: 18),
       onTap: cfg == null
           ? null
-          : () => SliceEditorScreen.open(context, existing: cfg),
+          : () => CategoryEditorScreen.open(context, existing: cfg),
     );
   }
 }

@@ -34,6 +34,7 @@ BudgetSliceSet slice({
   int tithePct = 0,
   LeftoverDestination policy = const Discretionary(),
   bool taxDefault = false,
+  String? mainCategoryId,
   EmergencyContribution? emergency,
   String? petId,
   DateTime? at,
@@ -47,6 +48,7 @@ BudgetSliceSet slice({
       sliceId: id,
       name: id,
       ownership: ownership,
+      mainCategoryId: mainCategoryId,
       limitCents: limit,
       poolTithePct: tithePct,
       defaultLeftoverPolicy: policy,
@@ -1303,6 +1305,63 @@ void main() {
       expect(y2026.single.merchant, 'Depot');
       final y2025 = s.deductibleByYear[2025] ?? [];
       expect(y2025.map((d) => d.purchaseId), contains('p3'));
+    });
+  });
+
+  group('main categories', () {
+    test('the eight documented defaults are always seeded', () {
+      final s = reduce(const []);
+      expect(
+        s.mainCategories.keys.toSet(),
+        {'housing', 'food', 'transport', 'health', 'entertainment', 'pets',
+          'savings', 'misc'},
+      );
+      expect(s.mainCategories['food']!.name, 'Food');
+      expect(s.mainCategories['misc']!.sortOrder, 7);
+    });
+
+    test('MainCategorySet overrides a default and adds new ones', () {
+      final s = reduce([
+        MainCategorySet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: u1,
+          occurredAt: day(2026, 1, 1),
+          createdAt: day(2026, 1, 1),
+          id: 'food',
+          name: 'Groceries & Dining',
+          colorArgb: 0xFF112233,
+          sortOrder: 1,
+        ),
+        MainCategorySet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: u1,
+          occurredAt: day(2026, 1, 1),
+          createdAt: day(2026, 1, 1),
+          id: 'travel',
+          name: 'Travel',
+          colorArgb: 0xFF445566,
+          sortOrder: 9,
+        ),
+      ]);
+      expect(s.mainCategories['food']!.name, 'Groceries & Dining');
+      expect(s.mainCategories['food']!.colorArgb, 0xFF112233);
+      expect(s.mainCategories['travel']!.name, 'Travel');
+      // Untouched defaults remain.
+      expect(s.mainCategories['housing']!.name, 'Housing');
+    });
+
+    test('a category carries its mainCategoryId onto the read-model', () {
+      final s = reduce([
+        slice(
+          id: 's',
+          ownership: const PersonalSlice(u1),
+          limit: 10000,
+          mainCategoryId: 'food',
+        ),
+      ], asOf: day(2026, 2, 1));
+      expect(s.slices['s']!.mainCategoryId, 'food');
     });
   });
 }

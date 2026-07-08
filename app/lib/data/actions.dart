@@ -359,7 +359,8 @@ class HouseholdActions {
     return id;
   }
 
-  /// Creates or amends a budget slice (last-writer-wins by [sliceId]).
+  /// Creates or amends a budget category (last-writer-wins by [sliceId]; the
+  /// wire event stays `BudgetSliceSet`).
   Future<String> setSlice({
     String? sliceId,
     required String name,
@@ -368,6 +369,7 @@ class HouseholdActions {
     required int poolTithePct,
     required LeftoverDestination defaultLeftoverPolicy,
     required bool taxDeductibleByDefault,
+    String? mainCategoryId,
     EmergencyContribution? emergencyContribution,
     String? petId,
   }) async {
@@ -382,12 +384,35 @@ class HouseholdActions {
       sliceId: id,
       name: name,
       ownership: ownership,
+      mainCategoryId: mainCategoryId,
       limitCents: limitCents,
       poolTithePct: poolTithePct,
       defaultLeftoverPolicy: defaultLeftoverPolicy,
       taxDeductibleByDefault: taxDeductibleByDefault,
       emergencyContribution: emergencyContribution,
       petId: petId,
+    ));
+    return id;
+  }
+
+  /// Creates or amends a main category (last-writer-wins by [id]).
+  Future<String> setMainCategory({
+    required String id,
+    required String name,
+    required int colorArgb,
+    required int sortOrder,
+  }) async {
+    final now = DateTime.now().toUtc();
+    await append(MainCategorySet(
+      eventId: uuidv7(),
+      deviceId: deviceId,
+      userId: meUserId,
+      occurredAt: now,
+      createdAt: now,
+      id: id,
+      name: name,
+      colorArgb: colorArgb,
+      sortOrder: sortOrder,
     ));
     return id;
   }
