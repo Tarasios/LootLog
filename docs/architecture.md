@@ -6,177 +6,342 @@ subsystems that govern DuoBudget. It is descriptive: when this document and
 "non-negotiable invariants" are load-bearing constraints that the whole design
 depends on.
 
-DuoBudget is a two-person, local-first shared budgeting app with an optional
-"dungeon adventure" presentation skin. It is Flutter only (Android + desktop
-Windows/macOS/Linux), with no external services, servers, accounts, or SaaS.
-Desktops act as sync hubs on the local network; OCR runs on-device.
+DuoBudget is a **pixel-art dungeon-crawler that happens to be a rigorous shared
+budgeting app.** The game is the product: the household is a party of
+adventurers delving a dungeon, budget categories are monsters, savings goals are
+quest bosses, and month close is a battle ritual. Underneath sits a local-first,
+event-sourced, integer-cents ledger that the game layer can read but **never
+alter.** It is Flutter only (Android + desktop Windows/macOS/Linux), with no
+external services, servers, accounts, or SaaS beyond one opt-in exception
+(Google Sheets, §14). Desktops act as sync hubs on the local network; OCR runs
+on-device. (The name "DuoBudget" is historical; households are any size.)
+
+## 0. Product priorities (in order)
+
+1. **Game first.** Adventure mode is the primary, default experience on every
+   platform. Classic mode is the plain fallback view, always available, always
+   showing identical numbers.
+2. **Habit formation.** The app succeeds if users come back daily to log
+   purchases and monthly for the ritual. Streaks, celebrations, and an
+   encouraging voice are core features. The app never shames: overspending makes
+   a monster *enraged* (drama), but the copy stays supportive.
+3. **Goals-orientation.** Savings quests and progress are front-and-center;
+   recording a purchase is never more than two taps/keys from launch.
+4. **The firewall.** No game mechanic ever changes a cent. Rewards are cosmetic
+   only (see §11).
 
 ## 1. Core invariants
 
 ### Money
 - Money is **integer cents everywhere**. Never `float`/`double` for money. A
   single `Money` value type carries amounts. "Gold" is only a display unit in
-  the adventure skin; the underlying ledger is always cents.
+  the adventure presentation; the underlying ledger is always cents.
 
 ### Event sourcing
 - All state changes are **immutable events** appended to a local `events`
   table. Domain rows are never `UPDATE`d or `DELETE`d. Corrections are made by
-  appending **compensating events**, not by mutating history.
+  appending **compensating events**, not by mutating history. Event sourcing IS
+  the audit log: a human-readable "budget change log" view derives from it, and
+  nothing is deletable.
 - All derived state is produced by `lib/domain/reducer.dart`: a **pure
-  function** `List<Event> -> HouseholdState`. The UI, sync, game skin, OCR, and
+  function** `List<Event> -> HouseholdState`. The UI, sync, game layer, OCR, and
   receipt library never compute balances themselves — they read from the
   reducer's output. This is the single source of truth for "what is true now".
-- Everything time-based is computed **in the reducer at read time**. There are
-  no scheduled jobs or background cron. "Automatic month-end behavior" means
-  "derived when the state is next read", nothing more.
+- Everything time-based (interest, accruals, grace periods, month-end behavior)
+  is computed **in the reducer at read time**. There are no scheduled jobs or
+  background cron.
 - **Months** are calendar months in the household timezone
   (America/Vancouver), keyed by each event's `occurredAt` (user-editable), not
   by `createdAt`. Event IDs are **UUIDv7** (time-ordered).
 
-## 2. Slices and ownership
+## 2. Household and membership
 
-A **slice** is a budget category. It is either:
-- **personal** — owned by exactly one user, or
-- **group** — shared by the household (e.g. groceries, pet care).
+A household has **N members**, each with a role
+(`MemberSet {memberId, name, role, active, customSpriteSha256?,
+descriptionText?}`):
 
-A slice may be linked to a pet for display only.
+- **adult** — has income, a vault, personal categories, and paired devices (a
+  member may pair any number of phones/desktops).
+- **dependent** — a display-level party member with no ledger of their own.
+- **pet** — likewise display-level; categories and emergency funds may *link* to
+  a pet member so the pet "owns" that micro-budget or reserve cache on screen.
+  Pets are members, never metadata on a category.
 
-**Group slices**
-- The limit is funded **50/50 off the top** of both users' budgets.
+`descriptionText` is the user-written character description that drives
+text-mode adventure (§11).
+
+**Shares.** Group costs split by a per-adult **share table**
+(`GroupShareSet {month, shares: {adultId: permille}}`), default even split. Every
+former 50/50 rule generalizes to these shares; **odd cents go to the
+purchaser.** A **single-adult household is valid**: approvals requiring "another
+adult" are auto-satisfied when exactly one adult exists.
+
+Legacy `PetSet` events still reduce (as pet members) for wire compatibility.
+
+## 3. Budget categories
+
+The user-facing name is **category**; the internal event names (e.g.
+`BudgetSliceSet`) are kept for wire compatibility. **The word "slice" never
+appears in UI or docs.** A category is either:
+
+- **personal** — owned by exactly one adult, or
+- **group** — shared by the household.
+
+Every category belongs to a **main category**
+(`MainCategorySet {id, name, colorArgb, sortOrder}`; defaults: Housing, Food,
+Transport, Health, Entertainment, Pets, Savings, Misc). Main-category **colors
+drive reports** (a monthly pie chart of spend by main category) and are the key
+for **quest-tithe matching** (§4).
+
+**Group categories**
+- The limit is funded **by shares off the top**.
 - Purchases are inherently shared — there is no "shared?" toggle shown.
 - Leftover at month end flows **automatically and entirely to the war chest**.
-- There is no allocation decision and no tithe on group slices.
+- There is no allocation decision and no tithe on group categories.
 
-**Personal slices**
-- A purchase may be flagged **shared**, in which case it is split 50/50 at read
-  time, with the odd cent going to the purchaser.
+**Personal categories**
+- A purchase may be flagged **shared**, in which case it is split by shares at
+  read time, with the odd cent going to the purchaser.
 
 **Emergency fund contribution**
-- Any slice may designate a fixed monthly **emergency fund contribution**: a
+- Any category may designate a fixed monthly **emergency fund contribution**: a
   fixed amount taken off the top of its limit each month into a named emergency
   fund, regardless of spending.
-- The **effective huntable limit** of such a slice is `limit − contribution`.
+- The **effective limit** of such a category is `limit − contribution`.
 
-## 3. Recurring expenses ("equipment maintenance")
+## 3a. Income
 
-A `RecurringExpenseSet` has:
-`{name, ownership: personal(user) | shared, kind: fixed | variable,
-amountCents (the amount, or the estimate when variable), startMonth, endMonth?}`
+- `DefaultIncomeSet {forUserId, amountCents, effectiveFromMonth}` carries
+  forward until changed.
+- `IncomeSet {forUserId, month, amountCents}` overrides a single month.
+- Resolved month income = `override ?? latest effective default ?? 0`. The
+  income screen must never show a blank month when a default exists.
 
-- **Shared** recurring expenses are split 50/50 off the top of both budgets.
-  **Personal** ones come off the top of that one user's budget.
-- They are modifiable and cancellable at any time (by setting `endMonth`); they
-  are otherwise expected to continue every month.
-- Examples: rent = shared fixed; a game/Patreon subscription = personal fixed;
-  utilities = shared variable.
+## 4. Recurring expenses ("equipment maintenance")
 
-**Variable expenses.** A `VariableExpenseRecorded {expenseId, month,
-actualCents}` supplies the real amount, normally during the month-close ritual.
-The reducer uses the recorded actual if present, otherwise the estimate. A late
-recording after the grace period is just a normal retroactive correction.
+`RecurringExpenseSet {name, ownership: personal(user) | shared, kind: fixed |
+variable, cadence: monthly | annual, amountCents, dueDay, dueMonth? (annual),
+startMonth, endMonth?}`.
 
-## 4. Quests (savings-goal monsters)
+- **Shared** recurring expenses split by shares off the top; **personal** ones
+  come off the top of that adult's budget. Modifiable and cancellable at any
+  time.
+- **Annual accrual.** An annual expense charges **1/12 monthly off the top**,
+  with the integer-cents **remainder landing in the due month so the year sums
+  exactly.** The due month applies the real amount against the accumulated
+  reserve and surfaces any shortfall/surplus. Due dates are shown ("Rent — last
+  day of month", "WoW — Feb 10").
+- **Variable expenses.** `VariableExpenseRecorded {expenseId, month,
+  actualCents}` supplies the real amount, normally during the month-close
+  ritual. The reducer uses the recorded actual if present, otherwise the
+  estimate. Late recording is a normal retroactive correction.
 
-Quests replace any "earmark" concept. A `QuestSet {questId, name, targetCents,
-ownership: personal(user) | shared, sliceHint?, customSpriteSha256?}` creates a
-savings goal (e.g. "$500 jacket", "$1300 canoe", "house down payment").
+## 5. Quests (savings-goal monsters) — the goals system
 
-- Personal quests are funded by their owner; shared quests by either user.
-- Quests are funded **only** by spoils allocations at month close. **Funding a
-  quest is untithed.**
+`QuestSet {questId, name, targetCents, mainCategoryId, ownership:
+personal(user) | shared, customSpriteSha256?, descriptionText?}` creates a
+savings goal (e.g. "$500 jacket", "$1300 canoe", a house down payment, a
+vacation fund).
+
+- Personal quests are funded by their owner; shared quests by any adult.
+- Quests are funded **only** by spoils allocations at month close (§6).
+- **Category-match tithing.** An attack funded from a category whose main
+  category **matches** the quest's `mainCategoryId` is **untithed** (full
+  damage). From a **non-matching** category, the source category's **pool tithe
+  applies**: the tithe portion goes to the war chest, the remainder is damage.
+  Canonical cases: $100 Hygiene leftover, 50% tithe, attacking an Entertainment
+  console quest → **$50 chest + $50 damage**; $100 Entertainment leftover, 20%
+  tithe, same quest → **$100 damage, $0 tithe**. The UI always shows the split
+  before confirming.
 - **Buying the goal** is a purchase with `chargeTarget = QUEST(id)`, drawing
-  down the quest's balance. Reaching the target = quest complete (celebration).
-- `QuestAbandoned` moves the remaining balance back to the funder(s)' vault(s),
-  in proportion to their contributions, **minus the household dissolution
-  tithe** (a setting, default 10%) which goes to the war chest. This exists so
-  that quests cannot be used to dodge slice tithes.
+  down its balance. Reaching the target = quest complete (trophy celebration).
+- `QuestAbandoned` returns the remaining balance to funders' vaults in
+  proportion to contributions, **minus the household dissolution tithe** (a
+  setting, default 10%) to the war chest.
 
-## 5. Month close: dividing the spoils
+## 6. Month close: dividing the spoils
 
 The month-close ritual first **records actuals** for variable recurring
 expenses for the closed month.
 
-For each **personal** slice with leftover — `max(0, effectiveLimit − spent)` —
-the owner allocates it via `LeftoverAllocated {userId, month, sliceId,
-allocations: [{destination, amountCents}]}`, where each destination is one of:
+For each **personal** category with leftover — `max(0, effectiveLimit − spent)`
+— the owner allocates it via `LeftoverAllocated` among:
 
-1. **Carry in-slice 1:1** — raises next month's effective limit for that slice;
-   stacks without cap.
-2. **Attack a quest** — funds a quest; **untithed**.
-3. **Convert to discretionary** — enters the owner's vault, **minus that
-   slice's pool tithe** (a per-slice percentage, 0–100). The tithe portion goes
-   to the war chest. Rounding **floors to the chest**, with the remainder to the
-   user, and the two parts must sum exactly to the converted amount.
+1. **Carry in-category 1:1** — raises next month's effective limit for that
+   category; stacks without cap.
+2. **Attack a quest** — funds a quest; tithe follows the **category-match rule**
+   (§5).
+3. **Convert to discretionary** — enters the owner's vault **minus that
+   category's pool tithe** (a per-category percentage, 0–100). The tithe portion
+   goes to the war chest. Rounding **floors to the chest**, with the remainder
+   to the user, and the two parts must sum exactly to the converted amount.
 
-**Group-slice leftovers** and **emergency contributions** are automatic and
+**Group-category leftovers** and **emergency contributions** are automatic and
 shown read-only.
 
 **Never blocking.** The ritual is interactive but never blocks. If the grace
 period (a setting, default 7 days after month close) passes with no allocation
-event, the reducer applies the slice's configured **default policy** at read
+event, the reducer applies the category's configured **default policy** at read
 time. Nothing waits on the user.
 
-## 6. Vaults, gifts, war chest, emergency funds, ransacks
+## 7. Vaults, gifts, war chest, emergency funds, ransacks
 
-**Purchase charge targets:** `slice`, `VAULT`, `QUEST(id)`, `EMERGENCY(fundId)`.
+**Purchase charge targets:** `category`, `VAULT`, `QUEST(id)`,
+`EMERGENCY(fundId)`, `VACATION(vacationId, categoryId)`.
 
-**Vault(user)** — derived as:
+**Vault(adult)** — derived as:
 `Σ discretionary allocations (post-tithe) + gifts + approved withdrawals
 directed to them + abandoned-quest returns (post dissolution tithe)
 − vault-charged spending − pool contributions`.
 Clamped at zero, raising an **inconsistency flag** if it would go negative.
 
-**Gifts.** `GiftReceived {userId, amountCents, note}` credits the vault,
-untithed.
+**Gifts.** `GiftReceived` credits the vault, untithed.
 
 **War chest** (the long-term shared pool) =
-`slice tithes + dissolution tithes + group-slice leftovers
+`category tithes + dissolution tithes + group-category leftovers
 + PoolContributionMade + TaxRefundRecorded
 − approved withdrawals − ransack overflows`.
 
-**Withdrawals require both users.** A `PoolWithdrawalProposed {byUserId,
-amountCents, purpose, destination: userVault(userId) | external}` stays pending
-until a `PoolWithdrawalApproved` by the **other** user (the reducer rejects
-self-approval) or a `PoolWithdrawalCancelled`. Pending proposals are visible to
-both users.
+**Withdrawals require another adult.** A `PoolWithdrawalProposed` stays pending
+until a `PoolWithdrawalApproved` by a **different** adult (the reducer rejects
+self-approval; auto-approved in single-adult households) or a
+`PoolWithdrawalCancelled`. Pending proposals are visible to all adults.
 
-**Emergency funds.** Named household funds, optionally linked to a pet.
+**Emergency funds.** Named household funds, optionally linked to a pet member.
 `balance = Σ contributions − emergency-charged spending`. Spending from one
 needs only a note. **Ransack rule:** an emergency purchase that exceeds its
 fund's balance draws the excess from the war chest **without prior approval**,
-and the reducer surfaces a prominent **ransack record** `{fund, excess,
-purpose}` that both users see. There are no silent overdrafts and no blocked
-emergencies.
+and the reducer surfaces a prominent **ransack record** all adults see. There
+are no silent overdrafts and no blocked emergencies.
 
 **War chest goal.** The war chest may carry its own target (`GoalSet`).
 `pctComplete = pool / target`; `estMonthsRemaining = remaining / trailing-3-
-month average net pool inflow`, and is `null` when that average is `≤ 0`.
+month average net inflow`, and is `null` when that average is `≤ 0`.
 
-## 7. Pets
+## 8. Net worth (tracked accounts — never budget money)
 
-`PetSet {petId, name, customSpriteSha256?}`. Pets are **display-level party
-members**. Slices and emergency funds may reference a `petId`; the pet is then
-shown as the "owner" of its micro budget and reserve cache. Pets have **no
-ledger of their own** — everything remains household money.
+`TrackedAccountSet {accountId, name, kind: savings | investment | debt, aprBps?,
+accrualCadence?, updateCadence?, minPaymentCents?}` + `AccountBalanceRecorded` +
+`AccountTransferRecorded`.
 
-## 8. Tax tracking (stays unobtrusive)
+- **Savings / debt** current value = last recorded balance **+ interest accrued
+  since**, derived at read time.
+- **Investments** show a **"stale — update requested"** nudge past their
+  `updateCadence`; they are never auto-changed.
+- **Debt minimum payments** surface automatically as recurring expenses.
 
-- Per-slice `taxDeductibleByDefault`, with a per-purchase override (`null` =
-  inherit from the slice).
+Tracked accounts **never enter category math** — they exist only for the
+net-worth screen and onboarding, behind a "Show net worth" setting.
+
+## 9. Vacation mode
+
+`VacationSet {vacationId, name, fundQuestId | emergencyFundId, startDate,
+endDate, categories: [{name, limitCents}]}` / `VacationClosed`.
+
+A vacation is a **self-contained sub-budget drawn from its fund** (a savings
+quest or an emergency fund): per-category tracking, daily-allowance math, and
+overspend warnings, all scoped to the trip. **Normal monthly budgets are
+untouched** while it runs. Quick entry gains a **vacation charge target**
+(`VACATION(vacationId, categoryId)`) while a vacation is open. **Closing returns
+leftover to the source fund.** The adventure skin renders it as an "expedition
+abroad" side-floor.
+
+## 10. Tax tracking (stays unobtrusive)
+
+- Per-category `taxDeductibleByDefault`, with a per-purchase override (`null` =
+  inherit from the category).
 - The tax flag is **never on the quick-entry keypad** — it appears only in
-  slice settings and the purchase detail sheet.
+  category settings and the purchase detail sheet.
 - **Tax year** = calendar year in the household timezone.
-- **Tax package export**: a zip containing `summary.csv` (date, user, slice,
+- **Tax package export**: a zip containing `summary.csv` (date, user, category,
   merchant, amount, shared flag, note, receipt filename) of all deductible
   purchases in a chosen year, plus every referenced receipt file.
 
-## 9. Receipts, OCR, and the receipt library
+## 11. The game IS the app, but it never touches the money
+
+The game is not a skin bolted on — it is the primary experience (§0). But it
+never moves a cent.
+
+**The firewall.** `lib/game/` maps `HouseholdState -> GameState` via
+`lib/game/adapter.dart` (pure, tested) and may append **only cosmetic events**
+(`CosmeticSet`, `GameRewardGranted`, sprite/description references). The money
+reducer **ignores cosmetic events entirely** — a ledger with all cosmetic events
+stripped produces identical balances, and **a test asserts exactly that** from
+the first rewards commit onward. No reward, streak, story beat, or homestead
+threshold may alter any cent, limit, tithe, share, or allocation. **The
+spoils/tithe math IS the combat math** — the game displays it, never redefines
+it.
+
+**Core mapping.**
+- personal category → monster (maxHP = effective limit, damage = spent;
+  overspend = enraged + player HP loss)
+- group category → party contract with a multi-color banner
+- pet-linked categories/funds → shown under the pet party member
+- recurring expenses + emergency contributions → "equipment maintenance &
+  provisioning" at floor start (variable = "awaiting tally"; annual =
+  provisioning contracts with a countdown)
+- income → expedition supplies
+- month → a dungeon floor
+- month close → the dividing-the-spoils battle ritual (attacks show damage
+  numbers; a mismatch tithe shows the war-chest cut flying off as coins)
+- quest → a quest boss hunted across months (HP = target, allocations = damage,
+  completion = trophy)
+- vault → gold pouch
+- withdrawal → a writ needing another adventurer's signature
+- ransack → a loud "the war chest was ransacked" banner
+- gift → treasure found; tax refund → royal rebate
+- emergency funds → reserve caches; tax marker → a small scroll seal, on the
+  purchase detail only
+
+**Rewards & the habit loop (all cosmetic).** Defeating a quest boss grants a
+trophy in the party's trophy hall. Streaks — consecutive days with purchases
+logged, consecutive on-time month-close rituals — earn cosmetic titles and
+badges. Every ritual completion gets a celebration. Rewards are recorded as
+cosmetic events so they sync like everything else.
+
+**Meta-progression: the Homestead.** The war chest is visualized as something
+built/cared for outside the dungeon — default flavor a homestead under
+construction that gains visible stages as the real pool balance crosses
+configurable thresholds (flavor selectable/renameable). Pure visualization of
+real numbers; it never gates or modifies anything financial.
+
+**Story.** A light frame narrative delivered through the adventure log in game
+voice ("GROCERIES MONSTER TAKES 42 DMG", "THE WAR CHEST WAS RANSACKED!"). All
+narrative/encouragement strings are **data-driven** (asset files under
+`app/assets/game/text/`, not hardcoded) so writers can contribute without
+touching code.
+
+**The asset-degradation ladder.** Art is scarce (one beginner artist), so every
+game surface must render fully at **three tiers, decided per-asset at runtime**:
+
+1. **Full pixel art** — the target look: party frames with HP bars around a
+   central floor viewport, a scrolling log, and a minimap of the year's floors.
+2. **Partial** — available sprites render; missing ones degrade to **labeled
+   placeholder cards.** Never crash, never block a screen.
+3. **Text mode** — a **first-class text-adventure presentation, not an error
+   state**: the same screens rendered as styled text panels using the
+   member/pet/quest `descriptionText`. The app must be complete, shippable, and
+   fun in text mode alone.
+
+Pixel art renders with `FilterQuality.none` at integer scales; assets live in
+`app/assets/game/` per `docs/art-assets.md` (one small palette, one 32×32 base
+sprite size, one 48×48 portrait size, a 9-slice panel spec, a prioritized
+"first ten assets" list — every asset individually optional). Custom sprite
+blobs render through the same pixelated pipeline.
+
+**Modes.** Adventure (default) / Classic, toggleable; both render from the same
+providers with identical numbers. Classic uses plain language only — no "slice",
+"tithe", "spoils", "dissolution", or "grace period" in Classic UI. A **glossary
+module** (single source of truth for strings) maps internal → Classic →
+Adventure terms, with helper text under every setting.
+
+## 12. Receipts, OCR, and the receipt library
 
 **Receipts are not events.** Receipt images/PDFs are **content-addressed
 blobs** stored at `blobs/<sha256>`, referenced by `ReceiptAttached {purchaseId,
 sha256, mimeType, sizeBytes}` and removed (as a reference) by `ReceiptDetached`.
 Referenced blobs are never deleted. Images are re-encoded on attach (JPEG ~85,
-max dimension 2000px); PDFs are stored as-is. Custom sprites (quests, pets,
+max dimension 2000px); PDFs are stored as-is. Custom sprites (quests, members,
 avatars) use the **same blob pipeline** via their sha256 references.
 
 **OCR** is **Android-only** and **fully on-device**
@@ -187,93 +352,96 @@ amount. The parsing heuristics live in `lib/data/ocr/receipt_parse.dart` as a
 pure, unit-tested function.
 
 **Receipt library (desktop only).** A **regenerable projection**, never a
-source of truth. The user picks a root folder; after every sync (and on
-demand) the app mirrors receipt blobs into
-`<root>/<year>/<slice name>/<yyyy-MM-dd>_<merchant or 'receipt'>_<amount>.<ext>`
-(sanitized, de-duplicated with `_2` suffixes), based on each receipt's
-purchase. Rebuilding from scratch must produce identical content; any user
-edits inside the folder are ignored and overwritten.
+source of truth. The user picks a root folder; the app mirrors receipt blobs
+into
+`<root>/<year>/<category name>/<yyyy-MM-dd>_<merchant or 'receipt'>_<amount>.<ext>`
+(sanitized, de-duplicated with `_2` suffixes). Rebuilding from scratch must
+produce identical content; any user edits inside the folder are ignored and
+overwritten.
 
-## 10. Sync (multi-hub)
+## 13. Sync (multi-hub) and merge-import
 
 No internet services. Any desktop build can host a **hub** (`package:shelf`) on
 the LAN. A device may be paired with **multiple hubs**, keeping an independent
 pull cursor per hub. Event idempotency by `eventId` makes multi-hub convergence
-safe with **no conflict logic**; blobs are content-addressed, so duplication is
-harmless. Every device syncs with every reachable paired hub each cycle.
+safe with **no conflict logic**; blobs are content-addressed. Every device syncs
+with every reachable paired hub each cycle.
 
 **Hub endpoints** (full wire format in [`protocol.md`](protocol.md))
-- `POST /pair {pairingSecret, deviceName} -> {hubId, deviceToken}`
-- `POST /events` — batch, idempotent, assigns a per-hub monotonic `seq`
+- `POST /pair {pairingSecret, deviceName} -> deviceToken`
+- `POST /events` — batch, idempotent, assigns a per-hub monotonic `hub_seq`
 - `GET /events?after=<seq>` — a page plus the `seq` cursor to resume from
 - `PUT /blobs/<sha256>` — idempotent, hash-verified, 20MB cap
 - `GET`/`HEAD /blobs/<sha256>`
 
 Pairing carries `{url, pairingSecret}` (a QR payload, also enterable by hand on
-desktop). The issued bearer token and per-hub cursor are persisted in the local
-store so a device resumes after a restart.
+desktop); tokens are held in `flutter_secure_storage`.
 
-**Fallback: export/import.** `.dbevents` (JSON lines) or `.dbevents.zip`
-(`events.jsonl` + `blobs/`). Import is idempotent and hash-verifies every blob
-before applying anything.
+**Merge-import is a first-class flow** (the "vacation swap"). Export/import
+`.dbevents` (JSON lines) or `.dbevents.zip` (`events.jsonl` + `blobs/`). Import
+is **idempotent** — it only adds missing events, never overwrites — and shows a
+**preview** ("14 new events, 3 receipts — 210 already present") before applying
+and a **summary** after. An "export since last export" shortcut supports
+exchanging files between devices with no hub.
 
 Everything works **offline indefinitely**. Failures are **silent-but-visible**
-via a status indicator — never blocking dialogs. `tool/e2e.sh` exercises the whole
-sync path — two hubs plus a third client over real sockets — end to end.
+via a status indicator — never blocking dialogs. `tool/e2e.sh` exercises the
+whole sync path end to end.
 
-## 11. Gamification (a pure presentation skin)
+## 14. Exports
 
-The game is a **pure presentation skin**. `lib/game/adapter.dart` maps
-`HouseholdState -> GameState`; it is pure and tested, and the domain has **zero
-game knowledge**. The theme is toggleable (Classic / Adventure); both render
-from the same providers with **identical numbers**. Only cosmetic events
-(`CosmeticSet`, sprite references in `QuestSet`/`PetSet`) exist for the skin.
+- **.xlsx export** — fully offline, always available. Workbook sheets:
+  Transactions, Monthly summary (per category budgeted/spent/leftover),
+  Members & income, Savings goals, Net worth, Recurring expenses.
+- **Google Sheets sync** — the **only permitted external service**, and a
+  deliberate, contained relaxation of the no-external-services rule. **OFF by
+  default**; explicit opt-in with a clear "your data leaves your local network"
+  warning; user supplies their own credentials; **isolated behind an interface**
+  so the app builds and fully functions with it absent; **no other feature may
+  depend on it**; platform-guarded like the OCR plugin.
 
-**Mapping**
-- personal slice → monster (maxHP = effective limit, damage = spent)
-- group slice → party contract with a dual-color banner
-- pet-linked slices/funds → shown under the pet party member
-- overspend → enraged; the excess shows as player HP loss
-- recurring expenses + emergency contributions → "equipment maintenance &
-  provisioning" at floor start (variable ones show "awaiting tally" until
-  recorded)
-- income → expedition supplies
-- month close → the dividing-the-spoils ritual
-- quest → a quest monster hunted across months (HP = target, allocations =
-  damage, completion = trophy; custom sprite if set, else default)
-- vault → gold pouch
-- war chest → the pool
-- withdrawal → a writ needing the other adventurer's signature
-- ransack → a loud "the war chest was ransacked" banner
-- gift → treasure found
-- tax refund → royal rebate
-- emergency funds → reserve caches
-- tax marker → a small scroll seal, on the purchase detail only
-- month → a dungeon floor
+## 15. Distribution and metrics
 
-**Rendering.** Pixel art renders with `FilterQuality.none` at integer scales;
-assets live in `app/assets/game/` per `docs/art-assets.md`. Custom sprite blobs
-render through the same pixelated pipeline. Missing assets degrade to labeled
-placeholders — they never crash.
+- **Distribution is GitHub Releases only.** Tagged CI builds attach a signed
+  Android APK and Windows/macOS/Linux desktop bundles. Sharing the app = sharing
+  a release link.
+- **User counts come from the GitHub Releases download-statistics API — never
+  from the app.** No telemetry, no analytics SDKs, no phone-home of any kind. A
+  documented script fetches cumulative download counts (the resume number).
 
-## 12. Code structure
+## 16. Code structure
 
 - `app/lib/domain/` — pure Dart, **zero Flutter imports**.
 - `app/lib/data/` — drift, the multi-hub sync client, the hub server, the blob
   store, `ocr/` (pure parser + a thin plugin wrapper), the receipt-library
-  projector, import/export, and tax package export.
-- `app/lib/game/` — the `GameState` adapter (pure) and adventure widgets.
+  projector, import/export (+ merge preview), xlsx export, `sheets/` (optional,
+  isolated), and tax package export.
+- `app/lib/game/` — `adapter.dart` (pure `GameState` mapping) + `rewards/`
+  (cosmetic reward logic, pure) + `text_mode/` + pixel widgets;
+  narrative/encouragement strings under `app/assets/game/text/`.
 - `app/lib/features/<name>/` — classic UI, per feature.
-- `app/lib/ui/` — theme and shared widgets.
-- `docs/` — architecture, protocol, art specs, and ADRs.
+- `app/lib/ui/` — theme, shared widgets, and the glossary/strings module.
+- `docs/` — architecture, protocol, art specs, distribution, and ADRs.
 
-## 13. Workflow rules
+## 17. Workflow rules
 
-- **TDD** for `lib/domain/`, `lib/game/adapter.dart`,
+- **TDD** for `lib/domain/`, `lib/game/adapter.dart`, `lib/game/rewards/`,
   `lib/data/ocr/receipt_parse.dart`, and the receipt-library path/naming logic:
   tests are written before implementation.
+- **The firewall test** (cosmetic-stripped ledger ⇒ identical balances) must
+  exist and pass from the first rewards commit onward.
 - `./check.sh` (`dart analyze` + `flutter test`) must pass before any commit.
 - Conventional commits, one commit per completed task.
 - Build only what the current phase prompt asks for. If a phase seems to require
   changing the reducer but the prompt says it should not, **stop and say so**
   instead of proceeding.
+
+## Decision records
+
+The [ADRs](adr/) record the rationale behind these invariants. Note that
+[ADR 0003](adr/0003-gamification-as-skin.md) (gamification as an optional skin)
+is **superseded** by [ADR 0011](adr/0011-game-first-with-cosmetic-firewall.md)
+(game-first), and [ADR 0005](adr/0005-spoils-economy-and-quests.md) (the spoils
+economy) is **amended** by [ADR 0008](adr/0008-flexible-membership-and-shares.md)
+(shares), [ADR 0009](adr/0009-categories-and-main-categories.md) (categories),
+and [ADR 0010](adr/0010-category-match-tithing.md) (category-match tithing).
