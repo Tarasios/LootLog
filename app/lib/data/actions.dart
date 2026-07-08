@@ -329,6 +329,26 @@ class HouseholdActions {
     ));
   }
 
+  /// Sets a user's default monthly income, effective from [effectiveFromMonth]
+  /// and carried forward until a later default supersedes it.
+  Future<void> setDefaultIncome({
+    required String forUserId,
+    required int amountCents,
+    required Month effectiveFromMonth,
+  }) async {
+    final now = DateTime.now().toUtc();
+    await append(DefaultIncomeSet(
+      eventId: uuidv7(),
+      deviceId: deviceId,
+      userId: meUserId,
+      occurredAt: now,
+      createdAt: now,
+      forUserId: forUserId,
+      amountCents: amountCents,
+      effectiveFromMonth: effectiveFromMonth,
+    ));
+  }
+
   /// Creates or amends a recurring expense. Reuse [expenseId] to edit; pass
   /// [endMonth] to schedule a cancellation.
   Future<String> setRecurringExpense({

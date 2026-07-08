@@ -1364,4 +1364,87 @@ void main() {
       expect(s.slices['s']!.mainCategoryId, 'food');
     });
   });
+
+  group('income', () {
+    DefaultIncomeSet defaultIncome(String user, int amount, Month from) =>
+        DefaultIncomeSet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: user,
+          occurredAt: from.startInstantUtc(),
+          createdAt: from.startInstantUtc(),
+          forUserId: user,
+          amountCents: amount,
+          effectiveFromMonth: from,
+        );
+
+    IncomeSet override(String user, int amount, Month month) => IncomeSet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: user,
+          occurredAt: month.startInstantUtc(),
+          createdAt: month.startInstantUtc(),
+          forUserId: user,
+          amountCents: amount,
+          month: month,
+        );
+
+    test('a default carries forward to later months with no override', () {
+      final s = reduce([
+        defaultIncome(u1, 400000, const Month(2026, 1)),
+      ], asOf: day(2026, 6, 15));
+      expect(s.incomeFor(u1, const Month(2026, 1)), 400000);
+      expect(s.incomeFor(u1, const Month(2026, 5)), 400000);
+      // Before the default takes effect, income is zero.
+      expect(s.incomeFor(u1, const Month(2025, 12)), 0);
+    });
+
+    test('the latest effective default wins', () {
+      final s = reduce([
+        defaultIncome(u1, 400000, const Month(2026, 1)),
+        defaultIncome(u1, 450000, const Month(2026, 4)),
+      ], asOf: day(2026, 6, 15));
+      expect(s.incomeFor(u1, const Month(2026, 3)), 400000);
+      expect(s.incomeFor(u1, const Month(2026, 4)), 450000);
+      expect(s.incomeFor(u1, const Month(2026, 5)), 450000);
+    });
+
+    test('an override beats the default for that month only', () {
+      final s = reduce([
+        defaultIncome(u1, 400000, const Month(2026, 1)),
+        override(u1, 300000, const Month(2026, 3)),
+      ], asOf: day(2026, 6, 15));
+      expect(s.incomeFor(u1, const Month(2026, 2)), 400000);
+      expect(s.incomeFor(u1, const Month(2026, 3)), 300000);
+      expect(s.incomeFor(u1, const Month(2026, 4)), 400000);
+      expect(s.hasIncomeOverride(u1, const Month(2026, 3)), isTrue);
+      expect(s.hasIncomeOverride(u1, const Month(2026, 2)), isFalse);
+    });
+
+    test('with no default and no override, income is zero', () {
+      final s = reduce([
+        override(u1, 300000, const Month(2026, 3)),
+      ], asOf: day(2026, 6, 15));
+      expect(s.incomeFor(u1, const Month(2026, 2)), 0);
+      expect(s.incomeFor(u1, const Month(2026, 3)), 300000);
+    });
+
+    test('defaultIncomeFor resolves the carried-forward default', () {
+      final s = reduce([
+        defaultIncome(u1, 400000, const Month(2026, 1)),
+        defaultIncome(u1, 450000, const Month(2026, 4)),
+      ], asOf: day(2026, 6, 15));
+      expect(s.defaultIncomeFor(u1, const Month(2026, 3)), 400000);
+      expect(s.defaultIncomeFor(u1, const Month(2026, 4)), 450000);
+      expect(s.defaultIncomeFor(u1, const Month(2025, 12)), isNull);
+    });
+
+    test('redefining a default for the same month is last-writer-wins', () {
+      final s = reduce([
+        defaultIncome(u1, 400000, const Month(2026, 1)),
+        defaultIncome(u1, 420000, const Month(2026, 1)),
+      ], asOf: day(2026, 6, 15));
+      expect(s.incomeFor(u1, const Month(2026, 2)), 420000);
+    });
+  });
 }
