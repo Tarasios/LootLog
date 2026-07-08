@@ -76,6 +76,8 @@ class _Builder {
   final List<PoolContributionMade> contributions = [];
   final List<TaxRefundRecorded> taxRefunds = [];
   final Map<String, int> income = {}; // "userId|month" -> cents
+  // Default incomes, keyed "userId|effectiveFromMonth" (last writer wins).
+  final Map<String, DefaultIncomeSet> defaultIncomeCfg = {};
 
   // Withdrawals.
   final Map<String, PoolWithdrawalProposed> proposals = {};
@@ -147,6 +149,9 @@ class _Builder {
       case IncomeSet():
         _note(e.forUserId);
         income['${e.forUserId}|${e.month.toKey()}'] = e.amountCents;
+      case DefaultIncomeSet():
+        _note(e.forUserId);
+        defaultIncomeCfg['${e.forUserId}|${e.effectiveFromMonth.toKey()}'] = e;
       case QuestSet():
         if (e.ownership is PersonalParty) {
           _note((e.ownership as PersonalParty).userId);
@@ -843,6 +848,20 @@ class _Builder {
       );
     }
 
+    // Default incomes per user, sorted ascending by the month they take effect.
+    final incomeDefaultsByUser = <String, List<DefaultIncome>>{};
+    for (final d in defaultIncomeCfg.values) {
+      incomeDefaultsByUser.putIfAbsent(d.forUserId, () => []).add(
+            DefaultIncome(
+              effectiveFromMonth: d.effectiveFromMonth,
+              amountCents: d.amountCents,
+            ),
+          );
+    }
+    for (final list in incomeDefaultsByUser.values) {
+      list.sort((a, b) => a.effectiveFromMonth.compareTo(b.effectiveFromMonth));
+    }
+
     return HouseholdState(
       settings: settings,
       userIds: userIds,
@@ -867,6 +886,7 @@ class _Builder {
       deductibleByYear: deductibleByYear,
       recurringByUserMonth: recurringByUserMonth,
       incomeByUserMonth: income,
+      incomeDefaultsByUser: incomeDefaultsByUser,
       recurringExpenses: {
         for (final r in recurringCfg.values)
           r.expenseId: RecurringExpenseState(

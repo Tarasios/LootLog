@@ -167,6 +167,16 @@ void main() {
         amountCents: 400000,
         month: const Month(2026, 3),
       ),
+      DefaultIncomeSet(
+        eventId: 'e',
+        deviceId: 'd',
+        userId: 'u1',
+        occurredAt: _occ,
+        createdAt: _cre,
+        forUserId: 'u1',
+        amountCents: 380000,
+        effectiveFromMonth: const Month(2026, 1),
+      ),
       QuestSet(
         eventId: 'e',
         deviceId: 'd',
