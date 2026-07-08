@@ -17,6 +17,7 @@ import '../../game/skin_prefs.dart';
 import '../activity/activity_model.dart';
 import '../budget_setup/budget_setup_screen.dart';
 import '../household_context.dart';
+import '../report/report_screen.dart';
 import '../spoils/spoils_screen.dart';
 import 'dashboard_model.dart';
 import 'dashboard_view.dart';
@@ -66,6 +67,7 @@ class DashboardScreen extends ConsumerWidget {
       showActivity: showActivity,
       callbacks: DashboardCallbacks(
         onOpenSpoils: () => unawaited(openSpoilsRitual(context, ref)),
+        onOpenReport: () => unawaited(ReportScreen.open(context)),
         onApproveWithdrawal: (id) {
           if (actions != null) unawaited(actions.approveWithdrawal(id));
         },

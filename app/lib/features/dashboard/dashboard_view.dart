@@ -20,12 +20,16 @@ import 'dashboard_model.dart';
 class DashboardCallbacks {
   const DashboardCallbacks({
     this.onOpenSpoils,
+    this.onOpenReport,
     this.onApproveWithdrawal,
     this.onCancelWithdrawal,
     this.onGetStarted,
   });
 
   final VoidCallback? onOpenSpoils;
+
+  /// Opens the monthly spend report. Null in goldens (button hidden).
+  final VoidCallback? onOpenReport;
   final void Function(String proposalId)? onApproveWithdrawal;
   final void Function(String proposalId)? onCancelWithdrawal;
 
@@ -123,6 +127,12 @@ class DashboardView extends StatelessWidget {
                 ),
           ),
         ),
+        if (callbacks.onOpenReport != null)
+          IconButton(
+            tooltip: 'Monthly report',
+            onPressed: callbacks.onOpenReport,
+            icon: const Icon(Icons.pie_chart_outline),
+          ),
         SyncStatusIndicator(status: syncStatus),
       ],
     );
@@ -160,7 +170,7 @@ class _GetStartedCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'Start by carving your monthly budget into slices — one each for the '
+            'Start by carving your monthly budget into categories — one each for the '
             'two of you, plus shared ones like groceries. Everything else '
             '(quests, the war chest, receipts) builds from there.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -226,7 +236,7 @@ class _SpoilsBanner extends StatelessWidget {
     final slices = ritual.sliceLeftovers.length;
     final tallies = ritual.variableTallies.length;
     final parts = <String>[
-      if (slices > 0) '$slices slice${slices == 1 ? '' : 's'} to divide',
+      if (slices > 0) '$slices categor${slices == 1 ? 'y' : 'ies'} to divide',
       if (tallies > 0) '$tallies to tally',
     ];
     return Material(

@@ -262,6 +262,7 @@ List<ActivityItem> buildActivityFeed(
       case SettingChanged():
       case CosmeticSet():
       case VariableExpenseRecorded():
+      case MainCategorySet():
         item = null;
     }
     if (item != null) {

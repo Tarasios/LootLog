@@ -45,6 +45,7 @@ class _Builder {
   final Set<String> userIds = {};
 
   // Last-writer-wins configuration by id.
+  final Map<String, MainCategorySet> mainCategoryCfg = {};
   final Map<String, SliceConfig> slices = {};
   final Map<String, QuestSet> questCfg = {};
   final Map<String, EmergencyFundSet> fundCfg = {};
@@ -124,6 +125,7 @@ class _Builder {
           sliceId: e.sliceId,
           name: e.name,
           ownership: e.ownership,
+          mainCategoryId: e.mainCategoryId,
           limitCents: e.limitCents,
           poolTithePct: e.poolTithePct,
           defaultLeftoverPolicy: e.defaultLeftoverPolicy,
@@ -133,6 +135,8 @@ class _Builder {
           emergencyContributionCents: e.emergencyContribution?.amountCents ?? 0,
           petId: e.petId,
         );
+      case MainCategorySet():
+        mainCategoryCfg[e.id] = e;
       case RecurringExpenseSet():
         if (e.ownership is PersonalParty) {
           _note((e.ownership as PersonalParty).userId);
@@ -825,10 +829,25 @@ class _Builder {
         ),
     };
 
+    // Main categories: seed the documented defaults, then apply any
+    // MainCategorySet overrides/additions (last-writer-wins by id).
+    final mainCategories = <String, MainCategory>{
+      for (final d in defaultMainCategories) d.id: d,
+    };
+    for (final e in mainCategoryCfg.values) {
+      mainCategories[e.id] = MainCategory(
+        id: e.id,
+        name: e.name,
+        colorArgb: e.colorArgb,
+        sortOrder: e.sortOrder,
+      );
+    }
+
     return HouseholdState(
       settings: settings,
       userIds: userIds,
       members: members,
+      mainCategories: mainCategories,
       slices: slices,
       sliceMonths: sliceMonths,
       quests: questStates,

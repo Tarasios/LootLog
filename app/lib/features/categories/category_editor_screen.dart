@@ -1,11 +1,12 @@
-/// The shared budget-slice editor, used from both Settings and Budget setup.
+/// The shared budget-category editor, used from both Settings and Budget setup.
 ///
-/// Every field on a slice lives here: ownership (personal to either member, or a
-/// group slice), monthly limit, per-slice pool tithe %, default leftover policy,
-/// tax-deductible default, and an optional emergency-fund contribution off the
-/// top. A category's pet link (for display) is set elsewhere; any existing link
-/// is preserved untouched here. Saving appends a single [BudgetSliceSet]; the
-/// reducer treats it as last-writer-wins, so this same screen creates and edits.
+/// Every field on a category lives here: ownership (personal to either member,
+/// or a group category), main category, monthly limit, per-category pool tithe %,
+/// default leftover policy, tax-deductible default, and an optional emergency-
+/// fund contribution off the top. A category's pet link (for display) is set
+/// elsewhere; any existing link is preserved untouched here. Saving appends a
+/// single [BudgetSliceSet] (the wire event name is retained); the reducer treats
+/// it as last-writer-wins, so this same screen creates and edits.
 library;
 
 import 'package:flutter/material.dart';
@@ -20,10 +21,10 @@ import '../../ui/money_input.dart';
 import '../../ui/theme.dart';
 import '../household_context.dart';
 
-class SliceEditorScreen extends ConsumerStatefulWidget {
-  const SliceEditorScreen({super.key, this.existing, this.defaultOwnership});
+class CategoryEditorScreen extends ConsumerStatefulWidget {
+  const CategoryEditorScreen({super.key, this.existing, this.defaultOwnership});
 
-  /// The slice being edited, or null to create a new one.
+  /// The category being edited, or null to create a new one.
   final SliceConfig? existing;
 
   /// Pre-selected ownership when creating (e.g. from a member column in setup).
@@ -35,20 +36,21 @@ class SliceEditorScreen extends ConsumerStatefulWidget {
     SliceOwnership? defaultOwnership,
   }) =>
       Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => SliceEditorScreen(
+        builder: (_) => CategoryEditorScreen(
           existing: existing,
           defaultOwnership: defaultOwnership,
         ),
       ));
 
   @override
-  ConsumerState<SliceEditorScreen> createState() => _SliceEditorScreenState();
+  ConsumerState<CategoryEditorScreen> createState() =>
+      _CategoryEditorScreenState();
 }
 
 /// A three-way ownership choice for the editor's segmented control.
 enum _OwnerChoice { me, partner, group }
 
-class _SliceEditorScreenState extends ConsumerState<SliceEditorScreen> {
+class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
   late final TextEditingController _name;
   late final TextEditingController _limit;
   late final TextEditingController _tithe;
@@ -57,6 +59,7 @@ class _SliceEditorScreenState extends ConsumerState<SliceEditorScreen> {
   _OwnerChoice _owner = _OwnerChoice.me;
   LeftoverDestination _policy = const CarryInSlice();
   String? _policyQuestId;
+  String? _mainCategoryId;
   bool _taxDefault = false;
   bool _emergencyOn = false;
   String? _emergencyFundId;
@@ -76,6 +79,7 @@ class _SliceEditorScreenState extends ConsumerState<SliceEditorScreen> {
           : '',
     );
     _taxDefault = e?.taxDeductibleByDefault ?? false;
+    _mainCategoryId = e?.mainCategoryId;
     _petId = e?.petId;
     if (e != null && e.emergencyFundId != null &&
         e.emergencyContributionCents > 0) {
@@ -127,10 +131,12 @@ class _SliceEditorScreenState extends ConsumerState<SliceEditorScreen> {
       ..sort((a, b) => a.name.compareTo(b.name));
     final funds = state.emergencyFunds.values.toList()
       ..sort((a, b) => a.name.compareTo(b.name));
+    final mainCategories = state.mainCategories.values.toList()
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.existing == null ? 'New slice' : 'Edit slice'),
+        title: Text(widget.existing == null ? 'New category' : 'Edit category'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -139,6 +145,40 @@ class _SliceEditorScreenState extends ConsumerState<SliceEditorScreen> {
             controller: _name,
             decoration: const InputDecoration(labelText: 'Name'),
             textCapitalization: TextCapitalization.words,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Text('Main category', style: AppText.sectionLabel(context)),
+          const SizedBox(height: AppSpacing.sm),
+          DropdownButtonFormField<String?>(
+            initialValue: _mainCategoryId,
+            decoration: const InputDecoration(
+              helperText: 'Groups spending on the monthly report',
+            ),
+            items: [
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text('None'),
+              ),
+              for (final m in mainCategories)
+                DropdownMenuItem<String?>(
+                  value: m.id,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 14,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: Color(m.colorArgb),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(m.name),
+                    ],
+                  ),
+                ),
+            ],
+            onChanged: (v) => setState(() => _mainCategoryId = v),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text('Owner', style: AppText.sectionLabel(context)),
@@ -165,7 +205,7 @@ class _SliceEditorScreenState extends ConsumerState<SliceEditorScreen> {
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.sm),
               child: Text(
-                'Group slices are funded 50/50 off the top; leftover flows '
+                'Group categories are funded 50/50 off the top; leftover flows '
                 'automatically to the war chest.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
@@ -242,7 +282,7 @@ class _SliceEditorScreenState extends ConsumerState<SliceEditorScreen> {
           const SizedBox(height: AppSpacing.xl),
           FilledButton(
             onPressed: () => _save(setup.me.userId, setup.partner.userId),
-            child: const Text('Save slice'),
+            child: const Text('Save category'),
           ),
         ],
       ),
@@ -266,7 +306,7 @@ class _SliceEditorScreenState extends ConsumerState<SliceEditorScreen> {
         DropdownButtonFormField<String>(
           initialValue: token(),
           items: const [
-            DropdownMenuItem(value: 'carry', child: Text('Carry in slice')),
+            DropdownMenuItem(value: 'carry', child: Text('Carry in category')),
             DropdownMenuItem(
                 value: 'discretionary', child: Text('Convert to discretionary')),
             DropdownMenuItem(value: 'quest', child: Text('Attack a quest')),
@@ -347,6 +387,7 @@ class _SliceEditorScreenState extends ConsumerState<SliceEditorScreen> {
       sliceId: widget.existing?.sliceId,
       name: name,
       ownership: ownership,
+      mainCategoryId: _mainCategoryId,
       limitCents: limit,
       poolTithePct: tithe,
       defaultLeftoverPolicy: policy,

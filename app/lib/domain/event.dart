@@ -97,6 +97,7 @@ sealed class Event {
           sliceId: p['sliceId'] as String,
           name: p['name'] as String,
           ownership: SliceOwnership.fromJson((p['ownership'] as Map).cast()),
+          mainCategoryId: p['mainCategoryId'] as String?,
           limitCents: p['limitCents'] as int,
           poolTithePct: p['poolTithePct'] as int,
           defaultLeftoverPolicy: LeftoverDestination.fromJson(
@@ -272,6 +273,18 @@ sealed class Event {
           petId: p['petId'] as String,
           name: p['name'] as String,
           customSpriteSha256: p['customSpriteSha256'] as String?,
+        );
+      case 'MainCategorySet':
+        return MainCategorySet(
+          eventId: eventId,
+          deviceId: deviceId,
+          userId: userId,
+          occurredAt: occurredAt,
+          createdAt: createdAt,
+          id: p['id'] as String,
+          name: p['name'] as String,
+          colorArgb: p['colorArgb'] as int,
+          sortOrder: p['sortOrder'] as int,
         );
       case 'MemberSet':
         return MemberSet(
@@ -452,6 +465,7 @@ class BudgetSliceSet extends Event {
     required this.poolTithePct,
     required this.defaultLeftoverPolicy,
     required this.taxDeductibleByDefault,
+    this.mainCategoryId,
     this.emergencyContribution,
     this.petId,
   });
@@ -459,6 +473,10 @@ class BudgetSliceSet extends Event {
   final String sliceId;
   final String name;
   final SliceOwnership ownership;
+
+  /// The main category this budget category rolls up to (see [MainCategorySet]).
+  /// Optional for wire compatibility with pre-main-category events.
+  final String? mainCategoryId;
   final int limitCents;
   final int poolTithePct;
   final LeftoverDestination defaultLeftoverPolicy;
@@ -474,6 +492,7 @@ class BudgetSliceSet extends Event {
         'sliceId': sliceId,
         'name': name,
         'ownership': ownership.toJson(),
+        if (mainCategoryId != null) 'mainCategoryId': mainCategoryId,
         'limitCents': limitCents,
         'poolTithePct': poolTithePct,
         'defaultLeftoverPolicy': defaultLeftoverPolicy.toJson(),
@@ -481,6 +500,40 @@ class BudgetSliceSet extends Event {
         if (emergencyContribution != null)
           'emergencyContribution': emergencyContribution!.toJson(),
         if (petId != null) 'petId': petId,
+      };
+}
+
+/// Declares or amends a **main category** — the coarse grouping budget
+/// categories roll up to for the spend report and quest-tithe matching.
+/// Last-writer-wins by [id]; the reducer seeds the eight documented defaults, so
+/// this event is only needed to rename, recolour, reorder, or add one.
+class MainCategorySet extends Event {
+  const MainCategorySet({
+    required super.eventId,
+    required super.deviceId,
+    required super.userId,
+    required super.occurredAt,
+    required super.createdAt,
+    required this.id,
+    required this.name,
+    required this.colorArgb,
+    required this.sortOrder,
+  });
+
+  final String id;
+  final String name;
+  final int colorArgb;
+  final int sortOrder;
+
+  @override
+  String get type => 'MainCategorySet';
+
+  @override
+  Map<String, dynamic> payload() => {
+        'id': id,
+        'name': name,
+        'colorArgb': colorArgb,
+        'sortOrder': sortOrder,
       };
 }
 

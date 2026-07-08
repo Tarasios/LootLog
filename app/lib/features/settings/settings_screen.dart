@@ -1,5 +1,5 @@
 /// Settings: the household's configuration surface. Lists the editable areas
-/// (members, income, recurring expenses, budget slices, emergency funds) and holds
+/// (members, income, recurring expenses, budget categories, emergency funds) and holds
 /// the household rules that don't warrant their own page — spoils grace period,
 /// dissolution tithe, and the net-worth feature flag. Receipt library (desktop)
 /// and the tax center hang off here too.
@@ -16,8 +16,8 @@ import '../../data/actions.dart';
 import '../../data/providers.dart';
 import '../../game/skin_prefs.dart';
 import '../../ui/theme.dart';
+import '../categories/category_list_screen.dart';
 import '../library/receipt_library_screen.dart';
-import '../slices/slice_list_screen.dart';
 import '../tax/tax_center_screen.dart';
 import 'emergency_funds_screen.dart';
 import 'income_screen.dart';
@@ -49,8 +49,8 @@ class SettingsScreen extends ConsumerWidget {
               'Each member\'s monthly income', const IncomeScreen()),
           _nav(context, Icons.autorenew, 'Recurring expenses',
               'Equipment maintenance & provisioning', const RecurringScreen()),
-          _nav(context, Icons.pie_chart_outline, 'Budget slices',
-              'Limits, tithes, leftover policies', const SliceListScreen()),
+          _nav(context, Icons.pie_chart_outline, 'Budget categories',
+              'Limits, tithes, leftover policies', const CategoryListScreen()),
           _nav(context, Icons.emergency_outlined, 'Emergency funds',
               'Reserve caches', const EmergencyFundsScreen()),
           const _SectionHeader('Appearance'),
