@@ -124,6 +124,9 @@ Flutter stable + Riverpod (codegen) + drift + go_router + fl_chart + shelf + mob
 - `app/lib/ui/` theme + shared widgets + the glossary/strings module.
 - `docs/` architecture, protocol, art specs, distribution, ADRs.
 
+## Environment
+- The Flutter SDK is provisioned once by `tool/setup-env.sh` (run as the environment setup command, snapshotted). It installs Flutter to `/opt/flutter` and adds `/opt/flutter/bin` to PATH. Do NOT clone or reinstall Flutter inside a session — if `flutter` is not on PATH, run `export PATH="/opt/flutter/bin:$PATH"` (or `source tool/setup-env.sh`) rather than re-installing.
+
 ## Workflow rules
 - TDD for `lib/domain/`, `lib/game/adapter.dart`, `lib/game/rewards/`, `lib/data/ocr/receipt_parse.dart`, and the receipt-library path/naming logic: tests before implementation. `./check.sh` (dart analyze + flutter test) must pass before any commit.
 - The firewall test (cosmetic-stripped ledger ⇒ identical balances) must exist and pass from the first rewards commit onward.
