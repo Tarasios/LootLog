@@ -17,6 +17,7 @@ import '../../game/skin_prefs.dart';
 import '../activity/activity_model.dart';
 import '../budget_setup/budget_setup_screen.dart';
 import '../household_context.dart';
+import '../quests/quests_screen.dart';
 import '../report/report_screen.dart';
 import '../spoils/spoils_screen.dart';
 import 'dashboard_model.dart';
@@ -77,6 +78,7 @@ class DashboardScreen extends ConsumerWidget {
         onGetStarted: () => unawaited(Navigator.of(context).push(
           MaterialPageRoute<void>(builder: (_) => const BudgetSetupScreen()),
         )),
+        onNewGoal: () => unawaited(QuestEditorScreen.open(context)),
       ),
     );
   }

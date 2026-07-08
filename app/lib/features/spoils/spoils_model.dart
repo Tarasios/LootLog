@@ -39,6 +39,7 @@ class QuestOption {
     required this.balanceCents,
     required this.targetCents,
     required this.totalContributedCents,
+    this.mainCategoryId,
   });
 
   final String questId;
@@ -46,6 +47,9 @@ class QuestOption {
   final int balanceCents;
   final int targetCents;
   final int totalContributedCents;
+
+  /// The goal's main category; drives category-match tithing in the preview.
+  final String? mainCategoryId;
 }
 
 /// One personal slice with an undecided leftover — step 2 of the ritual.
@@ -57,6 +61,7 @@ class SliceLeftover {
     required this.poolTithePct,
     required this.defaultPolicy,
     required this.questOptions,
+    this.mainCategoryId,
     this.petName,
   });
 
@@ -64,10 +69,14 @@ class SliceLeftover {
   final String name;
   final int leftoverCents;
 
-  /// The per-slice pool tithe (%), applied only to the discretionary portion.
+  /// The per-slice pool tithe (%), applied to the discretionary portion and to
+  /// an attack on a quest whose main category does NOT match this category.
   final int poolTithePct;
   final LeftoverDestination defaultPolicy;
   final List<QuestOption> questOptions;
+
+  /// This category's main category; drives category-match tithing.
+  final String? mainCategoryId;
   final String? petName;
 }
 
@@ -178,6 +187,7 @@ SpoilsRitual? buildSpoilsRitual(
       balanceCents: q.balanceCents,
       targetCents: q.targetCents,
       totalContributedCents: q.totalContributedCents,
+      mainCategoryId: q.mainCategoryId,
     ));
   }
   questOptions.sort((a, b) => a.name.compareTo(b.name));
@@ -212,6 +222,7 @@ SpoilsRitual? buildSpoilsRitual(
       poolTithePct: cfg.poolTithePct,
       defaultPolicy: cfg.defaultLeftoverPolicy,
       questOptions: questOptions,
+      mainCategoryId: cfg.mainCategoryId,
       petName: cfg.petId == null ? null : state.pets[cfg.petId]?.name,
     ));
   }
@@ -255,4 +266,24 @@ class DraftAllocation {
 ) {
   final t = Money.titheCents(amountCents, poolTithePct);
   return (vaultCents: t.remainderCents, titheCents: t.titheCents);
+}
+
+/// Splits an attack of [amountCents] from a category into the damage dealt to a
+/// quest and the war-chest tithe, applying the category-match rule the reducer
+/// uses: a match ([sliceMainCategoryId] == [questMainCategoryId], both non-null)
+/// is untithed full damage; otherwise the source category's [poolTithePct] is
+/// floored to the chest and the remainder is damage.
+({int damageCents, int titheCents, bool matched}) previewQuestAttack(
+  int amountCents,
+  int poolTithePct, {
+  required String? sliceMainCategoryId,
+  required String? questMainCategoryId,
+}) {
+  final matched = questMainCategoryId != null &&
+      questMainCategoryId == sliceMainCategoryId;
+  if (matched) {
+    return (damageCents: amountCents, titheCents: 0, matched: true);
+  }
+  final t = Money.titheCents(amountCents, poolTithePct);
+  return (damageCents: t.remainderCents, titheCents: t.titheCents, matched: false);
 }

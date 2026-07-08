@@ -24,6 +24,7 @@ class DashboardCallbacks {
     this.onApproveWithdrawal,
     this.onCancelWithdrawal,
     this.onGetStarted,
+    this.onNewGoal,
   });
 
   final VoidCallback? onOpenSpoils;
@@ -35,6 +36,9 @@ class DashboardCallbacks {
 
   /// Opens budget setup from the new-household empty state.
   final VoidCallback? onGetStarted;
+
+  /// Opens the new savings-goal editor. Null in goldens (button hidden).
+  final VoidCallback? onNewGoal;
 }
 
 class DashboardView extends StatelessWidget {
@@ -88,10 +92,8 @@ class DashboardView extends StatelessWidget {
         _VaultCard(vault: model.vault, meName: model.meName),
         const SizedBox(height: AppSpacing.md),
         _TimelineCard(timeline: model.timeline),
-        if (model.quests.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.md),
-          _QuestsCard(quests: model.quests),
-        ],
+        const SizedBox(height: AppSpacing.md),
+        _QuestsCard(quests: model.quests, onNewGoal: callbacks.onNewGoal),
         const SizedBox(height: AppSpacing.md),
         _WarChestCard(card: model.warChest, callbacks: callbacks),
         if (model.maintenance.isNotEmpty) ...[
@@ -578,21 +580,48 @@ class _SpendBarChart extends StatelessWidget {
 }
 
 class _QuestsCard extends StatelessWidget {
-  const _QuestsCard({required this.quests});
+  const _QuestsCard({required this.quests, this.onNewGoal});
 
   final List<QuestCard> quests;
+  final VoidCallback? onNewGoal;
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return _Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _cardTitle(context, 'Quests'),
-          for (var i = 0; i < quests.length; i++) ...[
-            if (i > 0) const Divider(),
-            _QuestTile(quest: quests[i]),
-          ],
+          Row(
+            children: [
+              Expanded(child: _cardTitle(context, 'Savings goals')),
+              if (onNewGoal != null)
+                TextButton.icon(
+                  onPressed: onNewGoal,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('New goal'),
+                ),
+            ],
+          ),
+          if (quests.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(
+                top: AppSpacing.xs,
+                bottom: AppSpacing.sm,
+              ),
+              child: Text(
+                'No savings goals yet. Set a target for something you’re '
+                'saving toward and fund it from your leftovers at month close.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+              ),
+            )
+          else
+            for (var i = 0; i < quests.length; i++) ...[
+              if (i > 0) const Divider(),
+              _QuestTile(quest: quests[i]),
+            ],
         ],
       ),
     );

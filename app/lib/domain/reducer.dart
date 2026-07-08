@@ -547,10 +547,28 @@ class _Builder {
                     carryThis[cfg.sliceId] =
                         (carryThis[cfg.sliceId] ?? 0) + a.amountCents;
                   case QuestDestination():
+                    // Category-match tithing: an attack from a category whose
+                    // main category matches the quest's is untithed (full
+                    // damage). From a non-matching category, the source
+                    // category's pool tithe is skimmed to the war chest and
+                    // only the remainder lands as damage. A quest without a
+                    // main category never matches (always tithed).
+                    final quest = questCfg[dest.questId];
+                    final matches = quest?.mainCategoryId != null &&
+                        quest!.mainCategoryId == cfg.mainCategoryId;
+                    final int damage;
+                    if (matches) {
+                      damage = a.amountCents;
+                    } else {
+                      final t =
+                          Money.titheCents(a.amountCents, cfg.poolTithePct);
+                      _addChest(t.titheCents, m);
+                      damage = t.remainderCents;
+                    }
                     questBalance[dest.questId] =
-                        (questBalance[dest.questId] ?? 0) + a.amountCents;
+                        (questBalance[dest.questId] ?? 0) + damage;
                     final c = questContrib.putIfAbsent(dest.questId, () => {});
-                    c[owner] = (c[owner] ?? 0) + a.amountCents;
+                    c[owner] = (c[owner] ?? 0) + damage;
                   case Discretionary():
                     final t = Money.titheCents(a.amountCents, cfg.poolTithePct);
                     _addChest(t.titheCents, m);
@@ -758,8 +776,10 @@ class _Builder {
         contributions: contrib,
         completed: completed,
         abandoned: abandoned,
+        mainCategoryId: cfg.mainCategoryId,
         sliceHint: cfg.sliceHint,
         customSpriteSha256: cfg.customSpriteSha256,
+        descriptionText: cfg.descriptionText,
       );
     }
 

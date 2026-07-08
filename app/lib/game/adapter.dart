@@ -172,6 +172,8 @@ GameState buildGameState(
       completed: q.completed,
       shared: q.ownership is SharedParty,
       contributors: contributors,
+      mainCategoryId: q.mainCategoryId,
+      descriptionText: q.descriptionText,
     ));
   }
   questMonsters.sort((a, b) {

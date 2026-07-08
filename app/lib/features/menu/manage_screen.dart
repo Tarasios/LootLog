@@ -43,8 +43,8 @@ class ManageScreen extends ConsumerWidget {
           ),
           _Entry(
             icon: Icons.flag_outlined,
-            title: 'Quests',
-            subtitle: 'Savings goals and their progress',
+            title: 'Savings goals',
+            subtitle: 'Your goals and their progress',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const QuestsScreen()),
             ),

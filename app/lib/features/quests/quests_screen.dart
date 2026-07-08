@@ -37,22 +37,41 @@ class QuestsScreen extends ConsumerWidget {
       });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Quests')),
+      appBar: AppBar(title: const Text('Savings goals')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => QuestEditorScreen.open(context),
         icon: const Icon(Icons.add),
-        label: const Text('New quest'),
+        label: const Text('New goal'),
       ),
       body: quests.isEmpty
           ? Center(
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.xl),
-                child: Text(
-                  'No quests yet.\nSet a savings goal to hunt.',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'No savings goals yet.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      'Set a target for something you’re saving toward — '
+                      'a trip, a new couch, a rainy-day cushion — and fund it '
+                      'from your leftovers at month close.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    FilledButton.icon(
+                      onPressed: () => QuestEditorScreen.open(context),
+                      icon: const Icon(Icons.add),
+                      label: const Text('New goal'),
+                    ),
+                  ],
                 ),
               ),
             )
@@ -332,8 +351,10 @@ enum _OwnerChoice { me, partner, shared }
 class _QuestEditorScreenState extends ConsumerState<QuestEditorScreen> {
   late final TextEditingController _name;
   late final TextEditingController _target;
+  late final TextEditingController _description;
   _OwnerChoice _owner = _OwnerChoice.shared;
   String? _spriteSha;
+  String? _mainCategoryId;
   bool _ownerInit = false;
 
   @override
@@ -343,23 +364,29 @@ class _QuestEditorScreenState extends ConsumerState<QuestEditorScreen> {
     _name = TextEditingController(text: e?.name ?? '');
     _target = TextEditingController(
         text: e == null ? '' : (e.targetCents / 100).toStringAsFixed(2));
+    _description = TextEditingController(text: e?.descriptionText ?? '');
     _spriteSha = e?.customSpriteSha256;
+    _mainCategoryId = e?.mainCategoryId;
   }
 
   @override
   void dispose() {
     _name.dispose();
     _target.dispose();
+    _description.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final setup = ref.watch(localSetupProvider).value;
+    final state = ref.watch(householdStateProvider).value;
     final names = ref.watch(userNamesProvider);
-    if (setup == null) {
+    if (setup == null || state == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+    final mainCategories = state.mainCategories.values.toList()
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     if (!_ownerInit) {
       final o = widget.existing?.ownership;
       if (o is PersonalParty) {
@@ -372,13 +399,17 @@ class _QuestEditorScreenState extends ConsumerState<QuestEditorScreen> {
 
     return Scaffold(
       appBar: AppBar(
-          title: Text(widget.existing == null ? 'New quest' : 'Edit quest')),
+          title:
+              Text(widget.existing == null ? 'New goal' : 'Edit savings goal')),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
           TextField(
             controller: _name,
-            decoration: const InputDecoration(labelText: 'Name'),
+            decoration: const InputDecoration(
+              labelText: 'Name',
+              helperText: 'What you’re saving for — e.g. “Canoe”',
+            ),
             textCapitalization: TextCapitalization.words,
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -387,6 +418,41 @@ class _QuestEditorScreenState extends ConsumerState<QuestEditorScreen> {
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: const InputDecoration(
                 labelText: 'Target', prefixText: r'$'),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Text('Main category', style: AppText.sectionLabel(context)),
+          const SizedBox(height: AppSpacing.sm),
+          DropdownButtonFormField<String?>(
+            initialValue: _mainCategoryId,
+            decoration: const InputDecoration(
+              helperText: 'Leftovers from a matching category fund this goal '
+                  'untithed; other categories pay their tithe',
+            ),
+            items: [
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text('None'),
+              ),
+              for (final m in mainCategories)
+                DropdownMenuItem<String?>(
+                  value: m.id,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 14,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: Color(m.colorArgb),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(m.name),
+                    ],
+                  ),
+                ),
+            ],
+            onChanged: (v) => setState(() => _mainCategoryId = v),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text('Owner', style: AppText.sectionLabel(context)),
@@ -431,10 +497,21 @@ class _QuestEditorScreenState extends ConsumerState<QuestEditorScreen> {
               ],
             ),
           ),
+          const SizedBox(height: AppSpacing.lg),
+          TextField(
+            controller: _description,
+            maxLines: 3,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              labelText: 'Description',
+              alignLabelWithHint: true,
+              helperText: 'Sets the scene in text-mode adventure (optional)',
+            ),
+          ),
           const SizedBox(height: AppSpacing.xl),
           FilledButton(
             onPressed: () => _save(setup.me.userId, setup.partner.userId),
-            child: const Text('Save quest'),
+            child: const Text('Save goal'),
           ),
         ],
       ),
@@ -456,13 +533,16 @@ class _QuestEditorScreenState extends ConsumerState<QuestEditorScreen> {
       _OwnerChoice.partner => PersonalParty(partnerId),
       _OwnerChoice.shared => const SharedParty(),
     };
+    final description = _description.text.trim();
     await ref.read(householdActionsProvider)?.setQuest(
           questId: widget.existing?.questId,
           name: name,
           targetCents: target,
           ownership: ownership,
+          mainCategoryId: _mainCategoryId,
           sliceHint: widget.existing?.sliceHint,
           customSpriteSha256: _spriteSha,
+          descriptionText: description.isEmpty ? null : description,
         );
     navigator.pop();
   }
