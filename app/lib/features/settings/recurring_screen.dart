@@ -55,6 +55,12 @@ class RecurringScreen extends ConsumerWidget {
                 final kind = r.kind == RecurringKind.variable
                     ? 'variable est.'
                     : 'fixed';
+                final cadence = r.isAnnual ? 'annual' : 'monthly';
+                final due = recurringDueLabel(
+                  isAnnual: r.isAnnual,
+                  dueDay: r.dueDay,
+                  dueMonth: r.dueMonth,
+                );
                 return ListTile(
                   title: Text(
                     r.name,
@@ -64,12 +70,31 @@ class RecurringScreen extends ConsumerWidget {
                         : null,
                   ),
                   subtitle: Text(
-                    '$owner · $kind · from ${r.startMonth.toKey()}'
+                    '$owner · $kind · $cadence · due $due · '
+                    'from ${r.startMonth.toKey()}'
                     '${r.endMonth != null ? ' to ${r.endMonth!.toKey()}' : ''}',
                   ),
-                  trailing: Text(
-                    money(r.amountCents),
-                    style: Theme.of(context).textTheme.titleMedium,
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        money(r.amountCents),
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      if (r.isAnnual)
+                        Text(
+                          '${money(r.amountCents ~/ 12)}/mo',
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelSmall
+                              ?.copyWith(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                        ),
+                    ],
                   ),
                   onTap: () => _RecurringEditor.open(context, existing: r),
                 );
@@ -118,6 +143,9 @@ class _RecurringEditorState extends ConsumerState<_RecurringEditor> {
   late final TextEditingController _amount;
   _OwnerChoice _owner = _OwnerChoice.shared;
   RecurringKind _kind = RecurringKind.fixed;
+  RecurringCadence _cadence = RecurringCadence.monthly;
+  late int _dueDay;
+  late int _dueMonth;
   late Month _start;
   Month? _end;
   bool _ownerInit = false;
@@ -130,6 +158,9 @@ class _RecurringEditorState extends ConsumerState<_RecurringEditor> {
     _amount =
         TextEditingController(text: e == null ? '' : Money(e.amountCents).format());
     _kind = e?.kind ?? RecurringKind.fixed;
+    _cadence = e?.cadence ?? RecurringCadence.monthly;
+    _dueDay = e?.dueDay ?? 1;
+    _dueMonth = e?.dueMonth ?? Month.fromInstant(DateTime.now()).month;
     _start = e?.startMonth ?? Month.fromInstant(DateTime.now());
     _end = e?.endMonth;
   }
@@ -160,6 +191,7 @@ class _RecurringEditorState extends ConsumerState<_RecurringEditor> {
       _ownerInit = true;
     }
     final variable = _kind == RecurringKind.variable;
+    final annual = _cadence == RecurringCadence.annual;
 
     return Scaffold(
       appBar: AppBar(
@@ -203,16 +235,66 @@ class _RecurringEditorState extends ConsumerState<_RecurringEditor> {
             onSelectionChanged: (s) => setState(() => _kind = s.first),
           ),
           const SizedBox(height: AppSpacing.lg),
+          Text('Cadence', style: AppText.sectionLabel(context)),
+          const SizedBox(height: AppSpacing.sm),
+          SegmentedButton<RecurringCadence>(
+            segments: const [
+              ButtonSegment(
+                  value: RecurringCadence.monthly, label: Text('Monthly')),
+              ButtonSegment(
+                  value: RecurringCadence.annual, label: Text('Annual')),
+            ],
+            selected: {_cadence},
+            onSelectionChanged: (s) => setState(() => _cadence = s.first),
+          ),
+          const SizedBox(height: AppSpacing.lg),
           TextField(
             controller: _amount,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
-              labelText: variable ? 'Estimate' : 'Amount',
+              labelText: annual
+                  ? (variable ? 'Annual estimate' : 'Annual amount')
+                  : (variable ? 'Estimate' : 'Amount'),
               prefixText: r'$',
-              helperText: variable
-                  ? 'Actual is recorded at month close'
-                  : null,
+              helperText: annual
+                  ? 'Accrued 1/12 each month; reconciled when due'
+                  : (variable ? 'Actual is recorded at month close' : null),
             ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Text('Due date', style: AppText.sectionLabel(context)),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              if (annual) ...[
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    initialValue: _dueMonth,
+                    decoration: const InputDecoration(labelText: 'Month'),
+                    items: [
+                      for (var mo = 1; mo <= 12; mo++)
+                        DropdownMenuItem(value: mo, child: Text(_monthName(mo))),
+                    ],
+                    onChanged: (v) => setState(() => _dueMonth = v ?? _dueMonth),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+              ],
+              Expanded(
+                child: DropdownButtonFormField<int>(
+                  initialValue: _dueDay,
+                  decoration: const InputDecoration(labelText: 'Day'),
+                  items: [
+                    for (var d = 1; d <= 31; d++)
+                      DropdownMenuItem(
+                        value: d,
+                        child: Text(d == 31 ? 'Last day' : '$d'),
+                      ),
+                  ],
+                  onChanged: (v) => setState(() => _dueDay = v ?? _dueDay),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: AppSpacing.lg),
           MonthField(
@@ -270,7 +352,10 @@ class _RecurringEditorState extends ConsumerState<_RecurringEditor> {
           name: name,
           ownership: ownership,
           kind: _kind,
+          cadence: _cadence,
           amountCents: amount,
+          dueDay: _dueDay,
+          dueMonth: _cadence == RecurringCadence.annual ? _dueMonth : null,
           startMonth: _start,
           endMonth: _end,
         );
@@ -287,10 +372,29 @@ class _RecurringEditorState extends ConsumerState<_RecurringEditor> {
           name: e.name,
           ownership: e.ownership,
           kind: e.kind,
+          cadence: e.cadence,
           amountCents: e.amountCents,
+          dueDay: e.dueDay,
+          dueMonth: e.dueMonth,
           startMonth: e.startMonth,
           endMonth: endAt < e.startMonth ? e.startMonth : endAt,
         );
     navigator.pop();
   }
 }
+
+String _monthName(int month) => const [
+      '',
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ][month];

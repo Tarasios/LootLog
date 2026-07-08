@@ -613,6 +613,139 @@ void main() {
       expect(s.variableActualFor('util', const Month(2026, 2)), isNull);
       expect(s.variableActualFor('rent', const Month(2026, 1)), isNull);
     });
+
+    RecurringExpenseSet annual({
+      required int amountCents,
+      int dueMonth = 2,
+      int dueDay = 10,
+      Month start = const Month(2026, 1),
+      PartyOwnership ownership = const PersonalParty(u1),
+      RecurringKind kind = RecurringKind.fixed,
+    }) =>
+        RecurringExpenseSet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: u1,
+          occurredAt: day(2026, 1, 1),
+          createdAt: day(2026, 1, 1),
+          expenseId: 'wow',
+          name: 'WoW',
+          ownership: ownership,
+          kind: kind,
+          cadence: RecurringCadence.annual,
+          amountCents: amountCents,
+          dueDay: dueDay,
+          dueMonth: dueMonth,
+          startMonth: start,
+        );
+
+    test('annual expense charges 1/12 monthly, remainder in the due month', () {
+      // $131.00 / 12 = 1091 base, remainder 8 -> due month bears 1099.
+      final s = reduce([annual(amountCents: 13100)], asOf: day(2026, 12, 20));
+      var sum = 0;
+      for (var mo = 1; mo <= 12; mo++) {
+        final charge = s.recurringChargeFor(u1, Month(2026, mo));
+        sum += charge;
+        expect(charge, mo == 2 ? 1099 : 1091,
+            reason: 'month $mo accrual');
+      }
+      // The twelve monthly accruals sum exactly to the annual amount.
+      expect(sum, 13100);
+    });
+
+    test('a full accrual year reconciles the due month with no shortfall', () {
+      // Starts a full year before the due month (Feb 2027), so the reserve is
+      // exactly the annual amount when the bill lands.
+      final s = reduce([
+        annual(amountCents: 13100, start: const Month(2026, 3)),
+      ], asOf: day(2027, 2, 20));
+      final r = s.recurringExpenses['wow']!;
+      final recon = r.lastReconciliation!;
+      expect(recon.month, const Month(2027, 2));
+      expect(recon.dueAmountCents, 13100);
+      expect(recon.reserveBeforeCents, 13100);
+      expect(recon.shortfallCents, 0);
+      expect(recon.surplusCents, 0);
+      // The bill was paid from the reserve; nothing carries into the new year.
+      expect(r.reserveCents, 0);
+    });
+
+    test('a partial first year surfaces the shortfall, then self-corrects', () {
+      // Starts Jan 2026, due Feb 2026: only two accruals (1091 + 1099 = 2190)
+      // sit in the reserve when the $131.00 bill lands.
+      final firstYear =
+          reduce([annual(amountCents: 13100)], asOf: day(2026, 2, 20));
+      final r1 = firstYear.recurringExpenses['wow']!;
+      final recon1 = r1.lastReconciliation!;
+      expect(recon1.month, const Month(2026, 2));
+      expect(recon1.reserveBeforeCents, 2190);
+      expect(recon1.shortfallCents, 13100 - 2190);
+      expect(r1.reserveCents, 0); // emptied covering the bill
+
+      // By the next due month (Feb 2027) a full year of accrual has built up,
+      // so the second year reconciles cleanly.
+      final secondYear =
+          reduce([annual(amountCents: 13100)], asOf: day(2027, 2, 20));
+      final recon2 = secondYear.recurringExpenses['wow']!.lastReconciliation!;
+      expect(recon2.month, const Month(2027, 2));
+      expect(recon2.reserveBeforeCents, 13100);
+      expect(recon2.shortfallCents, 0);
+    });
+
+    test('reserve grows month over month between due dates', () {
+      // Mid-year read, before the first due month: reserve is the sum of the
+      // accruals so far (no reconciliation has happened yet).
+      final s = reduce([
+        annual(amountCents: 12000, start: const Month(2026, 1)),
+      ], asOf: day(2026, 4, 20));
+      final r = s.recurringExpenses['wow']!;
+      // Jan..Apr = 4 * 1000 accrued; Feb is the due month.
+      final recon = r.lastReconciliation!;
+      expect(recon.month, const Month(2026, 2));
+      // Jan(1000)+Feb(1000)=2000 reserve before the bill; shortfall paid it to 0
+      // then Mar(1000)+Apr(1000) rebuild it.
+      expect(r.reserveCents, 2000);
+    });
+
+    test('annual read-model carries cadence and due date', () {
+      final s = reduce([annual(amountCents: 13100)], asOf: day(2026, 6, 20));
+      final r = s.recurringExpenses['wow']!;
+      expect(r.isAnnual, isTrue);
+      expect(r.cadence, RecurringCadence.annual);
+      expect(r.dueMonth, 2);
+      expect(r.dueDay, 10);
+      // Next Feb 10 from a June read is Feb 10 of the following year.
+      expect(r.nextDueDate(DateTime(2026, 6, 20)), DateTime(2027, 2, 10));
+      expect(r.daysUntilDue(DateTime(2026, 2, 5)), 5);
+    });
+
+    test('legacy recurring event reduces as a monthly expense', () {
+      // A pre-cadence event: no cadence/dueDay/dueMonth in the payload.
+      final legacy = Event.fromJson({
+        'eventId': 'e-legacy',
+        'deviceId': 'd',
+        'userId': u1,
+        'type': 'RecurringExpenseSet',
+        'occurredAt': day(2026, 1, 1).toIso8601String(),
+        'createdAt': day(2026, 1, 1).toIso8601String(),
+        'payload': {
+          'expenseId': 'old',
+          'name': 'Netflix',
+          'ownership': const PersonalParty(u1).toJson(),
+          'kind': 'fixed',
+          'amountCents': 1500,
+          'startMonth': '2026-01',
+        },
+      });
+      final s = reduce([legacy], asOf: day(2026, 1, 20));
+      final r = s.recurringExpenses['old']!;
+      expect(r.cadence, RecurringCadence.monthly);
+      expect(r.isAnnual, isFalse);
+      // Monthly: full amount every month, no reserve.
+      expect(s.recurringChargeFor(u1, const Month(2026, 1)), 1500);
+      expect(r.reserveCents, 0);
+      expect(r.lastReconciliation, isNull);
+    });
   });
 
   group('emergency funds', () {

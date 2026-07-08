@@ -237,6 +237,12 @@ class _Builder {
   final Map<String, int> recurringByUserMonth = {};
   final List<RansackRecord> ransacks = [];
 
+  // Annual-accrual reserves: the running reserve per annual expense (also the
+  // as-of-now snapshot, since it is only advanced for months that have started)
+  // and each expense's most recent due-month reconciliation.
+  final Map<String, int> annualReserveByExpense = {};
+  final Map<String, AnnualDueReconciliation> annualReconByExpense = {};
+
   /// Debt minimum payments surfaced as shared recurring expenses.
   final List<_DerivedRecurring> derivedRecurring = [];
 
@@ -593,9 +599,40 @@ class _Builder {
           if (!active) {
             continue;
           }
-          final amount = r.kind == RecurringKind.variable
-              ? (variableActuals['${r.expenseId}|${m.toKey()}'] ?? r.amountCents)
-              : r.amountCents;
+          final int amount;
+          if (r.cadence == RecurringCadence.annual) {
+            // Off-the-top burden is 1/12 of the annual amount, with the
+            // integer-cents remainder landing in the due month so the twelve
+            // charges sum exactly.
+            final base = r.amountCents ~/ 12;
+            final isDue = r.dueMonth != null && m.month == r.dueMonth;
+            amount = base + (isDue ? r.amountCents % 12 : 0);
+            // Advance the reserve only for months that have already started;
+            // future accruals (reached because the sweep runs past `now`) have
+            // not happened yet. The due month reconciles the real amount.
+            if (!m.startInstantUtc().isAfter(now)) {
+              var running = (annualReserveByExpense[r.expenseId] ?? 0) + amount;
+              if (isDue) {
+                final real =
+                    variableActuals['${r.expenseId}|${m.toKey()}'] ??
+                        r.amountCents;
+                annualReconByExpense[r.expenseId] = AnnualDueReconciliation(
+                  month: m,
+                  dueAmountCents: real,
+                  reserveBeforeCents: running,
+                );
+                // Pay the bill from the reserve: carry any surplus forward; a
+                // shortfall is covered externally and leaves the reserve empty.
+                running = running >= real ? running - real : 0;
+              }
+              annualReserveByExpense[r.expenseId] = running;
+            }
+          } else {
+            amount = r.kind == RecurringKind.variable
+                ? (variableActuals['${r.expenseId}|${m.toKey()}'] ??
+                    r.amountCents)
+                : r.amountCents;
+          }
           final own = r.ownership;
           if (own is PersonalParty) {
             final k = HouseholdState.monthKey(own.userId, m);
@@ -1012,6 +1049,11 @@ class _Builder {
             amountCents: r.amountCents,
             startMonth: r.startMonth,
             endMonth: r.endMonth,
+            cadence: r.cadence,
+            dueDay: r.dueDay,
+            dueMonth: r.dueMonth,
+            reserveCents: annualReserveByExpense[r.expenseId] ?? 0,
+            lastReconciliation: annualReconByExpense[r.expenseId],
           ),
         // Debt minimum payments as read-only shared fixed recurring expenses.
         for (final d in derivedRecurring)

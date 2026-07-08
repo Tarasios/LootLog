@@ -182,14 +182,19 @@ GameState buildGameState(
   // ---- Provisioning (recurring expenses + emergency contributions) -------
   final provisioning = <ProvisionLine>[];
   final closed = month.prev();
+  final localNow = now.add(vancouverUtcOffset(now));
   for (final r in state.recurringExpenses.values) {
     final activeNow = r.activeIn(month);
     final activeClosed = r.activeIn(closed);
     if (!activeNow && !activeClosed) continue;
     final actualThis = state.variableActualFor(r.expenseId, month);
-    final amount = r.kind == RecurringKind.variable
-        ? (actualThis ?? r.amountCents)
-        : r.amountCents;
+    // An annual contract's floor charge is its 1/12 accrual; the full bill is
+    // its face value.
+    final amount = r.isAnnual
+        ? r.amountCents ~/ 12
+        : (r.kind == RecurringKind.variable
+            ? (actualThis ?? r.amountCents)
+            : r.amountCents);
     final awaiting = r.kind == RecurringKind.variable &&
         activeClosed &&
         state.variableActualFor(r.expenseId, closed) == null;
@@ -202,6 +207,11 @@ GameState buildGameState(
       shared: r.isShared,
       awaitingTally: awaiting,
       ownerName: r.ownerUserId == null ? null : nameOf(r.ownerUserId!),
+      isAnnualContract: r.isAnnual,
+      contractTotalCents: r.isAnnual ? r.amountCents : null,
+      dueDay: r.isAnnual ? r.dueDay : null,
+      dueMonth: r.isAnnual ? r.dueMonth : null,
+      daysUntilDue: r.isAnnual ? r.daysUntilDue(localNow) : null,
     ));
   }
   // Emergency-fund contributions designated on slices are provisioning too.

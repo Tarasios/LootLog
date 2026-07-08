@@ -175,6 +175,11 @@ class RecurringExpenseState {
     required this.amountCents,
     required this.startMonth,
     this.endMonth,
+    this.cadence = RecurringCadence.monthly,
+    this.dueDay = 1,
+    this.dueMonth,
+    this.reserveCents = 0,
+    this.lastReconciliation,
   });
 
   final String expenseId;
@@ -182,12 +187,33 @@ class RecurringExpenseState {
   final PartyOwnership ownership;
   final RecurringKind kind;
 
-  /// The fixed amount, or the estimate for a variable expense.
+  /// The fixed amount, or the estimate for a variable expense. For an annual
+  /// expense this is the full annual figure (accrued 1/12 monthly).
   final int amountCents;
   final Month startMonth;
   final Month? endMonth;
 
+  /// Monthly (full amount each month) or annual (1/12 accrued monthly).
+  final RecurringCadence cadence;
+
+  /// Day of the month the bill is due (clamped to the month's length).
+  final int dueDay;
+
+  /// For an annual expense, the calendar month (1..12) it comes due; null for
+  /// monthly expenses.
+  final int? dueMonth;
+
+  /// The reserve accrued toward an annual expense as of the read-time month
+  /// (money set aside since the last due month). Always 0 for monthly.
+  final int reserveCents;
+
+  /// The most recent due-month reconciliation for an annual expense at or
+  /// before the read-time month, or null when none has occurred yet.
+  final AnnualDueReconciliation? lastReconciliation;
+
   bool get isShared => ownership is SharedParty;
+
+  bool get isAnnual => cadence == RecurringCadence.annual;
 
   String? get ownerUserId =>
       ownership is PersonalParty ? (ownership as PersonalParty).userId : null;
@@ -196,6 +222,58 @@ class RecurringExpenseState {
   bool activeIn(Month month) =>
       !startMonth.isAfter(month) &&
       (endMonth == null || !month.isAfter(endMonth!));
+
+  /// The next due date at or after [from], in the household-local calendar,
+  /// clamped to each month's length (so a `dueDay` of 31 lands on the last day).
+  DateTime nextDueDate(DateTime from) {
+    final f = DateTime(from.year, from.month, from.day);
+    int lastDay(int y, int m) => DateTime(y, m + 1, 0).day;
+    DateTime forMonth(int y, int m) =>
+        DateTime(y, m, dueDay > lastDay(y, m) ? lastDay(y, m) : dueDay);
+    if (isAnnual && dueMonth != null) {
+      var candidate = forMonth(f.year, dueMonth!);
+      if (candidate.isBefore(f)) {
+        candidate = forMonth(f.year + 1, dueMonth!);
+      }
+      return candidate;
+    }
+    var candidate = forMonth(f.year, f.month);
+    if (candidate.isBefore(f)) {
+      final ny = f.month == 12 ? f.year + 1 : f.year;
+      final nm = f.month == 12 ? 1 : f.month + 1;
+      candidate = forMonth(ny, nm);
+    }
+    return candidate;
+  }
+
+  /// Whole days from [from] to the next due date (0 when due today).
+  int daysUntilDue(DateTime from) => nextDueDate(from)
+      .difference(DateTime(from.year, from.month, from.day))
+      .inDays;
+}
+
+/// The reconciliation of an annual expense in its due month: the real amount is
+/// applied against the reserve accumulated that far. A positive [deltaCents] is
+/// a surplus (over-reserved), a negative one a shortfall (under-reserved,
+/// typically a partial first year).
+class AnnualDueReconciliation {
+  const AnnualDueReconciliation({
+    required this.month,
+    required this.dueAmountCents,
+    required this.reserveBeforeCents,
+  });
+
+  final Month month;
+  final int dueAmountCents;
+
+  /// The reserve balance the instant before the bill was applied.
+  final int reserveBeforeCents;
+
+  int get deltaCents => reserveBeforeCents - dueAmountCents;
+
+  int get shortfallCents => deltaCents < 0 ? -deltaCents : 0;
+
+  int get surplusCents => deltaCents > 0 ? deltaCents : 0;
 }
 
 /// Derived state of a savings-goal quest.

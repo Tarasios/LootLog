@@ -954,15 +954,24 @@ class ProvisioningLedger extends StatelessWidget {
                             style: Theme.of(context).textTheme.bodyMedium),
                         Text(
                           [
-                            switch (line.kind) {
-                              ProvisionKind.emergencyProvision => 'Provision',
-                              ProvisionKind.variableMaintenance => 'Variable',
-                              ProvisionKind.fixedMaintenance => 'Fixed',
-                            },
+                            if (line.isAnnualContract)
+                              'Contract'
+                            else
+                              switch (line.kind) {
+                                ProvisionKind.emergencyProvision => 'Provision',
+                                ProvisionKind.variableMaintenance => 'Variable',
+                                ProvisionKind.fixedMaintenance => 'Fixed',
+                              },
                             if (line.shared)
                               'shared'
                             else if (line.ownerName != null)
                               line.ownerName!,
+                            if (line.isAnnualContract)
+                              recurringDueLabel(
+                                isAnnual: true,
+                                dueDay: line.dueDay ?? 1,
+                                dueMonth: line.dueMonth,
+                              ),
                           ].join(' · '),
                           style:
                               Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -977,6 +986,27 @@ class ProvisioningLedger extends StatelessWidget {
                     _Tag(
                       label: 'Awaiting tally',
                       color: scheme.tertiary,
+                    )
+                  else if (line.isAnnualContract)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '${money(line.amountCents)}/floor',
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures()
+                                    ],
+                                  ),
+                        ),
+                        _Tag(
+                          label: dueCountdown(line.daysUntilDue ?? 0),
+                          color: (line.daysUntilDue ?? 99) <= 7
+                              ? scheme.tertiary
+                              : scheme.primary,
+                        ),
+                      ],
                     )
                   else
                     Text(

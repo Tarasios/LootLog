@@ -120,5 +120,45 @@ void main() {
     // July food leftover 30000; discretionary at 20% tithe -> 24000 to vault.
     expect(model.vault.projectedLeftoverCents, 30000);
     expect(model.vault.projectedVaultCents, 24000);
+
+    // The active recurring expense surfaces in the upcoming-payments strip.
+    final upUtil = model.upcoming.singleWhere((u) => u.name == 'Utilities');
+    expect(upUtil.isAnnual, isFalse);
+    expect(upUtil.amountCents, 8000);
+  });
+
+  test('dashboard model: annual bill carries due date and countdown', () {
+    final annualEvents = <Event>[
+      RecurringExpenseSet(
+        eventId: _id(),
+        deviceId: 'd',
+        userId: me,
+        occurredAt: _day(2026, 1, 1),
+        createdAt: _day(2026, 1, 1),
+        expenseId: 'wow',
+        name: 'WoW',
+        ownership: const PersonalParty(me),
+        kind: RecurringKind.fixed,
+        cadence: RecurringCadence.annual,
+        amountCents: 13100,
+        dueDay: 10,
+        dueMonth: 2,
+        startMonth: const Month(2026, 1),
+      ),
+    ];
+    // Household-local Feb 5 2026 -> due Feb 10 is five days out.
+    final at = DateTime.utc(2026, 2, 5, 18);
+    final model = buildDashboardModel(
+      reduce(annualEvents, asOf: at),
+      meUserId: me,
+      userNames: names,
+      asOf: at,
+    );
+    final wow = model.upcoming.singleWhere((u) => u.name == 'WoW');
+    expect(wow.isAnnual, isTrue);
+    expect(wow.amountCents, 13100);
+    expect(wow.dueMonth, 2);
+    expect(wow.dueDay, 10);
+    expect(wow.daysUntilDue, 5);
   });
 }

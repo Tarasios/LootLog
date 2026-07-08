@@ -359,6 +359,9 @@ class HouseholdActions {
     required int amountCents,
     required Month startMonth,
     Month? endMonth,
+    RecurringCadence cadence = RecurringCadence.monthly,
+    int dueDay = 1,
+    int? dueMonth,
   }) async {
     final now = DateTime.now().toUtc();
     final id = expenseId ?? uuidv7();
@@ -372,7 +375,10 @@ class HouseholdActions {
       name: name,
       ownership: ownership,
       kind: kind,
+      cadence: cadence,
       amountCents: amountCents,
+      dueDay: dueDay,
+      dueMonth: dueMonth,
       startMonth: startMonth,
       endMonth: endMonth,
     ));
