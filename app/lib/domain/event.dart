@@ -150,6 +150,17 @@ sealed class Event {
           amountCents: p['amountCents'] as int,
           month: Month.parse(p['month'] as String),
         );
+      case 'DefaultIncomeSet':
+        return DefaultIncomeSet(
+          eventId: eventId,
+          deviceId: deviceId,
+          userId: userId,
+          occurredAt: occurredAt,
+          createdAt: createdAt,
+          forUserId: p['forUserId'] as String,
+          amountCents: p['amountCents'] as int,
+          effectiveFromMonth: Month.parse(p['effectiveFromMonth'] as String),
+        );
       case 'QuestSet':
         return QuestSet(
           eventId: eventId,
@@ -627,6 +638,36 @@ class IncomeSet extends Event {
         'forUserId': forUserId,
         'amountCents': amountCents,
         'month': month.toKey(),
+      };
+}
+
+/// Sets a user's **default** monthly income, effective from
+/// [effectiveFromMonth] and carried forward until a later default supersedes it.
+/// A single-month [IncomeSet] overrides the resolved default for that month.
+class DefaultIncomeSet extends Event {
+  const DefaultIncomeSet({
+    required super.eventId,
+    required super.deviceId,
+    required super.userId,
+    required super.occurredAt,
+    required super.createdAt,
+    required this.forUserId,
+    required this.amountCents,
+    required this.effectiveFromMonth,
+  });
+
+  final String forUserId;
+  final int amountCents;
+  final Month effectiveFromMonth;
+
+  @override
+  String get type => 'DefaultIncomeSet';
+
+  @override
+  Map<String, dynamic> payload() => {
+        'forUserId': forUserId,
+        'amountCents': amountCents,
+        'effectiveFromMonth': effectiveFromMonth.toKey(),
       };
 }
 

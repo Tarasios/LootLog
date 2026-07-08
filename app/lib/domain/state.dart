@@ -453,6 +453,18 @@ class DeductiblePurchase {
   final String? note;
 }
 
+/// A user's default monthly income, effective from [effectiveFromMonth] and
+/// carried forward until a later default supersedes it.
+class DefaultIncome {
+  const DefaultIncome({
+    required this.effectiveFromMonth,
+    required this.amountCents,
+  });
+
+  final Month effectiveFromMonth;
+  final int amountCents;
+}
+
 /// The full derived read-model of the household.
 class HouseholdState {
   const HouseholdState({
@@ -475,6 +487,7 @@ class HouseholdState {
     required this.deductibleByYear,
     required this.recurringByUserMonth,
     required this.incomeByUserMonth,
+    required this.incomeDefaultsByUser,
     required this.recurringExpenses,
     required this.variableActuals,
   });
@@ -508,8 +521,12 @@ class HouseholdState {
   /// Recurring-expense burden keyed by `"userId|yyyy-MM"`.
   final Map<String, int> recurringByUserMonth;
 
-  /// Income keyed by `"userId|yyyy-MM"`.
+  /// Single-month income overrides keyed by `"userId|yyyy-MM"`.
   final Map<String, int> incomeByUserMonth;
+
+  /// Per-user default monthly incomes, each carried forward from its effective
+  /// month until a later default supersedes it. Sorted ascending by month.
+  final Map<String, List<DefaultIncome>> incomeDefaultsByUser;
 
   /// Recurring-expense configuration, keyed by `expenseId`.
   final Map<String, RecurringExpenseState> recurringExpenses;
@@ -547,8 +564,41 @@ class HouseholdState {
   int recurringChargeFor(String userId, Month month) =>
       recurringByUserMonth[monthKey(userId, month)] ?? 0;
 
+  /// The single-month income override for [userId] in [month], or null when the
+  /// month has no explicit override (the default, if any, applies instead).
+  int? incomeOverrideFor(String userId, Month month) =>
+      incomeByUserMonth[monthKey(userId, month)];
+
+  /// Whether [month] carries an explicit income override for [userId].
+  bool hasIncomeOverride(String userId, Month month) =>
+      incomeByUserMonth.containsKey(monthKey(userId, month));
+
+  /// The default monthly income in effect for [userId] as of [month] — the
+  /// latest default whose effective month is on or before [month] — or null
+  /// when no default has taken effect yet.
+  int? defaultIncomeFor(String userId, Month month) {
+    final defaults = incomeDefaultsByUser[userId];
+    if (defaults == null) {
+      return null;
+    }
+    int? amount;
+    for (final d in defaults) {
+      // Sorted ascending: keep the last one that is already effective.
+      if (!d.effectiveFromMonth.isAfter(month)) {
+        amount = d.amountCents;
+      } else {
+        break;
+      }
+    }
+    return amount;
+  }
+
+  /// Resolved income for [userId] in [month]: a single-month override wins,
+  /// else the latest effective default, else zero.
   int incomeFor(String userId, Month month) =>
-      incomeByUserMonth[monthKey(userId, month)] ?? 0;
+      incomeOverrideFor(userId, month) ??
+      defaultIncomeFor(userId, month) ??
+      0;
 
   /// A deterministic numeric snapshot used to assert that reduction is
   /// order-independent (out-of-order events == sorted order).

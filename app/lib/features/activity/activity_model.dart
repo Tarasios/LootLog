@@ -205,6 +205,18 @@ List<ActivityItem> buildActivityFeed(
           occurredAt: e.occurredAt,
           isMine: e.forUserId == meUserId,
         );
+      case DefaultIncomeSet():
+        item = ActivityItem(
+          eventId: e.eventId,
+          kind: ActivityKind.income,
+          userId: e.userId,
+          title: 'Standing expedition supplies set for ${who(e.forUserId)}',
+          subtitle:
+              'from ${monthLabel(e.effectiveFromMonth.year, e.effectiveFromMonth.month)}',
+          amountCents: e.amountCents,
+          occurredAt: e.occurredAt,
+          isMine: e.forUserId == meUserId,
+        );
       case BudgetSliceSet():
         item = ActivityItem(
           eventId: e.eventId,
