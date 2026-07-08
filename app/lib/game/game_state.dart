@@ -165,11 +165,20 @@ class QuestMonster {
     required this.completed,
     required this.shared,
     required this.contributors,
+    this.mainCategoryId,
+    this.descriptionText,
   });
 
   final String questId;
   final String name;
   final SpriteRef sprite;
+
+  /// The main category this goal rolls up to; an attack from a matching category
+  /// is untithed (full damage), a non-matching one pays the source's pool tithe.
+  final String? mainCategoryId;
+
+  /// The user-written description, rendered by text-mode adventure.
+  final String? descriptionText;
 
   /// The goal amount — the quest monster's total HP.
   final int targetCents;

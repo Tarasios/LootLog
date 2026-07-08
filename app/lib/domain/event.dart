@@ -177,8 +177,10 @@ sealed class Event {
           name: p['name'] as String,
           targetCents: p['targetCents'] as int,
           ownership: PartyOwnership.fromJson((p['ownership'] as Map).cast()),
+          mainCategoryId: p['mainCategoryId'] as String?,
           sliceHint: p['sliceHint'] as String?,
           customSpriteSha256: p['customSpriteSha256'] as String?,
+          descriptionText: p['descriptionText'] as String?,
         );
       case 'QuestAbandoned':
         return QuestAbandoned(
@@ -737,16 +739,28 @@ class QuestSet extends Event {
     required this.name,
     required this.targetCents,
     required this.ownership,
+    this.mainCategoryId,
     this.sliceHint,
     this.customSpriteSha256,
+    this.descriptionText,
   });
 
   final String questId;
   final String name;
   final int targetCents;
   final PartyOwnership ownership;
+
+  /// The main category this savings goal rolls up to (see [MainCategorySet]).
+  /// Drives category-match tithing: an attack funded from a budget category
+  /// whose main category matches this is untithed; from a non-matching category
+  /// the source's pool tithe applies. Optional for wire compatibility with
+  /// pre-main-category quests (they behave as non-matching, i.e. always tithed).
+  final String? mainCategoryId;
   final String? sliceHint;
   final String? customSpriteSha256;
+
+  /// The user-written character description used by text-mode adventure.
+  final String? descriptionText;
 
   @override
   String get type => 'QuestSet';
@@ -757,8 +771,10 @@ class QuestSet extends Event {
         'name': name,
         'targetCents': targetCents,
         'ownership': ownership.toJson(),
+        if (mainCategoryId != null) 'mainCategoryId': mainCategoryId,
         if (sliceHint != null) 'sliceHint': sliceHint,
         if (customSpriteSha256 != null) 'customSpriteSha256': customSpriteSha256,
+        if (descriptionText != null) 'descriptionText': descriptionText,
       };
 }
 

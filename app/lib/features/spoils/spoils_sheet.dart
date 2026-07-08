@@ -482,7 +482,13 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
             'Pick a quest to attack.',
           );
         }
-        final after = q.totalContributedCents + s.leftoverCents;
+        final split = previewQuestAttack(
+          s.leftoverCents,
+          s.poolTithePct,
+          sliceMainCategoryId: s.mainCategoryId,
+          questMainCategoryId: q.mainCategoryId,
+        );
+        final after = q.totalContributedCents + split.damageCents;
         final pct = q.targetCents <= 0
             ? 100
             : ((after / q.targetCents) * 100).round().clamp(0, 100);
@@ -509,10 +515,20 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
             _previewText(
               context,
               Icons.flag_outlined,
-              'Untithed. ${q.name}: '
-              '${money(after)} / ${money(q.targetCents)} ($pct%)'
-              '${after >= q.targetCents ? ' — complete!' : ''}.',
+              split.matched
+                  ? 'Same category — untithed. '
+                      '${money(split.damageCents)} damage to ${q.name}.'
+                  : '${money(split.damageCents)} damage to ${q.name}, '
+                      '${money(split.titheCents)} tithe to war chest '
+                      '(${s.poolTithePct}%).',
               color: scheme.tertiary,
+            ),
+            const SizedBox(height: AppSpacing.xxs),
+            _previewText(
+              context,
+              Icons.flag_outlined,
+              '${q.name}: ${money(after)} / ${money(q.targetCents)} ($pct%)'
+              '${after >= q.targetCents ? ' — complete!' : ''}.',
             ),
           ],
         );

@@ -110,6 +110,29 @@ List<Event> twoAdults() => [
       member(id: u2, role: MemberRole.adult),
     ];
 
+QuestSet quest({
+  required String id,
+  required String name,
+  required int target,
+  PartyOwnership ownership = const SharedParty(),
+  String? mainCategoryId,
+  String? descriptionText,
+  DateTime? at,
+}) =>
+    QuestSet(
+      eventId: _seq.id(),
+      deviceId: 'd',
+      userId: u1,
+      occurredAt: at ?? day(2026, 1, 1),
+      createdAt: at ?? day(2026, 1, 1),
+      questId: id,
+      name: name,
+      targetCents: target,
+      ownership: ownership,
+      mainCategoryId: mainCategoryId,
+      descriptionText: descriptionText,
+    );
+
 LeftoverAllocated allocate({
   required String user,
   required String sliceId,
@@ -366,6 +389,141 @@ void main() {
       expect(s.warChest.balanceCents, 1);
       expect(s.vaultOf(u1) + s.vaultOf(u2), 9);
       expect(s.vaultOf(u1) + s.vaultOf(u2) + s.warChest.balanceCents, 10);
+    });
+  });
+
+  // The canonical category-match tithing invariant from CLAUDE.md: an attack
+  // funded from a category whose main category MATCHES the quest's is untithed
+  // (full damage); from a NON-matching category the source category's pool tithe
+  // is skimmed to the war chest and only the remainder lands as damage.
+  group('category-match tithing', () {
+    test('non-matching source: \$100 hygiene @50% -> \$50 chest + \$50 damage',
+        () {
+      final events = [
+        quest(
+          id: 'console',
+          name: 'Console',
+          target: 100000,
+          mainCategoryId: 'entertainment',
+        ),
+        slice(
+          id: 'hygiene',
+          ownership: const PersonalSlice(u1),
+          limit: 10000,
+          tithePct: 50,
+          mainCategoryId: 'health',
+        ),
+        allocate(
+          user: u1,
+          sliceId: 'hygiene',
+          month: const Month(2026, 1),
+          allocations: const [
+            Allocation(destination: QuestDestination('console'), amountCents: 10000),
+          ],
+          at: day(2026, 1, 20),
+        ),
+      ];
+      final s = reduce(events, asOf: day(2026, 2, 10));
+      final q = s.quests['console']!;
+      // 50% of the $100 leftover is skimmed to the chest; $50 is the damage.
+      expect(s.warChest.balanceCents, 5000);
+      expect(q.balanceCents, 5000);
+      expect(q.totalContributedCents, 5000);
+      expect(q.contributions[u1], 5000);
+    });
+
+    test('matching source: \$100 entertainment @20% -> \$100 damage, \$0 tithe',
+        () {
+      final events = [
+        quest(
+          id: 'console',
+          name: 'Console',
+          target: 100000,
+          mainCategoryId: 'entertainment',
+        ),
+        slice(
+          id: 'games',
+          ownership: const PersonalSlice(u1),
+          limit: 10000,
+          tithePct: 20,
+          mainCategoryId: 'entertainment',
+        ),
+        allocate(
+          user: u1,
+          sliceId: 'games',
+          month: const Month(2026, 1),
+          allocations: const [
+            Allocation(destination: QuestDestination('console'), amountCents: 10000),
+          ],
+          at: day(2026, 1, 20),
+        ),
+      ];
+      final s = reduce(events, asOf: day(2026, 2, 10));
+      final q = s.quests['console']!;
+      // Matching main category: untithed, full damage, nothing to the chest.
+      expect(s.warChest.balanceCents, 0);
+      expect(q.balanceCents, 10000);
+      expect(q.totalContributedCents, 10000);
+      expect(q.contributions[u1], 10000);
+    });
+
+    test('a quest with no main category is always tithed off a tithed category',
+        () {
+      final events = [
+        quest(id: 'q', name: 'Legacy', target: 100000),
+        slice(
+          id: 's',
+          ownership: const PersonalSlice(u1),
+          limit: 10000,
+          tithePct: 30,
+          mainCategoryId: 'entertainment',
+        ),
+        allocate(
+          user: u1,
+          sliceId: 's',
+          month: const Month(2026, 1),
+          allocations: const [
+            Allocation(destination: QuestDestination('q'), amountCents: 10000),
+          ],
+          at: day(2026, 1, 20),
+        ),
+      ];
+      final s = reduce(events, asOf: day(2026, 2, 10));
+      // No match (quest main category null) -> 30% to the chest, 70% damage.
+      expect(s.warChest.balanceCents, 3000);
+      expect(s.quests['q']!.balanceCents, 7000);
+    });
+
+    test('the mismatch tithe floors to the chest and sums exactly', () {
+      final events = [
+        quest(
+          id: 'q',
+          name: 'Odd',
+          target: 100000,
+          mainCategoryId: 'entertainment',
+        ),
+        slice(
+          id: 's',
+          ownership: const PersonalSlice(u1),
+          limit: 1005,
+          tithePct: 10,
+          mainCategoryId: 'health',
+        ),
+        allocate(
+          user: u1,
+          sliceId: 's',
+          month: const Month(2026, 1),
+          allocations: const [
+            Allocation(destination: QuestDestination('q'), amountCents: 1005),
+          ],
+          at: day(2026, 1, 20),
+        ),
+      ];
+      final s = reduce(events, asOf: day(2026, 2, 10));
+      // 10% of 1005 -> floor 100 to chest, 905 damage; sums exactly.
+      expect(s.warChest.balanceCents, 100);
+      expect(s.quests['q']!.balanceCents, 905);
+      expect(s.warChest.balanceCents + s.quests['q']!.balanceCents, 1005);
     });
   });
 

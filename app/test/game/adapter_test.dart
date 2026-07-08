@@ -259,6 +259,8 @@ void main() {
       required int target,
       required PartyOwnership ownership,
       String? sprite,
+      String? mainCategoryId,
+      String? descriptionText,
     }) =>
         QuestSet(
           eventId: _seq.id(),
@@ -270,7 +272,9 @@ void main() {
           name: name,
           targetCents: target,
           ownership: ownership,
+          mainCategoryId: mainCategoryId,
           customSpriteSha256: sprite,
+          descriptionText: descriptionText,
         );
 
     test('HP=target, damage=contributed, shared contributors ranked', () {
@@ -311,6 +315,23 @@ void main() {
       expect(q.hp.pct, 23);
       expect(q.contributors.map((c) => c.name).toList(), ['Robin', 'Sam']);
       expect(q.sprite.assetName, Sprites.questMonster);
+    });
+
+    test('quest monster carries its main category and description', () {
+      final events = [
+        questSet(
+          id: 'console',
+          name: 'Console',
+          target: 50000,
+          ownership: const PersonalParty(me),
+          mainCategoryId: 'entertainment',
+          descriptionText: 'A humming glass beast.',
+        ),
+      ];
+      final g = _game(events, asOf: _day(2026, 7, 5));
+      final q = g.questMonsters.single;
+      expect(q.mainCategoryId, 'entertainment');
+      expect(q.descriptionText, 'A humming glass beast.');
     });
 
     test('completed quest keeps its trophy state and custom sprite', () {

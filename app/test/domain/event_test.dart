@@ -187,8 +187,10 @@ void main() {
         name: 'Canoe',
         targetCents: 130000,
         ownership: const SharedParty(),
+        mainCategoryId: 'entertainment',
         sliceHint: 's2',
         customSpriteSha256: 'abc',
+        descriptionText: 'A gleaming canoe boss.',
       ),
       QuestAbandoned(
         eventId: 'e',

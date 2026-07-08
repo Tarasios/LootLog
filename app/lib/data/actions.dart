@@ -537,8 +537,10 @@ class HouseholdActions {
     required String name,
     required int targetCents,
     required PartyOwnership ownership,
+    String? mainCategoryId,
     String? sliceHint,
     String? customSpriteSha256,
+    String? descriptionText,
   }) async {
     final now = DateTime.now().toUtc();
     final id = questId ?? uuidv7();
@@ -552,8 +554,10 @@ class HouseholdActions {
       name: name,
       targetCents: targetCents,
       ownership: ownership,
+      mainCategoryId: mainCategoryId,
       sliceHint: sliceHint,
       customSpriteSha256: customSpriteSha256,
+      descriptionText: descriptionText,
     ));
     return id;
   }
