@@ -158,6 +158,25 @@ DashboardModel sampleDashboardModel() => DashboardModel(
           awaitingTally: true,
         ),
       ],
+      upcoming: const [
+        UpcomingPayment(
+          name: 'Rent',
+          amountCents: 120000,
+          isAnnual: false,
+          isShared: true,
+          dueDay: 31,
+          daysUntilDue: 3,
+        ),
+        UpcomingPayment(
+          name: 'WoW',
+          amountCents: 13100,
+          isAnnual: true,
+          isShared: false,
+          dueDay: 10,
+          dueMonth: 2,
+          daysUntilDue: 217,
+        ),
+      ],
       vault: const VaultCard(
         balanceCents: 8850,
         inconsistent: false,

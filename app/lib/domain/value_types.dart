@@ -282,6 +282,14 @@ enum MemberRole { adult, dependent, pet }
 /// Kind of a recurring expense.
 enum RecurringKind { fixed, variable }
 
+/// Cadence of a recurring expense. A [monthly] expense charges its full amount
+/// every active month. An [annual] expense charges 1/12 monthly off the top,
+/// with the integer-cents remainder landing in the due month so the twelve
+/// charges sum exactly to the annual amount; the due month reconciles the real
+/// amount against the accumulated reserve. Legacy events (no cadence) reduce as
+/// [monthly].
+enum RecurringCadence { monthly, annual }
+
 /// Kind of a tracked net-worth account. `savings`/`debt` accrue interest at read
 /// time; `investment` is never auto-changed (it goes stale instead). `cash` is a
 /// legacy value retained for wire compatibility and behaves like a

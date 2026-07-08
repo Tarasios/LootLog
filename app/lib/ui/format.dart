@@ -36,3 +36,46 @@ const _monthNames = <String>[
 
 /// `"July 2026"` for a 1-based [month] and [year].
 String monthLabel(int year, int month) => '${_monthNames[month]} $year';
+
+/// Abbreviated month names (`3 -> "Mar"`).
+const _monthAbbr = <String>[
+  '',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+/// A short due-date label for a recurring expense.
+///
+/// Annual: `"Feb 10"` (month abbreviation + day). Monthly: `"last day of
+/// month"` when the due day is the 31st (which always clamps to month end),
+/// otherwise `"day 15 of month"`.
+String recurringDueLabel({
+  required bool isAnnual,
+  required int dueDay,
+  int? dueMonth,
+}) {
+  if (isAnnual && dueMonth != null) {
+    return '${_monthAbbr[dueMonth]} $dueDay';
+  }
+  if (dueDay >= 31) {
+    return 'last day of month';
+  }
+  return 'day $dueDay of month';
+}
+
+/// A friendly countdown, e.g. `"due today"`, `"due tomorrow"`, `"in 12 days"`.
+String dueCountdown(int days) => switch (days) {
+      <= 0 => 'due today',
+      1 => 'due tomorrow',
+      _ => 'in $days days',
+    };

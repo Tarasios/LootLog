@@ -491,6 +491,36 @@ void main() {
       expect(util.amountCents, 8000); // estimate stands until tallied
     });
 
+    test('annual expense reads as a provisioning contract with countdown', () {
+      final events = [
+        RecurringExpenseSet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: me,
+          occurredAt: _day(2026, 1, 1),
+          createdAt: _day(2026, 1, 1),
+          expenseId: 'wow',
+          name: 'WoW',
+          ownership: const PersonalParty(me),
+          kind: RecurringKind.fixed,
+          cadence: RecurringCadence.annual,
+          amountCents: 13100,
+          dueDay: 10,
+          dueMonth: 2,
+          startMonth: const Month(2026, 1),
+        ),
+      ];
+      // Read on Feb 5 2026 (household-local): the contract comes due Feb 10.
+      final g = _game(events, asOf: _day(2026, 2, 5));
+      final wow = g.provisioning.singleWhere((p) => p.name == 'WoW');
+      expect(wow.isAnnualContract, isTrue);
+      expect(wow.contractTotalCents, 13100);
+      expect(wow.amountCents, 13100 ~/ 12); // 1/12 accrued per floor
+      expect(wow.dueMonth, 2);
+      expect(wow.dueDay, 10);
+      expect(wow.daysUntilDue, 5);
+    });
+
     test('emergency contribution appears as provisioning', () {
       final events = [
         EmergencyFundSet(

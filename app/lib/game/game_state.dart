@@ -199,6 +199,9 @@ class Contributor {
 enum ProvisionKind { fixedMaintenance, variableMaintenance, emergencyProvision }
 
 /// One "equipment maintenance & provisioning" line, resolved at floor start.
+///
+/// An annual recurring expense reads as a "provisioning contract" — a big
+/// bill reserved 1/12 each floor, with a countdown to when it comes due.
 class ProvisionLine {
   const ProvisionLine({
     required this.name,
@@ -207,19 +210,40 @@ class ProvisionLine {
     required this.shared,
     required this.awaitingTally,
     this.ownerName,
+    this.isAnnualContract = false,
+    this.contractTotalCents,
+    this.dueDay,
+    this.dueMonth,
+    this.daysUntilDue,
   });
 
   final String name;
   final ProvisionKind kind;
 
   /// The charge this floor (actual if a variable one has been tallied, else the
-  /// estimate / fixed amount / contribution).
+  /// estimate / fixed amount / contribution). For an annual contract this is
+  /// the 1/12 monthly accrual, not the full bill.
   final int amountCents;
   final bool shared;
 
   /// A variable maintenance line whose closed-floor actual is not yet recorded.
   final bool awaitingTally;
   final String? ownerName;
+
+  /// True for an annual recurring expense: a provisioning contract with a
+  /// countdown to its due date.
+  final bool isAnnualContract;
+
+  /// The full annual bill (the contract's face value); null for monthly lines.
+  final int? contractTotalCents;
+
+  /// Due-date components for a contract: day of month, and (for annual) the
+  /// calendar month it comes due.
+  final int? dueDay;
+  final int? dueMonth;
+
+  /// Whole days until the contract next comes due; null for non-contract lines.
+  final int? daysUntilDue;
 
   bool get isVariable => kind == ProvisionKind.variableMaintenance;
 }

@@ -81,6 +81,31 @@ class MaintenanceItem {
   bool get isVariable => kind == RecurringKind.variable;
 }
 
+/// One line in the upcoming-payments strip: a recurring bill and when it lands.
+class UpcomingPayment {
+  const UpcomingPayment({
+    required this.name,
+    required this.amountCents,
+    required this.isAnnual,
+    required this.isShared,
+    required this.dueDay,
+    required this.daysUntilDue,
+    this.dueMonth,
+  });
+
+  final String name;
+
+  /// The real bill amount (the annual figure for an annual expense).
+  final int amountCents;
+  final bool isAnnual;
+  final bool isShared;
+  final int dueDay;
+  final int? dueMonth;
+
+  /// Whole days until the next occurrence of this bill.
+  final int daysUntilDue;
+}
+
 /// The vault (gold pouch) card.
 class VaultCard {
   const VaultCard({
@@ -249,6 +274,7 @@ class DashboardModel {
     required this.meName,
     required this.slices,
     required this.maintenance,
+    required this.upcoming,
     required this.vault,
     required this.quests,
     required this.warChest,
@@ -261,6 +287,9 @@ class DashboardModel {
   final String meName;
   final List<SliceRing> slices;
   final List<MaintenanceItem> maintenance;
+
+  /// Recurring bills sorted by how soon they come due.
+  final List<UpcomingPayment> upcoming;
   final VaultCard vault;
   final List<QuestCard> quests;
   final WarChestCard warChest;
@@ -331,6 +360,27 @@ DashboardModel buildDashboardModel(
     ));
   }
   maintenance.sort((a, b) => a.name.compareTo(b.name));
+
+  // ---- Upcoming payments strip ------------------------------------------
+  // Household-local "today" drives the due-date countdown.
+  final localNow = now.add(vancouverUtcOffset(now));
+  final upcoming = <UpcomingPayment>[];
+  for (final r in state.recurringExpenses.values) {
+    if (!r.activeIn(month)) continue;
+    upcoming.add(UpcomingPayment(
+      name: r.name,
+      amountCents: r.amountCents,
+      isAnnual: r.isAnnual,
+      isShared: r.isShared,
+      dueDay: r.dueDay,
+      dueMonth: r.dueMonth,
+      daysUntilDue: r.daysUntilDue(localNow),
+    ));
+  }
+  upcoming.sort((a, b) {
+    final c = a.daysUntilDue.compareTo(b.daysUntilDue);
+    return c != 0 ? c : a.name.compareTo(b.name);
+  });
 
   // ---- Vault + projected spoils -----------------------------------------
   var projLeftover = 0;
@@ -457,6 +507,7 @@ DashboardModel buildDashboardModel(
     meName: nameOf(meUserId) ?? 'You',
     slices: rings,
     maintenance: maintenance,
+    upcoming: upcoming,
     vault: vault,
     quests: quests,
     warChest: warChest,

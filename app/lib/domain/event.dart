@@ -122,7 +122,12 @@ sealed class Event {
           name: p['name'] as String,
           ownership: PartyOwnership.fromJson((p['ownership'] as Map).cast()),
           kind: RecurringKind.values.byName(p['kind'] as String),
+          cadence: p['cadence'] == null
+              ? RecurringCadence.monthly
+              : RecurringCadence.values.byName(p['cadence'] as String),
           amountCents: p['amountCents'] as int,
+          dueDay: p['dueDay'] as int? ?? 1,
+          dueMonth: p['dueMonth'] as int?,
           startMonth: Month.parse(p['startMonth'] as String),
           endMonth: p['endMonth'] == null
               ? null
@@ -593,7 +598,12 @@ class RecurringExpenseSet extends Event {
     required this.amountCents,
     required this.startMonth,
     this.endMonth,
-  });
+    this.cadence = RecurringCadence.monthly,
+    this.dueDay = 1,
+    this.dueMonth,
+  }) : assert(dueDay >= 1 && dueDay <= 31, 'dueDay must be 1..31'),
+       assert(dueMonth == null || (dueMonth >= 1 && dueMonth <= 12),
+           'dueMonth must be 1..12');
 
   final String expenseId;
   final String name;
@@ -602,6 +612,17 @@ class RecurringExpenseSet extends Event {
   final int amountCents;
   final Month startMonth;
   final Month? endMonth;
+
+  /// Monthly (full amount each month) or annual (1/12 accrued monthly).
+  final RecurringCadence cadence;
+
+  /// Day of the month the bill is due (clamped to the month's length; 31 reads
+  /// as "last day of month").
+  final int dueDay;
+
+  /// For an annual expense, the calendar month (1..12) it comes due; null for
+  /// monthly expenses.
+  final int? dueMonth;
 
   @override
   String get type => 'RecurringExpenseSet';
@@ -612,7 +633,10 @@ class RecurringExpenseSet extends Event {
         'name': name,
         'ownership': ownership.toJson(),
         'kind': kind.name,
+        'cadence': cadence.name,
         'amountCents': amountCents,
+        'dueDay': dueDay,
+        if (dueMonth != null) 'dueMonth': dueMonth,
         'startMonth': startMonth.toKey(),
         if (endMonth != null) 'endMonth': endMonth!.toKey(),
       };
