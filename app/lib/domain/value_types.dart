@@ -273,6 +273,12 @@ class ExternalDestination extends WithdrawalDestination {
   int get hashCode => 'externalDest'.hashCode;
 }
 
+/// A household member's role. Only [adult] carries income, a vault, personal
+/// categories and paired devices; [dependent] and [pet] are display-level party
+/// members with no ledger of their own. Legacy `PetSet` events reduce as [pet]
+/// members.
+enum MemberRole { adult, dependent, pet }
+
 /// Kind of a recurring expense.
 enum RecurringKind { fixed, variable }
 

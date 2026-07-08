@@ -87,6 +87,24 @@ LeftoverAllocated _allocate({
       allocations: allocations,
     );
 
+MemberSet _member(String id, MemberRole role) => MemberSet(
+      eventId: _seq.id(),
+      deviceId: 'd',
+      userId: me,
+      occurredAt: _day(2026, 1, 1),
+      createdAt: _day(2026, 1, 1),
+      memberId: id,
+      name: _names[id] ?? id,
+      role: role,
+    );
+
+/// The two-adult household, so "another adult" is a real signature requirement
+/// (not the single-adult auto-approval path).
+List<Event> _twoAdults() => [
+      _member(me, MemberRole.adult),
+      _member(partner, MemberRole.adult),
+    ];
+
 GameState _game(List<Event> events, {required DateTime asOf}) =>
     buildGameState(
       reduce(events, asOf: asOf),
@@ -370,7 +388,10 @@ void main() {
         );
 
     test('pending writ raised by the partner needs my signature', () {
-      final g = _game([propose(by: partner)], asOf: _day(2026, 7, 5));
+      final g = _game(
+        [..._twoAdults(), propose(by: partner)],
+        asOf: _day(2026, 7, 5),
+      );
       expect(g.warChest.writsForMe, hasLength(1));
       expect(g.warChest.writsForOther, isEmpty);
       final w = g.warChest.writsForMe.single;
@@ -380,7 +401,10 @@ void main() {
     });
 
     test('pending writ I raised waits on the other adventurer', () {
-      final g = _game([propose(by: me)], asOf: _day(2026, 7, 5));
+      final g = _game(
+        [..._twoAdults(), propose(by: me)],
+        asOf: _day(2026, 7, 5),
+      );
       expect(g.warChest.writsForMe, isEmpty);
       expect(g.warChest.writsForOther, hasLength(1));
       expect(g.warChest.writsForOther.single.needsMySignature, isFalse);

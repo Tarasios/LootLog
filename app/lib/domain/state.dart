@@ -266,6 +266,29 @@ class PetState {
   final String? customSpriteSha256;
 }
 
+/// A household member. Only `adult` members carry a ledger (income, vault,
+/// personal categories); `dependent` and `pet` members enrich the party without
+/// any money of their own.
+class MemberState {
+  const MemberState({
+    required this.memberId,
+    required this.name,
+    required this.role,
+    required this.active,
+    this.customSpriteSha256,
+    this.descriptionText,
+  });
+
+  final String memberId;
+  final String name;
+  final MemberRole role;
+  final bool active;
+  final String? customSpriteSha256;
+  final String? descriptionText;
+
+  bool get isAdult => role == MemberRole.adult;
+}
+
 /// An attached receipt reference.
 class ReceiptRef {
   const ReceiptRef({
@@ -372,6 +395,7 @@ class HouseholdState {
   const HouseholdState({
     required this.settings,
     required this.userIds,
+    required this.members,
     required this.slices,
     required this.sliceMonths,
     required this.quests,
@@ -393,6 +417,10 @@ class HouseholdState {
 
   final Settings settings;
   final Set<String> userIds;
+
+  /// Every declared household member, keyed by `memberId`. Adults also appear in
+  /// [userIds]; dependents and pets do not (they carry no ledger).
+  final Map<String, MemberState> members;
   final Map<String, SliceConfig> slices;
 
   /// Keyed by `"sliceId|yyyy-MM"`.
@@ -427,6 +455,18 @@ class HouseholdState {
   /// when none has been recorded yet (the estimate still stands).
   int? variableActualFor(String expenseId, Month month) =>
       variableActuals[monthKey(expenseId, month)];
+
+  /// The ledger-bearing adults used for every shared split and for approval
+  /// quorum. When explicit adult members are declared, those active adults are
+  /// authoritative; otherwise (legacy or dependents/pets-only histories) every
+  /// known user is treated as an adult.
+  Set<String> get adultIds {
+    final declared = {
+      for (final m in members.values)
+        if (m.isAdult && m.active) m.memberId,
+    };
+    return declared.isNotEmpty ? declared : userIds;
+  }
 
   int vaultOf(String userId) => vaultCents[userId] ?? 0;
 

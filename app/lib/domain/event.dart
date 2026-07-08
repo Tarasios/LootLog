@@ -273,6 +273,33 @@ sealed class Event {
           name: p['name'] as String,
           customSpriteSha256: p['customSpriteSha256'] as String?,
         );
+      case 'MemberSet':
+        return MemberSet(
+          eventId: eventId,
+          deviceId: deviceId,
+          userId: userId,
+          occurredAt: occurredAt,
+          createdAt: createdAt,
+          memberId: p['memberId'] as String,
+          name: p['name'] as String,
+          role: MemberRole.values.byName(p['role'] as String),
+          active: p['active'] as bool? ?? true,
+          customSpriteSha256: p['customSpriteSha256'] as String?,
+          descriptionText: p['descriptionText'] as String?,
+        );
+      case 'GroupShareSet':
+        return GroupShareSet(
+          eventId: eventId,
+          deviceId: deviceId,
+          userId: userId,
+          occurredAt: occurredAt,
+          createdAt: createdAt,
+          month: Month.parse(p['month'] as String),
+          shares: {
+            for (final e in (p['shares'] as Map).entries)
+              e.key as String: e.value as int,
+          },
+        );
       case 'GoalSet':
         return GoalSet(
           eventId: eventId,
@@ -828,6 +855,74 @@ class PetSet extends Event {
         'petId': petId,
         'name': name,
         if (customSpriteSha256 != null) 'customSpriteSha256': customSpriteSha256,
+      };
+}
+
+/// Declares or amends a household member (last-writer-wins by [memberId]).
+/// Only `adult` members carry income, a vault and personal categories;
+/// `dependent` and `pet` members are display-level party members. Retiring a
+/// member is `active: false`. [descriptionText] is the user-written character
+/// description used by text-mode adventure.
+class MemberSet extends Event {
+  const MemberSet({
+    required super.eventId,
+    required super.deviceId,
+    required super.userId,
+    required super.occurredAt,
+    required super.createdAt,
+    required this.memberId,
+    required this.name,
+    required this.role,
+    this.active = true,
+    this.customSpriteSha256,
+    this.descriptionText,
+  });
+
+  final String memberId;
+  final String name;
+  final MemberRole role;
+  final bool active;
+  final String? customSpriteSha256;
+  final String? descriptionText;
+
+  @override
+  String get type => 'MemberSet';
+
+  @override
+  Map<String, dynamic> payload() => {
+        'memberId': memberId,
+        'name': name,
+        'role': role.name,
+        'active': active,
+        if (customSpriteSha256 != null) 'customSpriteSha256': customSpriteSha256,
+        if (descriptionText != null) 'descriptionText': descriptionText,
+      };
+}
+
+/// Sets the per-adult share table for [month]: a map of adult id to permille
+/// weight. Carries forward until a later month overrides it; absent entirely,
+/// shared costs split evenly. Odd cents on a shared cost go to the purchaser.
+class GroupShareSet extends Event {
+  const GroupShareSet({
+    required super.eventId,
+    required super.deviceId,
+    required super.userId,
+    required super.occurredAt,
+    required super.createdAt,
+    required this.month,
+    required this.shares,
+  });
+
+  final Month month;
+  final Map<String, int> shares;
+
+  @override
+  String get type => 'GroupShareSet';
+
+  @override
+  Map<String, dynamic> payload() => {
+        'month': month.toKey(),
+        'shares': {for (final e in shares.entries) e.key: e.value},
       };
 }
 

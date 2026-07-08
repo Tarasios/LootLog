@@ -434,6 +434,52 @@ class HouseholdActions {
     return id;
   }
 
+  /// Creates, amends, or retires a household member (last-writer-wins by
+  /// [memberId]). Pass `active: false` to retire without deleting history.
+  Future<String> setMember({
+    String? memberId,
+    required String name,
+    required MemberRole role,
+    bool active = true,
+    String? customSpriteSha256,
+    String? descriptionText,
+  }) async {
+    final now = DateTime.now().toUtc();
+    final id = memberId ?? uuidv7();
+    await append(MemberSet(
+      eventId: uuidv7(),
+      deviceId: deviceId,
+      userId: meUserId,
+      occurredAt: now,
+      createdAt: now,
+      memberId: id,
+      name: name,
+      role: role,
+      active: active,
+      customSpriteSha256: customSpriteSha256,
+      descriptionText: descriptionText,
+    ));
+    return id;
+  }
+
+  /// Sets the per-adult share table for [month] (permille per adult id). Absent,
+  /// shared costs split evenly.
+  Future<void> setGroupShares({
+    required Month month,
+    required Map<String, int> shares,
+  }) async {
+    final now = DateTime.now().toUtc();
+    await append(GroupShareSet(
+      eventId: uuidv7(),
+      deviceId: deviceId,
+      userId: meUserId,
+      occurredAt: now,
+      createdAt: now,
+      month: month,
+      shares: shares,
+    ));
+  }
+
   /// Creates or amends a savings-goal quest (last-writer-wins by [questId]).
   Future<String> setQuest({
     String? questId,

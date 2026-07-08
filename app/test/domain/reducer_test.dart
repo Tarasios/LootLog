@@ -81,6 +81,33 @@ PurchaseAdded buy({
       note: note,
     );
 
+MemberSet member({
+  required String id,
+  required MemberRole role,
+  String? name,
+  bool active = true,
+  String? descriptionText,
+  DateTime? at,
+}) =>
+    MemberSet(
+      eventId: _seq.id(),
+      deviceId: 'd',
+      userId: u1,
+      occurredAt: at ?? day(2026, 1, 1),
+      createdAt: at ?? day(2026, 1, 1),
+      memberId: id,
+      name: name ?? id,
+      role: role,
+      active: active,
+      descriptionText: descriptionText,
+    );
+
+/// Two adult members, the common household shape for reducer fixtures.
+List<Event> twoAdults() => [
+      member(id: u1, role: MemberRole.adult),
+      member(id: u2, role: MemberRole.adult),
+    ];
+
 LeftoverAllocated allocate({
   required String user,
   required String sliceId,
@@ -374,6 +401,9 @@ void main() {
         );
 
     List<Event> withPool() => [
+          // Two adults, so "another adult" is a real requirement (not the
+          // single-adult auto-approval path).
+          ...twoAdults(),
           slice(id: 'g', ownership: const GroupSlice(), limit: 20000),
           buy(id: 'p', target: const SliceCharge('g'), amount: 0,
               at: day(2026, 1, 2)),
@@ -852,6 +882,219 @@ void main() {
       expect(voided.sliceMonth('s', const Month(2026, 1))!.spentCents, 0);
       expect(voided.isVaultInconsistent(u2), isFalse);
       expect(voided.vaultOf(u2), 0);
+    });
+  });
+
+  group('membership & shares', () {
+    test('legacy PetSet reduces as a pet member', () {
+      final s = reduce([
+        PetSet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: u1,
+          occurredAt: day(2026, 1, 1),
+          createdAt: day(2026, 1, 1),
+          petId: 'pet',
+          name: 'Mochi',
+        ),
+      ], asOf: day(2026, 1, 20));
+      expect(s.members['pet']!.role, MemberRole.pet);
+      expect(s.members['pet']!.name, 'Mochi');
+      expect(s.pets['pet']!.name, 'Mochi');
+      // A pet carries no ledger: it is neither an adult nor a known user.
+      expect(s.adultIds.contains('pet'), isFalse);
+      expect(s.userIds.contains('pet'), isFalse);
+    });
+
+    test('adults are ledger-bearing; dependents and pets are not', () {
+      final s = reduce([
+        member(id: u1, role: MemberRole.adult),
+        member(id: 'kid', role: MemberRole.dependent),
+        member(id: 'pet', role: MemberRole.pet),
+      ], asOf: day(2026, 1, 20));
+      expect(s.members.keys, containsAll(<String>[u1, 'kid', 'pet']));
+      expect(s.adultIds, {u1});
+      expect(s.userIds, contains(u1));
+      expect(s.userIds, isNot(contains('kid')));
+      expect(s.userIds, isNot(contains('pet')));
+    });
+
+    test('shared personal purchase splits evenly across three adults', () {
+      final s = reduce([
+        member(id: 'a', role: MemberRole.adult),
+        member(id: 'b', role: MemberRole.adult),
+        member(id: 'c', role: MemberRole.adult),
+        slice(id: 's', ownership: const PersonalSlice('a'), limit: 100000),
+        // Seed vaults so co-adults' shares don't merely clamp at zero.
+        GiftReceived(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: u1,
+          occurredAt: day(2026, 1, 1),
+          createdAt: day(2026, 1, 1),
+          forUserId: 'b',
+          amountCents: 1000,
+        ),
+        GiftReceived(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: u1,
+          occurredAt: day(2026, 1, 1),
+          createdAt: day(2026, 1, 1),
+          forUserId: 'c',
+          amountCents: 1000,
+        ),
+        buy(id: 'p', target: const SliceCharge('s'), amount: 100,
+            by: 'a', shared: true, at: day(2026, 1, 10)),
+      ], asOf: day(2026, 1, 20));
+      // 100 / 3 -> 33 each, odd cent to the purchaser 'a' -> 34.
+      expect(s.sliceMonth('s', const Month(2026, 1))!.spentCents, 34);
+      expect(s.vaultOf('b'), 1000 - 33);
+      expect(s.vaultOf('c'), 1000 - 33);
+    });
+
+    test('explicit share table weights a shared purchase; odd cent to buyer', () {
+      final s = reduce([
+        ...twoAdults(),
+        GroupShareSet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: u1,
+          occurredAt: day(2026, 1, 1),
+          createdAt: day(2026, 1, 1),
+          month: const Month(2026, 1),
+          shares: const {u1: 700, u2: 300},
+        ),
+        slice(id: 's', ownership: const PersonalSlice(u1), limit: 100000),
+        GiftReceived(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: u1,
+          occurredAt: day(2026, 1, 1),
+          createdAt: day(2026, 1, 1),
+          forUserId: u2,
+          amountCents: 1000,
+        ),
+        buy(id: 'p', target: const SliceCharge('s'), amount: 1001,
+            by: u1, shared: true, at: day(2026, 1, 10)),
+      ], asOf: day(2026, 1, 20));
+      // 1001 * 700/1000 = 700, 1001 * 300/1000 = 300, odd cent to buyer -> 701.
+      expect(s.sliceMonth('s', const Month(2026, 1))!.spentCents, 701);
+      expect(s.vaultOf(u2), 1000 - 300);
+    });
+
+    test('shared recurring split follows the share table and carries forward', () {
+      final s = reduce([
+        ...twoAdults(),
+        GroupShareSet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: u1,
+          occurredAt: day(2026, 1, 1),
+          createdAt: day(2026, 1, 1),
+          month: const Month(2026, 1),
+          shares: const {u1: 750, u2: 250},
+        ),
+        RecurringExpenseSet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: u1,
+          occurredAt: day(2026, 1, 1),
+          createdAt: day(2026, 1, 1),
+          expenseId: 'rent',
+          name: 'Rent',
+          ownership: const SharedParty(),
+          kind: RecurringKind.fixed,
+          amountCents: 1000,
+          startMonth: const Month(2026, 1),
+        ),
+      ], asOf: day(2026, 2, 10));
+      expect(s.recurringChargeFor(u1, const Month(2026, 1)), 750);
+      expect(s.recurringChargeFor(u2, const Month(2026, 1)), 250);
+      // February has no table of its own: January's carries forward.
+      expect(s.recurringChargeFor(u1, const Month(2026, 2)), 750);
+      expect(s.recurringChargeFor(u2, const Month(2026, 2)), 250);
+    });
+
+    test('retired adult drops out of the split', () {
+      final s = reduce([
+        member(id: u1, role: MemberRole.adult),
+        member(id: u2, role: MemberRole.adult, active: false),
+        slice(id: 's', ownership: const PersonalSlice(u1), limit: 100000),
+        buy(id: 'p', target: const SliceCharge('s'), amount: 100,
+            by: u1, shared: true, at: day(2026, 1, 10)),
+      ], asOf: day(2026, 1, 20));
+      // Only u1 is an active adult, so the whole shared cost lands on u1's
+      // category; the retired adult is never charged.
+      expect(s.sliceMonth('s', const Month(2026, 1))!.spentCents, 100);
+      expect(s.isVaultInconsistent(u2), isFalse);
+      expect(s.adultIds, {u1});
+    });
+
+    test('single-adult household auto-approves a withdrawal', () {
+      final s = reduce([
+        member(id: u1, role: MemberRole.adult),
+        slice(id: 'g', ownership: const GroupSlice(), limit: 20000),
+        buy(id: 'p', target: const SliceCharge('g'), amount: 0,
+            at: day(2026, 1, 2)),
+        PoolWithdrawalProposed(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: u1,
+          occurredAt: day(2026, 1, 10),
+          createdAt: day(2026, 1, 10),
+          proposalId: 'w',
+          byUserId: u1,
+          amountCents: 5000,
+          purpose: 'tires',
+          destination: const UserVaultDestination(u1),
+        ),
+      ], asOf: graceExpired(const Month(2026, 1)));
+      expect(s.withdrawals['w']!.status, WithdrawalStatus.approved);
+      expect(s.vaultOf(u1), 5000);
+      expect(s.warChest.balanceCents, 15000);
+    });
+
+    test('a dependent cannot satisfy a withdrawal; a second adult can', () {
+      List<Event> base(String approver) => [
+            member(id: u1, role: MemberRole.adult),
+            member(id: u2, role: MemberRole.adult),
+            member(id: 'kid', role: MemberRole.dependent),
+            slice(id: 'g', ownership: const GroupSlice(), limit: 20000),
+            buy(id: 'p', target: const SliceCharge('g'), amount: 0,
+                at: day(2026, 1, 2)),
+            PoolWithdrawalProposed(
+              eventId: _seq.id(),
+              deviceId: 'd',
+              userId: u1,
+              occurredAt: day(2026, 1, 10),
+              createdAt: day(2026, 1, 10),
+              proposalId: 'w',
+              byUserId: u1,
+              amountCents: 5000,
+              purpose: 'tires',
+              destination: const UserVaultDestination(u1),
+            ),
+            PoolWithdrawalApproved(
+              eventId: _seq.id(),
+              deviceId: 'd',
+              userId: approver,
+              occurredAt: day(2026, 1, 11),
+              createdAt: day(2026, 1, 11),
+              proposalId: 'w',
+              byUserId: approver,
+            ),
+          ];
+      final byKid =
+          reduce(base('kid'), asOf: graceExpired(const Month(2026, 1)));
+      expect(byKid.withdrawals['w']!.status, WithdrawalStatus.pending);
+      expect(byKid.warChest.balanceCents, 20000);
+
+      final byAdult =
+          reduce(base(u2), asOf: graceExpired(const Month(2026, 1)));
+      expect(byAdult.withdrawals['w']!.status, WithdrawalStatus.approved);
+      expect(byAdult.vaultOf(u1), 5000);
+      expect(byAdult.warChest.balanceCents, 15000);
     });
   });
 
