@@ -1,44 +1,75 @@
 # DuoBudget
 
-A two-person, **local-first** shared budgeting app with an optional "dungeon
-adventure" skin. Built for couples who want one honest picture of their money
+A **pixel-art dungeon-crawler that happens to be a rigorous shared budgeting
+app.** Your household is a party of adventurers delving a dungeon: budget
+categories are monsters, savings goals are quest bosses, month close is a battle
+ritual, and the shared pool is a homestead you build up over time. Underneath
+the game sits a **local-first, event-sourced, integer-cents ledger** — so the
+numbers are dead serious even while the presentation is a game.
+
+Built for households of any size who want one honest picture of their money
 without handing it to a bank, a server, or a subscription. Everything runs on
-your own devices: two people, a few phones and desktops, syncing over your home
-Wi-Fi. No accounts, no cloud, no SaaS. Receipt OCR runs on-device; desktops act
-as sync hubs on the local network.
+your own devices — a few phones and desktops, syncing over your home Wi-Fi. No
+accounts, no cloud, no SaaS. Receipt OCR runs on-device; desktops act as sync
+hubs on the local network. (The name "DuoBudget" is historical — households
+aren't limited to two.)
 
 Flutter only — **Android + desktop** (Windows, macOS, Linux).
 
-> Money is always integer cents. Every change is an immutable event appended to
-> a local log, and all balances are derived by a single pure reducer — so every
-> device that has seen the same events shows exactly the same numbers.
+> **The firewall.** The game never touches the money. The whole app renders from
+> one pure reducer over an append-only event log, in integer cents; the game
+> layer can *read* that state but may only ever append **cosmetic** events. Strip
+> every cosmetic event and the balances are identical — there's a test that
+> proves it. Adventure mode and the plain **Classic** mode always show the same
+> numbers.
 
 ## Screenshots
 
 _Placeholders — drop real captures in `docs/screenshots/`._
 
-| Classic dashboard | Adventure skin | Sync & hubs |
+| Adventure dungeon | Classic dashboard | Sync & hubs |
 | --- | --- | --- |
-| ![Classic dashboard](docs/screenshots/dashboard.png) | ![Adventure skin](docs/screenshots/adventure.png) | ![Sync & hubs](docs/screenshots/sync.png) |
+| ![Adventure](docs/screenshots/adventure.png) | ![Classic dashboard](docs/screenshots/dashboard.png) | ![Sync & hubs](docs/screenshots/sync.png) |
 
 | Spoils ritual | Quests | Receipt capture |
 | --- | --- | --- |
 | ![Spoils](docs/screenshots/spoils.png) | ![Quests](docs/screenshots/quests.png) | ![Receipt](docs/screenshots/receipt.png) |
 
+## The game, and why it's serious
+
+**Adventure mode is the default, primary experience** on every platform.
+Categories are monsters you whittle down as you spend; a savings goal is a quest
+boss you hunt across months; the month-close ritual is where you divide the
+spoils. The point isn't decoration — it's **habit**: the app succeeds if you come
+back daily to log a purchase and monthly for the ritual, so streaks,
+celebrations, trophies and a growing **Homestead** (the visualization of your
+shared pool) are core features. The voice is encouraging and **never shames** —
+overspending just makes a monster *enraged*.
+
+**Classic mode** is the plain fallback view, always one tap away, using plain
+language only (no "tithe" or "spoils") and showing identical numbers.
+
+**It always renders.** Art is scarce, so every screen degrades gracefully across
+three tiers: full pixel art → labeled placeholders for missing sprites → a
+**first-class text-adventure mode** built from character descriptions you write.
+The app is complete and fun even with no art at all — a missing sprite never
+crashes or blocks a screen.
+
 ## Quick start — a new household
 
-> New here? The **[household setup guide](docs/setup-guide.md)** walks two people
+> New here? The **[household setup guide](docs/setup-guide.md)** walks you
 > through the whole thing step by step — install, pairing, budgets, daily use,
 > month close, backup, and troubleshooting — with a printable one-page fridge
 > sheet at the end.
 
 DuoBudget is peer-to-peer, so start on the machine that stays on: a desktop.
 
-1. **First run (desktop).** Launch the app and complete first-run setup: the
-   household timezone, the two members' names, and which member *this* device is.
-   The dashboard opens on a "Welcome" empty state — tap **Set up budgets** and
-   carve your month into slices (one each for the two of you, plus shared ones
-   like groceries).
+1. **First run (desktop).** Launch the app and complete first-run setup: your
+   household's members (adults have income and budgets; dependents and pets ride
+   along as party members) and which member *this* device is. The dashboard
+   opens on a "Welcome" empty state — tap **Set up budgets** and carve your month
+   into categories (personal ones per adult, plus shared/group ones like
+   groceries).
 2. **Start a hub.** Open **Manage → Sync & hubs → Start hub**. The desktop now
    hosts a small server on your LAN and shows an address and a pairing secret.
 3. **Pair your phones.** On each phone, complete first-run setup, then go to
@@ -56,51 +87,71 @@ network — the status chip shows sync state without dialogs.
 
 ## How it works
 
-**The spoils economy and tithes.** Each personal slice has a monthly limit. At
-month close you divide the *leftover* (limit − spending) three ways, per slice:
-carry it forward in the same slice 1:1 (raising next month's limit), throw it at
-a savings **quest**, or convert it to your personal **vault** (discretionary
-money) — with that slice's **pool tithe** (a per-slice %) skimmed off the top
-into the shared **war chest**. Group slices (groceries, pet care) are simpler:
-funded 50/50 off the top, purchases are inherently shared, and any leftover flows
-automatically and entirely to the war chest. The ritual is interactive but never
-blocking — past a grace period the reducer just applies each slice's default
-policy.
+**Members & shares.** A household has any number of **members**: *adults* (who
+have income, a vault, personal categories, and paired devices), *dependents*,
+and *pets*. Only adults hold money; dependents and pets are display-level party
+members — everything stays household money. Shared costs split by a per-adult
+**share table** (default even split; odd cents go to the purchaser). A
+single-adult household is fully valid — approvals that would need "another adult"
+are auto-satisfied.
 
-**Quests.** A quest is a savings-goal "monster" — a $500 jacket, a $1,300 canoe,
-a house down payment. Personal quests are funded by their owner, shared ones by
-either of you, and funding a quest is **untithed** (it's already earmarked
-saving). Buying the goal draws the quest down; hitting the target completes it
-with a celebration. Abandon a quest and its balance returns to whoever funded it,
-proportionally, minus a small dissolution tithe to the war chest — so quests can't
-be used to dodge slice tithes.
+**Categories.** Your money is divided into budget **categories**, each **personal**
+(one adult) or **group** (household), and each filed under a **main category**
+(Housing, Food, Transport, …) whose colors drive the monthly spend pie chart.
+Group categories are funded by shares off the top, purchases are inherently
+shared, and any leftover flows automatically and entirely to the war chest.
+Personal categories can flag a purchase as shared. Any category can skim a fixed
+**emergency-fund contribution** off the top each month.
+
+**The spoils economy and tithes.** Each personal category has a monthly limit.
+At month close you divide the *leftover* (effective limit − spending) three ways,
+per category: **carry it forward** in the same category 1:1 (raising next
+month's limit), **attack a savings quest**, or **convert to discretionary** money
+in your personal **vault** — with that category's **pool tithe** skimmed into the
+shared **war chest**. The ritual is interactive but never blocking — past a grace
+period the reducer just applies each category's default policy.
+
+**Quests and category-match tithing.** A quest is a savings-goal "boss" — a $500
+jacket, a $1,300 canoe, a house down payment — filed under a main category.
+Funding it from a category whose main category **matches** the quest's is
+**untithed** (full damage); from a **non-matching** category, that category's
+pool tithe applies (part to the war chest, the rest as damage). The app always
+shows the split before you confirm. Buying the goal draws the quest down; hitting
+the target completes it with a trophy. Abandon a quest and its balance returns to
+whoever funded it, proportionally, minus a small dissolution tithe — so quests
+can't be used to dodge tithes.
 
 **The war chest and its governance.** The war chest is the household's long-term
-shared pool: slice tithes, group-slice leftovers, gifts, tax refunds and manual
-contributions all flow in. Spending *from* it requires **both** of you — one
-proposes a withdrawal (a "writ"), the other approves it; the reducer rejects
-self-approval, and pending proposals are visible to both. The one exception is a
-**ransack**: an emergency purchase that exceeds its fund's balance draws the
-excess straight from the war chest with no prior approval, and surfaces a loud,
-shared "the war chest was ransacked" record. No silent overdrafts, and no blocked
-emergencies.
+shared pool: category tithes, group-category leftovers, gifts, tax refunds and
+manual contributions all flow in, and it's visualized as your growing
+**Homestead**. Spending *from* it requires **another adult** — one proposes a
+withdrawal (a "writ"), a different adult approves it; the reducer rejects
+self-approval (and auto-approves in single-adult households), and pending
+proposals are visible to all adults. The one exception is a **ransack**: an
+emergency purchase that exceeds its fund's balance draws the excess straight from
+the war chest with no prior approval, and surfaces a loud, shared "the war chest
+was ransacked" record. No silent overdrafts, no blocked emergencies.
 
-**Pets.** Pets are display-level party members. A slice or an emergency fund can
-be linked to a pet, which is then shown as the "owner" of that little budget or
-reserve cache. Pets hold no money of their own — everything stays household
-money; they just make the shared budget feel like a party you're outfitting.
-
-**Recurring fixed & variable expenses.** Recurring expenses ("equipment
+**Recurring fixed, variable & annual expenses.** Recurring expenses ("equipment
 maintenance") come off the top before the huntable budget: rent is a shared fixed
-expense, a Patreon subscription is a personal fixed one, utilities are a shared
-*variable* expense. Fixed ones use their set amount every month; variable ones use
-an estimate until you record the actual (normally during the month-close ritual),
-after which the reducer uses the real figure. Modify or cancel any of them at any
-time.
+expense, a subscription is a personal fixed one, utilities are a shared *variable*
+expense recorded at month close. **Annual** bills accrue **1/12 each month** (the
+odd cents land in the due month so the year sums exactly), then reconcile against
+the real amount when due. Modify or cancel any of them at any time.
 
-**Taxes, receipts & OCR.** Any slice can be tax-deductible by default, and any
+**Net worth.** Optionally track savings, investments, and debts as **tracked
+accounts** — you record balances, and interest on savings/debt accrues at read
+time. These live on a separate net-worth screen and **never** enter category
+math; a debt's minimum payment can surface as a recurring expense.
+
+**Vacation mode.** Spin up a self-contained trip sub-budget drawn from a savings
+quest or emergency fund, with its own categories and daily-allowance pacing. Your
+normal monthly budget is untouched; closing the trip returns any leftover to its
+fund.
+
+**Taxes, receipts & OCR.** Any category can be tax-deductible by default, and any
 purchase can override that — but the tax marker never clutters quick entry; it
-lives only in slice settings and the purchase detail sheet. Attach a receipt
+lives only in category settings and the purchase detail sheet. Attach a receipt
 (image or PDF) to any purchase; on Android, fully **on-device** OCR can prefill
 the amount, date and merchant — but it is **confirm-only** and never creates
 anything without you approving at least the amount. At year end, export a tax
@@ -109,33 +160,47 @@ referenced receipt file.
 
 **The receipt library.** On desktop you can point DuoBudget at a folder and it
 mirrors your receipts into ordinary files —
-`<year>/<slice>/<date>_<merchant>_<amount>.<ext>` — that you can browse and back
-up like any other documents. It's a **regenerable projection, never a source of
-truth**: rebuilding from scratch produces byte-identical files, and any edits you
+`<year>/<category>/<date>_<merchant>_<amount>.<ext>` — that you can browse and
+back up like any other documents. It's a **regenerable projection, never a source
+of truth**: rebuilding from scratch produces identical files, and any edits you
 make inside the folder are simply overwritten on the next projection.
 
-**File-fallback sync.** When two devices genuinely can't reach a hub, move data
-by file: export a `.dbevents` (JSON lines) or `.dbevents.zip` (events plus receipt
-blobs) and import it on the other device. Import is idempotent — events match by
-id, blobs by content hash — so importing the same file twice, or one that overlaps
-what a hub already delivered, changes nothing. A corrupt file or a tampered blob
-is rejected before anything is applied.
+**Sync & merge-import.** Desktops host LAN **hubs**; a device can pair with
+several and converges no matter which is awake, because events are idempotent by
+id and blobs are content-addressed. When two devices genuinely can't reach a hub,
+move data by file: export a `.dbevents` / `.dbevents.zip` and import it — a
+first-class **merge-import** that only adds missing events (never overwrites),
+shows a preview before applying and a summary after. A corrupt file or tampered
+blob is rejected before anything is applied.
 
-**The theme toggle.** The whole app renders from the same numbers in two skins:
-**Classic** (clean cards and rings) and **Adventure** (a pixel-art dungeon where
-slices are monsters, quests are boss fights, the vault is a gold pouch and month
-close is a spoils ritual). It's a pure presentation layer — both themes show
-identical figures — and you can switch at any time. Missing art degrades to
-labelled placeholders, never a crash.
+**Exports.** A fully offline **.xlsx** workbook (transactions, monthly summary,
+members & income, savings goals, net worth, recurring expenses) is always
+available. An **optional, opt-in Google Sheets sync** is the one permitted
+external service — off by default, behind a clear "your data leaves your local
+network" warning, using your own credentials, isolated so nothing else depends on
+it.
+
+**Two modes, one set of numbers.** The whole app renders from the same reducer in
+two presentations — **Classic** (clean cards and rings, plain language) and
+**Adventure** (the pixel dungeon) — and you can switch at any time. The game is a
+pure presentation of real numbers; it can never change a cent.
+
+## Distribution
+
+DuoBudget is distributed through **GitHub Releases only**: tagged CI builds
+attach a signed Android APK and desktop bundles for Windows/macOS/Linux. Sharing
+the app means sharing a release link. There is **no telemetry and no phone-home
+of any kind** — user counts, when we cite them, come from the public GitHub
+Releases download-statistics API, never from the app.
 
 ## Project layout
 
 ```
 app/lib/domain/   Pure Dart: events, the Money type, and the reducer (no Flutter)
-app/lib/data/     Store (drift), blobs, sync (hub + client), OCR, exports
-app/lib/game/     The adventure skin — a pure HouseholdState -> GameState adapter
+app/lib/data/     Store (drift), blobs, sync (hub + client), OCR, exports, sheets
+app/lib/game/     The game: pure HouseholdState -> GameState adapter, rewards, text mode, pixel widgets
 app/lib/features/ Classic UI, one folder per feature
-app/lib/ui/       Theme and shared widgets
+app/lib/ui/       Theme, shared widgets, and the glossary/strings module
 docs/             Architecture, sync protocol, art spec, ADRs, release guide
 ```
 
@@ -148,9 +213,11 @@ flutter pub get
 ../tool/e2e.sh     # end-to-end multi-hub sync convergence
 ```
 
-Domain logic, the game adapter, the OCR parser and the receipt-library naming are
-developed test-first. Money is integer cents everywhere; domain rows are never
-updated or deleted — corrections are compensating events. See
+Domain logic, the game adapter and its rewards, the OCR parser, and the
+receipt-library naming are developed test-first. Money is integer cents
+everywhere; domain rows are never updated or deleted — corrections are
+compensating events. The **firewall test** (cosmetic-stripped ledger ⇒ identical
+balances) must pass from the first rewards commit onward. See
 [`CLAUDE.md`](CLAUDE.md) for the full invariants and [`docs/`](docs/) for
 architecture, the [household setup guide](docs/setup-guide.md), the
 [sync protocol](docs/protocol.md), the [release guide](docs/release.md), and the

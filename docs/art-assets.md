@@ -41,9 +41,9 @@ Referenced by exact name from the adventure widgets. All are 16×16-per-frame.
 | -------------------------- | -----: | ------------------------------------------ |
 | `hero_a_idle_4f.png`       |      4 | The device owner's idle avatar             |
 | `hero_b_idle_4f.png`       |      4 | The partner's idle avatar                  |
-| `monster_idle_4f.png`      |      4 | A personal-slice monster (default sprite)  |
+| `monster_idle_4f.png`      |      4 | A personal-category monster (default)      |
 | `monster_enraged_4f.png`   |      4 | An overspent (enraged) monster             |
-| `contract_seal_1f.png`     |      1 | Group-slice party-contract seal            |
+| `contract_seal_1f.png`     |      1 | Group-category party-contract seal         |
 | `pet_idle_4f.png`          |      4 | A pet party member (default sprite)        |
 | `quest_monster_4f.png`     |      4 | A savings-goal quest monster (default)     |
 | `trophy_1f.png`            |      1 | A completed quest's trophy                 |

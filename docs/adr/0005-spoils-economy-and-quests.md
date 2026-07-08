@@ -1,7 +1,23 @@
 # ADR 0005: The spoils economy and quests
 
-- Status: Accepted
+- Status: Accepted; amended by [ADR 0009](0009-categories-and-main-categories.md),
+  [ADR 0010](0010-category-match-tithing.md), and
+  [ADR 0008](0008-flexible-membership-and-shares.md)
 - Date: 2026-07-04
+
+> **Amended (2026-07-07).** The three-destination spoils ritual below still
+> stands, but two rules changed and one term was renamed:
+> - Quest attacks are **no longer universally untithed**. Tithing now depends on
+>   whether the source category's main category matches the quest's — see
+>   [ADR 0010](0010-category-match-tithing.md).
+> - "Slice" is now **category** everywhere user-facing; the wire event
+>   `BudgetSliceSet` is retained — see
+>   [ADR 0009](0009-categories-and-main-categories.md).
+> - The 50/50 split generalizes to a per-adult **share table** — see
+>   [ADR 0008](0008-flexible-membership-and-shares.md).
+>
+> The historical decision is preserved unchanged; read the "untithed" and
+> "slice" language below through those amendments.
 
 ## Context
 

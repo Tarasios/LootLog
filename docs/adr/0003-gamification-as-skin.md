@@ -1,7 +1,17 @@
 # ADR 0003: Gamification as a pure presentation skin
 
-- Status: Accepted
+- Status: Superseded by [ADR 0011](0011-game-first-with-cosmetic-firewall.md)
 - Date: 2026-07-04
+
+> **Superseded (2026-07-07).** The product is now **game-first**: Adventure mode
+> is the default, primary experience and Classic is the fallback — not an
+> optional skin bolted onto a budgeting app. The cosmetic-only firewall
+> described here still holds and is strengthened; see
+> [ADR 0011](0011-game-first-with-cosmetic-firewall.md) for the current
+> decision, [ADR 0012](0012-asset-degradation-and-text-mode.md) for the
+> text-mode ladder, and [ADR 0009](0009-categories-and-main-categories.md) for
+> the slice→category rename that also updates the mapping below. The historical
+> decision is preserved unchanged.
 
 ## Context
 

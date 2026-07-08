@@ -213,7 +213,7 @@ Open **Manage → Budget setup** (or tap **Set up budgets** on the welcome card)
 Budget setup shows both members side by side, with group budgets below, for the
 month shown at the top (use the ‹ › arrows to change month).
 
-DuoBudget divides your money into **slices**. A slice is either:
+DuoBudget divides your money into **budget categories**. A category is either:
 
 - **Personal** — belongs to one of you (e.g. "Alice — coffee"). Only its owner
   hunts it down, and its leftover is theirs to divide at month close.
@@ -221,43 +221,43 @@ DuoBudget divides your money into **slices**. A slice is either:
   50/50 off the top, every purchase is inherently shared, and any leftover flows
   automatically and entirely to the shared **war chest**.
 
-### Add a slice
+### Add a category
 
-In a member's column tap **Add slice** (or **Add group slice** under **Group
-slices**). The slice editor opens with these fields:
+In a member's column tap **Add category** (or **Add group category** under
+**Group categories**). The category editor opens with these fields:
 
 - **Name** — e.g. "Coffee," "Groceries."
 - **Owner** — a three-way switch: *your name*, *partner's name*, or **Group**.
 - **Monthly limit** — the dollar cap for the month.
-- **Pool tithe %** *(personal slices only)* — the share of any leftover you
+- **Pool tithe %** *(personal categories only)* — the share of any leftover you
   *convert to discretionary* that's skimmed into the war chest. "Taken from
   discretionary leftover into the war chest." Leave it at `0` if you don't want a
   tithe.
-- **Default leftover policy** *(personal slices only)* — what happens to leftover
-  at month close if you don't decide in time (see [step 6](#6-month-close-dividing-the-spoils)):
-  - **Carry in slice** — roll it into next month's limit for this slice.
+- **Default leftover policy** *(personal categories only)* — what happens to
+  leftover at month close if you don't decide in time (see [step 6](#6-month-close-dividing-the-spoils)):
+  - **Carry in category** — roll it into next month's limit for this category.
   - **Convert to discretionary** — move it to your personal vault (minus the pool
     tithe).
   - **Attack a quest** — pour it into a savings goal (pick which one).
-- **Tax-deductible by default** — turn on for slices whose purchases are usually
-  deductible. You can override this per purchase later; it never clutters quick
-  entry.
+- **Tax-deductible by default** — turn on for categories whose purchases are
+  usually deductible. You can override this per purchase later; it never clutters
+  quick entry.
 - **Emergency fund contribution** — a fixed amount set aside off the top each
   month into an emergency fund. This switch is **disabled until you've created a
   fund** (it reads "Create an emergency fund in Settings first"). Once on, pick
   the **Fund** and a **Monthly contribution**.
-- **Pet (optional)** — link the slice to a pet, shown as its cute "owner."
+- **Pet (optional)** — link the category to a pet, shown as its cute "owner."
 
-Tap **Save slice**.
+Tap **Save category**.
 
-Group slices hide the tithe and leftover-policy fields — they don't apply — and
-show a reminder that group slices are funded 50/50 with leftover going to the war
-chest.
+Group categories hide the tithe and leftover-policy fields — they don't apply —
+and show a reminder that group categories are funded 50/50 with leftover going to
+the war chest.
 
 > **Copy last month.** The **Copy last month** button at the top of Budget setup
 > copies the **previous month's income** forward to this month. It does *not* copy
-> slices — slices persist from month to month on their own, so you only edit them
-> when something changes.
+> categories — categories persist from month to month on their own, so you only
+> edit them when something changes.
 
 ### Income
 
@@ -287,8 +287,8 @@ current month, keeping this month's charge).
 
 - **Manage → Settings → Emergency funds** → **New**: name a reserve cache and
   optionally link a pet. Its balance is derived automatically (contributions in,
-  emergency spending out). Create a fund here *before* wiring a slice's emergency
-  contribution to it.
+  emergency spending out). Create a fund here *before* wiring a category's
+  emergency contribution to it.
 - **Manage → Settings → Pets**: add pets to display as party members.
 - **Manage → Settings → Rules**: the **Spoils grace period** (days after month
   close before defaults auto-apply, default 7), the **Dissolution tithe** (% taken
@@ -316,16 +316,16 @@ Tap the **New** button (the ➕ floating button; on desktop you can also press t
      latest allowed date is today).
 3. Under **Charge to**, tap the destination. Tapping a chip *is* the save. Chips
    are grouped:
-   - **My budgets** — your personal slices (each shows "$X left").
-   - **Shared budgets** — group slices.
+   - **My budgets** — your personal categories (each shows "$X left").
+   - **Shared budgets** — group categories.
    - **Vault** — your discretionary pocket money.
    - **Quests** — active savings goals you can spend toward.
    - **Emergency funds** — reserve caches.
 
-**About the shared flag:** "Split 50/50" only applies to **personal slices and
-the Vault**. Group slices are *always* shared, so no toggle is shown for them.
-When you split a personal-slice or vault purchase, your partner's half is taken
-from their vault at read time (odd penny goes to the buyer).
+**About the shared flag:** "Split 50/50" only applies to **personal categories
+and the Vault**. Group categories are *always* shared, so no toggle is shown for
+them. When you split a personal-category or vault purchase, your partner's half
+is taken from their vault at read time (odd penny goes to the buyer).
 
 ### Receipts and on-device OCR
 
@@ -349,9 +349,9 @@ There you can:
 - **Void** it (it stays in the ledger for audit but stops counting).
 - Edit **Merchant**, **Note**, or **Date**.
 - Toggle **Split 50/50** (where valid).
-- Toggle **Tax deductible** — this shows the slice's inherited default and lets
-  you override it for this one purchase. This is the *only* place (besides slice
-  settings) tax appears.
+- Toggle **Tax deductible** — this shows the category's inherited default and
+  lets you override it for this one purchase. This is the *only* place (besides
+  category settings) tax appears.
 - **Attach** receipts (multiple allowed; images or PDF — camera/gallery on mobile,
   file picker on desktop), tap an image receipt to view it, or detach one. On
   Android, if a freshly scanned receipt's total differs from what you typed,
@@ -361,7 +361,7 @@ There you can:
 
 ## 6. Month close: dividing the spoils
 
-At the end of each month you decide what to do with each personal slice's
+At the end of each month you decide what to do with each personal category's
 **leftover** (limit − spending). This is the **spoils** ritual.
 
 When there's something to do, a **Spoils** button appears in the app bar. Tap it
@@ -373,25 +373,26 @@ The sheet has up to two steps:
 1. **Record variable actuals** *(only if you have variable recurring expenses)* —
    tap each one to enter what it actually came to this month. Until you do, the
    estimate stands.
-2. **Split each budget's leftover** — for each of your personal slices with money
-   left, pick one destination (with a live preview of the result):
-   - **Carry in slice** — raises next month's limit for that slice, 1:1.
-   - **Attack a quest** — pours the whole leftover into a savings goal, *untithed*
-     (pick which quest if you have more than one).
-   - **Discretionary** — moves it to your vault, minus that slice's pool tithe
+2. **Split each budget's leftover** — for each of your personal categories with
+   money left, pick one destination (with a live preview of the result):
+   - **Carry in category** — raises next month's limit for that category, 1:1.
+   - **Attack a quest** — pours the whole leftover into a savings goal (a matching
+     main category is *untithed*; a non-matching one applies the category's pool
+     tithe — the preview shows which). Pick which quest if you have more than one.
+   - **Discretionary** — moves it to your vault, minus that category's pool tithe
      (the preview shows the split, e.g. "$45 to vault, $5 tithe to war chest").
 
 Below the choices, an **Automatic** section shows what happens on its own and
-needs no decision: group-slice leftovers flowing to the war chest, and emergency
-contributions reserved off the top.
+needs no decision: group-category leftovers flowing to the war chest, and
+emergency contributions reserved off the top.
 
 Tap **Confirm the division** to record it, or **Later** (or the ✕) to dismiss and
 resume another time — it's never blocking.
 
 > **You can ignore it entirely.** If you never open the ritual, then once the
 > **grace period** (default 7 days after month close, in Settings → Rules) passes,
-> each slice's **default leftover policy** is applied automatically. Nothing is
-> lost by not tapping through it.
+> each category's **default leftover policy** is applied automatically. Nothing
+> is lost by not tapping through it.
 
 ---
 
@@ -405,7 +406,7 @@ can browse and back up like any other documents.
 1. Tap **Choose folder** and pick a root folder.
 2. The screen tells you how many files will be written.
 3. Tap **Project now** to write them. Files are organized as
-   `<year>/<slice>/<date>_<merchant>_<amount>.<ext>`.
+   `<year>/<category>/<date>_<merchant>_<amount>.<ext>`.
 
 > **⚠️ The folder is disposable — treat it as throwaway output, not storage.** The
 > receipt library is a **regenerable projection, never a source of truth**. Any
@@ -591,7 +592,8 @@ EVERY DAY
 
 MONTH CLOSE ("Spoils" button appears when it's time)
   For each leftover, pick one:
-    Carry in slice · Attack a quest (untithed) · Discretionary (−tithe)
+    Carry in category · Attack a quest (untithed if it matches the
+    category's main category, else −tithe) · Discretionary (−tithe)
   Group leftovers + emergency set-asides happen automatically.
   Ignore it and defaults apply after the grace period (7 days).
 
