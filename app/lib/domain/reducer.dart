@@ -49,6 +49,10 @@ class _Builder {
   final Map<String, QuestSet> questCfg = {};
   final Map<String, EmergencyFundSet> fundCfg = {};
   final Map<String, PetSet> petCfg = {};
+  final Map<String, MemberSet> memberCfg = {};
+
+  // Per-adult share tables, last-writer-wins per month key.
+  final Map<String, GroupShareSet> shareSets = {};
   final Map<String, RecurringExpenseSet> recurringCfg = {};
   final Map<String, AccountBalanceRecorded> accounts = {};
 
@@ -173,6 +177,16 @@ class _Builder {
         fundCfg[e.fundId] = e;
       case PetSet():
         petCfg[e.petId] = e;
+      case MemberSet():
+        memberCfg[e.memberId] = e;
+        // Adults carry a ledger, so they must be known users (even when
+        // retired, so a prior balance still surfaces). Dependents and pets do
+        // not — they never get a vault.
+        if (e.role == MemberRole.adult) {
+          _note(e.memberId);
+        }
+      case GroupShareSet():
+        shareSets[e.month.toKey()] = e;
       case GoalSet():
         goalTarget = e.targetCents;
       case AccountBalanceRecorded():
@@ -221,9 +235,71 @@ class _Builder {
     vault[user] = (vault[user] ?? 0) + amount;
   }
 
-  String? _otherUser(String user) {
-    final others = userIds.where((u) => u != user).toList()..sort();
-    return others.isEmpty ? null : others.first;
+  /// The ledger-bearing adults. Explicit active adult members win; absent any,
+  /// every known user is treated as an adult (legacy / dependents-only history).
+  Set<String> _adultIds() {
+    final declared = {
+      for (final m in memberCfg.values)
+        if (m.role == MemberRole.adult && m.active) m.memberId,
+    };
+    return declared.isNotEmpty ? declared : userIds;
+  }
+
+  bool _isAdult(String id) => _adultIds().contains(id);
+
+  /// The permille weight per adult for shared costs in [month]: the latest share
+  /// table with month ≤ [month] (carried forward), else an even split among the
+  /// current adults.
+  Map<String, int> _sharesFor(Month month) {
+    GroupShareSet? best;
+    for (final s in shareSets.values) {
+      if (!s.month.isAfter(month) &&
+          (best == null || s.month.isAfter(best.month))) {
+        best = s;
+      }
+    }
+    if (best != null && best.shares.isNotEmpty) {
+      return best.shares;
+    }
+    return {for (final a in _adultIds()) a: 1};
+  }
+
+  /// Splits [amount] across [weights] with floor rounding. Any leftover cents go
+  /// to [oddTo] (the purchaser) when given; otherwise they are distributed by
+  /// largest remainder so the parts always sum exactly to [amount].
+  Map<String, int> _splitShares(int amount, Map<String, int> weights,
+      {String? oddTo}) {
+    final totalWeight = weights.values.fold(0, (a, b) => a + b);
+    if (amount == 0 || totalWeight <= 0) {
+      return {?oddTo: amount};
+    }
+    final base = <String, int>{};
+    final remainders = <String, int>{};
+    var assigned = 0;
+    for (final entry in weights.entries) {
+      final numerator = amount * entry.value;
+      final share = numerator ~/ totalWeight;
+      base[entry.key] = share;
+      remainders[entry.key] = numerator % totalWeight;
+      assigned += share;
+    }
+    var leftover = amount - assigned;
+    if (oddTo != null) {
+      base[oddTo] = (base[oddTo] ?? 0) + leftover;
+      return base;
+    }
+    final order = weights.keys.toList()
+      ..sort((a, b) {
+        final c = remainders[b]!.compareTo(remainders[a]!);
+        return c != 0 ? c : a.compareTo(b);
+      });
+    var i = 0;
+    while (leftover > 0 && order.isNotEmpty) {
+      base[order[i % order.length]] = base[order[i % order.length]]! + 1;
+      leftover--;
+      i++;
+    }
+    return base;
   }
 
   /// Binds buffered receipt attach/detach events onto their purchases. Events
@@ -272,27 +348,34 @@ class _Builder {
           if (cfg != null && cfg.isGroup) {
             groupSpent[k] = (groupSpent[k] ?? 0) + e.amountCents;
           } else if (e.shared) {
-            final split = Money.splitCents(e.amountCents);
-            personalSpent[k] = (personalSpent[k] ?? 0) + split.designatedCents;
-            final other = _otherUser(e.userId);
-            if (other != null) {
-              _addVault(other, -split.otherCents);
-            } else {
-              personalSpent[k] = (personalSpent[k] ?? 0) + split.otherCents;
-            }
+            // Split across the adults by their share table; the purchaser's
+            // share lands on this personal category, every co-adult's share is
+            // charged to their vault. Odd cents go to the purchaser.
+            final parts = _splitShares(
+              e.amountCents,
+              _sharesFor(e.occurredMonth),
+              oddTo: e.userId,
+            );
+            parts.forEach((adult, amt) {
+              if (adult == e.userId) {
+                personalSpent[k] = (personalSpent[k] ?? 0) + amt;
+              } else {
+                _addVault(adult, -amt);
+              }
+            });
           } else {
             personalSpent[k] = (personalSpent[k] ?? 0) + e.amountCents;
           }
         case VaultCharge():
           if (e.shared) {
-            final split = Money.splitCents(e.amountCents);
-            _addVault(e.userId, -split.designatedCents);
-            final other = _otherUser(e.userId);
-            if (other != null) {
-              _addVault(other, -split.otherCents);
-            } else {
-              _addVault(e.userId, -split.otherCents);
-            }
+            // Each adult's share is charged to their own vault; odd cents to
+            // the purchaser.
+            final parts = _splitShares(
+              e.amountCents,
+              _sharesFor(e.occurredMonth),
+              oddTo: e.userId,
+            );
+            parts.forEach((adult, amt) => _addVault(adult, -amt));
           } else {
             _addVault(e.userId, -e.amountCents);
           }
@@ -445,23 +528,13 @@ class _Builder {
             final k = HouseholdState.monthKey(own.userId, m);
             recurringByUserMonth[k] = (recurringByUserMonth[k] ?? 0) + amount;
           } else {
-            // Shared: split 50/50 across the two members, deterministically.
-            final members = userIds.toList()..sort();
-            final split = Money.splitCents(amount);
-            if (members.isEmpty) {
-              continue;
-            }
-            final k0 = HouseholdState.monthKey(members.first, m);
-            recurringByUserMonth[k0] =
-                (recurringByUserMonth[k0] ?? 0) + split.designatedCents;
-            if (members.length > 1) {
-              final k1 = HouseholdState.monthKey(members[1], m);
-              recurringByUserMonth[k1] =
-                  (recurringByUserMonth[k1] ?? 0) + split.otherCents;
-            } else {
-              recurringByUserMonth[k0] =
-                  (recurringByUserMonth[k0] ?? 0) + split.otherCents;
-            }
+            // Shared: split by the adults' share table for this month,
+            // deterministically (largest remainder — there is no purchaser).
+            final parts = _splitShares(amount, _sharesFor(m));
+            parts.forEach((adult, amt) {
+              final k = HouseholdState.monthKey(adult, m);
+              recurringByUserMonth[k] = (recurringByUserMonth[k] ?? 0) + amt;
+            });
           }
         }
 
@@ -494,20 +567,30 @@ class _Builder {
       final prop = entry.value;
       var status = WithdrawalStatus.pending;
       String? approvedBy;
+      Month? approvedMonth;
       if (cancelledProposals.contains(prop.proposalId)) {
         status = WithdrawalStatus.cancelled;
+      } else if (_adultIds().length <= 1) {
+        // Single-adult household: "another adult" is auto-satisfied.
+        status = WithdrawalStatus.approved;
+        approvedBy = prop.byUserId;
+        approvedMonth = prop.occurredMonth;
       } else {
+        // A DIFFERENT adult must sign; self-approval and non-adults don't count.
         final valid = (approvals[prop.proposalId] ?? [])
-            .where((a) => a.byUserId != prop.byUserId) // reject self-approval
+            .where((a) => a.byUserId != prop.byUserId && _isAdult(a.byUserId))
             .toList();
         if (valid.isNotEmpty) {
           status = WithdrawalStatus.approved;
           approvedBy = valid.first.byUserId;
-          _addChest(-prop.amountCents, valid.first.occurredMonth);
-          final dest = prop.destination;
-          if (dest is UserVaultDestination) {
-            _addVault(dest.userId, prop.amountCents);
-          }
+          approvedMonth = valid.first.occurredMonth;
+        }
+      }
+      if (status == WithdrawalStatus.approved) {
+        _addChest(-prop.amountCents, approvedMonth!);
+        final dest = prop.destination;
+        if (dest is UserVaultDestination) {
+          _addVault(dest.userId, prop.amountCents);
         }
       }
       withdrawals[prop.proposalId] = WithdrawalProposal(
@@ -619,14 +702,38 @@ class _Builder {
       }
     }
 
-    // Pets.
+    // Members. Legacy PetSet events reduce as pet members; an explicit
+    // MemberSet with the same id (last writer) overrides.
+    final members = <String, MemberState>{};
+    for (final p in petCfg.values) {
+      members[p.petId] = MemberState(
+        memberId: p.petId,
+        name: p.name,
+        role: MemberRole.pet,
+        active: true,
+        customSpriteSha256: p.customSpriteSha256,
+      );
+    }
+    for (final m in memberCfg.values) {
+      members[m.memberId] = MemberState(
+        memberId: m.memberId,
+        name: m.name,
+        role: m.role,
+        active: m.active,
+        customSpriteSha256: m.customSpriteSha256,
+        descriptionText: m.descriptionText,
+      );
+    }
+
+    // Pets are the active pet-role members (the display-level party pets).
     final pets = <String, PetState>{
-      for (final p in petCfg.values)
-        p.petId: PetState(
-          petId: p.petId,
-          name: p.name,
-          customSpriteSha256: p.customSpriteSha256,
-        ),
+      for (final m in members.values)
+        if (m.role == MemberRole.pet && m.active)
+          m.memberId: PetState(
+            petId: m.memberId,
+            name: m.name,
+            customSpriteSha256: m.customSpriteSha256,
+          ),
     };
 
     // Net worth.
@@ -721,6 +828,7 @@ class _Builder {
     return HouseholdState(
       settings: settings,
       userIds: userIds,
+      members: members,
       slices: slices,
       sliceMonths: sliceMonths,
       quests: questStates,

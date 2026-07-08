@@ -2,8 +2,9 @@
 ///
 /// Every field on a slice lives here: ownership (personal to either member, or a
 /// group slice), monthly limit, per-slice pool tithe %, default leftover policy,
-/// tax-deductible default, an optional emergency-fund contribution off the top,
-/// and an optional pet link. Saving appends a single [BudgetSliceSet]; the
+/// tax-deductible default, and an optional emergency-fund contribution off the
+/// top. A category's pet link (for display) is set elsewhere; any existing link
+/// is preserved untouched here. Saving appends a single [BudgetSliceSet]; the
 /// reducer treats it as last-writer-wins, so this same screen creates and edits.
 library;
 
@@ -126,8 +127,6 @@ class _SliceEditorScreenState extends ConsumerState<SliceEditorScreen> {
       ..sort((a, b) => a.name.compareTo(b.name));
     final funds = state.emergencyFunds.values.toList()
       ..sort((a, b) => a.name.compareTo(b.name));
-    final pets = state.pets.values.toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
 
     return Scaffold(
       appBar: AppBar(
@@ -240,17 +239,6 @@ class _SliceEditorScreenState extends ConsumerState<SliceEditorScreen> {
               ),
             ),
           ],
-          const Divider(height: AppSpacing.xl),
-          DropdownButtonFormField<String?>(
-            initialValue: _petId,
-            decoration: const InputDecoration(labelText: 'Pet (optional)'),
-            items: [
-              const DropdownMenuItem(value: null, child: Text('None')),
-              for (final p in pets)
-                DropdownMenuItem(value: p.petId, child: Text(p.name)),
-            ],
-            onChanged: (v) => setState(() => _petId = v),
-          ),
           const SizedBox(height: AppSpacing.xl),
           FilledButton(
             onPressed: () => _save(setup.me.userId, setup.partner.userId),

@@ -1,5 +1,5 @@
 /// Settings: the household's configuration surface. Lists the editable areas
-/// (income, recurring expenses, budget slices, emergency funds, pets) and holds
+/// (members, income, recurring expenses, budget slices, emergency funds) and holds
 /// the household rules that don't warrant their own page — spoils grace period,
 /// dissolution tithe, and the net-worth feature flag. Receipt library (desktop)
 /// and the tax center hang off here too.
@@ -21,7 +21,7 @@ import '../slices/slice_list_screen.dart';
 import '../tax/tax_center_screen.dart';
 import 'emergency_funds_screen.dart';
 import 'income_screen.dart';
-import 'pets_screen.dart';
+import 'members_screen.dart';
 import 'recurring_screen.dart';
 
 /// Whether this build runs on a desktop OS (where the receipt library applies).
@@ -43,6 +43,8 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         children: [
           const _SectionHeader('Household'),
+          _nav(context, Icons.groups_outlined, 'Members',
+              'Adults, dependents, and pets', const MembersScreen()),
           _nav(context, Icons.payments_outlined, 'Income',
               'Each member\'s monthly income', const IncomeScreen()),
           _nav(context, Icons.autorenew, 'Recurring expenses',
@@ -51,8 +53,6 @@ class SettingsScreen extends ConsumerWidget {
               'Limits, tithes, leftover policies', const SliceListScreen()),
           _nav(context, Icons.emergency_outlined, 'Emergency funds',
               'Reserve caches', const EmergencyFundsScreen()),
-          _nav(context, Icons.pets_outlined, 'Pets',
-              'Party members and their sprites', const PetsScreen()),
           const _SectionHeader('Appearance'),
           _SkinTile(
             skin: ref.watch(appSkinProvider),

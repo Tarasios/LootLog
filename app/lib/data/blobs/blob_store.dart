@@ -114,6 +114,7 @@ class BlobStore {
     final liveReceipts = <String, Set<String>>{}; // purchaseId -> live shas
     final questSprite = <String, String?>{}; // last-writer-wins per quest
     final petSprite = <String, String?>{}; // last-writer-wins per pet
+    final memberSprite = <String, String?>{}; // last-writer-wins per member
     final cosmeticSprites = <String>{};
 
     for (final e in ordered) {
@@ -126,6 +127,8 @@ class BlobStore {
           questSprite[e.questId] = e.customSpriteSha256;
         case PetSet():
           petSprite[e.petId] = e.customSpriteSha256;
+        case MemberSet():
+          memberSprite[e.memberId] = e.customSpriteSha256;
         case CosmeticSet():
           final v = e.value;
           if (v is String && _isSha256(v)) {
@@ -140,6 +143,7 @@ class BlobStore {
       for (final shas in liveReceipts.values) ...shas,
       for (final s in questSprite.values) ?s,
       for (final s in petSprite.values) ?s,
+      for (final s in memberSprite.values) ?s,
       ...cosmeticSprites,
     };
   }

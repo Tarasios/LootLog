@@ -76,7 +76,7 @@ class ManageScreen extends ConsumerWidget {
           _Entry(
             icon: Icons.settings_outlined,
             title: 'Settings',
-            subtitle: 'Income, recurring expenses, funds, pets, rules',
+            subtitle: 'Members, income, recurring expenses, funds, rules',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
             ),

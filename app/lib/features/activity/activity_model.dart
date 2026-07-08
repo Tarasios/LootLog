@@ -85,7 +85,7 @@ List<ActivityItem> buildActivityFeed(
           title: '${who(e.userId)} spent on ${targetLabel(e.target)}',
           subtitle: [
             if (e.merchant != null) e.merchant,
-            if (e.shared) 'split 50/50',
+            if (e.shared) 'shared',
           ].whereType<String>().join(' · ').ifEmptyNull(),
           amountCents: -e.amountCents,
           occurredAt: e.occurredAt,
@@ -241,10 +241,23 @@ List<ActivityItem> buildActivityFeed(
           occurredAt: e.occurredAt,
           isMine: mine,
         );
-      // Deliberately silent: receipts, goals, accounts, settings, cosmetics.
+      case MemberSet():
+        item = ActivityItem(
+          eventId: e.eventId,
+          kind: ActivityKind.config,
+          userId: e.userId,
+          title: e.active
+              ? '${who(e.userId)} added ${e.name} to the party'
+              : '${who(e.userId)} retired ${e.name} from the party',
+          occurredAt: e.occurredAt,
+          isMine: mine,
+        );
+      // Deliberately silent: receipts, goals, accounts, settings, cosmetics,
+      // share-table changes.
       case ReceiptAttached():
       case ReceiptDetached():
       case GoalSet():
+      case GroupShareSet():
       case AccountBalanceRecorded():
       case SettingChanged():
       case CosmeticSet():
