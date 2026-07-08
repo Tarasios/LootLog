@@ -282,8 +282,20 @@ enum MemberRole { adult, dependent, pet }
 /// Kind of a recurring expense.
 enum RecurringKind { fixed, variable }
 
-/// Kind of a tracked net-worth account. Debt contributes negatively.
-enum AccountKind { cash, investment, debt }
+/// Kind of a tracked net-worth account. `savings`/`debt` accrue interest at read
+/// time; `investment` is never auto-changed (it goes stale instead). `cash` is a
+/// legacy value retained for wire compatibility and behaves like a
+/// non-interest-bearing savings account. Debt contributes negatively.
+enum AccountKind { savings, cash, investment, debt }
+
+/// The frequency knobs on a tracked account: how often interest compounds
+/// (`accrualCadence`) and how often the user is expected to refresh a manual
+/// value (`updateCadence`). Purely a read-time derivation input; no jobs run.
+enum AccountCadence { daily, monthly, quarterly, annually }
+
+/// Direction of an [AccountTransferRecorded]: money moved into the account
+/// (raising its recorded balance) or out of it (lowering it).
+enum TransferDirection { deposit, withdrawal }
 
 /// An emergency fund contribution designated on a slice.
 class EmergencyContribution {

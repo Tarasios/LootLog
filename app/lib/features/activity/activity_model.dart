@@ -270,7 +270,9 @@ List<ActivityItem> buildActivityFeed(
       case ReceiptDetached():
       case GoalSet():
       case GroupShareSet():
+      case TrackedAccountSet():
       case AccountBalanceRecorded():
+      case AccountTransferRecorded():
       case SettingChanged():
       case CosmeticSet():
       case VariableExpenseRecorded():

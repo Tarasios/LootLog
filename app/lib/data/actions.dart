@@ -675,6 +675,59 @@ class HouseholdActions {
     return id;
   }
 
+  /// Declares or amends a tracked net-worth account (last-writer-wins by
+  /// [accountId]). Interest and staleness inputs live here; balances are
+  /// recorded separately with [recordAccountBalance].
+  Future<String> setTrackedAccount({
+    String? accountId,
+    required String name,
+    required AccountKind kind,
+    int? aprBps,
+    AccountCadence? accrualCadence,
+    AccountCadence? updateCadence,
+    int? minPaymentCents,
+  }) async {
+    final now = DateTime.now().toUtc();
+    final id = accountId ?? uuidv7();
+    await append(TrackedAccountSet(
+      eventId: uuidv7(),
+      deviceId: deviceId,
+      userId: meUserId,
+      occurredAt: now,
+      createdAt: now,
+      accountId: id,
+      name: name,
+      kind: kind,
+      aprBps: aprBps,
+      accrualCadence: accrualCadence,
+      updateCadence: updateCadence,
+      minPaymentCents: minPaymentCents,
+    ));
+    return id;
+  }
+
+  /// Records a deposit into or withdrawal out of a tracked account.
+  Future<void> recordAccountTransfer({
+    required String accountId,
+    required int amountCents,
+    required TransferDirection direction,
+    String? note,
+    DateTime? occurredAt,
+  }) async {
+    final now = DateTime.now().toUtc();
+    await append(AccountTransferRecorded(
+      eventId: uuidv7(),
+      deviceId: deviceId,
+      userId: meUserId,
+      occurredAt: occurredAt ?? now,
+      createdAt: now,
+      accountId: accountId,
+      amountCents: amountCents,
+      direction: direction,
+      note: note,
+    ));
+  }
+
   /// Changes a household setting. Known keys: `spoilsGraceDays`,
   /// `dissolutionTithePct`, `showNetWorth`.
   Future<void> changeSetting(String key, Object? value) async {
