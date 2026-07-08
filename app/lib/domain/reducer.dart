@@ -56,6 +56,8 @@ class _Builder {
   final Map<String, GroupShareSet> shareSets = {};
   final Map<String, RecurringExpenseSet> recurringCfg = {};
   final Map<String, AccountBalanceRecorded> accounts = {};
+  final Map<String, TrackedAccountSet> accountCfg = {};
+  final List<AccountTransferRecorded> accountTransfers = [];
 
   // Purchases and their receipts. Receipt attach/detach events are buffered
   // here and applied once all purchases are gathered (see [_applyReceipts]).
@@ -198,8 +200,12 @@ class _Builder {
         shareSets[e.month.toKey()] = e;
       case GoalSet():
         goalTarget = e.targetCents;
+      case TrackedAccountSet():
+        accountCfg[e.accountId] = e;
       case AccountBalanceRecorded():
         accounts[e.accountId] = e;
+      case AccountTransferRecorded():
+        accountTransfers.add(e);
       case SettingChanged():
         _applySetting(e);
       case CosmeticSet():
@@ -230,6 +236,51 @@ class _Builder {
   final Map<String, SliceMonth> sliceMonths = {};
   final Map<String, int> recurringByUserMonth = {};
   final List<RansackRecord> ransacks = [];
+
+  /// Debt minimum payments surfaced as shared recurring expenses.
+  final List<_DerivedRecurring> derivedRecurring = [];
+
+  static const Map<AccountCadence, int> _cadenceDays = {
+    AccountCadence.daily: 1,
+    AccountCadence.monthly: 30,
+    AccountCadence.quarterly: 91,
+    AccountCadence.annually: 365,
+  };
+  static const Map<AccountCadence, int> _cadencePerYear = {
+    AccountCadence.daily: 365,
+    AccountCadence.monthly: 12,
+    AccountCadence.quarterly: 4,
+    AccountCadence.annually: 1,
+  };
+
+  /// Interest accrued on [base] from [since] to [now] for the given rate and
+  /// cadence, by completed compounding periods (no partial-period accrual).
+  /// Zero when any input is missing or no full period has elapsed.
+  int _accruedInterest(
+      int base, int? aprBps, AccountCadence? cadence, DateTime? since) {
+    if (aprBps == null || aprBps == 0 || cadence == null || since == null) {
+      return 0;
+    }
+    final elapsedDays = now.difference(since).inDays;
+    if (elapsedDays <= 0) {
+      return 0;
+    }
+    final completed = elapsedDays ~/ _cadenceDays[cadence]!;
+    if (completed <= 0) {
+      return 0;
+    }
+    final fraction = completed / _cadencePerYear[cadence]!;
+    return (base * (aprBps / 10000.0) * fraction).round();
+  }
+
+  /// Whether a manual value recorded at [since] has gone stale relative to its
+  /// [cadence] (one full cadence has lapsed with no fresh recording).
+  bool _isStale(AccountCadence? cadence, DateTime? since) {
+    if (cadence == null || since == null) {
+      return false;
+    }
+    return now.difference(since).inDays > _cadenceDays[cadence]!;
+  }
 
   /// Whether [month] has fully ended as of the read time.
   bool _isClosed(Month month) => !now.isBefore(month.endInstantUtc());
@@ -336,6 +387,19 @@ class _Builder {
     _applyReceipts();
     for (final u in userIds) {
       vault.putIfAbsent(u, () => 0);
+    }
+
+    // A debt's minimum payment surfaces automatically as a shared recurring
+    // expense — the single, reminder-only crossover where a tracked account
+    // touches the monthly plan (it never enters category math).
+    for (final cfg in accountCfg.values) {
+      if (cfg.kind == AccountKind.debt && (cfg.minPaymentCents ?? 0) > 0) {
+        derivedRecurring.add(_DerivedRecurring(
+          expenseId: 'debt:${cfg.accountId}',
+          name: '${cfg.name} — minimum payment',
+          amountCents: cfg.minPaymentCents!,
+        ));
+      }
     }
 
     // Per-slice, per-month spending derived from purchases.
@@ -547,6 +611,15 @@ class _Builder {
           }
         }
 
+        // Debt minimum payments: shared, ongoing every swept month.
+        for (final d in derivedRecurring) {
+          final parts = _splitShares(d.amountCents, _sharesFor(m));
+          parts.forEach((adult, amt) {
+            final k = HouseholdState.monthKey(adult, m);
+            recurringByUserMonth[k] = (recurringByUserMonth[k] ?? 0) + amt;
+          });
+        }
+
         carryPrev
           ..clear()
           ..addAll(carryThis);
@@ -745,16 +818,58 @@ class _Builder {
           ),
     };
 
-    // Net worth.
-    final accountBalances = <String, AccountBalance>{
-      for (final a in accounts.values)
-        a.accountId: AccountBalance(
-          accountId: a.accountId,
-          name: a.accountName,
-          kind: a.kind,
-          balanceCents: a.balanceCents,
-        ),
-    };
+    // Net worth. Every account with either a config declaration or at least one
+    // recorded balance surfaces. Savings/debt accrue interest since the last
+    // recording; investments are never auto-changed but go stale past their
+    // update cadence. Transfers adjust the balance from the last recording.
+    final accountIds = <String>{...accountCfg.keys, ...accounts.keys};
+    final transfersByAccount = <String, List<AccountTransferRecorded>>{};
+    for (final t in accountTransfers) {
+      transfersByAccount.putIfAbsent(t.accountId, () => []).add(t);
+    }
+    final accountBalances = <String, AccountBalance>{};
+    for (final id in accountIds) {
+      final cfg = accountCfg[id];
+      final rec = accounts[id];
+      // Config wins for name/kind; fall back to the latest balance's inline
+      // fields (legacy AccountBalanceRecorded carried both).
+      final kind = cfg?.kind ?? rec?.kind ?? AccountKind.savings;
+      final name = cfg?.name ?? rec?.accountName ?? id;
+      final recordedCents = rec?.balanceCents ?? 0;
+      final recordedAt = rec?.occurredAt;
+
+      // Transfers after the last recording adjust the base value.
+      var netTransfers = 0;
+      for (final t in transfersByAccount[id] ?? const <AccountTransferRecorded>[]) {
+        if (recordedAt == null || t.occurredAt.isAfter(recordedAt)) {
+          netTransfers += t.direction == TransferDirection.deposit
+              ? t.amountCents
+              : -t.amountCents;
+        }
+      }
+      final base = recordedCents + netTransfers;
+
+      final interest = kind == AccountKind.investment
+          ? 0
+          : _accruedInterest(base, cfg?.aprBps, cfg?.accrualCadence, recordedAt);
+      final stale = kind == AccountKind.investment &&
+          _isStale(cfg?.updateCadence, recordedAt);
+
+      accountBalances[id] = AccountBalance(
+        accountId: id,
+        name: name,
+        kind: kind,
+        balanceCents: recordedCents,
+        currentValueCents: base + interest,
+        accruedInterestCents: interest,
+        aprBps: cfg?.aprBps,
+        accrualCadence: cfg?.accrualCadence,
+        updateCadence: cfg?.updateCadence,
+        minPaymentCents: cfg?.minPaymentCents,
+        lastRecordedAt: recordedAt,
+        stale: stale,
+      );
+    }
     final netWorthTotal =
         accountBalances.values.fold(0, (a, x) => a + x.signedCents);
     final netWorth = NetWorthState(
@@ -898,6 +1013,16 @@ class _Builder {
             startMonth: r.startMonth,
             endMonth: r.endMonth,
           ),
+        // Debt minimum payments as read-only shared fixed recurring expenses.
+        for (final d in derivedRecurring)
+          d.expenseId: RecurringExpenseState(
+            expenseId: d.expenseId,
+            name: d.name,
+            ownership: const SharedParty(),
+            kind: RecurringKind.fixed,
+            amountCents: d.amountCents,
+            startMonth: range?.$1 ?? Month.fromInstant(now),
+          ),
       },
       variableActuals: Map<String, int>.from(variableActuals),
     );
@@ -982,12 +1107,31 @@ class _Builder {
     }
 
     final asOfMonth = Month.fromInstant(now);
+    // A surfaced debt minimum payment anchors the sweep at the current month so
+    // it enters the plan even with no budget categories yet.
+    if (derivedRecurring.isNotEmpty) {
+      consider(asOfMonth);
+    }
     if (min == null) {
       return null;
     }
     consider(asOfMonth); // ensure we sweep up to (at least) the current month
     return (min!, max!);
   }
+}
+
+/// A recurring expense derived from a tracked account (a debt's minimum
+/// payment), rather than from a `RecurringExpenseSet` event.
+class _DerivedRecurring {
+  _DerivedRecurring({
+    required this.expenseId,
+    required this.name,
+    required this.amountCents,
+  });
+
+  final String expenseId;
+  final String name;
+  final int amountCents;
 }
 
 /// Accumulates a purchase and its live receipt references.

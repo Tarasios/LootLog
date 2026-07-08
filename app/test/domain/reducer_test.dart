@@ -1240,43 +1240,203 @@ void main() {
   });
 
   group('net worth', () {
-    test('signed total from the latest balance per account', () {
-      final s = reduce([
+    AccountBalanceRecorded bal(
+      String id,
+      String name,
+      AccountKind kind,
+      int cents,
+      DateTime at,
+    ) =>
         AccountBalanceRecorded(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: u1,
+          occurredAt: at,
+          createdAt: at,
+          accountId: id,
+          accountName: name,
+          kind: kind,
+          balanceCents: cents,
+        );
+
+    TrackedAccountSet acct(
+      String id,
+      String name,
+      AccountKind kind, {
+      int? aprBps,
+      AccountCadence? accrualCadence,
+      AccountCadence? updateCadence,
+      int? minPaymentCents,
+    }) =>
+        TrackedAccountSet(
           eventId: _seq.id(),
           deviceId: 'd',
           userId: u1,
           occurredAt: day(2026, 1, 1),
           createdAt: day(2026, 1, 1),
-          accountId: 'chequing',
-          accountName: 'Chequing',
-          kind: AccountKind.cash,
-          balanceCents: 500000,
-        ),
-        AccountBalanceRecorded(
+          accountId: id,
+          name: name,
+          kind: kind,
+          aprBps: aprBps,
+          accrualCadence: accrualCadence,
+          updateCadence: updateCadence,
+          minPaymentCents: minPaymentCents,
+        );
+
+    AccountTransferRecorded transfer(
+      String id,
+      int cents,
+      TransferDirection dir,
+      DateTime at,
+    ) =>
+        AccountTransferRecorded(
           eventId: _seq.id(),
           deviceId: 'd',
           userId: u1,
-          occurredAt: day(2026, 1, 2),
-          createdAt: day(2026, 1, 2),
-          accountId: 'chequing',
-          accountName: 'Chequing',
-          kind: AccountKind.cash,
-          balanceCents: 450000, // supersedes the earlier value
-        ),
-        AccountBalanceRecorded(
-          eventId: _seq.id(),
-          deviceId: 'd',
-          userId: u1,
-          occurredAt: day(2026, 1, 3),
-          createdAt: day(2026, 1, 3),
-          accountId: 'card',
-          accountName: 'Visa',
-          kind: AccountKind.debt,
-          balanceCents: 120000,
-        ),
+          occurredAt: at,
+          createdAt: at,
+          accountId: id,
+          amountCents: cents,
+          direction: dir,
+        );
+
+    test('signed total from the latest balance per account', () {
+      final s = reduce([
+        bal('chequing', 'Chequing', AccountKind.savings, 500000, day(2026, 1, 1)),
+        // Supersedes the earlier value.
+        bal('chequing', 'Chequing', AccountKind.savings, 450000, day(2026, 1, 2)),
+        bal('card', 'Visa', AccountKind.debt, 120000, day(2026, 1, 3)),
       ], asOf: day(2026, 1, 20));
       expect(s.netWorth.totalCents, 450000 - 120000);
+      expect(s.netWorth.assetsCents, 450000);
+      expect(s.netWorth.debtsCents, 120000);
+    });
+
+    test('savings value = last balance + interest accrued since', () {
+      final s = reduce([
+        acct('sv', 'Savings', AccountKind.savings,
+            aprBps: 1200, accrualCadence: AccountCadence.monthly),
+        bal('sv', 'Savings', AccountKind.savings, 1000000, day(2026, 1, 1)),
+      ], asOf: day(2026, 4, 1)); // 90 days == 3 monthly periods == quarter-year
+      final a = s.netWorth.accounts['sv']!;
+      expect(a.balanceCents, 1000000);
+      expect(a.accruedInterestCents, 30000); // 1,000,000 * 12% * 0.25
+      expect(a.currentValueCents, 1030000);
+      expect(s.netWorth.totalCents, 1030000);
+    });
+
+    test('no interest before a full accrual period elapses', () {
+      final s = reduce([
+        acct('sv', 'Savings', AccountKind.savings,
+            aprBps: 1200, accrualCadence: AccountCadence.monthly),
+        bal('sv', 'Savings', AccountKind.savings, 1000000, day(2026, 1, 1)),
+      ], asOf: day(2026, 1, 20)); // 19 days < one monthly period
+      expect(s.netWorth.accounts['sv']!.accruedInterestCents, 0);
+      expect(s.netWorth.accounts['sv']!.currentValueCents, 1000000);
+    });
+
+    test('debt accrues interest and counts negatively', () {
+      final s = reduce([
+        acct('card', 'Visa', AccountKind.debt,
+            aprBps: 2400, accrualCadence: AccountCadence.monthly),
+        bal('card', 'Visa', AccountKind.debt, 100000, day(2026, 1, 1)),
+      ], asOf: day(2026, 2, 1)); // 31 days == 1 monthly period
+      final a = s.netWorth.accounts['card']!;
+      expect(a.accruedInterestCents, 2000); // 100,000 * 24% / 12
+      expect(a.currentValueCents, 102000);
+      expect(a.signedCents, -102000);
+      expect(s.netWorth.totalCents, -102000);
+    });
+
+    test('investment is never auto-changed but goes stale past its cadence', () {
+      final events = [
+        acct('inv', 'Brokerage', AccountKind.investment,
+            aprBps: 5000, // ignored: investments never accrue
+            accrualCadence: AccountCadence.monthly,
+            updateCadence: AccountCadence.monthly),
+        bal('inv', 'Brokerage', AccountKind.investment, 800000, day(2026, 1, 1)),
+      ];
+      final fresh = reduce(events, asOf: day(2026, 1, 15)); // 14 days
+      expect(fresh.netWorth.accounts['inv']!.stale, isFalse);
+      expect(fresh.netWorth.accounts['inv']!.currentValueCents, 800000);
+      expect(fresh.netWorth.staleAccounts, isEmpty);
+
+      final stale = reduce(events, asOf: day(2026, 3, 1)); // 59 days > 30
+      expect(stale.netWorth.accounts['inv']!.stale, isTrue);
+      expect(stale.netWorth.accounts['inv']!.currentValueCents, 800000);
+      expect(stale.netWorth.staleAccounts.single.accountId, 'inv');
+    });
+
+    test('transfers after the last recording adjust the balance', () {
+      final s = reduce([
+        bal('sv', 'Savings', AccountKind.savings, 100000, day(2026, 1, 10)),
+        transfer('sv', 50000, TransferDirection.deposit, day(2026, 1, 12)),
+        transfer('sv', 20000, TransferDirection.withdrawal, day(2026, 1, 15)),
+        // A transfer before the last recording is already baked in — ignored.
+        transfer('sv', 99999, TransferDirection.deposit, day(2026, 1, 5)),
+      ], asOf: day(2026, 1, 20));
+      expect(s.netWorth.accounts['sv']!.currentValueCents, 130000);
+    });
+
+    test('TrackedAccountSet config wins over a legacy balance name/kind', () {
+      final s = reduce([
+        bal('card', 'old name', AccountKind.savings, 120000, day(2026, 1, 1)),
+        acct('card', 'Visa', AccountKind.debt),
+      ], asOf: day(2026, 1, 20));
+      final a = s.netWorth.accounts['card']!;
+      expect(a.name, 'Visa');
+      expect(a.kind, AccountKind.debt);
+      expect(a.signedCents, -120000);
+    });
+
+    test('a declared account with no balance yet surfaces at zero', () {
+      final s = reduce([
+        acct('inv', 'Brokerage', AccountKind.investment,
+            updateCadence: AccountCadence.monthly),
+      ], asOf: day(2026, 6, 1));
+      final a = s.netWorth.accounts['inv']!;
+      expect(a.currentValueCents, 0);
+      expect(a.stale, isFalse); // no recording ⇒ nothing to be stale about
+    });
+
+    test('debt minimum payments surface as recurring expenses', () {
+      final s = reduce([
+        slice(id: 's', ownership: const PersonalSlice(u1), limit: 100000),
+        acct('card', 'Visa', AccountKind.debt, minPaymentCents: 25000),
+      ], asOf: day(2026, 1, 20));
+      final rec = s.recurringExpenses['debt:card'];
+      expect(rec, isNotNull);
+      expect(rec!.amountCents, 25000);
+      expect(rec.isShared, isTrue);
+      expect(s.recurringChargeFor(u1, const Month(2026, 1)), 25000);
+    });
+
+    test('tracked accounts never enter category math', () {
+      final budget = [
+        slice(id: 's', ownership: const PersonalSlice(u1), limit: 100000),
+        buy(id: 'p', target: const SliceCharge('s'), amount: 40000,
+            at: day(2026, 1, 10)),
+      ];
+      final without = reduce(budget, asOf: day(2026, 1, 20));
+      final with_ = reduce([
+        ...budget,
+        acct('sv', 'Savings', AccountKind.savings,
+            aprBps: 1200, accrualCadence: AccountCadence.monthly),
+        bal('sv', 'Savings', AccountKind.savings, 999999, day(2026, 1, 1)),
+        transfer('sv', 12345, TransferDirection.deposit, day(2026, 1, 5)),
+      ], asOf: day(2026, 1, 20));
+
+      // Category math and the pool are untouched by the account.
+      expect(with_.sliceMonth('s', const Month(2026, 1))!.spentCents,
+          without.sliceMonth('s', const Month(2026, 1))!.spentCents);
+      expect(with_.sliceMonth('s', const Month(2026, 1))!.leftoverCents,
+          without.sliceMonth('s', const Month(2026, 1))!.leftoverCents);
+      expect(with_.warChest.balanceCents, without.warChest.balanceCents);
+      expect(with_.vaultOf(u1), without.vaultOf(u1));
+      expect(with_.recurringChargeFor(u1, const Month(2026, 1)), 0);
+      // Only net worth reflects it.
+      expect(without.netWorth.accounts, isEmpty);
+      expect(with_.netWorth.accounts.containsKey('sv'), isTrue);
     });
   });
 
