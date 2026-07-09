@@ -8,6 +8,7 @@ import 'package:duobudget/domain/time.dart';
 import 'package:duobudget/domain/value_types.dart';
 import 'package:duobudget/features/activity/activity_model.dart';
 import 'package:duobudget/features/dashboard/dashboard_model.dart';
+import 'package:duobudget/features/networth/networth_model.dart';
 import 'package:duobudget/features/spoils/spoils_model.dart';
 
 const _july = Month(2026, 7);
@@ -82,6 +83,20 @@ SpoilsRitual sampleSpoilsRitual() => SpoilsRitual(
 DashboardModel sampleDashboardModel() => DashboardModel(
       currentMonth: _july,
       meName: 'Robin',
+      hero: const MonthHero(incomeCents: 320000, spentCents: 118000),
+      netWorth: NetWorthSummary(
+        show: true,
+        totalCents: 1850000,
+        assetsCents: 2350000,
+        debtsCents: 500000,
+        series: [
+          BalancePoint(at: DateTime.utc(2026, 3, 1), balanceCents: 1420000),
+          BalancePoint(at: DateTime.utc(2026, 4, 1), balanceCents: 1510000),
+          BalancePoint(at: DateTime.utc(2026, 5, 1), balanceCents: 1495000),
+          BalancePoint(at: DateTime.utc(2026, 6, 1), balanceCents: 1680000),
+          BalancePoint(at: DateTime.utc(2026, 7, 1), balanceCents: 1850000),
+        ],
+      ),
       slices: const [
         SliceRing(
           sliceId: 'food',
@@ -93,6 +108,7 @@ DashboardModel sampleDashboardModel() => DashboardModel(
           mine: true,
           ownerName: 'Robin',
           petName: 'Mochi',
+          mainCategoryColorArgb: 0xFFF28E2B, // Food
         ),
         SliceRing(
           sliceId: 'fun',
@@ -103,6 +119,7 @@ DashboardModel sampleDashboardModel() => DashboardModel(
           overspendCents: 0,
           mine: true,
           ownerName: 'Robin',
+          mainCategoryColorArgb: 0xFF59A14F, // Entertainment
         ),
         SliceRing(
           sliceId: 'gear',
@@ -113,6 +130,7 @@ DashboardModel sampleDashboardModel() => DashboardModel(
           overspendCents: 0,
           mine: false,
           ownerName: 'Sam',
+          mainCategoryColorArgb: 0xFF4E79A7, // Housing
         ),
         SliceRing(
           sliceId: 'groceries',
@@ -122,6 +140,7 @@ DashboardModel sampleDashboardModel() => DashboardModel(
           effectiveLimitCents: 60000,
           overspendCents: 0,
           mine: false,
+          mainCategoryColorArgb: 0xFFF28E2B, // Food
         ),
         SliceRing(
           sliceId: 'petcare',
@@ -132,6 +151,7 @@ DashboardModel sampleDashboardModel() => DashboardModel(
           overspendCents: 2000,
           mine: false,
           petName: 'Rex',
+          mainCategoryColorArgb: 0xFFEDC948, // Pets
         ),
       ],
       maintenance: const [
