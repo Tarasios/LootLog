@@ -7,10 +7,16 @@
 /// The quick-entry FAB and receipt scan live here so every pane shares them.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/export/budget_workbook.dart';
+import '../../data/providers.dart';
+import '../../data/sheets/sheets_provider.dart';
+import '../../data/sync/sync_service.dart';
 import '../../ui/theme.dart';
 import '../activity/activity_screen.dart';
 import '../dashboard/dashboard_screen.dart';
@@ -19,6 +25,7 @@ import '../ledger/ledger_screen.dart';
 import '../menu/manage_screen.dart';
 import '../ocr/ocr_confirm_screen.dart';
 import '../spoils/spoils_screen.dart';
+import '../sync/sync_status.dart';
 import '../tutorial/tutorial.dart';
 
 /// The width at or above which the shell switches to the rail + two-pane layout.
@@ -60,6 +67,14 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    // Optionally push the workbook to Google Sheets after a successful sync.
+    // The gate does nothing unless the user has opted in (and a client is
+    // available), so this is a quiet no-op by default.
+    ref.listen<SyncStatus>(liveSyncStatusProvider, (prev, next) {
+      if (next == SyncStatus.synced && prev != SyncStatus.synced) {
+        unawaited(_pushSheetsAfterSync());
+      }
+    });
     final wide = MediaQuery.of(context).size.width >= kWideBreakpoint;
     return TutorialGate(
       child: CallbackShortcuts(
@@ -173,6 +188,25 @@ class _AppShellState extends ConsumerState<AppShell> {
         ],
       ),
     );
+  }
+
+  /// Builds the current workbook and hands it to the isolated Sheets gate,
+  /// which only pushes when the user has enabled "also push after each sync".
+  Future<void> _pushSheetsAfterSync() async {
+    final state = ref.read(householdStateProvider).value;
+    if (state == null) return;
+    final store = ref.read(sheetsSyncStoreProvider);
+    final settings = await store.loadSettings();
+    if (!settings.pushAfterSync) return;
+    final workbook = buildBudgetWorkbook(
+      state,
+      userNames: {for (final m in state.members.values) m.memberId: m.name},
+    );
+    await ref.read(sheetsSyncServiceProvider).maybePushAfterSync(
+          workbook,
+          settings: settings,
+          credentials: await store.loadCredentials(),
+        );
   }
 
   Widget _fab(BuildContext context) {
