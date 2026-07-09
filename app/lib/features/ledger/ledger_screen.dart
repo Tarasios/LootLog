@@ -89,6 +89,8 @@ class _PurchaseList extends StatelessWidget {
         return state.quests[questId]?.name ?? 'Quest';
       case EmergencyCharge(:final fundId):
         return state.emergencyFunds[fundId]?.name ?? 'Emergency fund';
+      case VacationCharge(:final vacationId):
+        return state.vacations[vacationId]?.name ?? 'Vacation';
     }
   }
 }

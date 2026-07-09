@@ -293,6 +293,30 @@ GameState buildGameState(
     ransacks: ransacks,
   );
 
+  // ---- Expeditions abroad (open vacation side-floors) --------------------
+  final expeditions = <ExpeditionFloor>[
+    for (final v in state.openVacations)
+      ExpeditionFloor(
+        vacationId: v.vacationId,
+        name: v.name,
+        totalBudgetCents: v.totalLimitCents,
+        totalSpentCents: v.totalSpentCents,
+        totalOverspendCents: v.totalOverspendCents,
+        daysRemaining: v.daysRemaining,
+        dailyAllowanceRemainingCents: v.dailyAllowanceRemainingCents,
+        fundBalanceCents: v.fundBalanceCents,
+        rings: [
+          for (final c in v.categories)
+            ExpeditionRing(
+              name: c.name,
+              budgetCents: c.limitCents,
+              spentCents: c.spentCents,
+              overspendCents: c.overspendCents,
+            ),
+        ],
+      ),
+  ];
+
   return GameState(
     currentMonth: month,
     floorNumber: floorNumber,
@@ -309,6 +333,7 @@ GameState buildGameState(
     goldPouch: goldPouch,
     warChest: warChest,
     reserveCaches: looseCaches,
+    expeditions: expeditions,
   );
 }
 

@@ -20,6 +20,11 @@ sealed class ChargeTarget {
         return QuestCharge(json['questId'] as String);
       case 'emergency':
         return EmergencyCharge(json['fundId'] as String);
+      case 'vacation':
+        return VacationCharge(
+          json['vacationId'] as String,
+          json['categoryId'] as String,
+        );
       default:
         throw FormatException('Unknown charge target kind: $kind');
     }
@@ -70,6 +75,104 @@ class EmergencyCharge extends ChargeTarget {
       other is EmergencyCharge && other.fundId == fundId;
   @override
   int get hashCode => Object.hash('emergency', fundId);
+}
+
+/// A purchase drawn from an open vacation's sub-budget: a specific
+/// [categoryId] within the vacation [vacationId]. The vacation is itself backed
+/// by a source fund (a quest or emergency fund); a vacation charge only tracks
+/// per-category spend, never touching a normal monthly budget.
+class VacationCharge extends ChargeTarget {
+  const VacationCharge(this.vacationId, this.categoryId);
+  final String vacationId;
+  final String categoryId;
+  @override
+  Map<String, dynamic> toJson() =>
+      {'kind': 'vacation', 'vacationId': vacationId, 'categoryId': categoryId};
+  @override
+  bool operator ==(Object other) =>
+      other is VacationCharge &&
+      other.vacationId == vacationId &&
+      other.categoryId == categoryId;
+  @override
+  int get hashCode => Object.hash('vacation', vacationId, categoryId);
+}
+
+/// The source fund a vacation draws from: an existing savings quest or an
+/// emergency fund. Exactly one is chosen when the vacation is created; the
+/// vacation reserves its budget off that fund and returns the leftover on close.
+sealed class VacationFund {
+  const VacationFund();
+  Map<String, dynamic> toJson();
+
+  static VacationFund fromJson(Map<String, dynamic> json) {
+    final kind = json['kind'] as String;
+    switch (kind) {
+      case 'quest':
+        return VacationFundQuest(json['questId'] as String);
+      case 'emergency':
+        return VacationFundEmergency(json['fundId'] as String);
+      default:
+        throw FormatException('Unknown vacation fund kind: $kind');
+    }
+  }
+}
+
+class VacationFundQuest extends VacationFund {
+  const VacationFundQuest(this.questId);
+  final String questId;
+  @override
+  Map<String, dynamic> toJson() => {'kind': 'quest', 'questId': questId};
+  @override
+  bool operator ==(Object other) =>
+      other is VacationFundQuest && other.questId == questId;
+  @override
+  int get hashCode => Object.hash('vacFundQuest', questId);
+}
+
+class VacationFundEmergency extends VacationFund {
+  const VacationFundEmergency(this.fundId);
+  final String fundId;
+  @override
+  Map<String, dynamic> toJson() => {'kind': 'emergency', 'fundId': fundId};
+  @override
+  bool operator ==(Object other) =>
+      other is VacationFundEmergency && other.fundId == fundId;
+  @override
+  int get hashCode => Object.hash('vacFundEmergency', fundId);
+}
+
+/// One spending category inside a vacation's self-contained sub-budget. The
+/// [categoryId] is stable across re-declarations of the vacation so purchases
+/// keep referencing the same category even if its name or limit is edited.
+class VacationCategory {
+  const VacationCategory({
+    required this.categoryId,
+    required this.name,
+    required this.limitCents,
+  });
+
+  final String categoryId;
+  final String name;
+  final int limitCents;
+
+  Map<String, dynamic> toJson() =>
+      {'categoryId': categoryId, 'name': name, 'limitCents': limitCents};
+
+  static VacationCategory fromJson(Map<String, dynamic> json) => VacationCategory(
+        categoryId: json['categoryId'] as String,
+        name: json['name'] as String,
+        limitCents: json['limitCents'] as int,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is VacationCategory &&
+      other.categoryId == categoryId &&
+      other.name == name &&
+      other.limitCents == limitCents;
+
+  @override
+  int get hashCode => Object.hash(categoryId, name, limitCents);
 }
 
 /// Ownership of a budget slice: a single user or the whole household (group).
