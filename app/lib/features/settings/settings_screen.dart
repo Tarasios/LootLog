@@ -65,6 +65,17 @@ class SettingsScreen extends ConsumerWidget {
             onChanged: (s) =>
                 unawaited(ref.read(appSkinProvider.notifier).select(s)),
           ),
+          if (ref.watch(appSkinProvider) == AppSkin.adventure)
+            SwitchListTile(
+              secondary: const Icon(Icons.text_fields),
+              title: const Text('Text mode'),
+              subtitle: const Text('Render the adventure as a text adventure '
+                  'instead of pixel art — works with no artwork at all'),
+              value: ref.watch(adventureTierProvider) == AdventureTier.text,
+              onChanged: (v) => unawaited(ref
+                  .read(adventureTierProvider.notifier)
+                  .select(v ? AdventureTier.text : AdventureTier.pixel)),
+            ),
           const _SectionHeader('Rules'),
           ListTile(
             leading: const Icon(Icons.hourglass_bottom),

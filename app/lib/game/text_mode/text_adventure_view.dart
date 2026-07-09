@@ -22,6 +22,7 @@ class TextAdventureCallbacks {
     this.onStrikeMonster,
     this.onOpenSpoils,
     this.onSwitchToClassic,
+    this.onSwitchToPixels,
     this.onSignWrit,
     this.onDeclineWrit,
   });
@@ -34,6 +35,10 @@ class TextAdventureCallbacks {
 
   /// Drop to the Classic ledger view.
   final VoidCallback? onSwitchToClassic;
+
+  /// Return to the pixel presentation (tiers 1–2). Null hides the toggle, so a
+  /// caller that only offers Classic keeps a single control.
+  final VoidCallback? onSwitchToPixels;
 
   final void Function(String proposalId)? onSignWrit;
   final void Function(String proposalId)? onDeclineWrit;
@@ -98,14 +103,26 @@ class TextAdventureView extends StatelessWidget {
       title: 'Floor ${game.floorNumber} · '
           '${monthLabel(game.currentMonth.year, game.currentMonth.month)}',
       icon: Icons.terrain,
-      trailing: TextButton.icon(
-        onPressed: callbacks.onSwitchToClassic,
-        icon: const Icon(Icons.list_alt, size: 16),
-        label: const Text('Classic'),
-        style: TextButton.styleFrom(
-          visualDensity: VisualDensity.compact,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (callbacks.onSwitchToPixels != null)
+            IconButton(
+              onPressed: callbacks.onSwitchToPixels,
+              tooltip: 'Pixel mode',
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.grid_on, size: 18),
+            ),
+          TextButton.icon(
+            onPressed: callbacks.onSwitchToClassic,
+            icon: const Icon(Icons.list_alt, size: 16),
+            label: const Text('Classic'),
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            ),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

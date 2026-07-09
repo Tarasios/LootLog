@@ -65,6 +65,9 @@ class TextAdventureScreen extends ConsumerWidget {
         onOpenSpoils: () => unawaited(openTextBattle(context, ref)),
         onSwitchToClassic: () =>
             unawaited(ref.read(appSkinProvider.notifier).select(AppSkin.classic)),
+        onSwitchToPixels: () => unawaited(ref
+            .read(adventureTierProvider.notifier)
+            .select(AdventureTier.pixel)),
         onSignWrit: (id) {
           if (actions != null) unawaited(actions.approveWithdrawal(id));
         },
