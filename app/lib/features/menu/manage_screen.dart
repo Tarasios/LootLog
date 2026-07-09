@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/providers.dart';
 import '../../ui/theme.dart';
 import '../budget_setup/budget_setup_screen.dart';
+import '../ledger/change_log_screen.dart';
 import '../networth/networth_screen.dart';
 import '../quests/quests_screen.dart';
 import '../settings/settings_screen.dart';
@@ -79,6 +80,12 @@ class ManageScreen extends ConsumerWidget {
             title: 'Sync & hubs',
             subtitle: 'Host a hub, pair devices, sync over the LAN',
             onTap: () => SyncHubsScreen.open(context),
+          ),
+          _Entry(
+            icon: Icons.history,
+            title: 'Budget change log',
+            subtitle: 'Every change, permanently logged — the audit trail',
+            onTap: () => ChangeLogScreen.open(context),
           ),
           _Entry(
             icon: Icons.settings_outlined,

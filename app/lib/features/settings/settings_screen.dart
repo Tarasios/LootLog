@@ -17,6 +17,7 @@ import '../../data/providers.dart';
 import '../../game/skin_prefs.dart';
 import '../../ui/theme.dart';
 import '../categories/category_list_screen.dart';
+import '../ledger/change_log_screen.dart';
 import '../library/receipt_library_screen.dart';
 import '../tax/tax_center_screen.dart';
 import 'emergency_funds_screen.dart';
@@ -100,6 +101,13 @@ class SettingsScreen extends ConsumerWidget {
             },
           ),
           const _SectionHeader('Data'),
+          ListTile(
+            leading: const Icon(Icons.history),
+            title: const Text('Budget change log'),
+            subtitle: const Text('Every change, permanently logged'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => ChangeLogScreen.open(context),
+          ),
           if (isDesktop)
             _nav(context, Icons.folder_copy_outlined, 'Receipt library',
                 'Mirror receipts to a folder', const ReceiptLibraryScreen()),

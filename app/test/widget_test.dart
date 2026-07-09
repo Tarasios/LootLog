@@ -20,6 +20,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Welcome to DuoBudget'), findsOneWidget);
-    expect(find.text('Start budgeting'), findsOneWidget);
+    expect(find.text('Start a new party'), findsOneWidget);
+    expect(find.text('Join an existing party'), findsOneWidget);
   });
 }
