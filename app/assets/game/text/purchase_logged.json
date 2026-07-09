@@ -1,15 +1,15 @@
 {
-  "_comment": "Short acknowledgments shown right after a purchase is logged. Data-driven so writers can add lines without touching code. Keep them light and quick; {merchant} and {amount} are optional placeholders the app fills in when present.",
+  "_comment": "Short acknowledgments shown right after a purchase is logged. Data-driven so writers can add lines without touching code. Keep them quick and warm. {merchant} and {amount} are optional placeholders; the app drops them when missing, so place them mid-sentence where the line still reads cleanly without them.",
   "lines": [
-    "Logged. Nice and steady.",
-    "Got it — {amount} noted.",
-    "Another one on the books.",
-    "Tracked. That’s how the streak grows.",
-    "{amount} logged. Onward!",
-    "Noted {merchant}. You’re on top of it.",
-    "Recorded. Small logs, big picture.",
-    "Done — every entry counts.",
-    "Booked it. Keep the momentum going.",
-    "That’s logged. Future-you says thanks."
+    "Logged. The streak lives on.",
+    "Recorded {amount} in a blink. On you go.",
+    "Noted {merchant} before the receipt hit your pocket.",
+    "In the book. Small entries, honest totals.",
+    "Logged {amount} clean and quick.",
+    "Done. Ten seconds now, a clear picture later.",
+    "Tracked. Nothing slips past you.",
+    "Got it. Future-you keeps the benefit.",
+    "Counted {amount} toward the month. Steady as ever.",
+    "On the record. Showing up is the whole skill."
   ]
 }

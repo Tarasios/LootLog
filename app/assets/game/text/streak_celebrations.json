@@ -4,33 +4,33 @@
     {
       "minDays": 2,
       "lines": [
-        "{n} days in a row — a habit is forming!",
-        "Two days and counting. Keep it rolling.",
-        "{n}-day streak! You showed up again."
+        "Two days running. This is how it starts.",
+        "{n} in a row. Come back tomorrow and keep it alive.",
+        "{n}-day streak. Showing up is the skill, and you just showed up."
       ]
     },
     {
       "minDays": 7,
       "lines": [
-        "A full week logged — {n} days straight!",
-        "Seven days strong. This is what consistency looks like.",
-        "{n}-day streak. You’ve turned it into a routine."
+        "A full week, every day logged. That is a routine now.",
+        "Seven straight days. Steady hands.",
+        "{n} days without a gap. The ledger is lucky to have you."
       ]
     },
     {
       "minDays": 30,
       "lines": [
-        "{n} days without missing a beat — remarkable.",
-        "A whole month of logging. You’ve mastered the habit.",
-        "{n}-day streak! That’s dedication."
+        "A whole month of showing up. The habit belongs to you now.",
+        "{n} straight days. At this point the streak keeps you.",
+        "Thirty days of small entries and steady resolve. Remarkable."
       ]
     },
     {
       "minDays": 100,
       "lines": [
-        "{n} days. One hundred and counting — legendary.",
-        "Triple digits! {n} days of showing up.",
-        "{n}-day streak. Few ever get here. You did."
+        "{n} days. Triple digits. Legendary is the correct word.",
+        "One hundred days of showing up. Few ever get here, and you did.",
+        "{n}-day streak. Whatever you are guarding, it is well guarded."
       ]
     }
   ]

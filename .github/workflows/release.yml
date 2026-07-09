@@ -197,6 +197,15 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+      # Stable-name aliases so "releases/latest/download/<name>" is a
+      # permanent direct link (tarasios.ca points at these). The versioned
+      # files stay the canonical artifacts.
+      - name: Add stable-name download aliases
+        run: |
+          set -euo pipefail
+          cp artifacts/android/duobudget-*-android.apk artifacts/duobudget-android.apk
+          cp artifacts/windows/duobudget-*-windows-x64.zip artifacts/duobudget-windows-x64.zip
+          cp artifacts/linux/duobudget-*-linux-x64.tar.gz artifacts/duobudget-linux-x64.tar.gz
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:

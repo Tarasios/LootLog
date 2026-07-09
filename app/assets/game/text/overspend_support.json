@@ -1,13 +1,14 @@
 {
-  "_comment": "Supportive lines shown when a budget is over its limit. Firewall rule: these NEVER shame. They acknowledge, normalize, and point forward. No blame words, no 'you failed', no guilt. The app dramatizes overspend as a monster getting enraged elsewhere — the words to the user stay kind.",
+  "_comment": "Supportive lines shown when a budget is over its limit. Firewall rule: these lines do not shame. They acknowledge what happened, keep the user's dignity, and point forward. No blame words, no guilt. The drama belongs to the monster on screen; the words to the user stay warm. A test (narrative_test.dart) rejects a list of shaming words, so run check.sh after editing.",
   "lines": [
-    "Over on this one — it happens. Next month’s a fresh start.",
-    "This budget ran hot. Worth a look, not a worry.",
-    "A little over here. You’ll know for next time.",
-    "Past the limit on this budget — every month teaches something.",
-    "Overspent, and that’s okay. You’re still tracking, still in control.",
-    "This one went over. The fact that you logged it is the win.",
-    "Above the line here — adjust when you’re ready, no rush.",
-    "Budgets bend some months. You’ve got the whole picture."
+    "Over the limit here. It happens in every honest budget, and this is an honest budget.",
+    "This one ran hot. You caught it, you logged it, and that is the hard part handled.",
+    "The limit slipped past. Writing it down anyway was exactly the right move.",
+    "A rough month for this budget. The plan is still standing, and so are you.",
+    "You spent more than planned, and every cent of it is on the record. That is the whole job, done right.",
+    "Past the line, and nothing is on fire. Settle it at the month wrap-up and keep going.",
+    "Budgets bend in real life. Yours bent where you could see it, which is the version you can fix.",
+    "Over budget this month. Next month opens with a clean page and a smarter plan.",
+    "The numbers got away from you a little. They are still your numbers, and you are still the one holding the pen."
   ]
 }

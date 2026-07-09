@@ -1,31 +1,41 @@
 # DuoBudget
 
-A **pixel-art dungeon-crawler that happens to be a rigorous shared budgeting
-app.** Your household is a party of adventurers delving a dungeon: budget
-categories are monsters, savings goals are quest bosses, month close is a battle
-ritual, and the shared pool is a homestead you build up over time. Underneath
-the game sits a **local-first, event-sourced, integer-cents ledger** — so the
-numbers are dead serious even while the presentation is a game.
+DuoBudget is a rigorous shared budgeting app that plays like a pixel art
+dungeon crawler. Your household is a party of adventurers. Budget categories
+are monsters, savings goals are quest bosses, and closing out the month is a
+battle ritual where you divide the spoils. Underneath the game sits a strict,
+local-first ledger: every amount is integer cents, every change is a permanent
+event, and the game layer can read those numbers but can never change them.
 
-Built for households of any size who want one honest picture of their money
-without handing it to a bank, a server, or a subscription. Everything runs on
-your own devices — a few phones and desktops, syncing over your home Wi-Fi. No
-accounts, no cloud, no SaaS. Receipt OCR runs on-device; desktops act as sync
-hubs on the local network. (The name "DuoBudget" is historical — households
-aren't limited to two.)
+Everything runs on your own devices. Phones and desktops sync over your home
+network, receipt scanning happens on the phone itself, and there are no
+accounts, servers, or subscriptions. The name "DuoBudget" is historical;
+households of any size work fine.
 
-Flutter only — **Android + desktop** (Windows, macOS, Linux).
+Built with Flutter for Android and desktop (Windows, macOS, Linux).
 
-> **The firewall.** The game never touches the money. The whole app renders from
-> one pure reducer over an append-only event log, in integer cents; the game
-> layer can *read* that state but may only ever append **cosmetic** events. Strip
-> every cosmetic event and the balances are identical — there's a test that
-> proves it. Adventure mode and the plain **Classic** mode always show the same
-> numbers.
+> **The firewall.** The whole app renders from one pure reducer over an
+> append-only event log. The game may only ever append cosmetic events, and a
+> test proves that stripping every cosmetic event leaves the balances
+> identical. Adventure mode and Classic mode always show the same numbers.
+
+## Download
+
+Grab the latest release from the
+[releases page](https://github.com/Tarasios/duobudget/releases/latest). These
+direct links always point at the newest version:
+
+- [Android APK](https://github.com/Tarasios/duobudget/releases/latest/download/duobudget-android.apk)
+- [Windows](https://github.com/Tarasios/duobudget/releases/latest/download/duobudget-windows-x64.zip)
+- [Linux](https://github.com/Tarasios/duobudget/releases/latest/download/duobudget-linux-x64.tar.gz)
+
+The phone app is fully self-sufficient. You can budget on a single phone
+forever. Installing the desktop app on a machine that stays home gives you a
+sync hub, automatic backups of every device, and the receipt library.
 
 ## Screenshots
 
-_Placeholders — drop real captures in `docs/screenshots/`._
+_Placeholders. Drop real captures in `docs/screenshots/`._
 
 | Adventure dungeon | Classic dashboard | Sync & hubs |
 | --- | --- | --- |
@@ -35,212 +45,172 @@ _Placeholders — drop real captures in `docs/screenshots/`._
 | --- | --- | --- |
 | ![Spoils](docs/screenshots/spoils.png) | ![Quests](docs/screenshots/quests.png) | ![Receipt](docs/screenshots/receipt.png) |
 
-## The game, and why it's serious
+## Two modes, one set of numbers
 
-**Adventure mode is the default, primary experience** on every platform.
-Categories are monsters you whittle down as you spend; a savings goal is a quest
-boss you hunt across months; the month-close ritual is where you divide the
-spoils. The point isn't decoration — it's **habit**: the app succeeds if you come
-back daily to log a purchase and monthly for the ritual, so streaks,
-celebrations, trophies and a growing **Homestead** (the visualization of your
-shared pool) are core features. The voice is encouraging and **never shames** —
-overspending just makes a monster *enraged*.
+**Adventure mode** is the default. Categories are monsters you whittle down as
+you spend, a savings goal is a quest boss you hunt across months, and the
+month-close ritual is where you divide the spoils. The game exists to build a
+habit: come back daily to log purchases, come back monthly for the ritual, and
+watch your streaks, trophies, and Homestead (the visualization of your shared
+pool) grow. The app cheers you on and refuses to scold. Overspending enrages a
+monster on screen, and the words you actually read stay kind: they say what
+happened, keep your dignity intact, and point at next month.
 
-**Classic mode** is the plain fallback view, always one tap away, using plain
-language only (no "tithe" or "spoils") and showing identical numbers.
+**Classic mode** is a clean, plain dashboard that is always one tap away. It
+uses everyday language ("shared savings" instead of "war chest") and shows
+identical numbers.
 
-**It always renders.** Art is scarce, so every screen degrades gracefully across
-three tiers: full pixel art → labeled placeholders for missing sprites → a
-**first-class text-adventure mode** built from character descriptions you write.
-The app is complete and fun even with no art at all — a missing sprite never
-crashes or blocks a screen.
+**It always renders.** Art is scarce, so every game screen works at three
+tiers: full pixel art, labeled placeholder cards for any missing sprites, and
+a complete text-adventure presentation built from character descriptions you
+write yourself. A missing sprite can never crash or block a screen, and the
+app is fully playable in text mode alone.
 
-## Quick start — a new household
+## Quick start
 
-> New here? The **[household setup guide](docs/setup-guide.md)** walks you
-> through the whole thing step by step — install, pairing, budgets, daily use,
-> month close, backup, and troubleshooting — with a printable one-page fridge
-> sheet at the end.
+> New here? The [household setup guide](docs/setup-guide.md) walks through the
+> whole thing: install, pairing, budgets, daily use, month close, backup, and
+> troubleshooting, with a printable fridge sheet at the end.
 
-DuoBudget is peer-to-peer, so start on the machine that stays on: a desktop.
+The easiest setup starts on the machine that stays on, a desktop:
 
-1. **First run (desktop).** Launch the app and complete first-run setup: your
-   household's members (adults have income and budgets; dependents and pets ride
-   along as party members) and which member *this* device is. The dashboard
-   opens on a "Welcome" empty state — tap **Set up budgets** and carve your month
-   into categories (personal ones per adult, plus shared/group ones like
-   groceries).
+1. **First run (desktop).** Launch the app and set up your household members
+   (adults have income and budgets; dependents and pets ride along as party
+   members) and which member this device belongs to. Then tap **Set up
+   budgets** and carve your month into categories.
 2. **Start a hub.** Open **Manage → Sync & hubs → Start hub**. The desktop now
-   hosts a small server on your LAN and shows an address and a pairing secret.
-3. **Pair your phones.** On each phone, complete first-run setup, then go to
-   **Manage → Sync & hubs → Pair with a hub** and enter the desktop's address and
-   pairing secret. The phone syncs immediately and keeps syncing in the
-   background.
-4. **(Optional) Pair the second desktop as another hub.** Have the second desktop
-   start its *own* hub too, and pair each machine to the other's hub. Now either
-   desktop can be the one that's awake — devices sync with every reachable hub and
-   converge regardless of which is up. A phone can be paired to both hubs at once.
+   hosts a small server on your LAN and shows a QR code with the address and
+   pairing secret.
+3. **Pair your phones.** On each phone, go to **Manage → Sync & hubs → Pair
+   with a hub** and scan the QR code (or type the address and secret). The
+   phone syncs immediately and keeps syncing in the background.
+4. **(Optional) Add a second hub.** A second desktop can start its own hub and
+   pair with the first. Devices sync with every reachable hub and converge no
+   matter which machine happens to be awake.
 
-No hub reachable? Every device still works fully offline; use **Export /
-Import** (`.dbevents.zip`) to move data by file — see below. Nothing ever blocks
-on the network — the status chip shows sync state without dialogs.
+Phone only? That works too. Everything runs offline on the phone, and you can
+move data between phones with export files or the share sheet. When you want
+an always-on backup and the receipt folder, install the desktop build from the
+[releases page](https://github.com/Tarasios/duobudget/releases/latest) and
+pair with it.
 
-## Syncing without a hub
+## How the money works
 
-Sometimes there's no hub to reach — you're travelling, on separate networks, or
-just want to hand your budget to another device once. DuoBudget's event log is
-built for exactly this: every change is an immutable event with a stable id, and
-receipts are content-addressed blobs, so **merging two logs never conflicts and
-never overwrites** — it only ever *adds what's missing*. Move the file however
-you like; the maths is the same.
+**Members and shares.** A household has any number of members: adults (who
+have income, a personal vault, personal categories, and paired devices),
+dependents, and pets. Only adults hold money. Shared costs split by a
+per-adult share table, with odd cents going to the purchaser. A single-adult
+household is fully valid; approvals that would need a second adult are
+auto-satisfied.
 
-**On both devices:** open **Manage → Sync & hubs → Backup & restore**.
+**Categories.** Each budget category is personal (one adult) or group (the
+household), and files under a main category (Housing, Food, Transport, and so
+on) whose colors drive the monthly report. Group categories fund from shares
+off the top, their purchases are inherently shared, and their leftovers flow
+automatically to the war chest. Personal categories can flag any purchase as
+shared. Any category can skim a fixed emergency-fund contribution off the top
+each month.
 
-1. **Export.** Choose **Export all** for the whole log, or **Export new** to send
-   only what's changed since your last export — the incremental "vacation swap"
-   that keeps files small when you exchange back and forth over a few days.
-   *Export new* tracks everything that has arrived since, whether you logged it
-   here or merged it in from the other device, so you can even relay changes on
-   through a third device. Both produce a `.dbevents.zip` (events plus their
-   receipt images); a plain-text `.dbevents` without receipts is also accepted on
-   import.
-2. **Import.** Pick the file on the other device. Before anything is written you
-   get a **preview** — *"14 new events, 3 receipts — 210 already present"* — so
-   you always know what a file will add. Confirm, and a matching **summary**
-   reports what was merged. Importing the same file twice is a safe no-op, and a
-   corrupt or tampered file is rejected before a single event is applied.
+**Dividing the spoils.** At month close you decide what happens to each
+personal category's leftover: carry it forward in the same category, attack a
+savings quest with it, or convert it to discretionary money in your vault
+(minus that category's pool tithe, which goes to the shared war chest). The
+ritual is interactive and never blocking; past a grace period the app applies
+each category's default policy.
 
-**Getting the file across — Android.** On a phone, **Export** and **Export new**
-open the OS **share sheet** directly, so you can send the file to a nearby phone
-with the built-in **Nearby Share / Quick Share** (or Bluetooth, or any messaging
-app) in one tap. That's the Android platform share intent doing the transport —
-DuoBudget bundles **no Wi-Fi Direct, Bluetooth, or other radio/P2P code of its
-own**; it just hands the OS a file and lets the system's nearby-share picker move
-it. Like the on-device OCR, this stays a thin, platform-guarded seam. On desktop,
-export saves the file and you copy it over however you already move files (USB
-stick, shared folder, chat).
+**Quests and category-match tithing.** A quest is a savings goal: a $500
+jacket, a $1,300 canoe, a house down payment. Attacking it with leftover from
+a category under the same main category counts in full. From a different main
+category, the source category's tithe is skimmed first. The app always shows
+the split before you confirm. Reaching the target completes the quest and
+hangs a trophy in the party's trophy hall. Abandoning a quest returns its
+balance to whoever funded it, minus a small cancellation cut, so quests can't
+be used to dodge tithes.
 
-## How it works
+**Going over budget: the OVERBUDGET.** Overspending has real consequences,
+delivered kindly. When a month closes, any overflow on a personal category is
+taken from that adult's discretionary vault first. If the vault can't cover
+it, the shortfall becomes the OVERBUDGET: an intimidating debt monster
+attached to that category. During the ritual you attack it with leftovers
+from your other categories (tithed by the usual category-match rule), and you
+choose which leftovers to spend on it and which to hold back. Whatever
+survives the ritual locks the category: from then on its monthly funding is
+withheld and pays the debt down at each close, until the OVERBUDGET falls and
+the budget unlocks. Nothing is hidden and nothing is shamed; every adult sees
+the same banner, and the fix is always one ritual away.
 
-**Members & shares.** A household has any number of **members**: *adults* (who
-have income, a vault, personal categories, and paired devices), *dependents*,
-and *pets*. Only adults hold money; dependents and pets are display-level party
-members — everything stays household money. Shared costs split by a per-adult
-**share table** (default even split; odd cents go to the purchaser). A
-single-adult household is fully valid — approvals that would need "another adult"
-are auto-satisfied.
+**The war chest.** The household's long-term shared pool collects tithes,
+group leftovers, gifts, tax refunds, and direct contributions, and is
+visualized as your growing Homestead. Spending from it takes two adults: one
+proposes a withdrawal (a "writ"), a different adult approves it, and the app
+rejects self-approval. The one exception is a ransack: an emergency purchase
+that exceeds its fund draws the excess straight from the war chest with no
+approval and a very loud, shared banner. Emergencies are never blocked and
+overdrafts are never silent.
 
-**Categories.** Your money is divided into budget **categories**, each **personal**
-(one adult) or **group** (household), and each filed under a **main category**
-(Housing, Food, Transport, …) whose colors drive the monthly spend pie chart.
-Group categories are funded by shares off the top, purchases are inherently
-shared, and any leftover flows automatically and entirely to the war chest.
-Personal categories can flag a purchase as shared. Any category can skim a fixed
-**emergency-fund contribution** off the top each month.
+**Recurring expenses.** Rent, subscriptions, and utilities come off the top
+before the huntable budget. Variable ones get their actuals recorded at month
+close. Annual bills accrue a twelfth each month and reconcile in their due
+month, with the due dates shown all year.
 
-**The spoils economy and tithes.** Each personal category has a monthly limit.
-At month close you divide the *leftover* (effective limit − spending) three ways,
-per category: **carry it forward** in the same category 1:1 (raising next
-month's limit), **attack a savings quest**, or **convert to discretionary** money
-in your personal **vault** — with that category's **pool tithe** skimmed into the
-shared **war chest**. The ritual is interactive but never blocking — past a grace
-period the reducer just applies each category's default policy.
+**Net worth.** Optionally track savings, investments, and debts. You record
+balances, interest accrues at read time, and a debt's minimum payment can
+surface as a recurring expense. Tracked accounts live on their own screen and
+stay out of the category math.
 
-**Quests and category-match tithing.** A quest is a savings-goal "boss" — a $500
-jacket, a $1,300 canoe, a house down payment — filed under a main category.
-Funding it from a category whose main category **matches** the quest's is
-**untithed** (full damage); from a **non-matching** category, that category's
-pool tithe applies (part to the war chest, the rest as damage). The app always
-shows the split before you confirm. Buying the goal draws the quest down; hitting
-the target completes it with a trophy. Abandon a quest and its balance returns to
-whoever funded it, proportionally, minus a small dissolution tithe — so quests
-can't be used to dodge tithes.
+**Vacation mode.** Spin up a self-contained trip budget drawn from a savings
+quest or emergency fund, with its own categories and a daily allowance. Your
+normal monthly budget is untouched, and closing the trip returns the leftover
+to its fund.
 
-**The war chest and its governance.** The war chest is the household's long-term
-shared pool: category tithes, group-category leftovers, gifts, tax refunds and
-manual contributions all flow in, and it's visualized as your growing
-**Homestead**. Spending *from* it requires **another adult** — one proposes a
-withdrawal (a "writ"), a different adult approves it; the reducer rejects
-self-approval (and auto-approves in single-adult households), and pending
-proposals are visible to all adults. The one exception is a **ransack**: an
-emergency purchase that exceeds its fund's balance draws the excess straight from
-the war chest with no prior approval, and surfaces a loud, shared "the war chest
-was ransacked" record. No silent overdrafts, no blocked emergencies.
+**Receipts, OCR, and taxes.** Attach a receipt photo or PDF to any purchase.
+On Android, fully on-device OCR can prefill the amount, date, and merchant; it
+is confirm-only and commits nothing without your approval. Any category can be
+tax-deductible by default with per-purchase overrides, kept off the quick
+entry keypad on purpose. At year end, export a tax package: a zip with a
+summary CSV and every referenced receipt.
 
-**Recurring fixed, variable & annual expenses.** Recurring expenses ("equipment
-maintenance") come off the top before the huntable budget: rent is a shared fixed
-expense, a subscription is a personal fixed one, utilities are a shared *variable*
-expense recorded at month close. **Annual** bills accrue **1/12 each month** (the
-odd cents land in the due month so the year sums exactly), then reconcile against
-the real amount when due. Modify or cancel any of them at any time.
+**The receipt library.** On desktop, point DuoBudget at a folder and it files
+your receipts as ordinary documents:
+`<year>/<category>/<date>_<merchant>_<amount>.jpg`. The app only ever adds and
+refreshes its own mirrored copies there, and the originals live in
+content-addressed storage where referenced receipts are kept forever. Phones
+can automatically clear their local copies of receipt images once every paired
+hub holds them (a setting, off by default); the files stay in the library and
+re-download on demand.
 
-**Net worth.** Optionally track savings, investments, and debts as **tracked
-accounts** — you record balances, and interest on savings/debt accrues at read
-time. These live on a separate net-worth screen and **never** enter category
-math; a debt's minimum payment can surface as a recurring expense.
+**Sync and merge-import.** Desktop hubs serve the LAN. Events are idempotent
+by id and receipts are content-addressed, so merging never conflicts and
+never overwrites; it only adds what's missing. No hub around? Export a
+`.dbevents.zip` and import it on the other device. You get a preview before
+anything applies ("14 new events, 3 receipts, 210 already present") and a
+summary after. On Android the export opens the share sheet, so Quick Share to
+a nearby phone works in one tap.
 
-**Vacation mode.** Spin up a self-contained trip sub-budget drawn from a savings
-quest or emergency fund, with its own categories and daily-allowance pacing. Your
-normal monthly budget is untouched; closing the trip returns any leftover to its
-fund.
-
-**Taxes, receipts & OCR.** Any category can be tax-deductible by default, and any
-purchase can override that — but the tax marker never clutters quick entry; it
-lives only in category settings and the purchase detail sheet. Attach a receipt
-(image or PDF) to any purchase; on Android, fully **on-device** OCR can prefill
-the amount, date and merchant — but it is **confirm-only** and never creates
-anything without you approving at least the amount. At year end, export a tax
-package: a zip with `summary.csv` of every deductible purchase plus each
-referenced receipt file.
-
-**The receipt library.** On desktop you can point DuoBudget at a folder and it
-mirrors your receipts into ordinary files —
-`<year>/<category>/<date>_<merchant>_<amount>.<ext>` — that you can browse and
-back up like any other documents. It's a **regenerable projection, never a source
-of truth**: rebuilding from scratch produces identical files, and any edits you
-make inside the folder are simply overwritten on the next projection.
-
-**Sync & merge-import.** Desktops host LAN **hubs**; a device can pair with
-several and converges no matter which is awake, because events are idempotent by
-id and blobs are content-addressed. When two devices genuinely can't reach a hub,
-move data by file: export a `.dbevents` / `.dbevents.zip` and import it — a
-first-class **merge-import** that only adds missing events (never overwrites),
-shows a preview before applying and a summary after. A corrupt file or tampered
-blob is rejected before anything is applied.
-
-**Exports.** A fully offline **.xlsx** workbook (transactions, monthly summary,
-members & income, savings goals, net worth, recurring expenses) is always
-available. An **optional, opt-in Google Sheets sync** is the one permitted
-external service — off by default, behind a clear "your data leaves your local
-network" warning, using your own credentials, isolated so nothing else depends on
+**Exports.** A fully offline .xlsx workbook (transactions, monthly summary,
+members and income, goals, net worth, recurring expenses) is always available.
+An optional Google Sheets sync is the single permitted external service: off
+by default, opt-in behind a clear "your data leaves your local network"
+warning, using your own credentials, and isolated so nothing else depends on
 it.
-
-**Two modes, one set of numbers.** The whole app renders from the same reducer in
-two presentations — **Classic** (clean cards and rings, plain language) and
-**Adventure** (the pixel dungeon) — and you can switch at any time. The game is a
-pure presentation of real numbers; it can never change a cent.
 
 ## Distribution
 
-DuoBudget is distributed through **GitHub Releases only**. Pushing a `v*` tag
-runs [`.github/workflows/release.yml`](.github/workflows/release.yml), which
-builds all four artifacts on native runners and attaches them to one Release: a
-**signed, sideloadable Android APK**, a **Windows** zip, a **macOS** `.app`/`.dmg`,
-and a **Linux** tarball (optional AppImage). Sharing the app means sharing a
-release link — there is no store account, no server, and no auto-updater.
+DuoBudget ships through GitHub Releases only. Pushing a `v*` tag runs
+[`.github/workflows/release.yml`](.github/workflows/release.yml), which builds
+a signed Android APK plus Windows, macOS, and Linux bundles and attaches them
+to one release. Sharing the app means sharing a release link.
 
-There is **no telemetry and no phone-home of any kind** — no analytics SDK, no
-crash reporter, no usage ping. When we cite user counts they come from the public
-GitHub Releases download-statistics API, never from the app. The documented
-script prints the cumulative tally (the "resume number"):
+There is no telemetry, no analytics, no crash reporter, and no phone-home of
+any kind. User counts come from the public GitHub download statistics:
 
 ```bash
-dart run tool/release_downloads.dart      # cumulative downloads per asset + total
+dart run tool/release_downloads.dart   # cumulative downloads per asset + total
 ```
 
-The full build, signing, reproducibility, and metrics guide is
-**[`docs/distribution.md`](docs/distribution.md)** (with the keystore/Play-Store
-deep-dive in [`docs/release.md`](docs/release.md)).
+The full build, signing, and metrics guide is
+[`docs/distribution.md`](docs/distribution.md), with the keystore and store
+details in [`docs/release.md`](docs/release.md).
 
 ## Project layout
 
@@ -262,13 +232,12 @@ flutter pub get
 ../tool/e2e.sh     # end-to-end multi-hub sync convergence
 ```
 
-Domain logic, the game adapter and its rewards, the OCR parser, and the
-receipt-library naming are developed test-first. Money is integer cents
-everywhere; domain rows are never updated or deleted — corrections are
-compensating events. The **firewall test** (cosmetic-stripped ledger ⇒ identical
-balances) must pass from the first rewards commit onward. See
-[`CLAUDE.md`](CLAUDE.md) for the full invariants and [`docs/`](docs/) for
-architecture, the [household setup guide](docs/setup-guide.md), the
-[sync protocol](docs/protocol.md), the
-[distribution & metrics guide](docs/distribution.md), the
-[release guide](docs/release.md), and the [ADRs](docs/adr/).
+Domain logic, the game adapter and rewards, the OCR parser, and the receipt
+library naming are all developed test-first. Money is integer cents
+everywhere. Domain rows are never updated or deleted; corrections are
+compensating events. The firewall test (cosmetic-stripped ledger produces
+identical balances) has to pass from the first rewards commit onward. See
+[`CLAUDE.md`](CLAUDE.md) for the full invariants, plus the
+[setup guide](docs/setup-guide.md), [sync protocol](docs/protocol.md),
+[distribution guide](docs/distribution.md), [release guide](docs/release.md),
+and the [ADRs](docs/adr/).
