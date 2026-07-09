@@ -55,6 +55,7 @@ class DashboardScreen extends ConsumerWidget {
       state,
       meUserId: meUserId,
       userNames: names,
+      events: events,
     );
     final activity = showActivity
         ? buildActivityFeed(
