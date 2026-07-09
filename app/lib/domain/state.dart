@@ -140,6 +140,7 @@ class SliceMonth {
     required this.carryOutCents,
     required this.overspendCents,
     required this.resolved,
+    this.lockedCents = 0,
   });
 
   final String sliceId;
@@ -159,7 +160,40 @@ class SliceMonth {
   /// exists, or the grace period has lapsed and the default policy applied).
   final bool resolved;
 
+  /// Funding withheld this month to cover an outstanding OVERBUDGET debt: the
+  /// category is locked for this portion of its budget (fully locked when the
+  /// whole limit is eaten). Recognised as debt payment once the month closes.
+  final int lockedCents;
+
   bool get overspent => overspendCents > 0;
+
+  bool get locked => lockedCents > 0;
+}
+
+/// The OVERBUDGET: unsettled overspending of a personal category. Created at
+/// month close for whatever the owner's vault could not cover, paid down by
+/// leftover attacks (`OverbudgetPayment`, category-match tithed) and by the
+/// locked category's own funding at each subsequent close, until cleared.
+class OverbudgetState {
+  const OverbudgetState({
+    required this.sliceId,
+    required this.ownerUserId,
+    required this.accruedCents,
+    required this.outstandingCents,
+  });
+
+  final String sliceId;
+  final String ownerUserId;
+
+  /// Total overflow that ever became debt on this category.
+  final int accruedCents;
+
+  /// What still has to be paid; the category stays locked while > 0.
+  final int outstandingCents;
+
+  int get paidCents => accruedCents - outstandingCents;
+
+  bool get settled => outstandingCents == 0;
 }
 
 /// Derived configuration of a recurring expense ("equipment maintenance").
@@ -718,6 +752,7 @@ class HouseholdState {
     required this.pets,
     required this.withdrawals,
     required this.warChest,
+    required this.overbudgets,
     required this.vaultCents,
     required this.inconsistentVaults,
     required this.ransacks,
@@ -751,6 +786,10 @@ class HouseholdState {
   final Map<String, PetState> pets;
   final Map<String, WithdrawalProposal> withdrawals;
   final WarChestState warChest;
+
+  /// OVERBUDGET debts keyed by sliceId — every category whose overspending
+  /// ever became debt, settled or not. Visible to all adults.
+  final Map<String, OverbudgetState> overbudgets;
   final Map<String, int> vaultCents;
   final Set<String> inconsistentVaults;
   final List<RansackRecord> ransacks;
@@ -803,6 +842,18 @@ class HouseholdState {
   }
 
   int vaultOf(String userId) => vaultCents[userId] ?? 0;
+
+  /// The outstanding OVERBUDGET debts owned by [userId], sorted by sliceId.
+  List<OverbudgetState> outstandingOverbudgetsFor(String userId) =>
+      (overbudgets.values
+          .where((d) => d.ownerUserId == userId && !d.settled)
+          .toList())
+        ..sort((a, b) => a.sliceId.compareTo(b.sliceId));
+
+  /// Every outstanding OVERBUDGET in the household, sorted by sliceId.
+  List<OverbudgetState> get outstandingOverbudgets =>
+      (overbudgets.values.where((d) => !d.settled).toList())
+        ..sort((a, b) => a.sliceId.compareTo(b.sliceId));
 
   bool isVaultInconsistent(String userId) =>
       inconsistentVaults.contains(userId);
@@ -874,6 +925,13 @@ class HouseholdState {
       },
       'ransacks': ransacks.length,
       'ransackExcess': ransacks.fold<int>(0, (a, r) => a + r.excessCents),
+      'overbudgets': {
+        for (final k in overbudgets.keys.toList()..sort())
+          k: {
+            'accrued': overbudgets[k]!.accruedCents,
+            'outstanding': overbudgets[k]!.outstandingCents,
+          },
+      },
       'sliceMonths': {
         for (final k in sortedSliceMonths)
           k: {

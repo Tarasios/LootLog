@@ -226,5 +226,6 @@ class AdventureSpoilsRecap extends StatelessWidget {
         CarryInSlice() => 'next floor',
         QuestDestination() => 'a quest',
         Discretionary() => 'the pouch',
+        OverbudgetPayment() => 'the OVERBUDGET',
       };
 }

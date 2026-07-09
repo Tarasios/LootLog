@@ -52,6 +52,23 @@ class QuestOption {
   final String? mainCategoryId;
 }
 
+/// An outstanding OVERBUDGET the slice owner can pay down with leftover.
+class OverbudgetOption {
+  const OverbudgetOption({
+    required this.sliceId,
+    required this.name,
+    required this.outstandingCents,
+    this.mainCategoryId,
+  });
+
+  final String sliceId;
+  final String name;
+  final int outstandingCents;
+
+  /// The indebted category's main category; drives category-match tithing.
+  final String? mainCategoryId;
+}
+
 /// One personal slice with an undecided leftover — step 2 of the ritual.
 class SliceLeftover {
   const SliceLeftover({
@@ -61,6 +78,7 @@ class SliceLeftover {
     required this.poolTithePct,
     required this.defaultPolicy,
     required this.questOptions,
+    this.overbudgetOptions = const [],
     this.mainCategoryId,
     this.petName,
   });
@@ -74,6 +92,10 @@ class SliceLeftover {
   final int poolTithePct;
   final LeftoverDestination defaultPolicy;
   final List<QuestOption> questOptions;
+
+  /// The owner's outstanding OVERBUDGETs — when non-empty, paying them is the
+  /// pushed (and default) move for this leftover.
+  final List<OverbudgetOption> overbudgetOptions;
 
   /// This category's main category; drives category-match tithing.
   final String? mainCategoryId;
@@ -192,6 +214,17 @@ SpoilsRitual? buildSpoilsRitual(
   }
   questOptions.sort((a, b) => a.name.compareTo(b.name));
 
+  // My outstanding OVERBUDGETs, payable from any of my leftovers.
+  final overbudgetOptions = <OverbudgetOption>[
+    for (final d in state.outstandingOverbudgetsFor(meUserId))
+      OverbudgetOption(
+        sliceId: d.sliceId,
+        name: state.slices[d.sliceId]?.name ?? d.sliceId,
+        outstandingCents: d.outstandingCents,
+        mainCategoryId: state.slices[d.sliceId]?.mainCategoryId,
+      ),
+  ];
+
   // Step 2: my personal slices with an unresolved leftover for that month.
   final leftovers = <SliceLeftover>[];
   final groupFlows = <GroupFlow>[];
@@ -222,6 +255,7 @@ SpoilsRitual? buildSpoilsRitual(
       poolTithePct: cfg.poolTithePct,
       defaultPolicy: cfg.defaultLeftoverPolicy,
       questOptions: questOptions,
+      overbudgetOptions: overbudgetOptions,
       mainCategoryId: cfg.mainCategoryId,
       petName: cfg.petId == null ? null : state.pets[cfg.petId]?.name,
     ));
@@ -286,4 +320,24 @@ class DraftAllocation {
   }
   final t = Money.titheCents(amountCents, poolTithePct);
   return (damageCents: t.remainderCents, titheCents: t.titheCents, matched: false);
+}
+
+/// The gross leftover needed so the post-tithe damage covers an OVERBUDGET's
+/// [outstandingCents], mirroring the reducer's default exactly: a matching
+/// main category (or a zero tithe) repays 1:1; otherwise the gross is grossed
+/// up so the net after the [poolTithePct] cut still clears the debt.
+int overbudgetGrossNeeded(
+  int outstandingCents,
+  int poolTithePct, {
+  required bool matched,
+}) {
+  if (matched || poolTithePct <= 0) {
+    return outstandingCents;
+  }
+  if (poolTithePct >= 100) {
+    // A 100% tithe can never net anything; the caller caps at the leftover.
+    return 1 << 48;
+  }
+  final keep = 100 - poolTithePct;
+  return (outstandingCents * 100 + keep - 1) ~/ keep;
 }
