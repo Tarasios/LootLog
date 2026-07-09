@@ -17,6 +17,7 @@ import '../../features/sync/sync_status.dart';
 import '../blobs/blob_store.dart';
 import '../db/database.dart';
 import '../export/event_export.dart';
+import '../export/merge_import.dart';
 import '../providers.dart';
 import 'hub_server.dart';
 import 'sync_client.dart';
@@ -39,6 +40,23 @@ class HostedHubInfo {
 
   /// Reachable `http://<ip>:<port>` URLs across this device's LAN interfaces.
   final List<String> lanUrls;
+}
+
+/// A parsed, verified import held between the preview step and applying it, so
+/// the file is read (and its blobs integrity-checked) exactly once.
+class PreparedImport {
+  const PreparedImport({required this.archive, required this.preview});
+
+  final ImportedArchive archive;
+  final MergePreview preview;
+}
+
+/// The bytes and event count of an "export since last export" archive.
+class IncrementalExport {
+  const IncrementalExport({required this.bytes, required this.eventCount});
+
+  final Uint8List bytes;
+  final int eventCount;
 }
 
 /// Owns hub hosting and periodic client sync for the running app.
@@ -105,30 +123,79 @@ class SyncService {
   }
 
   /// The offline fallback: exports the whole event log plus its receipt blobs as
-  /// `.dbevents.zip` bytes, ready to write to a chosen file.
+  /// `.dbevents.zip` bytes, ready to write to a chosen file. Advances the
+  /// "export since last export" cursor so a following incremental export starts
+  /// from here.
   Future<Uint8List> exportArchive() async {
+    final maxRowid = await db.eventsDao.maxEventRowid();
     final events = await db.eventsDao.allEvents();
-    return exportEventsZip(events, blobs);
+    final bytes = await exportEventsZip(events, blobs);
+    await db.eventsDao.setLastExportRowid(maxRowid);
+    return bytes;
   }
 
-  /// Imports a `.dbevents.zip` [zipBytes]: verifies every blob against its hash,
-  /// persists the blobs, then appends the events (idempotent by id). Throws
-  /// [ImportException] for a malformed archive and [BlobIntegrityException] for a
-  /// tampered blob — nothing is applied when it throws before the append.
-  Future<int> importArchive(List<int> zipBytes) async {
-    final imported = readEventsZip(zipBytes);
-    await saveImportedBlobs(imported, blobs);
-    await db.eventsDao.appendEvents(imported.events);
-    return imported.events.length;
+  /// The vacation-swap shortcut: exports only the events (and their blobs) that
+  /// have arrived since the last export — captured here or merged in from a file
+  /// — and advances the cursor. Returns null when there is nothing new to send.
+  Future<IncrementalExport?> exportSinceLastExport() async {
+    final cursor = await db.eventsDao.lastExportRowid();
+    final maxRowid = await db.eventsDao.maxEventRowid();
+    final events = await db.eventsDao.eventsAfterRowid(cursor);
+    if (events.isEmpty) {
+      return null;
+    }
+    final bytes = await exportEventsZip(events, blobs);
+    await db.eventsDao.setLastExportRowid(maxRowid);
+    return IncrementalExport(bytes: bytes, eventCount: events.length);
   }
 
-  /// Imports plain `.dbevents` JSON-Lines [text]. Throws [ImportException] on a
-  /// malformed line before anything is applied.
-  Future<int> importJsonl(String text) async {
-    final events = importEventsJsonl(text);
-    await db.eventsDao.appendEvents(events);
-    return events.length;
+  /// Parses and verifies a `.dbevents.zip` WITHOUT applying it, paired with a
+  /// [MergePreview] of what applying would add. Throws [ImportException] for a
+  /// malformed archive and [BlobIntegrityException] for a tampered blob.
+  Future<PreparedImport> prepareImportArchive(List<int> zipBytes) async {
+    return _prepare(readEventsZip(zipBytes));
   }
+
+  /// Parses plain `.dbevents` JSON-Lines [text] WITHOUT applying it, paired with
+  /// a [MergePreview]. Throws [ImportException] on a malformed line.
+  Future<PreparedImport> prepareImportJsonl(String text) async {
+    return _prepare(
+      ImportedArchive(events: importEventsJsonl(text), blobs: const {}),
+    );
+  }
+
+  Future<PreparedImport> _prepare(ImportedArchive imported) async {
+    final existingIds = await db.eventsDao
+        .existingEventIds(imported.events.map((e) => e.eventId));
+    final existingShas = <String>{};
+    for (final sha in imported.blobs.keys) {
+      if (await blobs.exists(sha)) existingShas.add(sha);
+    }
+    final preview = computeMergePreview(
+      incomingEvents: imported.events,
+      existingEventIds: existingIds,
+      incomingBlobShas: imported.blobs.keys,
+      existingBlobShas: existingShas,
+    );
+    return PreparedImport(archive: imported, preview: preview);
+  }
+
+  /// Applies a [PreparedImport]: persists new blobs, then appends the events
+  /// (idempotent by id — already-present events are silent no-ops). Returns the
+  /// preview, whose numbers now describe what was actually added.
+  Future<MergePreview> applyImport(PreparedImport prepared) async {
+    await saveImportedBlobs(prepared.archive, blobs);
+    await db.eventsDao.appendEvents(prepared.archive.events);
+    return prepared.preview;
+  }
+
+  /// Convenience one-shot: prepare and immediately apply a `.dbevents.zip`.
+  Future<MergePreview> importArchive(List<int> zipBytes) async =>
+      applyImport(await prepareImportArchive(zipBytes));
+
+  /// Convenience one-shot: prepare and immediately apply `.dbevents` text.
+  Future<MergePreview> importJsonl(String text) async =>
+      applyImport(await prepareImportJsonl(text));
 
   /// Begins periodic background sync if hubs are paired. Idempotent: safe to
   /// call from a widget build; only the first call takes effect.

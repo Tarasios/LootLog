@@ -82,8 +82,43 @@ DuoBudget is peer-to-peer, so start on the machine that stays on: a desktop.
    converge regardless of which is up. A phone can be paired to both hubs at once.
 
 No hub reachable? Every device still works fully offline; use **Export /
-Import** (`.dbevents.zip`) to move data by file. Nothing ever blocks on the
-network — the status chip shows sync state without dialogs.
+Import** (`.dbevents.zip`) to move data by file — see below. Nothing ever blocks
+on the network — the status chip shows sync state without dialogs.
+
+## Syncing without a hub
+
+Sometimes there's no hub to reach — you're travelling, on separate networks, or
+just want to hand your budget to another device once. DuoBudget's event log is
+built for exactly this: every change is an immutable event with a stable id, and
+receipts are content-addressed blobs, so **merging two logs never conflicts and
+never overwrites** — it only ever *adds what's missing*. Move the file however
+you like; the maths is the same.
+
+**On both devices:** open **Manage → Sync & hubs → Backup & restore**.
+
+1. **Export.** Choose **Export all** for the whole log, or **Export new** to send
+   only what's changed since your last export — the incremental "vacation swap"
+   that keeps files small when you exchange back and forth over a few days.
+   *Export new* tracks everything that has arrived since, whether you logged it
+   here or merged it in from the other device, so you can even relay changes on
+   through a third device. Both produce a `.dbevents.zip` (events plus their
+   receipt images); a plain-text `.dbevents` without receipts is also accepted on
+   import.
+2. **Import.** Pick the file on the other device. Before anything is written you
+   get a **preview** — *"14 new events, 3 receipts — 210 already present"* — so
+   you always know what a file will add. Confirm, and a matching **summary**
+   reports what was merged. Importing the same file twice is a safe no-op, and a
+   corrupt or tampered file is rejected before a single event is applied.
+
+**Getting the file across — Android.** The lowest-effort way to reach a nearby
+device is the phone's own **share sheet**: export the file, then send it with the
+OS's built-in **Nearby Share / Quick Share** (or Bluetooth, or any messaging app)
+straight to the other phone. That's the Android platform share intent doing the
+transport — DuoBudget bundles **no Wi-Fi Direct, Bluetooth, or other radio/P2P
+code of its own**; it just hands the OS a file and lets the system's nearby-share
+picker move it. Like the on-device OCR, this stays a thin, platform-guarded seam.
+On desktop, save the file and copy it over however you already move files (USB
+stick, shared folder, chat).
 
 ## How it works
 

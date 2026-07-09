@@ -18,7 +18,7 @@ import 'tables.dart';
 part 'database.g.dart';
 
 /// Data-access object for the append-only event log.
-@DriftAccessor(tables: [Events])
+@DriftAccessor(tables: [Events, ExportBookmarks])
 class EventsDao extends DatabaseAccessor<AppDatabase> with _$EventsDaoMixin {
   EventsDao(super.db);
 
@@ -61,6 +61,59 @@ class EventsDao extends DatabaseAccessor<AppDatabase> with _$EventsDaoMixin {
       ]);
     final rows = await query.get();
     return [for (final r in rows) _eventFromRow(r)];
+  }
+
+  /// The subset of [ids] that are already in the log. Used by merge-import to
+  /// preview how many incoming events are new versus already present, without
+  /// loading the whole log.
+  Future<Set<String>> existingEventIds(Iterable<String> ids) async {
+    final wanted = ids.toSet().toList();
+    if (wanted.isEmpty) {
+      return <String>{};
+    }
+    final query = selectOnly(events)
+      ..addColumns([events.eventId])
+      ..where(events.eventId.isIn(wanted));
+    final rows = await query.get();
+    return {for (final r in rows) r.read(events.eventId)!};
+  }
+
+  /// The highest event `rowid` currently stored (0 if the log is empty). rowid is
+  /// SQLite's local insertion order, so it advances for both locally authored and
+  /// imported events — the cursor the "export since last export" shortcut rides.
+  Future<int> maxEventRowid() async {
+    final row = await customSelect(
+      'SELECT COALESCE(MAX(_rowid_), 0) AS m FROM ${events.actualTableName}',
+      readsFrom: {events},
+    ).getSingle();
+    return row.read<int>('m');
+  }
+
+  /// The events inserted after [afterRowid] (by local insertion order), returned
+  /// in canonical `(occurredAt, eventId)` order. Everything that has arrived —
+  /// captured or merged-in — since the cursor was last advanced.
+  Future<List<Event>> eventsAfterRowid(int afterRowid) async {
+    final rows = await customSelect(
+      'SELECT * FROM ${events.actualTableName} WHERE _rowid_ > ?1 '
+      'ORDER BY occurred_at, event_id',
+      variables: [Variable.withInt(afterRowid)],
+      readsFrom: {events},
+    ).get();
+    return [for (final r in rows) _eventFromRow(events.map(r.data))];
+  }
+
+  /// The rowid cursor of the last export (0 if never exported).
+  Future<int> lastExportRowid() async {
+    final row = await (select(exportBookmarks)..where((t) => t.id.equals(0)))
+        .getSingleOrNull();
+    return row?.lastExportedRowid ?? 0;
+  }
+
+  /// Advances the export cursor to [rowid] after a successful export.
+  Future<void> setLastExportRowid(int rowid) async {
+    await into(exportBookmarks).insertOnConflictUpdate(
+      ExportBookmarkRow(id: 0, lastExportedRowid: rowid),
+    );
   }
 
   EventsCompanion _rowFor(Event e) => EventsCompanion.insert(
@@ -335,6 +388,7 @@ class LocalSetupDao extends DatabaseAccessor<AppDatabase>
     PairedHubs,
     Snapshots,
     LocalSetupRows,
+    ExportBookmarks,
   ],
   daos: [EventsDao, SyncDao, HubHostDao, PairedHubDao, LocalSetupDao],
 )
@@ -342,7 +396,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -356,6 +410,11 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(hubConfigRows);
             await m.createTable(hubDeviceTokens);
             await m.createTable(pairedHubs);
+          }
+          // v3 adds the device-local "export since last export" bookmark. Again
+          // device-local bookkeeping only; the event log is untouched.
+          if (from < 3) {
+            await m.createTable(exportBookmarks);
           }
         },
       );
