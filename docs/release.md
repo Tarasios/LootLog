@@ -4,6 +4,13 @@ DuoBudget ships as a Flutter app for **Android** and **desktop** (Windows,
 macOS, Linux). There are no servers or accounts to deploy — a release is just
 signed, packaged binaries.
 
+> **Where to look.** [`distribution.md`](distribution.md) is the authoritative
+> guide to how DuoBudget is distributed (GitHub Releases only), the CI pipeline
+> that builds every artifact on a tag, the pinned toolchain, and the
+> telemetry-free download metrics. **This** page is the deeper reference for the
+> one-time **upload-keystore creation** and the optional **Play Store `.aab`**
+> path. Start with `distribution.md` unless you need those.
+
 Before packaging anything, from `app/`:
 
 ```bash
@@ -123,7 +130,8 @@ cd app
 flutter build macos --release
 ```
 
-Output: `build/macos/Build/Products/Release/DuoBudget.app`.
+Output: `build/macos/Build/Products/Release/duobudget.app` (the bundle's
+`PRODUCT_NAME` is lowercase `duobudget`).
 
 - **Sign & notarize (optional but needed for distribution outside your own
   machine):**
@@ -131,12 +139,12 @@ Output: `build/macos/Build/Products/Release/DuoBudget.app`.
   ```bash
   codesign --deep --force --options runtime \
     --sign "Developer ID Application: <Your Name> (<TEAMID>)" \
-    build/macos/Build/Products/Release/DuoBudget.app
+    build/macos/Build/Products/Release/duobudget.app
 
   # zip it, then submit for notarization:
-  xcrun notarytool submit DuoBudget.zip \
+  xcrun notarytool submit duobudget.zip \
     --apple-id <you@example.com> --team-id <TEAMID> --wait
-  xcrun stapler staple build/macos/Build/Products/Release/DuoBudget.app
+  xcrun stapler staple build/macos/Build/Products/Release/duobudget.app
   ```
 
 - **Package:** create a `.dmg` (e.g. with `create-dmg`) or a zip.
