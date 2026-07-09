@@ -21,12 +21,14 @@ Future<File> _skinFile() async {
   return File(p.join(dir.path, 'app_skin.txt'));
 }
 
-/// Loads the persisted skin, defaulting to [AppSkin.classic].
+/// Loads the persisted skin, defaulting to [AppSkin.adventure] — the game is
+/// the product, so Adventure is the primary experience on every platform until
+/// a device explicitly chooses Classic.
 Future<AppSkin> loadAppSkin() async {
   final f = await _skinFile();
-  if (!f.existsSync()) return AppSkin.classic;
+  if (!f.existsSync()) return AppSkin.adventure;
   final s = f.readAsStringSync().trim();
-  return s == AppSkin.adventure.name ? AppSkin.adventure : AppSkin.classic;
+  return s == AppSkin.classic.name ? AppSkin.classic : AppSkin.adventure;
 }
 
 /// Persists the chosen [skin].
@@ -40,9 +42,9 @@ Future<void> saveAppSkin(AppSkin skin) async {
 class AppSkinNotifier extends Notifier<AppSkin> {
   @override
   AppSkin build() {
-    // Kick off the load; the default stands until it resolves.
+    // Kick off the load; the Adventure default stands until it resolves.
     unawaited(_restore());
-    return AppSkin.classic;
+    return AppSkin.adventure;
   }
 
   Future<void> _restore() async {

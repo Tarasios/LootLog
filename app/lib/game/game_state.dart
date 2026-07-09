@@ -414,6 +414,78 @@ class ExpeditionFloor {
   bool get fundExhausted => fundBalanceCents < 0;
 }
 
+/// A party member's role in the adventure roster. Mirrors the domain's
+/// `MemberRole` but keeps the game layer's own vocabulary: adults are the
+/// ledger-bearing adventurers, dependents are companions, pets are familiars.
+enum AdventurerRole { adventurer, companion, familiar }
+
+/// One member of the party as the text-adventure roster shows them: their name,
+/// role, the user-written [descriptionText] (the heart of text mode), a sprite
+/// for the pixel tiers, and whether this is the device owner ("you").
+///
+/// Derived purely from `MemberSet` state — never from device-local setup — so
+/// the roster reflects the whole household, of any size, with no two-adult
+/// assumption.
+class Adventurer {
+  const Adventurer({
+    required this.memberId,
+    required this.name,
+    required this.role,
+    required this.sprite,
+    required this.isMe,
+    this.descriptionText,
+  });
+
+  final String memberId;
+  final String name;
+  final AdventurerRole role;
+  final SpriteRef sprite;
+
+  /// The user-written character description rendered by text-mode adventure.
+  final String? descriptionText;
+
+  /// Whether this adventurer is the device owner.
+  final bool isMe;
+}
+
+/// The narrative tone of an [LogEntry], used only to pick an icon/tint. The
+/// line text already carries the meaning; this just colours it.
+enum LogTone {
+  strike, // a monster took damage (a purchase)
+  supplies, // income / expedition supplies arrived
+  treasure, // a gift landed
+  quest, // a quest boss appeared / was hunted / abandoned
+  ritual, // spoils were divided
+  chest, // the war chest gained coin
+  writ, // a withdrawal writ moved
+  ransack, // the war chest was ransacked
+  muster, // a party member joined or left
+}
+
+/// One line of the scrolling adventure log: a real event narrated in game
+/// voice ("GROCERIES MONSTER TAKES $42.00 DMG"). A pure projection of events —
+/// it narrates what happened, it never computes a balance.
+class LogEntry {
+  const LogEntry({
+    required this.id,
+    required this.line,
+    required this.tone,
+    required this.occurredAt,
+    required this.isMine,
+  });
+
+  /// The source event id (or a synthetic id for a derived ransack line).
+  final String id;
+
+  /// The game-voice line, ready to render.
+  final String line;
+  final LogTone tone;
+  final DateTime occurredAt;
+
+  /// Whether the device owner drove this beat (for a subtle self/other tint).
+  final bool isMine;
+}
+
 /// The whole adventure read-model for one dungeon floor.
 class GameState {
   const GameState({
@@ -432,6 +504,7 @@ class GameState {
     required this.goldPouch,
     required this.warChest,
     required this.reserveCaches,
+    this.roster = const [],
     this.expeditions = const [],
   });
 
@@ -444,6 +517,11 @@ class GameState {
   final String heroName;
   final SpriteRef heroSprite;
   final SpriteRef partnerSprite;
+
+  /// The full party roster (adults, dependents, pets) with descriptions — the
+  /// heart of the text-mode presentation. Derived from `MemberSet` state, so a
+  /// household of any size renders correctly. The device owner sorts first.
+  final List<Adventurer> roster;
 
   /// Total overspend across all monsters & contracts — HP the hero has lost.
   final int heroHpLostCents;

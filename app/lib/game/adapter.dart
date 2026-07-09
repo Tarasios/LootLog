@@ -8,10 +8,12 @@
 /// Pure Dart (Flutter-free), so it is unit-tested exactly like the reducer.
 library;
 
+import '../domain/event.dart';
 import '../domain/money.dart';
 import '../domain/state.dart';
 import '../domain/time.dart';
 import '../domain/value_types.dart';
+import '../ui/format.dart';
 import 'game_state.dart';
 
 /// Default sprite strips (see `docs/art-assets.md`). Kept here so the mapping
@@ -150,6 +152,24 @@ GameState buildGameState(
           ..sort((a, b) => a.name.compareTo(b.name)),
       ),
   ]..sort((a, b) => a.name.compareTo(b.name));
+
+  // ---- Party roster (all active members, me first) -----------------------
+  // Derived from MemberSet state — never from device-local setup — so any
+  // household size renders. Adults, then dependents, then pets; me leads.
+  final roster = <Adventurer>[
+    for (final m in state.members.values)
+      if (m.active)
+        Adventurer(
+          memberId: m.memberId,
+          name: m.name,
+          role: _roleOf(m.role),
+          descriptionText: m.descriptionText,
+          isMe: m.memberId == meUserId,
+          sprite: m.customSpriteSha256 != null
+              ? SpriteRef.custom(m.customSpriteSha256, label: m.name)
+              : SpriteRef.asset(_rosterAsset(m.role), label: m.name),
+        ),
+  ]..sort(_rosterOrder(meUserId));
 
   // ---- Quest monsters -----------------------------------------------------
   final questMonsters = <QuestMonster>[];
@@ -333,8 +353,191 @@ GameState buildGameState(
     goldPouch: goldPouch,
     warChest: warChest,
     reserveCaches: looseCaches,
+    roster: roster,
     expeditions: expeditions,
   );
+}
+
+AdventurerRole _roleOf(MemberRole role) => switch (role) {
+      MemberRole.adult => AdventurerRole.adventurer,
+      MemberRole.dependent => AdventurerRole.companion,
+      MemberRole.pet => AdventurerRole.familiar,
+    };
+
+String _rosterAsset(MemberRole role) => switch (role) {
+      MemberRole.adult => Sprites.heroA,
+      MemberRole.dependent => Sprites.heroB,
+      MemberRole.pet => Sprites.pet,
+    };
+
+/// Orders the roster: the device owner first, then by role (adults, dependents,
+/// pets), then by name — a stable party line-up.
+int Function(Adventurer, Adventurer) _rosterOrder(String meUserId) =>
+    (a, b) {
+      final am = a.isMe ? 0 : 1;
+      final bm = b.isMe ? 0 : 1;
+      if (am != bm) return am - bm;
+      if (a.role != b.role) return a.role.index - b.role.index;
+      return a.name.compareTo(b.name);
+    };
+
+/// The scrolling adventure log: real events narrated in game voice, newest
+/// first. A pure projection — it re-tells what happened and never computes a
+/// balance. Ransacks (a derived read-model record) are folded in as their own
+/// loud banners. Cosmetic and purely-configurational events stay silent.
+List<LogEntry> buildAdventureLog(
+  HouseholdState state,
+  List<Event> events, {
+  required String meUserId,
+  required Map<String, String> userNames,
+  int limit = 40,
+}) {
+  String who(String id) => userNames[id] ?? 'Someone';
+  String sliceName(String id) => state.slices[id]?.name ?? 'a monster';
+  String questName(String id) => state.quests[id]?.name ?? 'a quest boss';
+  String fundName(String id) => state.emergencyFunds[id]?.name ?? 'a reserve';
+  String vacationName(String id) => state.vacations[id]?.name ?? 'an expedition';
+
+  final entries = <LogEntry>[];
+
+  String purchaseLine(PurchaseAdded e) => switch (e.target) {
+        SliceCharge(:final sliceId) =>
+          '${sliceName(sliceId).toUpperCase()} MONSTER TAKES '
+              '${money(e.amountCents)} DMG',
+        VaultCharge() =>
+          '${who(e.userId)} spends ${money(e.amountCents)} from the gold pouch',
+        QuestCharge(:final questId) =>
+          '${who(e.userId)} claims ${money(e.amountCents)} from the '
+              '${questName(questId)} hoard',
+        EmergencyCharge(:final fundId) =>
+          '${who(e.userId)} breaks open the ${fundName(fundId)} cache for '
+              '${money(e.amountCents)}',
+        VacationCharge(:final vacationId) =>
+          '${who(e.userId)} spends ${money(e.amountCents)} on the '
+              '${vacationName(vacationId)} expedition',
+      };
+
+  for (final e in events) {
+    final mine = e.userId == meUserId;
+    LogEntry? entry;
+    LogEntry make(String line, LogTone tone, {bool? isMine}) => LogEntry(
+          id: e.eventId,
+          line: line,
+          tone: tone,
+          occurredAt: e.occurredAt,
+          isMine: isMine ?? mine,
+        );
+    switch (e) {
+      case PurchaseAdded():
+        entry = make(purchaseLine(e), LogTone.strike);
+      case GiftReceived():
+        entry = make(
+          'TREASURE FOUND — ${money(e.amountCents)} for ${who(e.forUserId)}',
+          LogTone.treasure,
+          isMine: e.forUserId == meUserId,
+        );
+      case IncomeSet():
+        entry = make(
+          'SUPPLIES ARRIVE — ${money(e.amountCents)} for ${who(e.forUserId)}',
+          LogTone.supplies,
+          isMine: e.forUserId == meUserId,
+        );
+      case DefaultIncomeSet():
+        entry = make(
+          'Standing supplies set for ${who(e.forUserId)} — '
+              '${money(e.amountCents)} a floor',
+          LogTone.supplies,
+          isMine: e.forUserId == meUserId,
+        );
+      case QuestSet():
+        entry = make(
+          'A quest boss appears: ${e.name} (${money(e.targetCents)} HP)',
+          LogTone.quest,
+        );
+      case QuestAbandoned():
+        entry = make(
+          'The hunt for ${questName(e.questId)} is called off',
+          LogTone.quest,
+        );
+      case LeftoverAllocated():
+        entry = make(
+          '${who(e.forUserId)} divides the spoils of ${sliceName(e.sliceId)}',
+          LogTone.ritual,
+          isMine: e.forUserId == meUserId,
+        );
+      case PoolContributionMade():
+        entry = make(
+          '${who(e.fromUserId)} feeds the war chest ${money(e.amountCents)}',
+          LogTone.chest,
+          isMine: e.fromUserId == meUserId,
+        );
+      case TaxRefundRecorded():
+        entry = make(
+          'A royal rebate reaches the war chest: ${money(e.amountCents)}',
+          LogTone.chest,
+        );
+      case PoolWithdrawalProposed():
+        entry = make(
+          '${who(e.byUserId)} raises a writ for ${money(e.amountCents)}',
+          LogTone.writ,
+          isMine: e.byUserId == meUserId,
+        );
+      case PoolWithdrawalApproved():
+        entry = make('${who(e.byUserId)} signs a writ', LogTone.writ,
+            isMine: e.byUserId == meUserId);
+      case PoolWithdrawalCancelled():
+        entry = make('${who(e.userId)} withdraws a writ', LogTone.writ);
+      case MemberSet():
+        entry = make(
+          e.active
+              ? '${e.name} joins the party'
+              : '${e.name} leaves the party',
+          LogTone.muster,
+        );
+      case PetSet():
+        entry = make('${e.name} joins the party', LogTone.muster);
+      // Silent: voids, receipts, goals, accounts, settings, cosmetics, tallies,
+      // shares, main categories, vacations, budget/recurring/fund config.
+      case PurchaseVoided():
+      case ReceiptAttached():
+      case ReceiptDetached():
+      case GoalSet():
+      case GroupShareSet():
+      case TrackedAccountSet():
+      case AccountBalanceRecorded():
+      case AccountTransferRecorded():
+      case SettingChanged():
+      case CosmeticSet():
+      case VariableExpenseRecorded():
+      case MainCategorySet():
+      case VacationSet():
+      case VacationClosed():
+      case BudgetSliceSet():
+      case RecurringExpenseSet():
+      case EmergencyFundSet():
+        entry = null;
+    }
+    if (entry != null) entries.add(entry);
+  }
+
+  // Ransacks are a derived record, not an event — fold them in loudly.
+  for (final r in state.ransacks) {
+    entries.add(LogEntry(
+      id: 'ransack-${r.fundId}-${r.occurredAt.toIso8601String()}',
+      line: 'THE WAR CHEST WAS RANSACKED! ${money(r.excessCents)} taken to '
+          'cover the ${state.emergencyFunds[r.fundId]?.name ?? 'reserve'} '
+          '(${r.purpose})',
+      tone: LogTone.ransack,
+      occurredAt: r.occurredAt,
+      isMine: false,
+    ));
+  }
+
+  entries.sort((a, b) {
+    final c = b.occurredAt.compareTo(a.occurredAt);
+    return c != 0 ? c : b.id.compareTo(a.id);
+  });
+  return entries.length > limit ? entries.sublist(0, limit) : entries;
 }
 
 /// Whole months from [a] to [b] (may be negative if [b] precedes [a]).
