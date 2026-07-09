@@ -177,6 +177,65 @@ GameState sampleGameState() => GameState(
       ],
     );
 
+/// The same fully-populated floor, but with a party roster of every kind — the
+/// device owner (owns two monsters, one enraged), another adventurer (owns one),
+/// a companion with no ledger, and the pet familiar (owns the pet-linked
+/// monster). Used by the pixel-dashboard goldens to exercise every party frame.
+GameState sampleGameStateWithRoster() {
+  final g = sampleGameState();
+  return GameState(
+    currentMonth: g.currentMonth,
+    floorNumber: g.floorNumber,
+    heroName: g.heroName,
+    heroSprite: g.heroSprite,
+    partnerSprite: g.partnerSprite,
+    heroHpLostCents: g.heroHpLostCents,
+    expeditionSuppliesCents: g.expeditionSuppliesCents,
+    monsters: g.monsters,
+    contracts: g.contracts,
+    party: g.party,
+    questMonsters: g.questMonsters,
+    provisioning: g.provisioning,
+    goldPouch: g.goldPouch,
+    warChest: g.warChest,
+    reserveCaches: g.reserveCaches,
+    expeditions: g.expeditions,
+    roster: [
+      Adventurer(
+        memberId: 'u1',
+        name: 'Robin',
+        role: AdventurerRole.adventurer,
+        descriptionText: 'A steady hand with a ledger.',
+        isMe: true,
+        sprite: _asset(Sprites.heroA, 'Robin'),
+      ),
+      Adventurer(
+        memberId: 'u2',
+        name: 'Sam',
+        role: AdventurerRole.adventurer,
+        isMe: false,
+        sprite: _asset(Sprites.heroB, 'Sam'),
+      ),
+      Adventurer(
+        memberId: 'iris',
+        name: 'Iris',
+        role: AdventurerRole.companion,
+        descriptionText: 'A curious young scout.',
+        isMe: false,
+        sprite: _asset(Sprites.heroA, 'Iris'),
+      ),
+      Adventurer(
+        memberId: 'mochi',
+        name: 'Mochi',
+        role: AdventurerRole.familiar,
+        descriptionText: 'A round cat of great appetite.',
+        isMe: false,
+        sprite: _asset(Sprites.pet, 'Mochi'),
+      ),
+    ],
+  );
+}
+
 ReserveCache _reserve(String name, int cents) => ReserveCache(
       fundId: name,
       name: name,
@@ -189,3 +248,28 @@ AdventureSpoilsBanner sampleSpoilsBanner() => const AdventureSpoilsBanner(
       talliesPending: 1,
       daysRemaining: 3,
     );
+
+/// A short adventure log in game voice, for the pixel/text dashboard goldens.
+List<LogEntry> sampleAdventureLog() => [
+      LogEntry(
+        id: 'e1',
+        line: r'GROCERIES MONSTER TAKES $42.00 DMG',
+        tone: LogTone.strike,
+        occurredAt: DateTime.utc(2026, 7, 3),
+        isMine: true,
+      ),
+      LogEntry(
+        id: 'e2',
+        line: r'TREASURE FOUND — $50.00 for Robin',
+        tone: LogTone.treasure,
+        occurredAt: DateTime.utc(2026, 7, 4),
+        isMine: true,
+      ),
+      LogEntry(
+        id: 'e3',
+        line: r'THE WAR CHEST WAS RANSACKED! $150.00 torn away',
+        tone: LogTone.ransack,
+        occurredAt: DateTime.utc(2026, 7, 2),
+        isMine: false,
+      ),
+    ];

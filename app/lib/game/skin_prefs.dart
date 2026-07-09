@@ -67,3 +67,65 @@ class AppSkinNotifier extends Notifier<AppSkin> {
 /// The device's chosen presentation skin.
 final appSkinProvider =
     NotifierProvider<AppSkinNotifier, AppSkin>(AppSkinNotifier.new);
+
+// ===========================================================================
+// Adventure render tier: pixel (tiers 1–2) vs. text mode (tier 3).
+// ===========================================================================
+
+/// Within the Adventure skin, which tier the dashboard renders in. Pixel is the
+/// target look (full pixel art, degrading per-asset to labelled placeholders);
+/// text is the first-class text-adventure fallback. This is the *global text
+/// mode toggle* — a per-device cosmetic choice, independent of the art files
+/// present, so a device can prefer text even where art exists.
+enum AdventureTier { pixel, text }
+
+Future<File> _tierFile() async {
+  final dir = await getApplicationDocumentsDirectory();
+  return File(p.join(dir.path, 'adventure_tier.txt'));
+}
+
+/// Loads the persisted tier, defaulting to [AdventureTier.pixel] — the pixel
+/// presentation is the target experience; missing sprites degrade on their own.
+Future<AdventureTier> loadAdventureTier() async {
+  final f = await _tierFile();
+  if (!f.existsSync()) return AdventureTier.pixel;
+  final s = f.readAsStringSync().trim();
+  return s == AdventureTier.text.name ? AdventureTier.text : AdventureTier.pixel;
+}
+
+/// Persists the chosen [tier].
+Future<void> saveAdventureTier(AdventureTier tier) async {
+  final f = await _tierFile();
+  f.writeAsStringSync(tier.name, flush: true);
+}
+
+/// The current adventure render tier. Loads the persisted value on first build
+/// (defaulting to pixel until it arrives) and writes through on [select].
+class AdventureTierNotifier extends Notifier<AdventureTier> {
+  @override
+  AdventureTier build() {
+    unawaited(_restore());
+    return AdventureTier.pixel;
+  }
+
+  Future<void> _restore() async {
+    final loaded = await loadAdventureTier();
+    if (loaded != state) state = loaded;
+  }
+
+  Future<void> select(AdventureTier tier) async {
+    state = tier;
+    await saveAdventureTier(tier);
+  }
+
+  void toggle() {
+    unawaited(select(
+      state == AdventureTier.text ? AdventureTier.pixel : AdventureTier.text,
+    ));
+  }
+}
+
+/// The device's chosen adventure render tier (pixel vs. text mode).
+final adventureTierProvider =
+    NotifierProvider<AdventureTierNotifier, AdventureTier>(
+        AdventureTierNotifier.new);

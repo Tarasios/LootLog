@@ -15,9 +15,15 @@ import 'package:flutter/material.dart';
 
 import 'game_state.dart';
 
-/// The base authoring size of one frame, in logical pixels (see
-/// `docs/art-assets.md`). A sprite occupies `kSpriteBaseSize * scale` on screen.
-const double kSpriteBaseSize = 16;
+/// The base authoring size of one dungeon sprite frame, in logical pixels (see
+/// `docs/art-assets.md`). A sprite occupies `baseSize * scale` on screen; this
+/// is the default [baseSize] for [GameSprite].
+const double kSpriteBaseSize = 32;
+
+/// The base authoring size of one party-member portrait, in logical pixels.
+/// Portraits are the only other size in the system (see `docs/art-assets.md`);
+/// pass this as [GameSprite.baseSize] for a roster face.
+const double kPortraitBaseSize = 48;
 
 /// Parses the frame count from a strip filename's `_<N>f` suffix. A name with
 /// no valid suffix (e.g. a single-frame `gold_pouch_1f.png` reads 1; anything
@@ -84,7 +90,8 @@ class GameSprite extends StatefulWidget {
     super.key,
     required this.sprite,
     this.resolver = const PlaceholderSpriteResolver(),
-    this.scale = 3,
+    this.scale = 2,
+    this.baseSize = kSpriteBaseSize,
     this.frameIndex = 0,
     this.animate = false,
     this.semanticLabel,
@@ -96,13 +103,18 @@ class GameSprite extends StatefulWidget {
   /// Integer on-screen magnification (2×, 3×, …). Fractional values are
   /// disallowed so pixels never blur.
   final int scale;
+
+  /// The sprite's authoring size in logical pixels — [kSpriteBaseSize] for a
+  /// dungeon sprite, [kPortraitBaseSize] for a roster portrait. Only these two
+  /// sizes exist (see `docs/art-assets.md`).
+  final double baseSize;
   final int frameIndex;
 
   /// Cycle through the strip's frames on a fixed cadence.
   final bool animate;
   final String? semanticLabel;
 
-  double get side => kSpriteBaseSize * scale;
+  double get side => baseSize * scale;
   int get frameCount =>
       widgetFrameCount(sprite);
 
