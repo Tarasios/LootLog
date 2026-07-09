@@ -42,8 +42,10 @@ class SpoilsResult {
 
 /// Where the whole of a slice's leftover is directed. The ritual keeps a single
 /// destination per slice for a fast, legible split; the amount is the entire
-/// leftover so the allocation always sums exactly.
-enum _Dest { carry, quest, discretionary }
+/// leftover so the allocation always sums exactly. The overbudget choice is
+/// the one two-line case: it pays exactly what the debt needs and converts
+/// the rest to discretionary, still summing to the whole leftover.
+enum _Dest { overbudget, carry, quest, discretionary }
 
 class SpoilsSheetView extends StatefulWidget {
   const SpoilsSheetView({
@@ -78,11 +80,15 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
     for (final t in widget.ritual.variableTallies) t.expenseId: t.estimateCents,
   };
 
-  /// Chosen destination per slice (defaults to the slice's configured default
-  /// policy so a quick confirm mirrors what the reducer would do anyway).
+  /// Chosen destination per slice. With an OVERBUDGET outstanding, paying it
+  /// starts selected — the debt must be dealt with, and skipping it is an
+  /// explicit choice. Otherwise the slice's configured default policy leads,
+  /// so a quick confirm mirrors what the reducer would do anyway.
   late final Map<String, _Dest> _dest = {
     for (final s in widget.ritual.sliceLeftovers)
-      s.sliceId: _destOf(s.defaultPolicy),
+      s.sliceId: s.overbudgetOptions.isNotEmpty
+          ? _Dest.overbudget
+          : _destOf(s.defaultPolicy),
   };
 
   /// Chosen quest per slice when the destination is a quest.
@@ -91,10 +97,19 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
       s.sliceId: _defaultQuest(s),
   };
 
+  /// Chosen OVERBUDGET per slice when the destination is a debt payment.
+  late final Map<String, String?> _overbudgetChoice = {
+    for (final s in widget.ritual.sliceLeftovers)
+      s.sliceId: s.overbudgetOptions.isNotEmpty
+          ? s.overbudgetOptions.first.sliceId
+          : null,
+  };
+
   static _Dest _destOf(LeftoverDestination d) => switch (d) {
         CarryInSlice() => _Dest.carry,
         QuestDestination() => _Dest.quest,
         Discretionary() => _Dest.discretionary,
+        OverbudgetPayment() => _Dest.overbudget,
       };
 
   static String? _defaultQuest(SliceLeftover s) {
@@ -105,15 +120,64 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
 
   bool get _hasStep1 => widget.ritual.variableTallies.isNotEmpty;
 
-  LeftoverDestination _destination(SliceLeftover s) {
+  OverbudgetOption? _chosenOverbudget(SliceLeftover s) {
+    final id = _overbudgetChoice[s.sliceId];
+    for (final o in s.overbudgetOptions) {
+      if (o.sliceId == id) return o;
+    }
+    return s.overbudgetOptions.isNotEmpty ? s.overbudgetOptions.first : null;
+  }
+
+  List<Allocation> _allocationsFor(SliceLeftover s) {
     switch (_dest[s.sliceId]!) {
       case _Dest.carry:
-        return const CarryInSlice();
+        return [
+          Allocation(
+              destination: const CarryInSlice(), amountCents: s.leftoverCents),
+        ];
       case _Dest.discretionary:
-        return const Discretionary();
+        return [
+          Allocation(
+              destination: const Discretionary(),
+              amountCents: s.leftoverCents),
+        ];
       case _Dest.quest:
         final q = _questChoice[s.sliceId];
-        return q == null ? const Discretionary() : QuestDestination(q);
+        return [
+          Allocation(
+            destination:
+                q == null ? const Discretionary() : QuestDestination(q),
+            amountCents: s.leftoverCents,
+          ),
+        ];
+      case _Dest.overbudget:
+        final o = _chosenOverbudget(s);
+        if (o == null) {
+          return [
+            Allocation(
+                destination: const Discretionary(),
+                amountCents: s.leftoverCents),
+          ];
+        }
+        // Pay exactly what clears the debt (grossed up for the tithe when the
+        // categories don't match); the rest converts to discretionary. The
+        // two lines always sum to the whole leftover.
+        final matched = o.mainCategoryId != null &&
+            o.mainCategoryId == s.mainCategoryId;
+        final needed = overbudgetGrossNeeded(
+          o.outstandingCents,
+          s.poolTithePct,
+          matched: matched,
+        );
+        final pay = needed < s.leftoverCents ? needed : s.leftoverCents;
+        return [
+          Allocation(
+              destination: OverbudgetPayment(o.sliceId), amountCents: pay),
+          if (s.leftoverCents - pay > 0)
+            Allocation(
+                destination: const Discretionary(),
+                amountCents: s.leftoverCents - pay),
+        ];
     }
   }
 
@@ -129,12 +193,7 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
       for (final s in widget.ritual.sliceLeftovers)
         SliceAllocationResult(
           sliceId: s.sliceId,
-          allocations: [
-            Allocation(
-              destination: _destination(s),
-              amountCents: s.leftoverCents,
-            ),
-          ],
+          allocations: _allocationsFor(s),
         ),
     ];
     widget.onConfirm(SpoilsResult(tallies: tallies, allocations: allocations));
@@ -426,6 +485,14 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
           Wrap(
             spacing: AppSpacing.sm,
             children: [
+              if (s.overbudgetOptions.isNotEmpty)
+                ChoiceChip(
+                  label: Text(Glossary.payOverbudget
+                      .label(isAdventure: widget.isAdventure)),
+                  selected: dest == _Dest.overbudget,
+                  onSelected: (_) =>
+                      setState(() => _dest[s.sliceId] = _Dest.overbudget),
+                ),
               ChoiceChip(
                 label: const Text('Carry in category'),
                 selected: dest == _Dest.carry,
@@ -461,6 +528,75 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
     final scheme = Theme.of(context).colorScheme;
     final dest = _dest[s.sliceId]!;
     switch (dest) {
+      case _Dest.overbudget:
+        final o = _chosenOverbudget(s);
+        if (o == null) {
+          return _previewText(
+              context, Icons.error_outline, 'Nothing left to repay.');
+        }
+        final matched =
+            o.mainCategoryId != null && o.mainCategoryId == s.mainCategoryId;
+        final needed = overbudgetGrossNeeded(o.outstandingCents,
+            s.poolTithePct, matched: matched);
+        final pay = needed < s.leftoverCents ? needed : s.leftoverCents;
+        final split = previewQuestAttack(
+          pay,
+          s.poolTithePct,
+          sliceMainCategoryId: s.mainCategoryId,
+          questMainCategoryId: o.mainCategoryId,
+        );
+        final rest = s.leftoverCents - pay;
+        final restSplit = previewDiscretionary(rest, s.poolTithePct);
+        final noun = widget.isAdventure ? 'the OVERBUDGET on' : 'overspending in';
+        final pouch = widget.isAdventure ? 'gold pouch' : 'personal spending';
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (s.overbudgetOptions.length > 1)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Wrap(
+                  spacing: AppSpacing.sm,
+                  children: [
+                    for (final opt in s.overbudgetOptions)
+                      ChoiceChip(
+                        label: Text(opt.name),
+                        selected: opt.sliceId == o.sliceId,
+                        onSelected: (_) => setState(() =>
+                            _overbudgetChoice[s.sliceId] = opt.sliceId),
+                      ),
+                  ],
+                ),
+              ),
+            _previewText(
+              context,
+              Icons.gavel_outlined,
+              matched
+                  ? '${money(split.damageCents)} pays $noun ${o.name} in full '
+                      'value (same category).'
+                  : '${money(split.damageCents)} pays $noun ${o.name}; '
+                      '${Glossary.sharedSavingsCut(money(split.titheCents), s.poolTithePct, isAdventure: widget.isAdventure)}.',
+              color: scheme.error,
+            ),
+            _previewText(
+              context,
+              Icons.flag_outlined,
+              split.damageCents >= o.outstandingCents
+                  ? (widget.isAdventure
+                      ? 'That fells the OVERBUDGET — ${o.name} unlocks.'
+                      : 'That clears it — ${o.name} unlocks.')
+                  : '${money(o.outstandingCents - split.damageCents)} would '
+                      'remain to repay.',
+            ),
+            if (rest > 0)
+              _previewText(
+                context,
+                Icons.savings_outlined,
+                'Remaining ${money(rest)}: ${money(restSplit.vaultCents)} to '
+                '$pouch, ${Glossary.sharedSavingsCut(money(restSplit.titheCents), s.poolTithePct, isAdventure: widget.isAdventure)}.',
+              ),
+          ],
+        );
       case _Dest.carry:
         return _previewText(
           context,

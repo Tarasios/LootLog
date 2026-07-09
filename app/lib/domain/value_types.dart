@@ -271,6 +271,8 @@ sealed class LeftoverDestination {
         return QuestDestination(json['questId'] as String);
       case 'discretionary':
         return const Discretionary();
+      case 'overbudget':
+        return OverbudgetPayment(json['sliceId'] as String);
       default:
         throw FormatException('Unknown leftover destination kind: $kind');
     }
@@ -334,6 +336,21 @@ class Allocation {
 
   @override
   int get hashCode => Object.hash(destination, amountCents);
+}
+
+/// Pays down the OVERBUDGET debt of an overspent category. The attack is
+/// tithed by the category-match rule (matching main category = untithed);
+/// damage beyond the outstanding debt overflows to the owner's vault.
+class OverbudgetPayment extends LeftoverDestination {
+  const OverbudgetPayment(this.sliceId);
+  final String sliceId;
+  @override
+  Map<String, dynamic> toJson() => {'kind': 'overbudget', 'sliceId': sliceId};
+  @override
+  bool operator ==(Object other) =>
+      other is OverbudgetPayment && other.sliceId == sliceId;
+  @override
+  int get hashCode => Object.hash('overbudget', sliceId);
 }
 
 /// Where an approved pool withdrawal sends its money.

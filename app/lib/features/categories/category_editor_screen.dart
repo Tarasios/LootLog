@@ -299,6 +299,8 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
         CarryInSlice() => 'carry',
         Discretionary() => 'discretionary',
         QuestDestination() => 'quest',
+        // Not offered as a configured policy; debts are paid at the ritual.
+        OverbudgetPayment() => 'discretionary',
       };
     }
 

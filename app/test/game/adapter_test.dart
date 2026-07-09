@@ -175,6 +175,35 @@ void main() {
     });
   });
 
+  group('OVERBUDGET debt monsters', () {
+    test('an unsettled overflow surfaces as an outstanding OVERBUDGET', () {
+      final events = [
+        _slice(id: 'ent', ownership: const PersonalSlice(me), limit: 10000),
+        _buy(id: 'p', target: const SliceCharge('ent'), amount: 14000,
+            at: _day(2026, 1, 5)),
+      ];
+      final g = _game(events, asOf: _day(2026, 2, 2));
+      final d = g.overbudgets.single;
+      expect(d.categoryName, 'ent');
+      expect(d.outstandingCents, 4000);
+      expect(d.accruedCents, 4000);
+      expect(d.paidCents, 0);
+      expect(d.mine, isTrue);
+      expect(d.sprite.assetName, Sprites.overbudget);
+    });
+
+    test('a settled debt leaves the floor', () {
+      final events = [
+        _slice(id: 'ent', ownership: const PersonalSlice(me), limit: 10000),
+        _buy(id: 'p', target: const SliceCharge('ent'), amount: 14000,
+            at: _day(2026, 1, 5)),
+      ];
+      // By March, February's locked funding has paid the debt off.
+      final g = _game(events, asOf: _day(2026, 3, 10));
+      expect(g.overbudgets, isEmpty);
+    });
+  });
+
   group('contracts (group slices)', () {
     test('group slice becomes a party contract', () {
       final events = [

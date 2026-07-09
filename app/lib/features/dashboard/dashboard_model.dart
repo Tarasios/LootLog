@@ -69,6 +69,7 @@ class SliceRing {
     required this.effectiveLimitCents,
     required this.overspendCents,
     required this.mine,
+    this.lockedCents = 0,
     this.ownerName,
     this.petName,
     this.mainCategoryColorArgb,
@@ -80,6 +81,10 @@ class SliceRing {
   final int spentCents;
   final int effectiveLimitCents;
   final int overspendCents;
+
+  /// Funding withheld this month to repay earlier overspending; when > 0 the
+  /// category is (partly or fully) locked.
+  final int lockedCents;
 
   /// Whether a personal slice belongs to the device owner.
   final bool mine;
@@ -237,6 +242,28 @@ class WithdrawalCard {
   final bool mineToApprove;
 }
 
+/// Outstanding overspending to repay (the OVERBUDGET). Visible to every
+/// adult; the indebted category stays locked until it clears.
+class OverbudgetCard {
+  const OverbudgetCard({
+    required this.sliceId,
+    required this.categoryName,
+    required this.outstandingCents,
+    required this.accruedCents,
+    required this.mine,
+    this.ownerName,
+  });
+
+  final String sliceId;
+  final String categoryName;
+  final int outstandingCents;
+  final int accruedCents;
+  final bool mine;
+  final String? ownerName;
+
+  int get paidCents => accruedCents - outstandingCents;
+}
+
 /// A surfaced war-chest ransack.
 class RansackCard {
   const RansackCard({
@@ -334,6 +361,7 @@ class DashboardModel {
     required this.emergencyFunds,
     required this.netWorth,
     required this.timeline,
+    this.overbudgets = const [],
     required this.spoils,
   });
 
@@ -355,6 +383,9 @@ class DashboardModel {
   final WarChestCard warChest;
   final List<EmergencyFundCard> emergencyFunds;
   final SpendTimeline timeline;
+
+  /// Outstanding overspending to repay, the device owner's first.
+  final List<OverbudgetCard> overbudgets;
 
   /// The reopenable month-close ritual, when one is pending; null otherwise.
   final SpoilsRitual? spoils;
@@ -388,6 +419,7 @@ DashboardModel buildDashboardModel(
       spentCents: sm?.spentCents ?? 0,
       effectiveLimitCents: sm?.effectiveLimitCents ?? cfg.baseEffectiveLimitCents,
       overspendCents: sm?.overspendCents ?? 0,
+      lockedCents: sm?.lockedCents ?? 0,
       mine: !cfg.isGroup && cfg.ownerUserId == meUserId,
       ownerName: cfg.isGroup ? null : nameOf(cfg.ownerUserId ?? ''),
       petName: petName(cfg.petId),
@@ -582,6 +614,22 @@ DashboardModel buildDashboardModel(
     series: buildNetWorthSeries(events),
   );
 
+  // ---- Outstanding overspending to repay (visible to every adult) --------
+  final overbudgets = <OverbudgetCard>[
+    for (final d in state.outstandingOverbudgets)
+      OverbudgetCard(
+        sliceId: d.sliceId,
+        categoryName: state.slices[d.sliceId]?.name ?? d.sliceId,
+        outstandingCents: d.outstandingCents,
+        accruedCents: d.accruedCents,
+        mine: d.ownerUserId == meUserId,
+        ownerName: nameOf(d.ownerUserId),
+      ),
+  ]..sort((a, b) {
+      final c = (a.mine ? 0 : 1).compareTo(b.mine ? 0 : 1);
+      return c != 0 ? c : a.categoryName.compareTo(b.categoryName);
+    });
+
   return DashboardModel(
     currentMonth: month,
     meName: nameOf(meUserId) ?? 'You',
@@ -595,6 +643,7 @@ DashboardModel buildDashboardModel(
     warChest: warChest,
     emergencyFunds: funds,
     timeline: timeline,
+    overbudgets: overbudgets,
     spoils: buildSpoilsRitual(
       state,
       meUserId: meUserId,

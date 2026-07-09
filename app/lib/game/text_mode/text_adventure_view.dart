@@ -79,6 +79,7 @@ class TextAdventureView extends StatelessWidget {
                 _header(context),
                 if (spoilsPending) _spoilsCallout(context),
                 for (final r in game.warChest.ransacks) _ransack(context, r),
+                if (game.overbudgets.isNotEmpty) _overbudgets(context),
                 _roster(context),
                 _floor(context),
                 if (game.questMonsters.isNotEmpty) _questBosses(context),
@@ -197,6 +198,40 @@ class TextAdventureView extends StatelessWidget {
         '${money(r.excessCents)} was torn from the war chest to cover '
         '${r.cacheName} (${r.purpose}).',
         style: monoStyle(context, color: scheme.error),
+      ),
+    );
+  }
+
+  // ---- The OVERBUDGET: outstanding debt monsters, rendered loud -----------
+  Widget _overbudgets(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return TextPanel(
+      title: 'THE OVERBUDGET LOOMS',
+      icon: Icons.gavel_outlined,
+      accent: scheme.error,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final d in game.overbudgets) ...[
+            _hpLine(
+              context,
+              name: 'OVERBUDGET · ${d.categoryName}',
+              bar: textBar(d.hp.fraction),
+              value: '${money(d.paidCents)} repaid / ${money(d.accruedCents)}',
+              tag: d.mine ? 'yours' : (d.ownerName ?? ''),
+              tint: scheme.error,
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: AppSpacing.lg),
+              child: Text(
+                '${d.categoryName} is locked — its funding feeds the beast '
+                'until ${money(d.outstandingCents)} is repaid. Strike it at '
+                'the spoils.',
+                style: monoStyle(context, color: scheme.onSurfaceVariant),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

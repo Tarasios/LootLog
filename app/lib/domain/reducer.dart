@@ -247,6 +247,23 @@ class _Builder {
   final Map<String, int> recurringByUserMonth = {};
   final List<RansackRecord> ransacks = [];
 
+  // OVERBUDGET settlement. Debts are per personal category. [availVault]
+  // mirrors each vault chronologically inside the month sweep — month-bucketed
+  // external flows ([vaultFlowByMonth]) plus in-sweep discretionary
+  // conversions — so close-time seizure never takes money the owner did not
+  // have yet. Abandoned-quest returns are computed after the sweep and are
+  // deliberately left out, so seizure only ever errs on the small side.
+  final Map<String, int> availVault = {};
+  final Map<String, Map<String, int>> vaultFlowByMonth = {};
+  final Map<String, int> debtBySlice = {};
+  final Map<String, int> debtAccrued = {};
+  final Map<String, String> debtOwner = {};
+
+  void _flow(String user, Month month, int amount) {
+    final bucket = vaultFlowByMonth.putIfAbsent(month.toKey(), () => {});
+    bucket[user] = (bucket[user] ?? 0) + amount;
+  }
+
   // Annual-accrual reserves: the running reserve per annual expense (also the
   // as-of-now snapshot, since it is only advanced for months that have started)
   // and each expense's most recent due-month reconciliation.
@@ -453,6 +470,7 @@ class _Builder {
                 personalSpent[k] = (personalSpent[k] ?? 0) + amt;
               } else {
                 _addVault(adult, -amt);
+                _flow(adult, e.occurredMonth, -amt);
               }
             });
           } else {
@@ -467,9 +485,13 @@ class _Builder {
               _sharesFor(e.occurredMonth),
               oddTo: e.userId,
             );
-            parts.forEach((adult, amt) => _addVault(adult, -amt));
+            parts.forEach((adult, amt) {
+              _addVault(adult, -amt);
+              _flow(adult, e.occurredMonth, -amt);
+            });
           } else {
             _addVault(e.userId, -e.amountCents);
+            _flow(e.userId, e.occurredMonth, -e.amountCents);
           }
         case QuestCharge():
           questDrawdown[target.questId] =
@@ -508,6 +530,60 @@ class _Builder {
       }
     }
 
+    // Withdrawals (resolved before the sweep so approved vault credits enter
+    // the seizure-availability model in their approval month).
+    final withdrawals = <String, WithdrawalProposal>{};
+    for (final entry in proposals.entries) {
+      final prop = entry.value;
+      var status = WithdrawalStatus.pending;
+      String? approvedBy;
+      Month? approvedMonth;
+      if (cancelledProposals.contains(prop.proposalId)) {
+        status = WithdrawalStatus.cancelled;
+      } else if (_adultIds().length <= 1) {
+        // Single-adult household: "another adult" is auto-satisfied.
+        status = WithdrawalStatus.approved;
+        approvedBy = prop.byUserId;
+        approvedMonth = prop.occurredMonth;
+      } else {
+        // A DIFFERENT adult must sign; self-approval and non-adults don't count.
+        final valid = (approvals[prop.proposalId] ?? [])
+            .where((a) => a.byUserId != prop.byUserId && _isAdult(a.byUserId))
+            .toList();
+        if (valid.isNotEmpty) {
+          status = WithdrawalStatus.approved;
+          approvedBy = valid.first.byUserId;
+          approvedMonth = valid.first.occurredMonth;
+        }
+      }
+      if (status == WithdrawalStatus.approved) {
+        _addChest(-prop.amountCents, approvedMonth!);
+        final dest = prop.destination;
+        if (dest is UserVaultDestination) {
+          _addVault(dest.userId, prop.amountCents);
+          _flow(dest.userId, approvedMonth, prop.amountCents);
+        }
+      }
+      withdrawals[prop.proposalId] = WithdrawalProposal(
+        proposalId: prop.proposalId,
+        byUserId: prop.byUserId,
+        amountCents: prop.amountCents,
+        purpose: prop.purpose,
+        destination: prop.destination,
+        status: status,
+        approvedByUserId: approvedBy,
+      );
+    }
+
+    // Month-bucket gifts and pool contributions for the availability model
+    // (their actual vault application stays below, order-independent).
+    for (final g in gifts) {
+      _flow(g.forUserId, g.occurredMonth, g.amountCents);
+    }
+    for (final c in contributions) {
+      _flow(c.fromUserId, c.occurredMonth, -c.amountCents);
+    }
+
     // Determine the month range to iterate.
     final range = _monthRange();
 
@@ -517,12 +593,25 @@ class _Builder {
     final fundSchedule = <String, List<_FundContribution>>{};
 
     if (range != null) {
+      final sortedSlices = slices.values.toList()
+        ..sort((a, b) => a.sliceId.compareTo(b.sliceId));
       var m = range.$1;
       final last = range.$2;
       while (!m.isAfter(last)) {
         final carryThis = <String, int>{};
+        final closed = _isClosed(m);
 
-        for (final cfg in slices.values) {
+        // This month's external vault flows enter the availability model.
+        (vaultFlowByMonth[m.toKey()] ?? const {}).forEach((u, amt) {
+          availVault[u] = (availVault[u] ?? 0) + amt;
+        });
+
+        // Phase 1: per-category figures. An outstanding OVERBUDGET debt locks
+        // the category: its funding is withheld to cover the debt (effective
+        // limit shrinks, to zero if needed) and the withheld amount is
+        // recognised as payment once the month closes.
+        final calcs = <_SliceCalc>[];
+        for (final cfg in sortedSlices) {
           if (cfg.createdMonth.isAfter(m)) {
             continue;
           }
@@ -532,10 +621,11 @@ class _Builder {
             final spent = groupSpent[spentKey] ?? 0;
             final leftover = spent < eff ? eff - spent : 0;
             final overspend = spent > eff ? spent - eff : 0;
-            // Group leftovers flow fully to the chest, but only once the month
-            // has closed; the current, open month is still provisional.
-            if (_isClosed(m)) {
-              _addChest(leftover, m);
+            // Group leftovers flow fully to the chest — and a group overflow
+            // draws straight back out of it — but only once the month has
+            // closed; the current, open month is still provisional.
+            if (closed) {
+              _addChest(leftover - overspend, m);
             }
             sliceMonths[HouseholdState.monthKey(cfg.sliceId, m)] = SliceMonth(
               sliceId: cfg.sliceId,
@@ -548,90 +638,25 @@ class _Builder {
               carryInCents: 0,
               carryOutCents: 0,
               overspendCents: overspend,
-              resolved: _isClosed(m),
+              resolved: closed,
             );
           } else {
             final owner = cfg.ownerUserId!;
             final carryIn = carryPrev[cfg.sliceId] ?? 0;
-            final eff = cfg.baseEffectiveLimitCents + carryIn;
+            final funding = cfg.baseEffectiveLimitCents + carryIn;
+            final outstanding = debtBySlice[cfg.sliceId] ?? 0;
+            final lockable = funding > 0 ? funding : 0;
+            final locked = outstanding < lockable ? outstanding : lockable;
+            if (closed && locked > 0) {
+              debtBySlice[cfg.sliceId] = outstanding - locked;
+            }
+            final eff = funding - locked;
             final spent = personalSpent[spentKey] ?? 0;
             final leftover = spent < eff ? eff - spent : 0;
             final overspend = spent > eff ? spent - eff : 0;
-
-            final alloc =
-                allocations['$owner|${cfg.sliceId}|${m.toKey()}'];
-            final graceDeadline =
-                m.endInstantUtc().add(Duration(days: settings.spoilsGraceDays));
-
-            List<Allocation> effective;
-            var resolved = true;
-            if (alloc != null) {
-              effective = alloc.allocations;
-            } else if (now.isAfter(graceDeadline)) {
-              effective = leftover > 0
-                  ? [
-                      Allocation(
-                        destination: cfg.defaultLeftoverPolicy,
-                        amountCents: leftover,
-                      ),
-                    ]
-                  : const [];
-            } else {
-              effective = const [];
-              resolved = false;
-            }
-
-            if (resolved) {
-              for (final a in effective) {
-                final dest = a.destination;
-                switch (dest) {
-                  case CarryInSlice():
-                    carryThis[cfg.sliceId] =
-                        (carryThis[cfg.sliceId] ?? 0) + a.amountCents;
-                  case QuestDestination():
-                    // Category-match tithing: an attack from a category whose
-                    // main category matches the quest's is untithed (full
-                    // damage). From a non-matching category, the source
-                    // category's pool tithe is skimmed to the war chest and
-                    // only the remainder lands as damage. A quest without a
-                    // main category never matches (always tithed).
-                    final quest = questCfg[dest.questId];
-                    final matches = quest?.mainCategoryId != null &&
-                        quest!.mainCategoryId == cfg.mainCategoryId;
-                    final int damage;
-                    if (matches) {
-                      damage = a.amountCents;
-                    } else {
-                      final t =
-                          Money.titheCents(a.amountCents, cfg.poolTithePct);
-                      _addChest(t.titheCents, m);
-                      damage = t.remainderCents;
-                    }
-                    questBalance[dest.questId] =
-                        (questBalance[dest.questId] ?? 0) + damage;
-                    final c = questContrib.putIfAbsent(dest.questId, () => {});
-                    c[owner] = (c[owner] ?? 0) + damage;
-                  case Discretionary():
-                    final t = Money.titheCents(a.amountCents, cfg.poolTithePct);
-                    _addChest(t.titheCents, m);
-                    _addVault(owner, t.remainderCents);
-                }
-              }
-            }
-
-            sliceMonths[HouseholdState.monthKey(cfg.sliceId, m)] = SliceMonth(
-              sliceId: cfg.sliceId,
-              month: m,
-              isGroup: false,
-              ownerUserId: owner,
-              effectiveLimitCents: eff,
-              spentCents: spent,
-              leftoverCents: leftover,
-              carryInCents: carryIn,
-              carryOutCents: carryThis[cfg.sliceId] ?? 0,
-              overspendCents: overspend,
-              resolved: resolved,
-            );
+            calcs.add(
+                _SliceCalc(cfg, owner, carryIn, locked, eff, spent, leftover,
+                    overspend));
           }
 
           // Emergency-contribution schedule (accrues off the top every active
@@ -650,6 +675,71 @@ class _Builder {
                   ),
                 );
           }
+        }
+
+        // Phase 2: close settlement. The month's overflow is seized from the
+        // owner's vault first; whatever the vault cannot cover becomes
+        // OVERBUDGET debt on the category (the intimidating monster).
+        if (closed) {
+          for (final c in calcs) {
+            if (c.overspend == 0) {
+              continue;
+            }
+            final avail = availVault[c.owner] ?? 0;
+            final coverable = avail > 0 ? avail : 0;
+            final seize = c.overspend < coverable ? c.overspend : coverable;
+            if (seize > 0) {
+              availVault[c.owner] = avail - seize;
+              _addVault(c.owner, -seize);
+            }
+            final remainder = c.overspend - seize;
+            if (remainder > 0) {
+              debtBySlice[c.cfg.sliceId] =
+                  (debtBySlice[c.cfg.sliceId] ?? 0) + remainder;
+              debtAccrued[c.cfg.sliceId] =
+                  (debtAccrued[c.cfg.sliceId] ?? 0) + remainder;
+              debtOwner[c.cfg.sliceId] = c.owner;
+            }
+          }
+        }
+
+        // Phase 3: the spoils ritual — leftover allocations. Explicit
+        // allocations win; past grace, the default attacks the owner's
+        // outstanding OVERBUDGETs first, then the configured policy.
+        final graceDeadline =
+            m.endInstantUtc().add(Duration(days: settings.spoilsGraceDays));
+        for (final c in calcs) {
+          final cfg = c.cfg;
+          final alloc = allocations['${c.owner}|${cfg.sliceId}|${m.toKey()}'];
+          List<Allocation> effective;
+          var resolved = true;
+          if (alloc != null) {
+            effective = alloc.allocations;
+          } else if (now.isAfter(graceDeadline)) {
+            effective = _defaultAllocations(cfg, c.owner, c.leftover);
+          } else {
+            effective = const [];
+            resolved = false;
+          }
+          if (resolved) {
+            for (final a in effective) {
+              _applyAllocation(cfg, c.owner, a, m, carryThis);
+            }
+          }
+          sliceMonths[HouseholdState.monthKey(cfg.sliceId, m)] = SliceMonth(
+            sliceId: cfg.sliceId,
+            month: m,
+            isGroup: false,
+            ownerUserId: c.owner,
+            effectiveLimitCents: c.eff,
+            spentCents: c.spent,
+            leftoverCents: c.leftover,
+            carryInCents: c.carryIn,
+            carryOutCents: carryThis[cfg.sliceId] ?? 0,
+            overspendCents: c.overspend,
+            resolved: resolved,
+            lockedCents: c.locked,
+          );
         }
 
         // Recurring-expense burden for this month.
@@ -738,49 +828,6 @@ class _Builder {
     // Tax refunds -> war chest.
     for (final t in taxRefunds) {
       _addChest(t.amountCents, t.occurredMonth);
-    }
-
-    // Withdrawals.
-    final withdrawals = <String, WithdrawalProposal>{};
-    for (final entry in proposals.entries) {
-      final prop = entry.value;
-      var status = WithdrawalStatus.pending;
-      String? approvedBy;
-      Month? approvedMonth;
-      if (cancelledProposals.contains(prop.proposalId)) {
-        status = WithdrawalStatus.cancelled;
-      } else if (_adultIds().length <= 1) {
-        // Single-adult household: "another adult" is auto-satisfied.
-        status = WithdrawalStatus.approved;
-        approvedBy = prop.byUserId;
-        approvedMonth = prop.occurredMonth;
-      } else {
-        // A DIFFERENT adult must sign; self-approval and non-adults don't count.
-        final valid = (approvals[prop.proposalId] ?? [])
-            .where((a) => a.byUserId != prop.byUserId && _isAdult(a.byUserId))
-            .toList();
-        if (valid.isNotEmpty) {
-          status = WithdrawalStatus.approved;
-          approvedBy = valid.first.byUserId;
-          approvedMonth = valid.first.occurredMonth;
-        }
-      }
-      if (status == WithdrawalStatus.approved) {
-        _addChest(-prop.amountCents, approvedMonth!);
-        final dest = prop.destination;
-        if (dest is UserVaultDestination) {
-          _addVault(dest.userId, prop.amountCents);
-        }
-      }
-      withdrawals[prop.proposalId] = WithdrawalProposal(
-        proposalId: prop.proposalId,
-        byUserId: prop.byUserId,
-        amountCents: prop.amountCents,
-        purpose: prop.purpose,
-        destination: prop.destination,
-        status: status,
-        approvedByUserId: approvedBy,
-      );
     }
 
     // Quests: apply drawdowns, completion, and abandonment.
@@ -1138,6 +1185,15 @@ class _Builder {
       emergencyFunds: fundStates,
       pets: pets,
       withdrawals: withdrawals,
+      overbudgets: {
+        for (final sliceId in debtAccrued.keys)
+          sliceId: OverbudgetState(
+            sliceId: sliceId,
+            ownerUserId: debtOwner[sliceId]!,
+            accruedCents: debtAccrued[sliceId]!,
+            outstandingCents: debtBySlice[sliceId] ?? 0,
+          ),
+      },
       warChest: WarChestState(
         balanceCents: warChest,
         targetCents: goalTarget,
@@ -1182,6 +1238,131 @@ class _Builder {
       variableActuals: Map<String, int>.from(variableActuals),
       vacations: vacationStates,
     );
+  }
+
+  /// Applies one spoils-ritual allocation line for [cfg] (owned by [owner])
+  /// in month [m].
+  void _applyAllocation(SliceConfig cfg, String owner, Allocation a, Month m,
+      Map<String, int> carryThis) {
+    final dest = a.destination;
+    switch (dest) {
+      case CarryInSlice():
+        carryThis[cfg.sliceId] = (carryThis[cfg.sliceId] ?? 0) + a.amountCents;
+      case QuestDestination():
+        // Category-match tithing: an attack from a category whose main
+        // category matches the quest's is untithed (full damage). From a
+        // non-matching category, the source category's pool tithe is skimmed
+        // to the war chest and only the remainder lands as damage. A quest
+        // without a main category never matches (always tithed).
+        final quest = questCfg[dest.questId];
+        final matches = quest?.mainCategoryId != null &&
+            quest!.mainCategoryId == cfg.mainCategoryId;
+        final int damage;
+        if (matches) {
+          damage = a.amountCents;
+        } else {
+          final t = Money.titheCents(a.amountCents, cfg.poolTithePct);
+          _addChest(t.titheCents, m);
+          damage = t.remainderCents;
+        }
+        questBalance[dest.questId] =
+            (questBalance[dest.questId] ?? 0) + damage;
+        final c = questContrib.putIfAbsent(dest.questId, () => {});
+        c[owner] = (c[owner] ?? 0) + damage;
+      case Discretionary():
+        final t = Money.titheCents(a.amountCents, cfg.poolTithePct);
+        _addChest(t.titheCents, m);
+        _addVault(owner, t.remainderCents);
+        availVault[owner] = (availVault[owner] ?? 0) + t.remainderCents;
+      case OverbudgetPayment():
+        // Attacks on the OVERBUDGET follow the same category-match tithing
+        // as quests, against the indebted category's main category. Damage
+        // beyond the outstanding debt is not lost — it converts to
+        // discretionary. On a matched (untithed) attack that excess still
+        // pays the pool tithe, so overpaying a debt never dodges the cut a
+        // plain discretionary conversion would have taken.
+        final target = slices[dest.sliceId];
+        final matches = target?.mainCategoryId != null &&
+            target!.mainCategoryId == cfg.mainCategoryId;
+        final outstanding = debtBySlice[dest.sliceId] ?? 0;
+        final int pay;
+        final int excessGross;
+        if (matches) {
+          pay = a.amountCents < outstanding ? a.amountCents : outstanding;
+          excessGross = a.amountCents - pay;
+          if (excessGross > 0) {
+            final t = Money.titheCents(excessGross, cfg.poolTithePct);
+            _addChest(t.titheCents, m);
+            _addVault(owner, t.remainderCents);
+            availVault[owner] = (availVault[owner] ?? 0) + t.remainderCents;
+          }
+        } else {
+          final t = Money.titheCents(a.amountCents, cfg.poolTithePct);
+          _addChest(t.titheCents, m);
+          final damage = t.remainderCents;
+          pay = damage < outstanding ? damage : outstanding;
+          final excess = damage - pay;
+          if (excess > 0) {
+            _addVault(owner, excess);
+            availVault[owner] = (availVault[owner] ?? 0) + excess;
+          }
+        }
+        if (pay > 0) {
+          debtBySlice[dest.sliceId] = outstanding - pay;
+        }
+    }
+  }
+
+  /// The grace-expired default for a personal category's leftover: the
+  /// owner's outstanding OVERBUDGETs are attacked first (gross amounts sized
+  /// so the post-tithe damage covers each debt), and only the remainder
+  /// follows the category's configured default policy. The OVERBUDGET must
+  /// be paid; skipping it is an active choice made with an explicit
+  /// allocation, never the silent default.
+  List<Allocation> _defaultAllocations(
+      SliceConfig cfg, String owner, int leftover) {
+    if (leftover <= 0) {
+      return const [];
+    }
+    final lines = <Allocation>[];
+    var remaining = leftover;
+    final indebted = debtBySlice.keys.toList()..sort();
+    for (final sliceId in indebted) {
+      if (remaining <= 0) {
+        break;
+      }
+      final outstanding = debtBySlice[sliceId] ?? 0;
+      if (outstanding <= 0 || debtOwner[sliceId] != owner) {
+        continue;
+      }
+      final target = slices[sliceId];
+      final matches = target?.mainCategoryId != null &&
+          target!.mainCategoryId == cfg.mainCategoryId;
+      final int grossNeeded;
+      if (matches || cfg.poolTithePct <= 0) {
+        grossNeeded = outstanding;
+      } else if (cfg.poolTithePct >= 100) {
+        grossNeeded = remaining;
+      } else {
+        final keep = 100 - cfg.poolTithePct;
+        grossNeeded = (outstanding * 100 + keep - 1) ~/ keep;
+      }
+      final amount = grossNeeded < remaining ? grossNeeded : remaining;
+      if (amount > 0) {
+        lines.add(Allocation(
+          destination: OverbudgetPayment(sliceId),
+          amountCents: amount,
+        ));
+        remaining -= amount;
+      }
+    }
+    if (remaining > 0) {
+      lines.add(Allocation(
+        destination: cfg.defaultLeftoverPolicy,
+        amountCents: remaining,
+      ));
+    }
+    return lines;
   }
 
   /// Whole days in a trip and days remaining as of [now]. Both bounds are taken
@@ -1302,6 +1483,22 @@ class _Builder {
     consider(asOfMonth); // ensure we sweep up to (at least) the current month
     return (min!, max!);
   }
+}
+
+/// One personal category's figures for one swept month, buffered between the
+/// sweep's phases (locks -> close settlement -> ritual allocations).
+class _SliceCalc {
+  _SliceCalc(this.cfg, this.owner, this.carryIn, this.locked, this.eff,
+      this.spent, this.leftover, this.overspend);
+
+  final SliceConfig cfg;
+  final String owner;
+  final int carryIn;
+  final int locked;
+  final int eff;
+  final int spent;
+  final int leftover;
+  final int overspend;
 }
 
 /// A recurring expense derived from a tracked account (a debt's minimum
