@@ -355,6 +355,65 @@ class ReserveCache {
   final String? petName;
 }
 
+/// One spending ring on an expedition side-floor: a vacation category rendered
+/// as a mini-monster whose HP is its budget and whose damage is the spend.
+class ExpeditionRing {
+  const ExpeditionRing({
+    required this.name,
+    required this.budgetCents,
+    required this.spentCents,
+    required this.overspendCents,
+  });
+
+  final String name;
+  final int budgetCents;
+  final int spentCents;
+  final int overspendCents;
+
+  bool get overspent => overspendCents > 0;
+
+  HpBar get hp => HpBar(currentCents: spentCents, maxCents: budgetCents);
+}
+
+/// An "expedition abroad": the adventure skin's side-floor for an open vacation.
+/// A self-contained mini-dungeon with its own budget rings, a daily-allowance
+/// ration, and overspend warnings — the monthly floors are untouched.
+class ExpeditionFloor {
+  const ExpeditionFloor({
+    required this.vacationId,
+    required this.name,
+    required this.totalBudgetCents,
+    required this.totalSpentCents,
+    required this.totalOverspendCents,
+    required this.daysRemaining,
+    required this.dailyAllowanceRemainingCents,
+    required this.fundBalanceCents,
+    required this.rings,
+  });
+
+  final String vacationId;
+  final String name;
+  final int totalBudgetCents;
+  final int totalSpentCents;
+  final int totalOverspendCents;
+  final int daysRemaining;
+
+  /// The ration left per remaining day — the expedition's supply line.
+  final int dailyAllowanceRemainingCents;
+
+  /// The backing fund's balance after this expedition's reservation; a negative
+  /// value means the trip is over-provisioned against its cache.
+  final int fundBalanceCents;
+
+  final List<ExpeditionRing> rings;
+
+  bool get overspent => totalOverspendCents > 0;
+
+  /// The provisioning cache ran dry — the trip is reserving more than the fund
+  /// holds, a warning the side-floor surfaces.
+  bool get fundExhausted => fundBalanceCents < 0;
+}
+
 /// The whole adventure read-model for one dungeon floor.
 class GameState {
   const GameState({
@@ -373,6 +432,7 @@ class GameState {
     required this.goldPouch,
     required this.warChest,
     required this.reserveCaches,
+    this.expeditions = const [],
   });
 
   /// The month this floor represents.
@@ -408,6 +468,9 @@ class GameState {
 
   /// Reserve caches NOT linked to a pet.
   final List<ReserveCache> reserveCaches;
+
+  /// Open vacations rendered as "expedition abroad" side-floors.
+  final List<ExpeditionFloor> expeditions;
 
   bool get heroWounded => heroHpLostCents > 0;
 }

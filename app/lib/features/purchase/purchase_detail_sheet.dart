@@ -459,6 +459,8 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
         return state.quests[questId]?.name ?? 'Quest';
       case EmergencyCharge(:final fundId):
         return state.emergencyFunds[fundId]?.name ?? 'Emergency fund';
+      case VacationCharge(:final vacationId):
+        return state.vacations[vacationId]?.name ?? 'Vacation';
     }
   }
 

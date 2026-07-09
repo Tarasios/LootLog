@@ -52,6 +52,10 @@ class _Builder {
   final Map<String, PetSet> petCfg = {};
   final Map<String, MemberSet> memberCfg = {};
 
+  // Vacations: last-writer-wins config by id, plus the set of closed ones.
+  final Map<String, VacationSet> vacationCfg = {};
+  final Set<String> closedVacations = {};
+
   // Per-adult share tables, last-writer-wins per month key.
   final Map<String, GroupShareSet> shareSets = {};
   final Map<String, RecurringExpenseSet> recurringCfg = {};
@@ -206,6 +210,10 @@ class _Builder {
         accounts[e.accountId] = e;
       case AccountTransferRecorded():
         accountTransfers.add(e);
+      case VacationSet():
+        vacationCfg[e.vacationId] = e;
+      case VacationClosed():
+        closedVacations.add(e.vacationId);
       case SettingChanged():
         _applySetting(e);
       case CosmeticSet():
@@ -413,6 +421,9 @@ class _Builder {
     final groupSpent = <String, int>{};
     final questDrawdown = <String, int>{};
     final emergencyPurchases = <PurchaseAdded>[];
+    // Vacation spend, keyed "vacationId|categoryId", plus per-vacation totals.
+    final vacationCategorySpent = <String, int>{};
+    final vacationTotalSpent = <String, int>{};
 
     for (final acc in purchases.values) {
       if (acc.voided) {
@@ -463,6 +474,35 @@ class _Builder {
               (questDrawdown[target.questId] ?? 0) + e.amountCents;
         case EmergencyCharge():
           emergencyPurchases.add(e);
+        case VacationCharge():
+          // Vacation spend is tracked per category; the money is already
+          // reserved off the source fund, so it never hits a vault or a normal
+          // budget. Charges to an unknown vacation are ignored.
+          if (vacationCfg.containsKey(target.vacationId)) {
+            final k = '${target.vacationId}|${target.categoryId}';
+            vacationCategorySpent[k] =
+                (vacationCategorySpent[k] ?? 0) + e.amountCents;
+            vacationTotalSpent[target.vacationId] =
+                (vacationTotalSpent[target.vacationId] ?? 0) + e.amountCents;
+          }
+      }
+    }
+
+    // Vacation fund reservations. Each vacation reserves off its source fund:
+    // the full declared budget while open, or the actual spend once closed (the
+    // leftover having been returned). Quest-backed reservations draw down the
+    // quest; emergency-backed ones are subtracted from the fund balance below.
+    final vacationDrawByFund = <String, int>{}; // fundId -> reserved
+    for (final v in vacationCfg.values) {
+      final budget = v.categories.fold(0, (a, c) => a + c.limitCents);
+      final spent = vacationTotalSpent[v.vacationId] ?? 0;
+      final reserved = closedVacations.contains(v.vacationId) ? spent : budget;
+      switch (v.fund) {
+        case VacationFundQuest(:final questId):
+          questDrawdown[questId] = (questDrawdown[questId] ?? 0) + reserved;
+        case VacationFundEmergency(:final fundId):
+          vacationDrawByFund[fundId] =
+              (vacationDrawByFund[fundId] ?? 0) + reserved;
       }
     }
 
@@ -785,7 +825,11 @@ class _Builder {
 
     // Emergency funds and ransacks (chronological per fund).
     final fundStates = <String, EmergencyFundState>{};
-    final allFundIds = {...fundCfg.keys, ...fundSchedule.keys};
+    final allFundIds = {
+      ...fundCfg.keys,
+      ...fundSchedule.keys,
+      ...vacationDrawByFund.keys,
+    };
     for (final e in emergencyPurchases) {
       allFundIds.add((e.target as EmergencyCharge).fundId);
     }
@@ -819,6 +863,11 @@ class _Builder {
           }
         }
       }
+
+      // A vacation drawn from this fund reserves its budget off the top (the
+      // leftover is returned on close); this can push the balance negative,
+      // which the vacation dashboard surfaces as an over-reservation warning.
+      running -= vacationDrawByFund[fundId] ?? 0;
 
       final cfg = fundCfg[fundId];
       fundStates[fundId] = EmergencyFundState(
@@ -1034,6 +1083,48 @@ class _Builder {
       list.sort((a, b) => a.effectiveFromMonth.compareTo(b.effectiveFromMonth));
     }
 
+    // Vacations. Per-category and total spend come from vacation charges; the
+    // backing fund's post-reservation balance is read from the quest / fund
+    // states already computed. Daily-allowance figures derive from the trip's
+    // calendar bounds and the read instant.
+    final vacationStates = <String, VacationState>{};
+    for (final v in vacationCfg.values) {
+      final closed = closedVacations.contains(v.vacationId);
+      final cats = <VacationCategoryState>[
+        for (final c in v.categories)
+          VacationCategoryState(
+            categoryId: c.categoryId,
+            name: c.name,
+            limitCents: c.limitCents,
+            spentCents:
+                vacationCategorySpent['${v.vacationId}|${c.categoryId}'] ?? 0,
+          ),
+      ];
+      final budget = v.categories.fold(0, (a, c) => a + c.limitCents);
+      final spent = vacationTotalSpent[v.vacationId] ?? 0;
+      final reserved = closed ? spent : budget;
+      final fundBalance = switch (v.fund) {
+        VacationFundQuest(:final questId) =>
+          questStates[questId]?.balanceCents ?? 0,
+        VacationFundEmergency(:final fundId) =>
+          fundStates[fundId]?.balanceCents ?? 0,
+      };
+      final (daysTotal, daysRemaining) = _vacationDays(v.startDate, v.endDate);
+      vacationStates[v.vacationId] = VacationState(
+        vacationId: v.vacationId,
+        name: v.name,
+        fund: v.fund,
+        startDate: v.startDate,
+        endDate: v.endDate,
+        closed: closed,
+        categories: cats,
+        fundBalanceCents: fundBalance,
+        reservedFromFundCents: reserved,
+        daysTotal: daysTotal,
+        daysRemaining: daysRemaining,
+      );
+    }
+
     return HouseholdState(
       settings: settings,
       userIds: userIds,
@@ -1087,7 +1178,35 @@ class _Builder {
           ),
       },
       variableActuals: Map<String, int>.from(variableActuals),
+      vacations: vacationStates,
     );
+  }
+
+  /// Whole days in a trip and days remaining as of [now]. Both bounds are taken
+  /// as calendar dates; the total is inclusive of both endpoints (at least 1),
+  /// and the remaining count includes the current day while the trip is live —
+  /// the full total before it starts, and 0 once it has ended.
+  (int, int) _vacationDays(DateTime start, DateTime end) {
+    DateTime dateOnly(DateTime d) => DateTime.utc(d.year, d.month, d.day);
+    final s = dateOnly(start);
+    final e = dateOnly(end);
+    final today = dateOnly(now);
+    var total = e.difference(s).inDays + 1;
+    if (total < 1) {
+      total = 1;
+    }
+    int remaining;
+    if (today.isBefore(s)) {
+      remaining = total;
+    } else if (today.isAfter(e)) {
+      remaining = 0;
+    } else {
+      remaining = e.difference(today).inDays + 1;
+    }
+    if (remaining > total) {
+      remaining = total;
+    }
+    return (total, remaining);
   }
 
   String _targetLabel(ChargeTarget t) => switch (t) {
@@ -1095,6 +1214,7 @@ class _Builder {
         VaultCharge() => 'vault',
         QuestCharge() => t.questId,
         EmergencyCharge() => t.fundId,
+        VacationCharge() => t.vacationId,
       };
 
   Month _abandonMonth(String questId) {

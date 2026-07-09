@@ -586,4 +586,121 @@ void main() {
       expect(g.expeditionSuppliesCents, 300000);
     });
   });
+
+  group('expedition side-floors', () {
+    // A group slice contributing an emergency amount off the top seeds the fund.
+    BudgetSliceSet funder(String fundId, int amount, {DateTime? at}) => _slice(
+          id: 'funder_$fundId',
+          ownership: const GroupSlice(),
+          limit: 500000,
+          emergency:
+              EmergencyContribution(fundId: fundId, amountCents: amount),
+          at: at ?? _day(2026, 7, 1),
+        );
+
+    VacationSet vac({
+      required String id,
+      required String name,
+      required VacationFund source,
+      required DateTime start,
+      required DateTime end,
+      required List<VacationCategory> categories,
+    }) =>
+        VacationSet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: me,
+          occurredAt: _day(2026, 7, 1),
+          createdAt: _day(2026, 7, 1),
+          vacationId: id,
+          name: name,
+          fund: source,
+          startDate: start,
+          endDate: end,
+          categories: categories,
+        );
+
+    test('an open vacation becomes an expedition side-floor with rings', () {
+      final events = [
+        _member(me, MemberRole.adult),
+        EmergencyFundSet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: me,
+          occurredAt: _day(2026, 7, 1),
+          createdAt: _day(2026, 7, 1),
+          fundId: 'f',
+          name: 'Travel',
+        ),
+        funder('f', 300000),
+        vac(
+          id: 'v',
+          name: 'Tofino',
+          source: const VacationFundEmergency('f'),
+          start: DateTime.utc(2026, 7, 10),
+          end: DateTime.utc(2026, 7, 19),
+          categories: const [
+            VacationCategory(categoryId: 'food', name: 'Food', limitCents: 40000),
+            VacationCategory(categoryId: 'gas', name: 'Gas', limitCents: 10000),
+          ],
+        ),
+        _buy(
+            id: 'p1',
+            target: const VacationCharge('v', 'food'),
+            amount: 60000,
+            at: _day(2026, 7, 12)),
+      ];
+      final g = _game(events, asOf: _day(2026, 7, 14));
+      expect(g.expeditions, hasLength(1));
+      final e = g.expeditions.single;
+      expect(e.name, 'Tofino');
+      expect(e.totalBudgetCents, 50000);
+      expect(e.totalSpentCents, 60000);
+      expect(e.overspent, isTrue);
+      expect(e.totalOverspendCents, 10000);
+      // June 14 is not this trip; days remaining are counted from July 14.
+      expect(e.daysRemaining, 6);
+      expect(e.rings.map((r) => r.name), ['Food', 'Gas']);
+      final food = e.rings.firstWhere((r) => r.name == 'Food');
+      expect(food.spentCents, 60000);
+      expect(food.overspent, isTrue);
+      expect(food.hp.pct, 100);
+    });
+
+    test('a closed vacation is not shown as an expedition', () {
+      final events = [
+        _member(me, MemberRole.adult),
+        EmergencyFundSet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: me,
+          occurredAt: _day(2026, 7, 1),
+          createdAt: _day(2026, 7, 1),
+          fundId: 'f',
+          name: 'Travel',
+        ),
+        funder('f', 300000),
+        vac(
+          id: 'v',
+          name: 'Tofino',
+          source: const VacationFundEmergency('f'),
+          start: DateTime.utc(2026, 7, 10),
+          end: DateTime.utc(2026, 7, 12),
+          categories: const [
+            VacationCategory(categoryId: 'food', name: 'Food', limitCents: 40000),
+          ],
+        ),
+        VacationClosed(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: me,
+          occurredAt: _day(2026, 7, 13),
+          createdAt: _day(2026, 7, 13),
+          vacationId: 'v',
+        ),
+      ];
+      final g = _game(events, asOf: _day(2026, 7, 20));
+      expect(g.expeditions, isEmpty);
+    });
+  });
 }

@@ -336,6 +336,8 @@ class _ChargeChip extends StatelessWidget {
         return (bg: s.surfaceContainerHighest, fg: s.onSurface);
       case ChargeGroupKind.emergency:
         return (bg: s.errorContainer, fg: s.onErrorContainer);
+      case ChargeGroupKind.vacation:
+        return (bg: s.tertiaryContainer, fg: s.onTertiaryContainer);
     }
   }
 
@@ -351,6 +353,8 @@ class _ChargeChip extends StatelessWidget {
         return Icons.flag_outlined;
       case ChargeGroupKind.emergency:
         return Icons.emergency_outlined;
+      case ChargeGroupKind.vacation:
+        return Icons.beach_access_outlined;
     }
   }
 

@@ -120,7 +120,112 @@ class AdventureDashboard extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           ReserveCacheStrip(caches: game.reserveCaches),
         ],
+        for (final e in game.expeditions) ...[
+          const SizedBox(height: AppSpacing.md),
+          ExpeditionFloorCard(expedition: e),
+        ],
       ],
+    );
+  }
+}
+
+/// An "expedition abroad" side-floor: an open vacation rendered as its own
+/// mini-dungeon with budget rings, a supply ration, and overspend warnings.
+class ExpeditionFloorCard extends StatelessWidget {
+  const ExpeditionFloorCard({super.key, required this.expedition});
+
+  final ExpeditionFloor expedition;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final e = expedition;
+    final ration = e.daysRemaining > 0
+        ? '${money(e.dailyAllowanceRemainingCents)}/day · '
+            '${e.daysRemaining} days left'
+        : 'expedition over';
+    return _SectionCard(
+      title: 'Expedition abroad — ${e.name}',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.explore_outlined, size: 16, color: scheme.tertiary),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Text(
+                  '${money(e.totalSpentCents)} of ${money(e.totalBudgetCents)} '
+                  'provisions spent · $ration',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+            ],
+          ),
+          if (e.overspent)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              child: _Tag(
+                label: 'Over provisions by ${money(e.totalOverspendCents)}',
+                color: scheme.error,
+              ),
+            ),
+          if (e.fundExhausted)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              child: _Tag(
+                label: 'Cache depleted by ${money(-e.fundBalanceCents)}',
+                color: scheme.error,
+              ),
+            ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [for (final r in e.rings) _ExpeditionRingChip(ring: r)],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExpeditionRingChip extends StatelessWidget {
+  const _ExpeditionRingChip({required this.ring});
+
+  final ExpeditionRing ring;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: AppRadii.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            ring.name,
+            style: Theme.of(context)
+                .textTheme
+                .titleSmall
+                ?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          Text(
+            '${money(ring.spentCents)} / ${money(ring.budgetCents)}',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                  color: ring.overspent ? scheme.error : null,
+                ),
+          ),
+        ],
+      ),
     );
   }
 }

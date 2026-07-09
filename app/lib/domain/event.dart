@@ -415,6 +415,32 @@ sealed class Event {
           key: p['key'] as String,
           value: p['value'],
         );
+      case 'VacationSet':
+        return VacationSet(
+          eventId: eventId,
+          deviceId: deviceId,
+          userId: userId,
+          occurredAt: occurredAt,
+          createdAt: createdAt,
+          vacationId: p['vacationId'] as String,
+          name: p['name'] as String,
+          fund: VacationFund.fromJson((p['fund'] as Map).cast()),
+          startDate: DateTime.parse(p['startDate'] as String).toUtc(),
+          endDate: DateTime.parse(p['endDate'] as String).toUtc(),
+          categories: [
+            for (final c in p['categories'] as List)
+              VacationCategory.fromJson((c as Map).cast()),
+          ],
+        );
+      case 'VacationClosed':
+        return VacationClosed(
+          eventId: eventId,
+          deviceId: deviceId,
+          userId: userId,
+          occurredAt: occurredAt,
+          createdAt: createdAt,
+          vacationId: p['vacationId'] as String,
+        );
       case 'CosmeticSet':
         return CosmeticSet(
           eventId: eventId,
@@ -449,7 +475,10 @@ class PurchaseAdded extends Event {
     this.taxDeductible,
     this.note,
   }) {
-    if (shared && (target is QuestCharge || target is EmergencyCharge)) {
+    if (shared &&
+        (target is QuestCharge ||
+            target is EmergencyCharge ||
+            target is VacationCharge)) {
       throw ArgumentError(
         'shared is only valid for personal-slice and vault charge targets',
       );
@@ -1301,6 +1330,72 @@ class SettingChanged extends Event {
 
   @override
   Map<String, dynamic> payload() => {'key': key, 'value': value};
+}
+
+/// Opens or amends a **vacation** — a self-contained sub-budget for a trip,
+/// drawn from a source fund (a savings quest or an emergency fund). It has its
+/// own spending categories with limits, independent of the monthly budget.
+/// Last-writer-wins by [vacationId]; editing re-declares the whole vacation
+/// (categories keep their ids so in-progress spending stays attributed).
+class VacationSet extends Event {
+  const VacationSet({
+    required super.eventId,
+    required super.deviceId,
+    required super.userId,
+    required super.occurredAt,
+    required super.createdAt,
+    required this.vacationId,
+    required this.name,
+    required this.fund,
+    required this.startDate,
+    required this.endDate,
+    required this.categories,
+  });
+
+  final String vacationId;
+  final String name;
+
+  /// The source fund this vacation reserves its budget from.
+  final VacationFund fund;
+
+  /// The trip's calendar bounds (used for daily-allowance math).
+  final DateTime startDate;
+  final DateTime endDate;
+  final List<VacationCategory> categories;
+
+  @override
+  String get type => 'VacationSet';
+
+  @override
+  Map<String, dynamic> payload() => {
+        'vacationId': vacationId,
+        'name': name,
+        'fund': fund.toJson(),
+        'startDate': startDate.toUtc().toIso8601String(),
+        'endDate': endDate.toUtc().toIso8601String(),
+        'categories': [for (final c in categories) c.toJson()],
+      };
+}
+
+/// Closes a vacation: no further vacation charges are accepted and the unspent
+/// budget (leftover) is returned to the source fund at read time.
+class VacationClosed extends Event {
+  const VacationClosed({
+    required super.eventId,
+    required super.deviceId,
+    required super.userId,
+    required super.occurredAt,
+    required super.createdAt,
+    required this.vacationId,
+  });
+
+  final String vacationId;
+
+  @override
+  String get type => 'VacationClosed';
+
+  @override
+  Map<String, dynamic> payload() => {'vacationId': vacationId};
 }
 
 /// A cosmetic setting for the adventure skin. Domain-inert.

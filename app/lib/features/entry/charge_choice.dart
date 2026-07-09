@@ -12,7 +12,14 @@ import '../../domain/time.dart';
 import '../../domain/value_types.dart';
 
 /// The visually distinct kinds of charge destination.
-enum ChargeGroupKind { personalSlice, groupSlice, vault, quest, emergency }
+enum ChargeGroupKind {
+  personalSlice,
+  groupSlice,
+  vault,
+  quest,
+  emergency,
+  vacation,
+}
 
 /// One tappable charge destination.
 class ChargeChoice {
@@ -122,6 +129,21 @@ List<ChargeGroup> buildChargeGroups(
     supportsShared: true,
   );
 
+  // Open vacations expose one charge target per category, each carrying its
+  // remaining sub-budget so the trip stays self-contained.
+  final vacation = <ChargeChoice>[];
+  for (final v in state.openVacations) {
+    for (final c in v.categories) {
+      vacation.add(ChargeChoice(
+        target: VacationCharge(v.vacationId, c.categoryId),
+        label: '${v.name} · ${c.name}',
+        subtitle: '${_money(c.leftoverCents)} left',
+        kind: ChargeGroupKind.vacation,
+        supportsShared: false,
+      ));
+    }
+  }
+
   return [
     if (personal.isNotEmpty)
       ChargeGroup(
@@ -151,6 +173,12 @@ List<ChargeGroup> buildChargeGroups(
         kind: ChargeGroupKind.emergency,
         label: 'Emergency funds',
         choices: funds,
+      ),
+    if (vacation.isNotEmpty)
+      ChargeGroup(
+        kind: ChargeGroupKind.vacation,
+        label: 'Vacation',
+        choices: vacation,
       ),
   ];
 }

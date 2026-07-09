@@ -155,6 +155,8 @@ String _folderFor(HouseholdState state, ChargeTarget target) {
     QuestCharge(:final questId) => state.quests[questId]?.name ?? 'Quest',
     EmergencyCharge(:final fundId) =>
       state.emergencyFunds[fundId]?.name ?? 'Emergency',
+    VacationCharge(:final vacationId) =>
+      state.vacations[vacationId]?.name ?? 'Vacation',
   };
   return sanitizeSegment(label, fallback: 'receipts');
 }

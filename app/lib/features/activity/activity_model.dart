@@ -65,11 +65,14 @@ List<ActivityItem> buildActivityFeed(
   String questName(String id) => state.quests[id]?.name ?? 'a quest';
   String fundName(String id) => state.emergencyFunds[id]?.name ?? 'a fund';
 
+  String vacationName(String id) => state.vacations[id]?.name ?? 'a vacation';
+
   String targetLabel(ChargeTarget t) => switch (t) {
         SliceCharge(:final sliceId) => sliceName(sliceId),
         VaultCharge() => 'their vault',
         QuestCharge(:final questId) => questName(questId),
         EmergencyCharge(:final fundId) => fundName(fundId),
+        VacationCharge(:final vacationId) => vacationName(vacationId),
       };
 
   final items = <ActivityItem>[];
@@ -277,6 +280,8 @@ List<ActivityItem> buildActivityFeed(
       case CosmeticSet():
       case VariableExpenseRecorded():
       case MainCategorySet():
+      case VacationSet():
+      case VacationClosed():
         item = null;
     }
     if (item != null) {
