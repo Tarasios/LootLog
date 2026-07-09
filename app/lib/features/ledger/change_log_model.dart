@@ -259,6 +259,11 @@ List<ChangeLogEntry> buildChangeLog(
           'Changed a cosmetic',
           detail: e.key,
         ),
+      GameRewardGranted() => entry(
+          ChangeLogKind.cosmetic,
+          'Earned a reward',
+          detail: e.rewardId,
+        ),
     });
   }
 

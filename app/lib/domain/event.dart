@@ -451,6 +451,18 @@ sealed class Event {
           key: p['key'] as String,
           value: p['value'],
         );
+      case 'GameRewardGranted':
+        return GameRewardGranted(
+          eventId: eventId,
+          deviceId: deviceId,
+          userId: userId,
+          occurredAt: occurredAt,
+          createdAt: createdAt,
+          rewardId: p['rewardId'] as String,
+          kind: RewardKind.values.byName(p['kind'] as String),
+          sourceRef: p['sourceRef'] as String,
+          grantedAt: DateTime.parse(p['grantedAt'] as String).toUtc(),
+        );
       default:
         throw FormatException('Unknown event type: $type');
     }
@@ -1418,4 +1430,41 @@ class CosmeticSet extends Event {
 
   @override
   Map<String, dynamic> payload() => {'key': key, 'value': value};
+}
+
+/// A cosmetic reward the game layer has granted — a defeated-quest trophy, a
+/// streak title, or a habit badge. Recorded as an event so rewards sync across
+/// devices like everything else. It is part of the firewall: the money reducer
+/// ignores it entirely (a ledger with every cosmetic event stripped reduces to
+/// identical balances). [rewardId] is deterministic so re-granting the same
+/// reward is idempotent; [sourceRef] points at what earned it (a questId, a
+/// streak-threshold key, a month); [grantedAt] is when the game recognised it.
+class GameRewardGranted extends Event {
+  const GameRewardGranted({
+    required super.eventId,
+    required super.deviceId,
+    required super.userId,
+    required super.occurredAt,
+    required super.createdAt,
+    required this.rewardId,
+    required this.kind,
+    required this.sourceRef,
+    required this.grantedAt,
+  });
+
+  final String rewardId;
+  final RewardKind kind;
+  final String sourceRef;
+  final DateTime grantedAt;
+
+  @override
+  String get type => 'GameRewardGranted';
+
+  @override
+  Map<String, dynamic> payload() => {
+        'rewardId': rewardId,
+        'kind': kind.name,
+        'sourceRef': sourceRef,
+        'grantedAt': grantedAt.toUtc().toIso8601String(),
+      };
 }

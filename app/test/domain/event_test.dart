@@ -466,6 +466,17 @@ void main() {
         key: 'theme',
         value: 'adventure',
       ),
+      GameRewardGranted(
+        eventId: 'e',
+        deviceId: 'd',
+        userId: 'u1',
+        occurredAt: _occ,
+        createdAt: _cre,
+        rewardId: 'trophy:quest:q1',
+        kind: RewardKind.trophy,
+        sourceRef: 'q1',
+        grantedAt: _occ,
+      ),
     ];
 
     for (final sample in samples) {

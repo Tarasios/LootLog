@@ -10,9 +10,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/providers.dart';
 import '../../ui/theme.dart';
 import '../budget_setup/budget_setup_screen.dart';
+import '../homestead/homestead_screen.dart';
 import '../ledger/change_log_screen.dart';
 import '../networth/networth_screen.dart';
 import '../quests/quests_screen.dart';
+import '../rewards/trophy_hall_screen.dart';
 import '../settings/settings_screen.dart';
 import '../sync/sync_hubs_screen.dart';
 import '../vacation/vacation_screen.dart';
@@ -64,6 +66,18 @@ class ManageScreen extends ConsumerWidget {
             title: 'Vacations',
             subtitle: 'Trip sub-budgets drawn from a goal or fund',
             onTap: () => VacationScreen.open(context),
+          ),
+          _Entry(
+            icon: Icons.emoji_events_outlined,
+            title: 'Trophy hall',
+            subtitle: 'Trophies, titles, badges and your streaks',
+            onTap: () => TrophyHallScreen.open(context),
+          ),
+          _Entry(
+            icon: Icons.cottage_outlined,
+            title: 'Homestead',
+            subtitle: 'Watch the war chest build up, stage by stage',
+            onTap: () => HomesteadScreen.open(context),
           ),
           if (showNetWorth)
             _Entry(

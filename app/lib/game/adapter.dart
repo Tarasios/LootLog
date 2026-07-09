@@ -508,6 +508,7 @@ List<LogEntry> buildAdventureLog(
       case AccountTransferRecorded():
       case SettingChanged():
       case CosmeticSet():
+      case GameRewardGranted():
       case VariableExpenseRecorded():
       case MainCategorySet():
       case VacationSet():
