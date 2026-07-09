@@ -19,6 +19,7 @@ import '../ledger/ledger_screen.dart';
 import '../menu/manage_screen.dart';
 import '../ocr/ocr_confirm_screen.dart';
 import '../spoils/spoils_screen.dart';
+import '../tutorial/tutorial.dart';
 
 /// The width at or above which the shell switches to the rail + two-pane layout.
 const double kWideBreakpoint = 840;
@@ -60,14 +61,16 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.of(context).size.width >= kWideBreakpoint;
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.keyN): () =>
-            ExpenseEntryScreen.open(context),
-      },
-      child: Focus(
-        autofocus: true,
-        child: wide ? _buildWide(context) : _buildNarrow(context),
+    return TutorialGate(
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.keyN): () =>
+              ExpenseEntryScreen.open(context),
+        },
+        child: Focus(
+          autofocus: true,
+          child: wide ? _buildWide(context) : _buildNarrow(context),
+        ),
       ),
     );
   }

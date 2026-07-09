@@ -262,7 +262,7 @@ class _SpoilsBanner extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Divide the spoils',
+                      'Divide monthly leftovers',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             color: scheme.onTertiaryContainer,
                             fontWeight: FontWeight.w700,
@@ -455,8 +455,8 @@ class _VaultCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.sm),
               child: Text(
-                'Projected spoils this month: '
-                '${signedMoney(vault.projectedVaultCents)} to vault '
+                'Projected leftover this month: '
+                '${signedMoney(vault.projectedVaultCents)} to personal spending '
                 '(${money(vault.projectedLeftoverCents)} leftover at current spend)',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: scheme.onSecondaryContainer,

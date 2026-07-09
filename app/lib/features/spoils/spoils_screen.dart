@@ -53,6 +53,7 @@ Future<void> openSpoilsRitual(BuildContext context, WidgetRef ref) async {
         child: SpoilsSheetView(
           ritual: ritual,
           intro: intro,
+          isAdventure: adventure,
           onDismiss: () => Navigator.of(context).maybePop(),
           onConfirm: (result) async {
             final navigator = Navigator.of(context);
@@ -105,12 +106,13 @@ class SpoilsEntryButton extends ConsumerWidget {
     final ritual =
         buildSpoilsRitual(state, meUserId: meUserId, userNames: names);
     if (ritual == null) return const SizedBox.shrink();
+    final adventure = ref.watch(appSkinProvider) == AppSkin.adventure;
     return Padding(
       padding: const EdgeInsets.only(right: AppSpacing.sm),
       child: FilledButton.tonalIcon(
         onPressed: () => unawaited(openSpoilsRitual(context, ref)),
         icon: const Icon(Icons.auto_awesome, size: 18),
-        label: const Text('Spoils'),
+        label: Text(adventure ? 'Divide the spoils' : 'Divide leftovers'),
       ),
     );
   }

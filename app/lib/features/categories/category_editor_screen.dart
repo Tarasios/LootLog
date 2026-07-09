@@ -225,8 +225,10 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
               controller: _tithe,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                labelText: 'Pool tithe %',
-                helperText: 'Taken from discretionary leftover into the war chest',
+                labelText: 'Shared-savings cut %',
+                helperText:
+                    'Part of this budget’s leftover kept for shared savings '
+                    'instead of personal spending',
                 suffixText: '%',
               ),
             ),
