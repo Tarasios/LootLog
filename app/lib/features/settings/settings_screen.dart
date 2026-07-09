@@ -18,6 +18,7 @@ import '../../game/skin_prefs.dart';
 import '../../ui/glossary.dart';
 import '../../ui/theme.dart';
 import '../categories/category_list_screen.dart';
+import '../export/export_screen.dart';
 import '../ledger/change_log_screen.dart';
 import '../library/receipt_library_screen.dart';
 import '../tax/tax_center_screen.dart';
@@ -142,6 +143,8 @@ class SettingsScreen extends ConsumerWidget {
                 'Mirror receipts to a folder', const ReceiptLibraryScreen()),
           _nav(context, Icons.receipt_long_outlined, 'Tax center',
               'Deductible totals and package export', const TaxCenterScreen()),
+          _nav(context, Icons.table_view_outlined, 'Export',
+              'Spreadsheet (.xlsx) and Google Sheets sync', const ExportScreen()),
         ],
       ),
     );
