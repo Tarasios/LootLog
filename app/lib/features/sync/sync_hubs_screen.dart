@@ -10,9 +10,12 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../data/db/database.dart';
 import '../../data/export/event_export.dart';
@@ -231,8 +234,12 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Export new sends only what’s changed since your last export — '
-              'handy for swapping files back and forth on a trip.',
+              _canShare
+                  ? 'Export opens the share sheet — send it to a nearby phone '
+                      'with Quick Share, Bluetooth, or any app. “Export new” '
+                      'sends only what’s changed since last time.'
+                  : 'Export new sends only what’s changed since your last '
+                      'export — handy for swapping files back and forth on a trip.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -306,12 +313,18 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
     }
   }
 
+  /// Whether this build can hand a file to the OS share sheet. Android only:
+  /// that's where Nearby/Quick Share lives and is the low-effort nearby path.
+  /// Desktop saves to a file and copies it over instead.
+  bool get _canShare => !kIsWeb && Platform.isAndroid;
+
   Future<void> _export(SyncService service) async {
     setState(() => _busy = true);
     try {
       final bytes = await service.exportArchive();
-      final saved = await _saveBytes(bytes, 'duobudget-backup.dbevents.zip');
-      if (saved) _snack('Exported full backup');
+      final delivered =
+          await _deliverExport(bytes, 'duobudget-backup.dbevents.zip');
+      if (delivered) _snack('Exported full backup');
     } on Object catch (e) {
       _snack('Export failed: $e');
     } finally {
@@ -327,9 +340,9 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
         _snack('Nothing new since your last export');
         return;
       }
-      final saved =
-          await _saveBytes(export.bytes, 'duobudget-changes.dbevents.zip');
-      if (saved) {
+      final delivered =
+          await _deliverExport(export.bytes, 'duobudget-changes.dbevents.zip');
+      if (delivered) {
         final n = export.eventCount;
         _snack('Exported $n new ${n == 1 ? 'event' : 'events'}');
       }
@@ -340,8 +353,26 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
     }
   }
 
-  /// Writes [bytes] to a user-chosen location. Returns false if cancelled.
-  Future<bool> _saveBytes(List<int> bytes, String name) async {
+  /// Delivers export [bytes] to the user. On Android this opens the OS share
+  /// sheet (Nearby/Quick Share, Bluetooth, messaging…) with the file staged in
+  /// the cache dir; elsewhere it saves to a chosen location. Returns false if
+  /// the user cancelled.
+  Future<bool> _deliverExport(List<int> bytes, String name) async {
+    if (_canShare) {
+      // share_plus needs a real file path; stage it in the cache dir. It ships
+      // its own FileProvider, so no Android manifest wiring is required.
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/$name');
+      await file.writeAsBytes(bytes, flush: true);
+      final result = await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path, mimeType: 'application/zip')],
+          subject: name,
+          text: 'DuoBudget data to merge on your other device.',
+        ),
+      );
+      return result.status != ShareResultStatus.dismissed;
+    }
     final location = await getSaveLocation(suggestedName: name);
     if (location == null) return false;
     final data = XFile.fromData(
