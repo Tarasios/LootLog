@@ -206,6 +206,12 @@ optional; each asset that lands upgrades one more surface from placeholder to ar
 sizes, `_enraged_` in the name, e.g. `monster_food_enraged_4f.png`, plus the
 generic `monster_enraged_4f.png`.
 
+**The OVERBUDGET** — `overbudget_idle_4f.png`, 32×32 ×4 strip. The debt
+monster that appears when a month's overspending outlives the gold pouch. It
+should look genuinely intimidating (the scariest silhouette in the set — think
+a hulking shadow with glowing eyes), because until it falls, the category it
+came from is locked. One asset covers every OVERBUDGET.
+
 **Portraits & roster:**
 
 - `companion_portrait_1f.png` (dependent), and alternate adult/pet portraits so a
