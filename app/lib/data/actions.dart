@@ -15,9 +15,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/event.dart';
 import '../domain/ids.dart';
+import '../domain/reducer.dart';
 import '../domain/state.dart';
 import '../domain/time.dart';
 import '../domain/value_types.dart';
+import '../game/rewards/rewards.dart';
 import 'blobs/blob_store.dart';
 import 'blobs/media_ingest.dart';
 import 'db/database.dart';
@@ -94,6 +96,9 @@ class HouseholdActions {
       note: note,
     );
     await db.eventsDao.appendEvents([event]);
+    // Logging a purchase can extend a daily streak — grant any newly-earned
+    // cosmetic rewards (idempotent, cosmetic-only).
+    await grantPendingRewards();
     return purchaseId;
   }
 
@@ -254,6 +259,9 @@ class HouseholdActions {
         allocations: allocations,
       ),
     ]);
+    // Closing a category can defeat a quest boss (a trophy) and extend the
+    // on-time-ritual streak (a badge) — grant any newly-earned cosmetic rewards.
+    await grantPendingRewards();
   }
 
   /// Signs a pending war-chest writ. The reducer rejects self-approval, so this
@@ -309,6 +317,38 @@ class HouseholdActions {
 
   /// Appends a single [event], stamping nothing — callers build the whole event.
   Future<void> append(Event event) => db.eventsDao.appendEvents([event]);
+
+  /// Records any cosmetic rewards the household has newly earned — defeated-quest
+  /// trophies and habit-streak titles/badges — as [GameRewardGranted] events so
+  /// they sync like everything else. Idempotent: rewards already granted (by any
+  /// device) are skipped, so this is safe to call after every state change.
+  ///
+  /// This is on the display side of the firewall: it only ever appends cosmetic
+  /// events. It never moves a cent.
+  Future<List<GameRewardGranted>> grantPendingRewards({DateTime? asOf}) async {
+    final now = (asOf ?? DateTime.now()).toUtc();
+    final log = await db.eventsDao.allEvents();
+    final state = reduce(log, asOf: now);
+    final earned = computeEarnedRewards(state, log, asOf: now);
+    final pending = ungrantedRewards(earned, log);
+    if (pending.isEmpty) return const [];
+    final events = [
+      for (final r in pending)
+        GameRewardGranted(
+          eventId: uuidv7(),
+          deviceId: deviceId,
+          userId: meUserId,
+          occurredAt: now,
+          createdAt: now,
+          rewardId: r.rewardId,
+          kind: r.kind,
+          sourceRef: r.sourceRef,
+          grantedAt: now,
+        ),
+    ];
+    await db.eventsDao.appendEvents(events);
+    return events;
+  }
 
   /// Sets a user's income for [month] (last-writer-wins in the reducer).
   Future<void> setIncome({
