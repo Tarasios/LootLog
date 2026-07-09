@@ -112,6 +112,24 @@ class PairedHubs extends Table {
   Set<Column<Object>> get primaryKey => {hubId};
 }
 
+/// A device-local bookmark for the "export since last export" shortcut: the
+/// highest event `rowid` (local insertion order) included in the last export.
+/// Because rowid advances for both locally authored and *imported* events, an
+/// incremental export selects everything that has arrived since — captured
+/// events and merged-in events alike — with a single monotonic cursor. Purely
+/// device-local bookkeeping, never synced.
+@DataClassName('ExportBookmarkRow')
+class ExportBookmarks extends Table {
+  /// Singleton row; always 0.
+  IntColumn get id => integer().withDefault(const Constant(0))();
+
+  /// The highest event rowid folded into the last export (0 = never exported).
+  IntColumn get lastExportedRowid => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 /// Reserved for future reducer memoization: a serialized `HouseholdState` valid
 /// up to some event. Schema only — nothing reads or writes this yet.
 @DataClassName('SnapshotRow')

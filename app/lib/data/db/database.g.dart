@@ -5,6 +5,7 @@ part of 'database.dart';
 // ignore_for_file: type=lint
 mixin _$EventsDaoMixin on DatabaseAccessor<AppDatabase> {
   $EventsTable get events => attachedDatabase.events;
+  $ExportBookmarksTable get exportBookmarks => attachedDatabase.exportBookmarks;
   EventsDaoManager get managers => EventsDaoManager(this);
 }
 
@@ -13,6 +14,11 @@ class EventsDaoManager {
   EventsDaoManager(this._db);
   $$EventsTableTableManager get events =>
       $$EventsTableTableManager(_db.attachedDatabase, _db.events);
+  $$ExportBookmarksTableTableManager get exportBookmarks =>
+      $$ExportBookmarksTableTableManager(
+        _db.attachedDatabase,
+        _db.exportBookmarks,
+      );
 }
 
 mixin _$SyncDaoMixin on DatabaseAccessor<AppDatabase> {
@@ -2782,6 +2788,214 @@ class LocalSetupRowsCompanion extends UpdateCompanion<LocalSetupRow> {
   }
 }
 
+class $ExportBookmarksTable extends ExportBookmarks
+    with TableInfo<$ExportBookmarksTable, ExportBookmarkRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ExportBookmarksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _lastExportedRowidMeta = const VerificationMeta(
+    'lastExportedRowid',
+  );
+  @override
+  late final GeneratedColumn<int> lastExportedRowid = GeneratedColumn<int>(
+    'last_exported_rowid',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, lastExportedRowid];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'export_bookmarks';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ExportBookmarkRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('last_exported_rowid')) {
+      context.handle(
+        _lastExportedRowidMeta,
+        lastExportedRowid.isAcceptableOrUnknown(
+          data['last_exported_rowid']!,
+          _lastExportedRowidMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ExportBookmarkRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ExportBookmarkRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      lastExportedRowid: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_exported_rowid'],
+      )!,
+    );
+  }
+
+  @override
+  $ExportBookmarksTable createAlias(String alias) {
+    return $ExportBookmarksTable(attachedDatabase, alias);
+  }
+}
+
+class ExportBookmarkRow extends DataClass
+    implements Insertable<ExportBookmarkRow> {
+  /// Singleton row; always 0.
+  final int id;
+
+  /// The highest event rowid folded into the last export (0 = never exported).
+  final int lastExportedRowid;
+  const ExportBookmarkRow({required this.id, required this.lastExportedRowid});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['last_exported_rowid'] = Variable<int>(lastExportedRowid);
+    return map;
+  }
+
+  ExportBookmarksCompanion toCompanion(bool nullToAbsent) {
+    return ExportBookmarksCompanion(
+      id: Value(id),
+      lastExportedRowid: Value(lastExportedRowid),
+    );
+  }
+
+  factory ExportBookmarkRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ExportBookmarkRow(
+      id: serializer.fromJson<int>(json['id']),
+      lastExportedRowid: serializer.fromJson<int>(json['lastExportedRowid']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'lastExportedRowid': serializer.toJson<int>(lastExportedRowid),
+    };
+  }
+
+  ExportBookmarkRow copyWith({int? id, int? lastExportedRowid}) =>
+      ExportBookmarkRow(
+        id: id ?? this.id,
+        lastExportedRowid: lastExportedRowid ?? this.lastExportedRowid,
+      );
+  ExportBookmarkRow copyWithCompanion(ExportBookmarksCompanion data) {
+    return ExportBookmarkRow(
+      id: data.id.present ? data.id.value : this.id,
+      lastExportedRowid: data.lastExportedRowid.present
+          ? data.lastExportedRowid.value
+          : this.lastExportedRowid,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExportBookmarkRow(')
+          ..write('id: $id, ')
+          ..write('lastExportedRowid: $lastExportedRowid')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, lastExportedRowid);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ExportBookmarkRow &&
+          other.id == this.id &&
+          other.lastExportedRowid == this.lastExportedRowid);
+}
+
+class ExportBookmarksCompanion extends UpdateCompanion<ExportBookmarkRow> {
+  final Value<int> id;
+  final Value<int> lastExportedRowid;
+  const ExportBookmarksCompanion({
+    this.id = const Value.absent(),
+    this.lastExportedRowid = const Value.absent(),
+  });
+  ExportBookmarksCompanion.insert({
+    this.id = const Value.absent(),
+    this.lastExportedRowid = const Value.absent(),
+  });
+  static Insertable<ExportBookmarkRow> custom({
+    Expression<int>? id,
+    Expression<int>? lastExportedRowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (lastExportedRowid != null) 'last_exported_rowid': lastExportedRowid,
+    });
+  }
+
+  ExportBookmarksCompanion copyWith({
+    Value<int>? id,
+    Value<int>? lastExportedRowid,
+  }) {
+    return ExportBookmarksCompanion(
+      id: id ?? this.id,
+      lastExportedRowid: lastExportedRowid ?? this.lastExportedRowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (lastExportedRowid.present) {
+      map['last_exported_rowid'] = Variable<int>(lastExportedRowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExportBookmarksCompanion(')
+          ..write('id: $id, ')
+          ..write('lastExportedRowid: $lastExportedRowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2796,6 +3010,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $PairedHubsTable pairedHubs = $PairedHubsTable(this);
   late final $SnapshotsTable snapshots = $SnapshotsTable(this);
   late final $LocalSetupRowsTable localSetupRows = $LocalSetupRowsTable(this);
+  late final $ExportBookmarksTable exportBookmarks = $ExportBookmarksTable(
+    this,
+  );
   late final EventsDao eventsDao = EventsDao(this as AppDatabase);
   late final SyncDao syncDao = SyncDao(this as AppDatabase);
   late final HubHostDao hubHostDao = HubHostDao(this as AppDatabase);
@@ -2815,6 +3032,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     pairedHubs,
     snapshots,
     localSetupRows,
+    exportBookmarks,
   ];
   @override
   DriftDatabaseOptions get options =>
@@ -4389,6 +4607,151 @@ typedef $$LocalSetupRowsTableProcessedTableManager =
       LocalSetupRow,
       PrefetchHooks Function()
     >;
+typedef $$ExportBookmarksTableCreateCompanionBuilder =
+    ExportBookmarksCompanion Function({
+      Value<int> id,
+      Value<int> lastExportedRowid,
+    });
+typedef $$ExportBookmarksTableUpdateCompanionBuilder =
+    ExportBookmarksCompanion Function({
+      Value<int> id,
+      Value<int> lastExportedRowid,
+    });
+
+class $$ExportBookmarksTableFilterComposer
+    extends Composer<_$AppDatabase, $ExportBookmarksTable> {
+  $$ExportBookmarksTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastExportedRowid => $composableBuilder(
+    column: $table.lastExportedRowid,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ExportBookmarksTableOrderingComposer
+    extends Composer<_$AppDatabase, $ExportBookmarksTable> {
+  $$ExportBookmarksTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastExportedRowid => $composableBuilder(
+    column: $table.lastExportedRowid,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ExportBookmarksTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ExportBookmarksTable> {
+  $$ExportBookmarksTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get lastExportedRowid => $composableBuilder(
+    column: $table.lastExportedRowid,
+    builder: (column) => column,
+  );
+}
+
+class $$ExportBookmarksTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ExportBookmarksTable,
+          ExportBookmarkRow,
+          $$ExportBookmarksTableFilterComposer,
+          $$ExportBookmarksTableOrderingComposer,
+          $$ExportBookmarksTableAnnotationComposer,
+          $$ExportBookmarksTableCreateCompanionBuilder,
+          $$ExportBookmarksTableUpdateCompanionBuilder,
+          (
+            ExportBookmarkRow,
+            BaseReferences<
+              _$AppDatabase,
+              $ExportBookmarksTable,
+              ExportBookmarkRow
+            >,
+          ),
+          ExportBookmarkRow,
+          PrefetchHooks Function()
+        > {
+  $$ExportBookmarksTableTableManager(
+    _$AppDatabase db,
+    $ExportBookmarksTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ExportBookmarksTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ExportBookmarksTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ExportBookmarksTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> lastExportedRowid = const Value.absent(),
+              }) => ExportBookmarksCompanion(
+                id: id,
+                lastExportedRowid: lastExportedRowid,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> lastExportedRowid = const Value.absent(),
+              }) => ExportBookmarksCompanion.insert(
+                id: id,
+                lastExportedRowid: lastExportedRowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ExportBookmarksTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ExportBookmarksTable,
+      ExportBookmarkRow,
+      $$ExportBookmarksTableFilterComposer,
+      $$ExportBookmarksTableOrderingComposer,
+      $$ExportBookmarksTableAnnotationComposer,
+      $$ExportBookmarksTableCreateCompanionBuilder,
+      $$ExportBookmarksTableUpdateCompanionBuilder,
+      (
+        ExportBookmarkRow,
+        BaseReferences<_$AppDatabase, $ExportBookmarksTable, ExportBookmarkRow>,
+      ),
+      ExportBookmarkRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4411,4 +4774,6 @@ class $AppDatabaseManager {
       $$SnapshotsTableTableManager(_db, _db.snapshots);
   $$LocalSetupRowsTableTableManager get localSetupRows =>
       $$LocalSetupRowsTableTableManager(_db, _db.localSetupRows);
+  $$ExportBookmarksTableTableManager get exportBookmarks =>
+      $$ExportBookmarksTableTableManager(_db, _db.exportBookmarks);
 }

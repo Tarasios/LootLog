@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/db/database.dart';
 import '../../data/export/event_export.dart';
+import '../../data/export/merge_import.dart';
 import '../../data/sync/sync_service.dart';
 import '../../ui/theme.dart';
 import 'sync_status.dart';
@@ -203,16 +204,23 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
             const Text(
               'When two devices can’t reach a hub, export a .dbevents.zip and '
               'import it on the other. Import is safe to repeat — events and '
-              'receipts are matched by id and content hash.',
+              'receipts are matched by id and content hash, and nothing is ever '
+              'overwritten.',
             ),
             const SizedBox(height: AppSpacing.sm),
             Wrap(
               spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.xs,
               children: [
                 OutlinedButton.icon(
                   onPressed: _busy ? null : () => _export(service),
                   icon: const Icon(Icons.upload_file),
-                  label: const Text('Export'),
+                  label: const Text('Export all'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _busy ? null : () => _exportSince(service),
+                  icon: const Icon(Icons.difference_outlined),
+                  label: const Text('Export new'),
                 ),
                 OutlinedButton.icon(
                   onPressed: _busy ? null : () => _import(service),
@@ -220,6 +228,14 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
                   label: const Text('Import'),
                 ),
               ],
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Export new sends only what’s changed since your last export — '
+              'handy for swapping files back and forth on a trip.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
           ],
         ),
@@ -294,22 +310,47 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
     setState(() => _busy = true);
     try {
       final bytes = await service.exportArchive();
-      final location = await getSaveLocation(
-        suggestedName: 'duobudget-backup.dbevents.zip',
-      );
-      if (location == null) return;
-      final data = XFile.fromData(
-        Uint8List.fromList(bytes),
-        mimeType: 'application/zip',
-        name: 'duobudget-backup.dbevents.zip',
-      );
-      await data.saveTo(location.path);
-      _snack('Exported backup');
+      final saved = await _saveBytes(bytes, 'duobudget-backup.dbevents.zip');
+      if (saved) _snack('Exported full backup');
     } on Object catch (e) {
       _snack('Export failed: $e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<void> _exportSince(SyncService service) async {
+    setState(() => _busy = true);
+    try {
+      final export = await service.exportSinceLastExport();
+      if (export == null) {
+        _snack('Nothing new since your last export');
+        return;
+      }
+      final saved =
+          await _saveBytes(export.bytes, 'duobudget-changes.dbevents.zip');
+      if (saved) {
+        final n = export.eventCount;
+        _snack('Exported $n new ${n == 1 ? 'event' : 'events'}');
+      }
+    } on Object catch (e) {
+      _snack('Export failed: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Writes [bytes] to a user-chosen location. Returns false if cancelled.
+  Future<bool> _saveBytes(List<int> bytes, String name) async {
+    final location = await getSaveLocation(suggestedName: name);
+    if (location == null) return false;
+    final data = XFile.fromData(
+      Uint8List.fromList(bytes),
+      mimeType: 'application/zip',
+      name: name,
+    );
+    await data.saveTo(location.path);
+    return true;
   }
 
   Future<void> _import(SyncService service) async {
@@ -322,10 +363,21 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
     setState(() => _busy = true);
     try {
       final bytes = await file.readAsBytes();
-      final count = file.name.endsWith('.dbevents')
-          ? await service.importJsonl(String.fromCharCodes(bytes))
-          : await service.importArchive(bytes);
-      _snack('Imported $count events');
+      // Preview first: parse and verify the file, count what's new vs already
+      // present, and let the user confirm before anything is written.
+      final prepared = file.name.endsWith('.dbevents')
+          ? await service.prepareImportJsonl(String.fromCharCodes(bytes))
+          : await service.prepareImportArchive(bytes);
+      if (!mounted) return;
+      final proceed = await _confirmImport(prepared.preview);
+      if (proceed != true) {
+        _snack('Import cancelled');
+        return;
+      }
+      final applied = await service.applyImport(prepared);
+      _snack(applied.isNoOp
+          ? 'Already up to date — nothing to add'
+          : 'Imported: ${applied.describe()}');
     } on BlobIntegrityException {
       // A receipt's bytes didn't match its hash — a corrupt or tampered file.
       _snack('Import blocked: a receipt in this file is corrupt or tampered.');
@@ -338,6 +390,33 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// Shows the merge preview and asks the user to confirm the import.
+  Future<bool?> _confirmImport(MergePreview preview) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Import this file?'),
+        content: Text(
+          preview.isNoOp
+              ? 'This file has nothing new — every event and receipt is '
+                  'already on this device.'
+              : '${preview.describe()}.\n\nImporting only adds what\'s '
+                  'missing; nothing is ever overwritten.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(preview.isNoOp ? 'OK' : 'Import'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _syncNow(SyncService service) async {
