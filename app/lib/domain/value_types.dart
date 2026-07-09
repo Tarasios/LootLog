@@ -408,6 +408,11 @@ enum AccountCadence { daily, monthly, quarterly, annually }
 /// (raising its recorded balance) or out of it (lowering it).
 enum TransferDirection { deposit, withdrawal }
 
+/// The flavour of a cosmetic [GameRewardGranted]. A [trophy] marks a defeated
+/// quest boss; a [title] and a [badge] are streak/habit unlocks. All three are
+/// purely decorative — the money reducer ignores the event entirely.
+enum RewardKind { trophy, title, badge }
+
 /// An emergency fund contribution designated on a slice.
 class EmergencyContribution {
   const EmergencyContribution({required this.fundId, required this.amountCents});

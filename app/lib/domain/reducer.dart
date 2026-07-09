@@ -218,6 +218,8 @@ class _Builder {
         _applySetting(e);
       case CosmeticSet():
         break; // domain-inert
+      case GameRewardGranted():
+        break; // cosmetic reward — the firewall: never touches a cent
     }
   }
 
