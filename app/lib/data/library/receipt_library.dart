@@ -13,6 +13,8 @@ library;
 
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
+
 import '../../domain/money.dart';
 import '../../domain/state.dart';
 import '../../domain/time.dart';
@@ -96,8 +98,14 @@ List<ReceiptLibraryEntry> planReceiptLibrary(HouseholdState state) {
 }
 
 /// Writes [state]'s receipt-library projection under [rootPath], reading blob
-/// bytes from [blobs]. Existing files at target paths are overwritten so user
-/// edits are ignored. Returns the list of relative paths written.
+/// bytes from [blobs]. Returns the list of relative paths actually written.
+///
+/// A file that already holds the exact receipt bytes is left completely
+/// untouched (content compared by hash), so re-projecting never rewrites,
+/// re-dates, or otherwise disturbs an archive that is already correct. A file
+/// whose content differs from the canonical receipt (a user edit inside the
+/// folder) is restored: the folder is a regenerable projection, never a
+/// source of truth.
 ///
 /// This is the only impure entry point; all path/naming decisions come from the
 /// pure [planReceiptLibrary].
@@ -111,6 +119,11 @@ Future<List<String>> projectReceiptLibrary(
   final written = <String>[];
   for (final entry in plan) {
     if (!await blobs.exists(entry.sha256)) continue;
+    // Library files hold the blob bytes verbatim, so a matching hash means
+    // the file is already exactly right: skip it, don't touch it.
+    if (await fs.fileSha256(rootPath, entry.relativePath) == entry.sha256) {
+      continue;
+    }
     final bytes = await blobs.read(entry.sha256);
     await fs.writeFile(rootPath, entry.relativePath, bytes);
     written.add(entry.relativePath);
@@ -132,6 +145,13 @@ class ReceiptLibraryFs {
     final file = File(full);
     await file.parent.create(recursive: true);
     await file.writeAsBytes(bytes, flush: true);
+  }
+
+  /// The sha256 of an existing library file, or null when it is absent.
+  Future<String?> fileSha256(String rootPath, String relativePath) async {
+    final file = File('$rootPath/$relativePath');
+    if (!await file.exists()) return null;
+    return sha256.convert(await file.readAsBytes()).toString();
   }
 }
 

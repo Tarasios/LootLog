@@ -3,9 +3,11 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:drift/native.dart';
 import 'package:duobudget/data/blobs/blob_store.dart';
+import 'package:duobudget/data/blobs/receipt_offload.dart';
 import 'package:duobudget/data/db/database.dart';
 import 'package:duobudget/data/sync/hub_server.dart';
 import 'package:duobudget/data/sync/sync_client.dart';
+import 'package:duobudget/data/sync/sync_service.dart';
 import 'package:duobudget/domain/event.dart';
 import 'package:duobudget/domain/value_types.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -130,6 +132,81 @@ void main() {
       // Re-syncing moves nothing (idempotent).
       final r2b = await c2.syncOnce();
       expect(r2b.hubs.single.pulled, 0);
+    });
+
+    test(
+        'receipt offload deletes local copies once every hub holds them, '
+        'skips re-pulling them, and fetches them back on demand', () async {
+      final hubDb = memDb();
+      final hub = HubServer(
+        db: hubDb,
+        blobs: BlobStore(Directory('${tmp.path}/hub-blobs')),
+        hubId: 'hub',
+        pairingSecret: 'secret',
+      );
+      final server = await hub.serve(port: 0);
+      final url = 'http://127.0.0.1:${server.port}';
+      addTearDown(() async {
+        await server.close(force: true);
+        await hubDb.close();
+      });
+
+      final db = memDb();
+      final blobs = BlobStore(Directory('${tmp.path}/phone-blobs'));
+      final offload =
+          ReceiptOffloadStore(dir: () async => Directory(tmp.path));
+      final service = SyncService(
+        db: db,
+        blobs: blobs,
+        deviceName: 'phone',
+        onStatus: (_) {},
+        offload: offload,
+      );
+      addTearDown(() async {
+        await service.dispose();
+        await db.close();
+      });
+
+      await offload.setEnabled(true);
+      await service.pair(url, 'secret');
+
+      final bytes = utf8Bytes('space-hungry-receipt');
+      final sha = sha256.convert(bytes).toString();
+      await blobs.save(bytes);
+      await db.eventsDao.appendEvents([
+        buy('phone', 500),
+        ReceiptAttached(
+          eventId: 'r-off',
+          deviceId: 'phone',
+          userId: 'u1',
+          occurredAt: DateTime.utc(2026, 7, 4, 18),
+          createdAt: DateTime.utc(2026, 7, 4, 18),
+          purchaseId: 'p-x',
+          sha256: sha,
+          mimeType: 'image/jpeg',
+          sizeBytes: bytes.length,
+        ),
+      ]);
+
+      // One cycle pushes the blob to the hub and then offloads the local copy.
+      final r = await service.syncNow();
+      expect(r.allOk, isTrue);
+      expect(await blobs.exists(sha), isFalse);
+      expect(await offload.shas(), contains(sha));
+
+      // The next cycle must not quietly pull it back.
+      await service.syncNow();
+      expect(await blobs.exists(sha), isFalse);
+
+      // Viewing the receipt fetches it back on demand and un-marks it.
+      expect(await service.fetchBlob(sha), isTrue);
+      expect(await blobs.exists(sha), isTrue);
+      expect(await offload.shas(), isNot(contains(sha)));
+
+      // With the switch off, nothing is offloaded even after a clean cycle.
+      await offload.setEnabled(false);
+      await service.syncNow();
+      expect(await blobs.exists(sha), isTrue);
     });
 
     test('a bad pairing secret is rejected; a bad token is unauthorized',

@@ -70,6 +70,21 @@ class BlobStore {
     return false;
   }
 
+  /// Deletes the local copy of [sha256Hex] unconditionally.
+  ///
+  /// This is the receipt-offload path: the CALLER must have verified that
+  /// every paired hub holds the blob before calling, so "referenced blobs are
+  /// never deleted" still holds for the household as a whole — only this
+  /// device's cached copy goes, and it can be fetched back on demand.
+  Future<bool> offload(String sha256Hex) async {
+    final file = fileFor(sha256Hex);
+    if (await file.exists()) {
+      await file.delete();
+      return true;
+    }
+    return false;
+  }
+
   /// Removes every stored blob not referenced by [events], returning the hashes
   /// deleted. Referenced blobs — live `ReceiptAttached`s and sprite references —
   /// are always kept.
@@ -146,6 +161,29 @@ class BlobStore {
       for (final s in memberSprite.values) ?s,
       ...cosmeticSprites,
     };
+  }
+
+  /// The subset of [referencedBlobs] that are live RECEIPT attachments only —
+  /// the candidates for receipt offloading. Sprites are excluded: they render
+  /// constantly, so evicting them would refetch on every frame's miss.
+  static Set<String> receiptBlobs(Iterable<Event> events) {
+    final ordered = events.toList()
+      ..sort((a, b) {
+        final c = a.occurredAt.compareTo(b.occurredAt);
+        return c != 0 ? c : a.eventId.compareTo(b.eventId);
+      });
+    final live = <String, Set<String>>{};
+    for (final e in ordered) {
+      switch (e) {
+        case ReceiptAttached():
+          live.putIfAbsent(e.purchaseId, () => {}).add(e.sha256);
+        case ReceiptDetached():
+          live[e.purchaseId]?.remove(e.sha256);
+        default:
+          break;
+      }
+    }
+    return {for (final shas in live.values) ...shas};
   }
 
   static final RegExp _sha256Re = RegExp(r'^[0-9a-f]{64}$');

@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/actions.dart';
+import '../../data/blobs/receipt_offload.dart';
 import '../../data/providers.dart';
 import '../../game/skin_prefs.dart';
 import '../../ui/glossary.dart';
@@ -138,6 +139,18 @@ class SettingsScreen extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => ChangeLogScreen.open(context),
           ),
+          if (!isDesktop)
+            SwitchListTile(
+              secondary: const Icon(Icons.cleaning_services_outlined),
+              title: const Text('Free up receipt space'),
+              subtitle: const Text(
+                  'Remove receipt images from this phone once every paired '
+                  'desktop hub holds a copy. Receipts stay in your budget and '
+                  'download again when you view them.'),
+              value: ref.watch(receiptOffloadEnabledProvider).value ?? false,
+              onChanged: (v) => unawaited(
+                  ref.read(receiptOffloadEnabledProvider.notifier).set(v)),
+            ),
           if (isDesktop)
             _nav(context, Icons.folder_copy_outlined, 'Receipt library',
                 'Mirror receipts to a folder', const ReceiptLibraryScreen()),

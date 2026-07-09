@@ -9,12 +9,16 @@ library;
 import 'dart:async';
 import 'dart:io';
 
+import 'dart:convert';
+
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../data/db/database.dart';
@@ -101,6 +105,26 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
                 label: const Text('Start hub'),
               )
             else ...[
+              // The pairing QR (the protocol's {url, pairingSecret} payload):
+              // scan it from a phone's "Scan QR" button to pair in one step.
+              if (hosted.lanUrls.isNotEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.sm),
+                    child: Container(
+                      color: Colors.white,
+                      padding: const EdgeInsets.all(AppSpacing.sm),
+                      child: QrImageView(
+                        data: jsonEncode({
+                          'url': hosted.lanUrls.first,
+                          'pairingSecret': hosted.pairingSecret,
+                        }),
+                        size: 180,
+                      ),
+                    ),
+                  ),
+                ),
               _copyRow('Pairing secret', hosted.pairingSecret),
               for (final url in hosted.lanUrls) _copyRow('Address', url),
               if (hosted.lanUrls.isEmpty)
@@ -180,18 +204,53 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
               decoration: const InputDecoration(labelText: 'Pairing secret'),
             ),
             const SizedBox(height: AppSpacing.sm),
-            FilledButton.icon(
-              onPressed: _busy
-                  ? null
-                  : () => _pair(service, urlCtrl.text.trim(),
-                      secretCtrl.text.trim()),
-              icon: const Icon(Icons.link),
-              label: const Text('Pair'),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.xs,
+              children: [
+                FilledButton.icon(
+                  onPressed: _busy
+                      ? null
+                      : () => _pair(service, urlCtrl.text.trim(),
+                          secretCtrl.text.trim()),
+                  icon: const Icon(Icons.link),
+                  label: const Text('Pair'),
+                ),
+                if (_canScanQr)
+                  OutlinedButton.icon(
+                    onPressed: _busy ? null : () => _scanAndPair(service),
+                    icon: const Icon(Icons.qr_code_scanner),
+                    label: const Text('Scan QR'),
+                  ),
+              ],
             ),
           ],
         ),
       ),
     );
+  }
+
+  /// Whether this build can scan a pairing QR with the camera. Android only;
+  /// the desktop side is the one showing the code.
+  bool get _canScanQr => !kIsWeb && Platform.isAndroid;
+
+  Future<void> _scanAndPair(SyncService service) async {
+    final payload = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const _ScanPairingQrScreen()),
+    );
+    if (payload == null) return;
+    try {
+      final map = (jsonDecode(payload) as Map).cast<String, dynamic>();
+      final url = map['url'] as String?;
+      final secret = map['pairingSecret'] as String?;
+      if (url == null || secret == null) {
+        _snack("That QR code isn't a DuoBudget pairing code.");
+        return;
+      }
+      await _pair(service, url, secret);
+    } on FormatException {
+      _snack("That QR code isn't a DuoBudget pairing code.");
+    }
   }
 
   Widget _backupCard(SyncService service) {
@@ -470,19 +529,91 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
   }
 }
 
+/// A full-screen camera scanner for the hub pairing QR. Pops with the raw
+/// payload string on the first detected code. Android only (guarded by the
+/// caller); fully on-device, no network involved.
+class _ScanPairingQrScreen extends StatefulWidget {
+  const _ScanPairingQrScreen();
+
+  @override
+  State<_ScanPairingQrScreen> createState() => _ScanPairingQrScreenState();
+}
+
+class _ScanPairingQrScreenState extends State<_ScanPairingQrScreen> {
+  bool _done = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Scan the hub\'s QR code')),
+      body: MobileScanner(
+        onDetect: (capture) {
+          if (_done) return;
+          for (final code in capture.barcodes) {
+            final value = code.rawValue;
+            if (value != null && value.isNotEmpty) {
+              _done = true;
+              Navigator.of(context).pop(value);
+              return;
+            }
+          }
+        },
+      ),
+    );
+  }
+}
+
 class _EmptyHubs extends StatelessWidget {
   const _EmptyHubs();
+
+  /// The one download link that always points at the newest desktop build.
+  static const _releasesUrl =
+      'github.com/Tarasios/duobudget/releases/latest';
+
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-        child: Text(
-          'No hubs paired yet. This device works fully offline — pair a hub to '
-          'share with your partner.',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-        ),
-      );
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isPhone = !kIsWeb && Platform.isAndroid;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'No hubs paired yet. This device works fully on its own.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+          ),
+          if (isPhone) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Tip: install the free desktop app on a home computer to get an '
+              'always-on hub — automatic backups of every phone, plus the '
+              'receipt library. Download it (Windows or Linux) at '
+              '$_releasesUrl, start a hub there, then scan its QR code here.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.copy, size: 16),
+              label: const Text('Copy download link'),
+              onPressed: () {
+                unawaited(Clipboard.setData(
+                    const ClipboardData(text: 'https://$_releasesUrl')));
+                ScaffoldMessenger.of(context)
+                  ..hideCurrentSnackBar()
+                  ..showSnackBar(
+                      const SnackBar(content: Text('Link copied')));
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class _NotReady extends StatelessWidget {

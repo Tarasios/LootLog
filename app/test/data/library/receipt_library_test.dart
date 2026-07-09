@@ -3,6 +3,9 @@
 /// de-duplication, and that rebuilding from scratch produces identical content.
 library;
 
+import 'dart:io';
+
+import 'package:duobudget/data/blobs/blob_store.dart';
 import 'package:duobudget/data/library/receipt_library.dart';
 import 'package:duobudget/domain/event.dart';
 import 'package:duobudget/domain/reducer.dart';
@@ -250,6 +253,52 @@ void main() {
       expect(plan.single.sha256, 'sha_v');
       expect(plan.single.relativePath,
           '2026/Vault/2026-07-06_Coffee_7.00.jpg');
+    });
+  });
+
+  group('projection writes', () {
+    late Directory tmp;
+    setUp(() async {
+      tmp = await Directory.systemTemp.createTemp('receipt-lib-');
+    });
+    tearDown(() async {
+      await tmp.delete(recursive: true);
+    });
+
+    test('re-projecting leaves an already-correct file untouched, and '
+        'restores an edited one', () async {
+      final blobs = BlobStore(Directory('${tmp.path}/blobs'));
+      final bytes = [1, 2, 3, 4];
+      final sha = await blobs.save(bytes);
+      final events = <Event>[
+        _slice('s', 'Food'),
+        _buy(
+          id: 'p1',
+          target: const SliceCharge('s'),
+          amount: 1000,
+          merchant: 'Store',
+          at: _day(2026, 7, 4),
+        ),
+        _receipt('p1', sha, at: _day(2026, 7, 4)),
+      ];
+      final state = reduce(events);
+      final root = '${tmp.path}/library';
+
+      final first = await projectReceiptLibrary(root, state, blobs);
+      expect(first, hasLength(1));
+      final file = File('$root/${first.single}');
+      final mtime = (await file.stat()).modified;
+
+      // Second projection: content already matches, nothing is written.
+      final second = await projectReceiptLibrary(root, state, blobs);
+      expect(second, isEmpty);
+      expect((await file.stat()).modified, mtime);
+
+      // A user edit inside the folder is restored (projection, not source).
+      await file.writeAsBytes([9, 9, 9], flush: true);
+      final third = await projectReceiptLibrary(root, state, blobs);
+      expect(third, hasLength(1));
+      expect(await file.readAsBytes(), bytes);
     });
   });
 }

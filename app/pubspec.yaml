@@ -49,6 +49,7 @@ dependencies:
   # Path joining + the on-device documents directory for the DB and blob store.
   path: ^1.9.0
   path_provider: ^2.1.4
+  qr_flutter: ^4.1.0
   riverpod_annotation: ^4.0.3
   # The Android OS share sheet for the hub-less "vacation swap": hands an
   # exported .dbevents.zip to the system's Nearby/Quick Share (or Bluetooth,
