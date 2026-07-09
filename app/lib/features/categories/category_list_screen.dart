@@ -60,7 +60,7 @@ class CategoryListScreen extends ConsumerWidget {
                 final extras = <String>[
                   if (mainCat != null) mainCat.name,
                   if (!s.isGroup && s.poolTithePct > 0)
-                    '${s.poolTithePct}% tithe',
+                    '${s.poolTithePct}% to savings',
                   if (s.emergencyContributionCents > 0)
                     '${money(s.emergencyContributionCents)} reserve',
                   if (s.taxDeductibleByDefault) 'tax',

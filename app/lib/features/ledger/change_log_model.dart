@@ -155,7 +155,7 @@ List<ChangeLogEntry> buildChangeLog(
         ),
       LeftoverAllocated() => entry(
           ChangeLogKind.money,
-          'Divided the spoils of ${sliceName(e.sliceId)}',
+          'Divided leftovers from ${sliceName(e.sliceId)}',
           detail: monthLabel(e.month.year, e.month.month),
           amountCents:
               e.allocations.fold<int>(0, (a, x) => a + x.amountCents),

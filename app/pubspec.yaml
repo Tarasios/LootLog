@@ -97,6 +97,10 @@ flutter:
   # grey placeholder at runtime, so shipping real art needs no code change.
   assets:
     - assets/game/
+    # Narrative & encouragement lines, loaded at runtime (not hardcoded) so
+    # writers can edit copy without touching Dart. Listed separately because a
+    # bare directory entry does not include nested folders.
+    - assets/game/text/
     # App icon + splash master art (placeholders). Regenerate the platform
     # launcher icons and the splash logo with tool/generate_branding.dart.
     - assets/branding/

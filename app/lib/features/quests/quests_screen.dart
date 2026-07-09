@@ -297,8 +297,8 @@ class QuestDetailScreen extends ConsumerWidget {
             Text('“${quest.name}” has ${money(quest.balanceCents)} on hand.'),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'A $tithePct% dissolution tithe of '
-              '${money(preview.titheCents)} goes to the war chest.',
+              'A $tithePct% cancellation fee of '
+              '${money(preview.titheCents)} is kept for shared savings.',
             ),
             const SizedBox(height: AppSpacing.sm),
             const Text('Returned to funders:'),
@@ -425,8 +425,8 @@ class _QuestEditorScreenState extends ConsumerState<QuestEditorScreen> {
           DropdownButtonFormField<String?>(
             initialValue: _mainCategoryId,
             decoration: const InputDecoration(
-              helperText: 'Leftovers from a matching category fund this goal '
-                  'untithed; other categories pay their tithe',
+              helperText: 'Leftovers from a matching category fund this goal in '
+                  'full; other categories keep their usual shared-savings cut',
             ),
             items: [
               const DropdownMenuItem<String?>(
