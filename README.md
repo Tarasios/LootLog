@@ -222,11 +222,25 @@ pure presentation of real numbers; it can never change a cent.
 
 ## Distribution
 
-DuoBudget is distributed through **GitHub Releases only**: tagged CI builds
-attach a signed Android APK and desktop bundles for Windows/macOS/Linux. Sharing
-the app means sharing a release link. There is **no telemetry and no phone-home
-of any kind** — user counts, when we cite them, come from the public GitHub
-Releases download-statistics API, never from the app.
+DuoBudget is distributed through **GitHub Releases only**. Pushing a `v*` tag
+runs [`.github/workflows/release.yml`](.github/workflows/release.yml), which
+builds all four artifacts on native runners and attaches them to one Release: a
+**signed, sideloadable Android APK**, a **Windows** zip, a **macOS** `.app`/`.dmg`,
+and a **Linux** tarball (optional AppImage). Sharing the app means sharing a
+release link — there is no store account, no server, and no auto-updater.
+
+There is **no telemetry and no phone-home of any kind** — no analytics SDK, no
+crash reporter, no usage ping. When we cite user counts they come from the public
+GitHub Releases download-statistics API, never from the app. The documented
+script prints the cumulative tally (the "resume number"):
+
+```bash
+dart run tool/release_downloads.dart      # cumulative downloads per asset + total
+```
+
+The full build, signing, reproducibility, and metrics guide is
+**[`docs/distribution.md`](docs/distribution.md)** (with the keystore/Play-Store
+deep-dive in [`docs/release.md`](docs/release.md)).
 
 ## Project layout
 
@@ -255,5 +269,6 @@ compensating events. The **firewall test** (cosmetic-stripped ledger ⇒ identic
 balances) must pass from the first rewards commit onward. See
 [`CLAUDE.md`](CLAUDE.md) for the full invariants and [`docs/`](docs/) for
 architecture, the [household setup guide](docs/setup-guide.md), the
-[sync protocol](docs/protocol.md), the [release guide](docs/release.md), and the
-[ADRs](docs/adr/).
+[sync protocol](docs/protocol.md), the
+[distribution & metrics guide](docs/distribution.md), the
+[release guide](docs/release.md), and the [ADRs](docs/adr/).

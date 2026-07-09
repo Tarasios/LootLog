@@ -1,6 +1,6 @@
 # DuoBudget household setup guide
 
-A step-by-step guide to getting two people budgeting together on DuoBudget,
+A step-by-step guide to getting your household budgeting together on DuoBudget,
 written for non-technical users. It follows the app exactly as it exists today —
 every screen name and button label below matches what you will see on screen.
 
@@ -8,8 +8,8 @@ Where the app doesn't yet have something this guide would otherwise tell you to
 tap, you'll find a **⚠️ Not built yet** note instead of invented instructions.
 Those are real gaps in the current build, not steps you're missing.
 
-> **The one-minute picture.** DuoBudget runs entirely on your own devices — two
-> people, a few phones and desktops, syncing over your home Wi-Fi. There are no
+> **The one-minute picture.** DuoBudget runs entirely on your own devices — your
+> household's phones and desktops, syncing over your home Wi-Fi. There are no
 > accounts, no cloud, and no servers on the internet. One desktop that stays
 > powered on acts as the **hub** everyone else syncs through. Everything works
 > offline; syncing just catches devices up with each other.
@@ -36,14 +36,27 @@ DuoBudget is peer-to-peer, so start on the machine that's awake most often — a
 desktop or a laptop that lives at home. That machine will host the hub the phones
 sync through.
 
-> **Heads-up:** DuoBudget is not yet on any app store, and there is no ready-made
-> download. Today you (or someone technical helping you) build it from source on
-> each platform. The commands below come straight from
-> [`docs/release.md`](release.md); run them from the `app/` folder after
-> installing Flutter. If a friend has already built it for you, skip to
-> [step 2](#2-first-run-create-the-household).
+> **Get it from GitHub Releases.** DuoBudget is distributed through its
+> **[GitHub Releases page](https://github.com/tarasios/duobudget/releases)** —
+> that's the whole "app store". Each release attaches ready-to-run binaries:
+> a **Windows** zip, a **macOS** `.app`/`.dmg`, a **Linux** tarball, and an
+> **Android** APK (for the phones in [step 3](#3-host-a-hub-and-pair-your-other-devices)).
+> Download the one for your platform, unzip it, and run it — there is no
+> installer and no account. If a friend sent you a release link, that's all you
+> need; skip to [step 2](#2-first-run-create-the-household).
+>
+> - **Windows:** unzip and run `duobudget.exe`. On first launch SmartScreen may
+>   warn (the build is unsigned) — choose **More info → Run anyway**.
+> - **macOS:** open the `.dmg` and drag **DuoBudget** to Applications. The build
+>   is un-notarized, so the first time, **right-click the app → Open** to get
+>   past Gatekeeper.
+> - **Linux:** extract the tarball and run `./duobudget` (needs GTK 3 and
+>   `libsqlite3`, present on most distros).
 
-First, get the code and its dependencies:
+**Building from source instead (optional).** If there's no prebuilt binary for
+your platform, or you're developing, build it yourself. Install the pinned
+Flutter (see [`docs/distribution.md`](distribution.md)), then from the `app/`
+folder:
 
 ```bash
 cd app
@@ -104,19 +117,47 @@ phone and open it to install (you'll need "install unknown apps" enabled). See
 
 ## 2. First run: create the household
 
-Launch the app on the desktop. Because nothing is set up yet, it opens straight
-to the **Welcome to DuoBudget** screen ("Two people, one budget").
+Launch the app on the desktop. Because nothing is set up yet, it opens on the
+**Welcome to DuoBudget** screen, which asks one question first: are you *joining*
+a party that already exists on another device, or *starting a new one*?
 
-1. In **Your name**, type your name (it starts filled in as "Me").
-2. In **Partner's name**, type your partner's name (starts as "Partner").
-3. Tap **Start budgeting**.
+- **Join an existing party** — for a second device (a phone, or the other
+  desktop) joining a household that's already set up elsewhere. This pairs to a
+  hub and pulls the party down; it's covered in
+  [step 3b](#3b-join-the-party-from-a-phone-or-second-desktop).
+- **Start a new party** — the first device. Tap this to build your household.
 
-That's the whole first-run setup — completing it *is* creating the household.
-There is no separate household-name step and no timezone question.
+Tapping **Start a new party** opens a short wizard framed as assembling your
+adventuring party. Each step has a **Back**/**Next** bar, and **everything you
+enter here can be changed later from Settings** — so don't overthink it.
 
-After this, the app opens on the dashboard with a **Welcome to your household**
-card. Tap **Set up budgets** on that card to jump into budgeting (covered in
-[step 4](#4-set-up-your-budget)).
+1. **Your party.** Add the people (and pets) in your household. **Adults** carry
+   income and a budget; **dependents** and **pets** ride along as party members
+   with no money of their own. For each, give a **Name** and, optionally, a
+   **character description** (it feeds the text-mode adventure) and a custom
+   **sprite** PNG. If you add more than one adult, pick **which adult is this
+   device** at the bottom.
+2. **Expedition supplies.** Set each adult's usual **monthly income**. It carries
+   forward every month until you change it; `0` is fine.
+3. **Treasury.** *Optional.* Add **tracked accounts** — savings, investments,
+   debts — for the net-worth screen. These never touch your budget.
+4. **Standing obligations.** Add **recurring bills** (rent, subscriptions,
+   utilities) that come off the top before the huntable budget — **group**
+   (split by the party) or **personal** (one adult), **monthly** or **annual**.
+5. **Dividing the coin.** Create your **budget categories**. Fund **group**
+   categories first; if you have two or more adults you'll also set the **share
+   split** that funds them. Then give each adult **personal** categories until
+   their "left" counter reaches zero.
+6. **First quest.** *Optional.* Pick a first **savings goal** (a quest boss to
+   hunt), and choose whether the app looks **Adventure** (the default dungeon
+   skin) or **Classic** (a plain ledger). You can switch modes any time.
+7. **Ready to delve.** Review the summary and tap **Begin the adventure**. A
+   short celebration confirms your party is ready, and the app opens on the
+   dashboard.
+
+Completing the wizard *is* creating the household — everything you entered is
+written to the permanent, append-only event log. There is no separate
+household-name step.
 
 > **⚠️ Timezone is fixed to America/Vancouver.** DuoBudget currently computes
 > every calendar month in the America/Vancouver timezone, and there is no setting
@@ -124,16 +165,13 @@ card. Tap **Set up budgets** on that card to jump into budgeting (covered in
 > (and therefore which month a late-night expense lands in) will follow Vancouver
 > time. *(Not built yet: a timezone picker.)*
 
-> **⚠️ Each device sets up its own identities.** When you run first-run setup on a
-> device, it creates its own private record of "you" and "your partner." There is
-> **no flow to share those two identities between devices** — the partner's phone
-> doesn't learn the desktop's version of who's who. In the current build, the
-> reliable, well-tested way to share one household across devices is to move the
-> data itself between them (syncing via a hub in [step 3](#3-host-a-hub-and-pair-your-other-devices),
-> or file import/export in [step 8](#8-when-theres-no-hub-file-backup--restore)),
-> so every device is working from the same event history. Set names the same way
-> on each device for a consistent display. *(Not built yet: a first-run flow that
-> pairs a new device to an existing household's member identities directly.)*
+> **One party, shared across devices.** You only run **Start a new party** on the
+> *first* device. Every other device uses **Join an existing party**
+> ([step 3b](#3b-join-the-party-from-a-phone-or-second-desktop)) to pair to the
+> hub, pull the same event history, and claim which adult it is — so all devices
+> show the same members and the same numbers. (If two devices genuinely can't
+> reach a hub, moving the data by file import/export in
+> [step 8](#8-when-theres-no-hub-file-backup--restore) achieves the same thing.)
 
 ---
 
@@ -162,26 +200,39 @@ Leave the hub running. The pairing secret is stable — it's saved on the deskto
 so it stays the same each time you start the hub; you don't get a new code every
 time. Tap **Stop hub** only when you want to take the hub offline.
 
-> **⚠️ No QR-code pairing yet.** The README and design docs describe scanning a QR
-> code to pair. That screen doesn't exist in the current build — pairing is done
-> by typing the address and secret (below). *(Not built yet: QR display on the
-> hub and a QR scanner on the joining device.)*
+> **⚠️ No QR-code pairing yet.** The design docs describe scanning a QR code to
+> pair, and the **Join an existing party** button wears a QR icon — but there is
+> no scanner yet. Both hosting and joining are done by **typing** the address and
+> secret (use the desktop's copy buttons). *(Not built yet: QR display on the hub
+> and a QR scanner on the joining device.)*
 
-### 3b. Pair a phone (or the second desktop)
+### 3b. Join the party from a phone (or second desktop)
 
-On each other device:
+Every other device *joins* the household the first device created — it doesn't
+build its own. Make sure the desktop's hub from [3a](#3a-start-the-hub-on-the-desktop)
+is running and both devices are on the **same Wi-Fi**, then on the new device:
 
-1. Install and launch DuoBudget, and complete first-run setup
-   ([step 2](#2-first-run-create-the-household)).
-2. Open **Manage → Sync & hubs**.
-3. In the **Pair with a hub** card:
-   - **Address** — type the desktop's address, e.g. `http://192.168.1.20:8787`.
-   - **Pairing secret** — type (or paste) the secret from the desktop.
-4. Tap **Pair**.
+1. Install and launch DuoBudget. On the **Welcome to DuoBudget** screen, tap
+   **Join an existing party** (not "Start a new party").
+2. Fill in:
+   - **This device's name** — e.g. "Robin's phone" (so you can recognise it in
+     the hub's device list).
+   - **Hub address** — the desktop's `http://…:8787` address.
+   - **Pairing secret** — the secret from the desktop.
+3. Tap **Pair & sync**. The device pairs and pulls the whole party down.
+4. On the **"Paired and synced"** screen, tap **which adult you are** from the
+   list of the household's adults. That claims your identity on this device and
+   finishes setup — the app opens on the shared dashboard.
 
-On success you'll see **"Paired and synced"** and the hub appears in the
-**Paired hubs** list. From then on the device syncs automatically in the
-background (about every 20 seconds) and whenever you tap the **Sync now** button.
+From then on the device syncs automatically in the background (about every 20
+seconds) and whenever you tap **Sync now**. Because everyone works from the same
+event history, all devices show the same members and the same numbers.
+
+**Pairing an extra hub after setup.** To pair a device to *another* hub later
+(see [3c](#3c-optional-a-second-hub-for-resilience)), open **Manage → Sync &
+hubs**, and in the **Pair with a hub** card enter that hub's **Address** and
+**Pairing secret**, then tap **Pair**. The new hub appears in the **Paired hubs**
+list; a device can be paired to several at once.
 
 ### 3c. (Optional) A second hub for resilience
 
@@ -209,9 +260,12 @@ where sync stands, without ever popping up a dialog:
 
 ## 4. Set up your budget
 
-Open **Manage → Budget setup** (or tap **Set up budgets** on the welcome card).
-Budget setup shows both members side by side, with group budgets below, for the
-month shown at the top (use the ‹ › arrows to change month).
+You already sketched your budget in the first-run wizard
+([step 2](#2-first-run-create-the-household), "Dividing the coin"). This section
+is for **changing it later** — a new category, a different limit, next month's
+income. Open **Manage → Budget setup**; it shows each adult's categories with
+group budgets below, for the month shown at the top (use the ‹ › arrows to change
+month).
 
 DuoBudget divides your money into **budget categories**. A category is either:
 
@@ -481,7 +535,7 @@ A replacement or brand-new device needs to end up with the same event history.
 Two ways:
 
 1. **Via a hub (preferred):** on the new device, complete first-run setup, then
-   **pair it to the hub** ([step 3b](#3b-pair-a-phone-or-the-second-desktop)). It
+   **pair it to the hub** ([step 3b](#3b-join-the-party-from-a-phone-or-second-desktop)). It
    pulls the whole history and all receipts automatically on the first sync.
 2. **Via file:** complete first-run setup, then **Import** your latest
    `.dbevents.zip` ([step 8](#8-when-theres-no-hub-file-backup--restore)).
@@ -549,7 +603,7 @@ ones.
 
 - Check the chip actually reads **Synced** after a **Sync now**. **Local only**
   means this device has **no hubs paired at all** — pair it
-  ([step 3b](#3b-pair-a-phone-or-the-second-desktop)).
+  ([step 3b](#3b-join-the-party-from-a-phone-or-second-desktop)).
 
 Remember: an unreachable hub is never fatal. Every device keeps working fully
 offline and catches up on its own the next time the hub is reachable.
@@ -565,16 +619,18 @@ DUOBUDGET — QUICK REFERENCE
 ===========================================================
 
 GETTING STARTED
+  • Install: download your platform's build from GitHub Releases.
   • Desktop that stays on = the hub. Set it up first.
-  • First run: enter Your name + Partner's name → Start budgeting.
-  • Dashboard → "Set up budgets" to begin.
+  • First run → "Start a new party" → walk the wizard
+    (party → income → accounts → bills → budget → goal → begin).
+  • Everything is editable later in Settings.
 
 PAIR A PHONE (both devices on the SAME Wi-Fi)
   Desktop:  Manage(☰) → Sync & hubs → Start hub
             → note the Address (http://…:8787) + Pairing secret
-  Phone:    finish first-run setup, then
-            Manage(☰) → Sync & hubs → Pair with a hub
-            → type the Address + Pairing secret → Pair
+  Phone:    first run → "Join an existing party"
+            → device name + Address + Pairing secret → Pair & sync
+            → tap which adult you are
   (No QR code yet — type them in. Secret stays the same each time.)
 
 STATUS CHIP

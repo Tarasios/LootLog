@@ -1,0 +1,207 @@
+# Build every DuoBudget artifact on a version tag and attach them to a GitHub
+# Release, so that "sharing the app" is only ever "sharing a release link".
+#
+# Distribution is GitHub Releases only (see docs/distribution.md). There is no
+# store account, no server, and no telemetry: the release download counts ARE
+# the metrics (tool/release_downloads.dart).
+#
+# Trigger: push a tag like `v1.0.0`. Each platform builds on its own native
+# runner (Flutter does not cross-compile desktop binaries), uploads its artifact,
+# and a final job gathers them into one Release.
+#
+# The Android job produces a *signed, sideloadable* APK only when the repository
+# has the four ANDROID_* signing secrets set; otherwise it falls back to Flutter's
+# debug signing (still installable, not fit for public distribution) exactly like
+# a local build without android/key.properties. Desktop bundles are unsigned;
+# platform code-signing/notarization is documented as an optional local step in
+# docs/distribution.md.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to build a release for (e.g. v1.0.0)'
+        required: true
+
+# Pin the toolchain so tagged builds are reproducible. Keep this in lockstep
+# with FLUTTER_VERSION in tool/setup-env.sh and the pin in docs/distribution.md.
+env:
+  FLUTTER_VERSION: '3.44.5'
+
+permissions:
+  contents: write # needed to create the Release and upload assets
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.v.outputs.tag }}
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - id: v
+        shell: bash
+        run: |
+          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
+  android:
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+      - name: Configure release signing (only if secrets are present)
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > app/android/upload.jks
+            cat > app/android/key.properties <<EOF
+          storeFile=upload.jks
+          storePassword=$ANDROID_STORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+            echo "Release signing configured."
+          else
+            echo "::warning::No ANDROID_* signing secrets set — building a debug-signed APK. Set them for a public release."
+          fi
+      - name: Build APK
+        working-directory: app
+        run: |
+          flutter pub get
+          flutter build apk --release
+      - name: Stage artifact
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp app/build/app/outputs/flutter-apk/app-release.apk \
+             "dist/duobudget-${{ needs.version.outputs.version }}-android.apk"
+      - name: Scrub signing material
+        if: always()
+        run: rm -f app/android/key.properties app/android/upload.jks
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: dist/*.apk
+          if-no-files-found: error
+
+  windows:
+    needs: version
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+      - name: Build Windows
+        working-directory: app
+        run: |
+          flutter pub get
+          flutter build windows --release
+      - name: Package (zip the Release folder)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path app/build/windows/x64/runner/Release/* `
+            -DestinationPath "dist/duobudget-${{ needs.version.outputs.version }}-windows-x64.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/*.zip
+          if-no-files-found: error
+
+  macos:
+    needs: version
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+      - name: Build macOS
+        working-directory: app
+        run: |
+          flutter pub get
+          flutter build macos --release
+      - name: Package (.app zip + .dmg)
+        shell: bash
+        run: |
+          mkdir -p dist
+          app_path="app/build/macos/Build/Products/Release/duobudget.app"
+          v="${{ needs.version.outputs.version }}"
+          ditto -c -k --keepParent "$app_path" "dist/duobudget-$v-macos.app.zip"
+          hdiutil create -volname DuoBudget -srcfolder "$app_path" \
+            -ov -format UDZO "dist/duobudget-$v-macos.dmg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: |
+            dist/*.dmg
+            dist/*.zip
+          if-no-files-found: error
+
+  linux:
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install desktop build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libsqlite3-dev
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+      - name: Build Linux
+        working-directory: app
+        run: |
+          flutter pub get
+          flutter build linux --release
+      - name: Package (tarball of the bundle)
+        shell: bash
+        run: |
+          mkdir -p dist
+          tar -czf "dist/duobudget-${{ needs.version.outputs.version }}-linux-x64.tar.gz" \
+            -C app/build/linux/x64/release/bundle .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  release:
+    needs: [version, android, windows, macos, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.version.outputs.tag }}
+          name: DuoBudget ${{ needs.version.outputs.tag }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: artifacts/**/*
