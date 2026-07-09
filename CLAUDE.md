@@ -24,6 +24,7 @@ A pixel-art dungeon-crawler that happens to be a rigorous shared budgeting app. 
 - Group costs split by a per-adult **share table** (`GroupShareSet {month, shares: {adultId: permille}}`), default even split. All former 50/50 rules generalize to shares; odd cents go to the purchaser.
 - A single-adult household is valid: approvals requiring "another adult" are auto-satisfied when exactly one adult exists.
 - Legacy `PetSet` events still reduce (as pet members) for wire compatibility.
+- Device-local setup (`LocalSetup`) identifies only this device's adult and the timezone; its legacy two-profile storage shape is compatibility baggage. UI must derive member lists, owner pickers, and party rosters from `MemberSet` state — never from `LocalSetup` — so no screen re-introduces a two-adult assumption.
 
 ### Budget categories (user-facing name; internal event names like `BudgetSliceSet` are kept for wire compatibility)
 - A category is **personal** (one adult) or **group** (household). The word "slice" never appears in UI or docs.
