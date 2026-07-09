@@ -141,7 +141,7 @@ List<ActivityItem> buildActivityFeed(
           kind: ActivityKind.allocation,
           userId: e.userId,
           title:
-              '${who(e.forUserId)} divided the spoils of ${sliceName(e.sliceId)}',
+              '${who(e.forUserId)} divided leftovers from ${sliceName(e.sliceId)}',
           subtitle: monthLabel(e.month.year, e.month.month),
           amountCents: total,
           occurredAt: e.occurredAt,

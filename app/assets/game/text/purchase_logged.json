@@ -1,0 +1,15 @@
+{
+  "_comment": "Short acknowledgments shown right after a purchase is logged. Data-driven so writers can add lines without touching code. Keep them light and quick; {merchant} and {amount} are optional placeholders the app fills in when present.",
+  "lines": [
+    "Logged. Nice and steady.",
+    "Got it — {amount} noted.",
+    "Another one on the books.",
+    "Tracked. That’s how the streak grows.",
+    "{amount} logged. Onward!",
+    "Noted {merchant}. You’re on top of it.",
+    "Recorded. Small logs, big picture.",
+    "Done — every entry counts.",
+    "Booked it. Keep the momentum going.",
+    "That’s logged. Future-you says thanks."
+  ]
+}

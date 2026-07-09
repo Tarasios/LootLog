@@ -15,11 +15,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/actions.dart';
 import '../../data/providers.dart';
 import '../../game/skin_prefs.dart';
+import '../../ui/glossary.dart';
 import '../../ui/theme.dart';
 import '../categories/category_list_screen.dart';
 import '../ledger/change_log_screen.dart';
 import '../library/receipt_library_screen.dart';
 import '../tax/tax_center_screen.dart';
+import '../tutorial/tutorial.dart';
 import 'emergency_funds_screen.dart';
 import 'income_screen.dart';
 import 'members_screen.dart';
@@ -49,11 +51,14 @@ class SettingsScreen extends ConsumerWidget {
           _nav(context, Icons.payments_outlined, 'Income',
               'Each member\'s monthly income', const IncomeScreen()),
           _nav(context, Icons.autorenew, 'Recurring expenses',
-              'Equipment maintenance & provisioning', const RecurringScreen()),
+              'Regular bills and subscriptions, charged off the top',
+              const RecurringScreen()),
           _nav(context, Icons.pie_chart_outline, 'Budget categories',
-              'Limits, tithes, leftover policies', const CategoryListScreen()),
+              'Limits, savings cut, and how leftovers are handled',
+              const CategoryListScreen()),
           _nav(context, Icons.emergency_outlined, 'Emergency funds',
-              'Reserve caches', const EmergencyFundsScreen()),
+              'Named rainy-day funds for unexpected costs',
+              const EmergencyFundsScreen()),
           const _SectionHeader('Appearance'),
           _SkinTile(
             skin: ref.watch(appSkinProvider),
@@ -63,12 +68,14 @@ class SettingsScreen extends ConsumerWidget {
           const _SectionHeader('Rules'),
           ListTile(
             leading: const Icon(Icons.hourglass_bottom),
-            title: const Text('Spoils grace period'),
-            subtitle: Text('${settings.spoilsGraceDays} days after month close'),
+            title: Text(
+                Glossary.gracePeriodLabel(settings.spoilsGraceDays,
+                    isAdventure: false)),
+            subtitle: Text(Glossary.gracePeriod.helper),
             onTap: () => _editInt(
               context,
               ref,
-              title: 'Spoils grace period (days)',
+              title: 'Auto-divide delay (days)',
               current: settings.spoilsGraceDays,
               min: 0,
               max: 60,
@@ -77,12 +84,14 @@ class SettingsScreen extends ConsumerWidget {
           ),
           ListTile(
             leading: const Icon(Icons.percent),
-            title: const Text('Dissolution tithe'),
-            subtitle: Text('${settings.dissolutionTithePct}% on abandoned quests'),
+            title: const Text('Savings-goal cancellation fee'),
+            subtitle: Text(
+                '${settings.dissolutionTithePct}% kept for shared savings when '
+                'a goal is cancelled'),
             onTap: () => _editInt(
               context,
               ref,
-              title: 'Dissolution tithe (%)',
+              title: 'Cancellation fee (%)',
               current: settings.dissolutionTithePct,
               min: 0,
               max: 100,
@@ -92,13 +101,22 @@ class SettingsScreen extends ConsumerWidget {
           SwitchListTile(
             secondary: const Icon(Icons.trending_up),
             title: const Text('Show net worth'),
-            subtitle: const Text('Enables the net-worth feature and its screen'),
+            subtitle: const Text('Track savings, investments and debts on a '
+                'separate net-worth screen'),
             value: settings.showNetWorth,
             onChanged: (v) {
               final actions = ref.read(householdActionsProvider);
               unawaited(actions?.changeSetting('showNetWorth', v) ??
                   Future<void>.value());
             },
+          ),
+          const _SectionHeader('Help'),
+          ListTile(
+            leading: const Icon(Icons.school_outlined),
+            title: const Text('Tutorial'),
+            subtitle: const Text('Replay the guided tour of how DuoBudget works'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => unawaited(TutorialTour.show(context, ref)),
           ),
           const _SectionHeader('Data'),
           ListTile(

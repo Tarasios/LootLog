@@ -57,7 +57,7 @@ List<ChestEntry> buildWarChestLedger(
         if (tithe > 0) {
           entries.add(ChestEntry(
             kind: ChestEntryKind.sliceTithe,
-            label: '${cfg.name} tithe (${e.month.toKey()})',
+            label: '${cfg.name} savings cut (${e.month.toKey()})',
             amountCents: tithe,
             occurredAt: e.occurredAt,
           ));
@@ -94,7 +94,7 @@ List<ChestEntry> buildWarChestLedger(
     if (tithe > 0) {
       entries.add(ChestEntry(
         kind: ChestEntryKind.dissolutionTithe,
-        label: '${q?.name ?? 'Quest'} dissolution tithe',
+        label: '${q?.name ?? 'Goal'} cancellation fee',
         amountCents: tithe,
         occurredAt: e.occurredAt,
       ));

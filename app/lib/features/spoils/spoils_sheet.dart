@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import '../../domain/money.dart';
 import '../../domain/value_types.dart';
 import '../../ui/format.dart';
+import '../../ui/glossary.dart';
 import '../../ui/theme.dart';
 import 'spoils_model.dart';
 
@@ -51,6 +52,7 @@ class SpoilsSheetView extends StatefulWidget {
     required this.onConfirm,
     this.onDismiss,
     this.intro,
+    this.isAdventure = false,
   });
 
   final SpoilsRitual ritual;
@@ -60,6 +62,10 @@ class SpoilsSheetView extends StatefulWidget {
   /// An optional scene rendered above the steps — the adventure skin uses it for
   /// the "settling accounts with the quartermaster" opening. Null in Classic.
   final Widget? intro;
+
+  /// Whether the Adventure vocabulary applies. Classic (the default) speaks
+  /// plain budgeting language; every flavor phrase routes through [Glossary].
+  final bool isAdventure;
 
   @override
   State<SpoilsSheetView> createState() => _SpoilsSheetViewState();
@@ -197,7 +203,8 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Divide the spoils',
+                      Glossary.leftoverAllocated
+                          .label(isAdventure: widget.isAdventure),
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
@@ -427,13 +434,16 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
               ),
               if (s.questOptions.isNotEmpty)
                 ChoiceChip(
-                  label: const Text('Attack a quest'),
+                  label: Text(Glossary.attackQuest
+                      .label(isAdventure: widget.isAdventure)),
                   selected: dest == _Dest.quest,
                   onSelected: (_) =>
                       setState(() => _dest[s.sliceId] = _Dest.quest),
                 ),
               ChoiceChip(
-                label: const Text('Discretionary'),
+                label: Text(widget.isAdventure
+                    ? 'Discretionary'
+                    : 'Personal spending'),
                 selected: dest == _Dest.discretionary,
                 onSelected: (_) =>
                     setState(() => _dest[s.sliceId] = _Dest.discretionary),
@@ -459,12 +469,12 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
         );
       case _Dest.discretionary:
         final p = previewDiscretionary(s.leftoverCents, s.poolTithePct);
+        final dest = widget.isAdventure ? 'gold pouch' : 'personal spending';
         return _previewText(
           context,
           Icons.savings_outlined,
-          '${money(p.vaultCents)} to vault, '
-          '${money(p.titheCents)} tithe to war chest '
-          '(${s.poolTithePct}%).',
+          '${money(p.vaultCents)} to $dest, '
+          '${Glossary.sharedSavingsCut(money(p.titheCents), s.poolTithePct, isAdventure: widget.isAdventure)}.',
         );
       case _Dest.quest:
         final qid = _questChoice[s.sliceId];
@@ -515,12 +525,7 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
             _previewText(
               context,
               Icons.flag_outlined,
-              split.matched
-                  ? 'Same category — untithed. '
-                      '${money(split.damageCents)} damage to ${q.name}.'
-                  : '${money(split.damageCents)} damage to ${q.name}, '
-                      '${money(split.titheCents)} tithe to war chest '
-                      '(${s.poolTithePct}%).',
+              _questPreviewLine(split, q.name, s.poolTithePct),
               color: scheme.tertiary,
             ),
             const SizedBox(height: AppSpacing.xxs),
@@ -533,6 +538,26 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
           ],
         );
     }
+  }
+
+  /// The line describing where a quest allocation lands. Adventure keeps the
+  /// combat framing ("damage" / "tithe to war chest"); Classic states it plainly
+  /// ("toward the goal" / "to shared savings").
+  String _questPreviewLine(
+    ({int damageCents, int titheCents, bool matched}) split,
+    String questName,
+    int poolTithePct,
+  ) {
+    final toward = widget.isAdventure ? 'damage to' : 'toward';
+    if (split.matched) {
+      final matchNote =
+          widget.isAdventure ? 'Same category — untithed.' : 'Same category — no savings cut.';
+      return '$matchNote ${money(split.damageCents)} $toward $questName.';
+    }
+    final cut = Glossary.sharedSavingsCut(
+        money(split.titheCents), poolTithePct,
+        isAdventure: widget.isAdventure);
+    return '${money(split.damageCents)} $toward $questName, $cut.';
   }
 
   Widget _previewText(BuildContext context, IconData icon, String text,
@@ -575,7 +600,8 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
             _autoLine(
               context,
               Icons.groups_outlined,
-              '${g.name}: ${money(g.leftoverCents)} → war chest',
+              '${g.name}: ${money(g.leftoverCents)} → '
+              '${Glossary.warChest.label(isAdventure: widget.isAdventure)}',
             ),
           for (final e in r.emergencyContribs)
             _autoLine(

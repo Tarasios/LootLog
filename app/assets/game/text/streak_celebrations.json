@@ -1,0 +1,37 @@
+{
+  "_comment": "Celebrations for logging streaks (consecutive days with a purchase logged). {n} is the streak length in days. The app picks the highest tier whose 'minDays' the streak meets, then a line at random.",
+  "tiers": [
+    {
+      "minDays": 2,
+      "lines": [
+        "{n} days in a row — a habit is forming!",
+        "Two days and counting. Keep it rolling.",
+        "{n}-day streak! You showed up again."
+      ]
+    },
+    {
+      "minDays": 7,
+      "lines": [
+        "A full week logged — {n} days straight!",
+        "Seven days strong. This is what consistency looks like.",
+        "{n}-day streak. You’ve turned it into a routine."
+      ]
+    },
+    {
+      "minDays": 30,
+      "lines": [
+        "{n} days without missing a beat — remarkable.",
+        "A whole month of logging. You’ve mastered the habit.",
+        "{n}-day streak! That’s dedication."
+      ]
+    },
+    {
+      "minDays": 100,
+      "lines": [
+        "{n} days. One hundred and counting — legendary.",
+        "Triple digits! {n} days of showing up.",
+        "{n}-day streak. Few ever get here. You did."
+      ]
+    }
+  ]
+}
