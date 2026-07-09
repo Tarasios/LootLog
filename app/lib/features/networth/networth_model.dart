@@ -35,6 +35,40 @@ class AccountHistory {
       kind == AccountKind.debt ? -latestCents : latestCents;
 }
 
+/// Builds the household net-worth trend from the log: walking every
+/// [AccountBalanceRecorded] in time order, keeping the latest signed balance per
+/// account, and emitting the running signed total (assets − debts) at each
+/// recorded instant. The result is the same "net worth as recorded over time"
+/// figure the net-worth screen shows, condensed into a sparkline series.
+///
+/// Consecutive points at the same instant collapse to the last one so the
+/// series has one sample per moment. Returns an empty list when nothing has been
+/// recorded yet.
+List<BalancePoint> buildNetWorthSeries(Iterable<Event> events) {
+  final recs = <AccountBalanceRecorded>[
+    for (final e in events)
+      if (e is AccountBalanceRecorded) e,
+  ]..sort((a, b) {
+      final c = a.occurredAt.compareTo(b.occurredAt);
+      return c != 0 ? c : a.eventId.compareTo(b.eventId);
+    });
+  final latestByAccount = <String, AccountBalanceRecorded>{};
+  final out = <BalancePoint>[];
+  for (final r in recs) {
+    latestByAccount[r.accountId] = r;
+    var total = 0;
+    for (final a in latestByAccount.values) {
+      total += a.kind == AccountKind.debt ? -a.balanceCents : a.balanceCents;
+    }
+    if (out.isNotEmpty && out.last.at == r.occurredAt) {
+      out[out.length - 1] = BalancePoint(at: r.occurredAt, balanceCents: total);
+    } else {
+      out.add(BalancePoint(at: r.occurredAt, balanceCents: total));
+    }
+  }
+  return out;
+}
+
 /// Builds per-account histories from the log, ordered chronologically within
 /// each account and returned sorted by account name.
 List<AccountHistory> buildAccountHistories(Iterable<Event> events) {

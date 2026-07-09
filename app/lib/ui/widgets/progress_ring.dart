@@ -2,6 +2,11 @@
 /// the dashboard. Draws a track, a filled arc for the consumed fraction, and an
 /// optional centered label. Overspend is signalled by an [overColor] arc that
 /// wraps past full.
+///
+/// The arc animates from empty to its target on first paint and eases between
+/// values on rebuild, so a dashboard full of rings "fills in" when it appears.
+/// Animation settles under `pumpAndSettle`, keeping goldens deterministic; pass
+/// [duration] `Duration.zero` to opt out.
 library;
 
 import 'dart:math' as math;
@@ -19,6 +24,7 @@ class ProgressRing extends StatelessWidget {
     this.size = 64,
     this.strokeWidth = 7,
     this.center,
+    this.duration = const Duration(milliseconds: 700),
   });
 
   /// Consumed fraction (0..1 for normal, clamped visually; overspend is shown
@@ -32,17 +38,28 @@ class ProgressRing extends StatelessWidget {
   final double strokeWidth;
   final Widget? center;
 
+  /// Fill-in animation length; [Duration.zero] paints the target immediately.
+  final Duration duration;
+
   @override
   Widget build(BuildContext context) {
+    final arcColor = overspent ? (overColor ?? color) : color;
+    final target = fraction.clamp(0.0, 1.0);
     return SizedBox(
       width: size,
       height: size,
-      child: CustomPaint(
-        painter: _RingPainter(
-          fraction: fraction.clamp(0.0, 1.0),
-          color: overspent ? (overColor ?? color) : color,
-          trackColor: trackColor,
-          strokeWidth: strokeWidth,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: target),
+        duration: duration,
+        curve: Curves.easeOutCubic,
+        builder: (context, value, child) => CustomPaint(
+          painter: _RingPainter(
+            fraction: value,
+            color: arcColor,
+            trackColor: trackColor,
+            strokeWidth: strokeWidth,
+          ),
+          child: child,
         ),
         child: center == null ? null : Center(child: center),
       ),

@@ -56,13 +56,38 @@ abstract final class AppText {
             letterSpacing: -1,
           );
 
-  /// The label above a grouped section of charge chips.
+  /// The hero figure on the month card — large, tight, tabular.
+  static TextStyle heroAmount(BuildContext context) =>
+      Theme.of(context).textTheme.displaySmall!.copyWith(
+            fontWeight: FontWeight.w800,
+            fontFeatures: const [FontFeature.tabularFigures()],
+            letterSpacing: -1.5,
+          );
+
+  /// A secondary metric value (income / spent figures, net-worth total).
+  static TextStyle metricValue(BuildContext context) =>
+      Theme.of(context).textTheme.titleMedium!.copyWith(
+            fontWeight: FontWeight.w700,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          );
+
+  /// The small uppercase-ish label sitting above a metric value.
+  static TextStyle metricLabel(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Theme.of(context).textTheme.labelSmall!.copyWith(
+          color: scheme.onSurfaceVariant,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.6,
+        );
+  }
+
+  /// The label above a grouped section of charge chips, and card titles.
   static TextStyle sectionLabel(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Theme.of(context).textTheme.labelLarge!.copyWith(
           color: scheme.onSurfaceVariant,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.4,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.6,
         );
   }
 }

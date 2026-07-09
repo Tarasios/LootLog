@@ -6,11 +6,58 @@
 /// Pure Dart (Flutter-free).
 library;
 
+import '../../domain/event.dart';
 import '../../domain/money.dart';
 import '../../domain/state.dart';
 import '../../domain/time.dart';
 import '../../domain/value_types.dart';
+import '../networth/networth_model.dart';
 import '../spoils/spoils_model.dart';
+
+/// The month hero: the household's income, spend, and remaining for the current
+/// month — the headline "how are we doing this month" figures.
+class MonthHero {
+  const MonthHero({required this.incomeCents, required this.spentCents});
+
+  final int incomeCents;
+  final int spentCents;
+
+  int get remainingCents => incomeCents - spentCents;
+  bool get hasIncome => incomeCents > 0;
+  bool get overBudget => spentCents > incomeCents;
+
+  /// Fraction of income spent (0..1, clamped). With no income recorded, reads
+  /// full once anything is spent.
+  double get spentFraction {
+    if (incomeCents <= 0) return spentCents > 0 ? 1 : 0;
+    final f = spentCents / incomeCents;
+    return f < 0 ? 0 : (f > 1 ? 1 : f);
+  }
+}
+
+/// The net-worth summary card: the signed total and the recorded trend for a
+/// sparkline. Sourced from tracked accounts only — never budget money.
+class NetWorthSummary {
+  const NetWorthSummary({
+    required this.show,
+    required this.totalCents,
+    required this.assetsCents,
+    required this.debtsCents,
+    required this.series,
+  });
+
+  /// Whether the household has opted to show net worth at all.
+  final bool show;
+  final int totalCents;
+  final int assetsCents;
+  final int debtsCents;
+
+  /// Recorded net-worth samples over time, oldest first.
+  final List<BalancePoint> series;
+
+  bool get hasAccounts => assetsCents != 0 || debtsCents != 0 || series.isNotEmpty;
+  bool get hasHistory => series.length >= 2;
+}
 
 /// One per-slice progress ring.
 class SliceRing {
@@ -24,6 +71,7 @@ class SliceRing {
     required this.mine,
     this.ownerName,
     this.petName,
+    this.mainCategoryColorArgb,
   });
 
   final String sliceId;
@@ -37,6 +85,10 @@ class SliceRing {
   final bool mine;
   final String? ownerName;
   final String? petName;
+
+  /// The colour of this category's main category, for colour-coded tiles. Null
+  /// when the category has no main category assigned.
+  final int? mainCategoryColorArgb;
 
   bool get overspent => overspendCents > 0;
 
@@ -272,6 +324,7 @@ class DashboardModel {
   const DashboardModel({
     required this.currentMonth,
     required this.meName,
+    required this.hero,
     required this.slices,
     required this.maintenance,
     required this.upcoming,
@@ -279,12 +332,19 @@ class DashboardModel {
     required this.quests,
     required this.warChest,
     required this.emergencyFunds,
+    required this.netWorth,
     required this.timeline,
     required this.spoils,
   });
 
   final Month currentMonth;
   final String meName;
+
+  /// Income / spent / remaining headline for the current month.
+  final MonthHero hero;
+
+  /// The household net-worth summary + trend.
+  final NetWorthSummary netWorth;
   final List<SliceRing> slices;
   final List<MaintenanceItem> maintenance;
 
@@ -305,6 +365,7 @@ DashboardModel buildDashboardModel(
   HouseholdState state, {
   required String meUserId,
   required Map<String, String> userNames,
+  Iterable<Event> events = const [],
   DateTime? asOf,
 }) {
   final now = (asOf ?? DateTime.now()).toUtc();
@@ -312,6 +373,8 @@ DashboardModel buildDashboardModel(
   final closed = month.prev();
   String? nameOf(String id) => userNames[id];
   String? petName(String? id) => id == null ? null : state.pets[id]?.name;
+  int? mainColor(String? id) =>
+      id == null ? null : state.mainCategories[id]?.colorArgb;
 
   // ---- Slice rings -------------------------------------------------------
   final rings = <SliceRing>[];
@@ -328,6 +391,7 @@ DashboardModel buildDashboardModel(
       mine: !cfg.isGroup && cfg.ownerUserId == meUserId,
       ownerName: cfg.isGroup ? null : nameOf(cfg.ownerUserId ?? ''),
       petName: petName(cfg.petId),
+      mainCategoryColorArgb: mainColor(cfg.mainCategoryId),
     ));
   }
   rings.sort((a, b) {
@@ -502,9 +566,27 @@ DashboardModel buildDashboardModel(
     daysInMonth: daysInMonth,
   );
 
+  // ---- Month hero (income vs spent vs remaining) ------------------------
+  var incomeCents = 0;
+  for (final adultId in state.adultIds) {
+    incomeCents += state.incomeFor(adultId, month);
+  }
+  final hero = MonthHero(incomeCents: incomeCents, spentCents: total);
+
+  // ---- Net worth summary + trend ----------------------------------------
+  final netWorth = NetWorthSummary(
+    show: state.netWorth.show,
+    totalCents: state.netWorth.totalCents,
+    assetsCents: state.netWorth.assetsCents,
+    debtsCents: state.netWorth.debtsCents,
+    series: buildNetWorthSeries(events),
+  );
+
   return DashboardModel(
     currentMonth: month,
     meName: nameOf(meUserId) ?? 'You',
+    hero: hero,
+    netWorth: netWorth,
     slices: rings,
     maintenance: maintenance,
     upcoming: upcoming,
