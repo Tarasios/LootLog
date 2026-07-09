@@ -110,14 +110,14 @@ you like; the maths is the same.
    reports what was merged. Importing the same file twice is a safe no-op, and a
    corrupt or tampered file is rejected before a single event is applied.
 
-**Getting the file across — Android.** The lowest-effort way to reach a nearby
-device is the phone's own **share sheet**: export the file, then send it with the
-OS's built-in **Nearby Share / Quick Share** (or Bluetooth, or any messaging app)
-straight to the other phone. That's the Android platform share intent doing the
-transport — DuoBudget bundles **no Wi-Fi Direct, Bluetooth, or other radio/P2P
-code of its own**; it just hands the OS a file and lets the system's nearby-share
-picker move it. Like the on-device OCR, this stays a thin, platform-guarded seam.
-On desktop, save the file and copy it over however you already move files (USB
+**Getting the file across — Android.** On a phone, **Export** and **Export new**
+open the OS **share sheet** directly, so you can send the file to a nearby phone
+with the built-in **Nearby Share / Quick Share** (or Bluetooth, or any messaging
+app) in one tap. That's the Android platform share intent doing the transport —
+DuoBudget bundles **no Wi-Fi Direct, Bluetooth, or other radio/P2P code of its
+own**; it just hands the OS a file and lets the system's nearby-share picker move
+it. Like the on-device OCR, this stays a thin, platform-guarded seam. On desktop,
+export saves the file and you copy it over however you already move files (USB
 stick, shared folder, chat).
 
 ## How it works

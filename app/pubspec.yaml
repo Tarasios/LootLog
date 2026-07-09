@@ -50,6 +50,12 @@ dependencies:
   path: ^1.9.0
   path_provider: ^2.1.4
   riverpod_annotation: ^4.0.3
+  # The Android OS share sheet for the hub-less "vacation swap": hands an
+  # exported .dbevents.zip to the system's Nearby/Quick Share (or Bluetooth,
+  # messaging, etc.). It only invokes the platform share intent — no Wi-Fi
+  # Direct / Bluetooth / P2P radio code of our own. Platform-guarded to Android,
+  # like the OCR plugin; ships its own FileProvider so no manifest wiring.
+  share_plus: ^13.2.0
   shelf: ^1.4.2
 
 dev_dependencies:
