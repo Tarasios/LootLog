@@ -98,14 +98,17 @@ Note on the summary that all changes are permanently logged; add the "budget cha
 
 ```
 Build the strings/glossary module in lib/ui/ per CLAUDE.md: single source of truth mapping internal → Classic → Adventure terms (LeftoverAllocated → "Divide monthly leftovers" → "Dividing the spoils"; pool tithe → "shared-savings cut"; dissolution tithe → "cancellation fee"; grace period → "auto-divide after N days"; etc.). Sweep Classic mode: no "slice/tithe/spoils/dissolution/grace period" anywhere; one-line helper text under every setting. Adventure keeps flavor terms with plain-meaning tooltips.
+The sweep INCLUDES the first-run wizard: its step titles ("Expedition supplies", "Dividing the coin", …) are hardcoded Adventure voice — source them from the glossary so replaying setup steps from Settings respects the chosen mode.
+Also finish the N-adult sweep prompt 2 started in the reducer: the category editor, recurring-expense editor, and quest editor still build "Me / Partner / Group" owner pickers from LocalSetup.partner (two-adult only). Replace them with an owner selector listing ALL active adults from HouseholdState.members (no phantom second chip in single-adult households), and remove remaining "partner" strings (e.g. the sync screen). LocalSetup stays as the device pointer; UI must never derive the member list from it.
 Create app/assets/game/text/ data files for narrative and encouragement lines (loaded, not hardcoded): purchase-logged acknowledgments, streak celebrations, ritual celebrations, supportive overspend lines (never shaming). 
-Add a skippable, replayable (Settings > Tutorial) first-use tour: recording a purchase, categories, month-close division, savings goals, shared savings/withdrawals, sync. ./check.sh green, one commit.
+Add a skippable, replayable (Settings > Tutorial) first-use tour: recording a purchase, categories, month-close division, savings goals, shared savings/withdrawals, sync. Auto-start it once right after the onboarding celebration (the handoff prompt 10 promised). ./check.sh green, one commit.
 ```
 
 ## Prompt 12 — Game core: text-mode adventure becomes the default app
 
 ```
 Make Adventure mode the default experience per CLAUDE.md, starting at tier 3 (text mode) so it ships before art exists. Adapter stays pure and tested.
+Note: lib/game/ already contains an earlier widget skin (adventure_dashboard/adventure_screen/adventure_spoils) and adapter.dart still maps a fixed hero+partner sprite pair. Absorb or replace that skin — do not leave two parallel Adventure UIs — and generalize the adapter's party mapping to the full N-member roster (adults, dependents, pets) before building text mode on top.
 - lib/game/text_mode/: the full app as a styled text-adventure — party roster (members with their descriptionText), this month's floor with category monsters (HP bars as text/blocks), quest bosses, gold pouch/war chest/reserve caches, equipment-maintenance report at floor start, and a scrolling adventure log in game voice fed by real events ("GROCERIES MONSTER TAKES 42 DMG", "THE WAR CHEST WAS RANSACKED!", supplies arriving, treasure found), with encouragement lines from app/assets/game/text/.
 - Month close as a turn-based text battle: per personal category leftover choose carry / attack a quest boss / pouch; attacks show damage and the tithe split (mismatch narrates the war-chest cut) using reducer numbers only.
 - Quick entry ("strike a monster" = log a purchase) reachable in two taps from launch. Adventure default on first run; Classic toggle always visible. Extend adapter.dart (TDD) for log/floor/party mappings. ./check.sh green, one commit.
@@ -132,7 +135,8 @@ Then build the tier-1/2 pixel presentation on top of the text-mode structure: pa
 ```
 Redesign Classic mode (the plain fallback; numbers/providers unchanged). It currently reads as bare default Material — make it feel designed.
 - Design system in lib/ui/: typography scale, spacing tokens, light/dark palettes keyed to main-category colors, card/list treatments, animated progress rings for category budgets.
-- Dashboard: month hero (income vs spent vs remaining), color-coded category grid, upcoming payments strip, savings-goal progress, net-worth sparkline. Consistent empty states and iconography; responsive multi-column desktop vs phone layouts. No new dependencies; fl_chart for charts. Golden tests for key screens. ./check.sh green, one commit.
+- Dashboard: month hero (income vs spent vs remaining), color-coded category grid, upcoming payments strip, savings-goal progress, net-worth sparkline. Consistent empty states and iconography; responsive multi-column desktop vs phone layouts. No new dependencies; fl_chart for charts. Golden tests for key screens.
+- Accessibility pass while restyling: honor system text scaling without overflow on key screens, semantic labels on progress rings/charts/FABs, and sufficient contrast in both light and dark palettes. ./check.sh green, one commit.
 ```
 
 ## Prompt 16 — Spreadsheet export (.xlsx) + optional Google Sheets sync
