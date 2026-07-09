@@ -12,8 +12,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/actions.dart';
 import '../../data/providers.dart';
 import '../../data/sync/sync_service.dart';
-import '../../game/adventure_screen.dart';
 import '../../game/skin_prefs.dart';
+import '../../game/text_mode/text_adventure_screen.dart';
 import '../activity/activity_model.dart';
 import '../budget_setup/budget_setup_screen.dart';
 import '../household_context.dart';
@@ -31,8 +31,10 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // The Adventure skin renders the same providers through the game widgets.
+    // Tier 3 (text mode) is the shipping default — a first-class text adventure
+    // that is complete and fun before a single sprite exists.
     if (ref.watch(appSkinProvider) == AppSkin.adventure) {
-      return const AdventureDashboardScreen();
+      return const TextAdventureScreen();
     }
 
     final state = ref.watch(householdStateProvider).value;

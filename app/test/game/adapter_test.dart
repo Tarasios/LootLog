@@ -393,6 +393,164 @@ void main() {
     });
   });
 
+  group('party roster', () {
+    MemberSet member(
+      String id,
+      String name,
+      MemberRole role, {
+      String? desc,
+      String? sprite,
+      bool active = true,
+    }) =>
+        MemberSet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: me,
+          occurredAt: _day(2026, 1, 1),
+          createdAt: _day(2026, 1, 1),
+          memberId: id,
+          name: name,
+          role: role,
+          active: active,
+          descriptionText: desc,
+          customSpriteSha256: sprite,
+        );
+
+    test('rosters every active member, me first, with descriptions', () {
+      final events = [
+        member(me, 'Robin', MemberRole.adult, desc: 'A steady hand.'),
+        member(partner, 'Sam', MemberRole.adult),
+        member('kid', 'Milo', MemberRole.dependent, desc: 'Small but brave.'),
+        member('mochi', 'Mochi', MemberRole.pet, sprite: 'petblob'),
+      ];
+      final g = _game(events, asOf: _day(2026, 7, 5));
+      // Me first, then the remaining adults, dependents, pets — each by name.
+      expect(g.roster.map((a) => a.name).toList(),
+          ['Robin', 'Sam', 'Milo', 'Mochi']);
+      final robin = g.roster.first;
+      expect(robin.isMe, isTrue);
+      expect(robin.role, AdventurerRole.adventurer);
+      expect(robin.descriptionText, 'A steady hand.');
+      final milo = g.roster.firstWhere((a) => a.name == 'Milo');
+      expect(milo.role, AdventurerRole.companion);
+      expect(milo.descriptionText, 'Small but brave.');
+      expect(milo.isMe, isFalse);
+      final mochi = g.roster.firstWhere((a) => a.name == 'Mochi');
+      expect(mochi.role, AdventurerRole.familiar);
+      expect(mochi.sprite.isCustom, isTrue);
+      expect(mochi.sprite.customSpriteSha256, 'petblob');
+    });
+
+    test('retired members are not in the roster', () {
+      final events = [
+        member(me, 'Robin', MemberRole.adult),
+        member('gone', 'Ghost', MemberRole.dependent, active: false),
+      ];
+      final g = _game(events, asOf: _day(2026, 7, 5));
+      expect(g.roster.map((a) => a.name).toList(), ['Robin']);
+    });
+  });
+
+  group('adventure log', () {
+    List<LogEntry> log(List<Event> events, {required DateTime asOf}) =>
+        buildAdventureLog(
+          reduce(events, asOf: asOf),
+          events,
+          meUserId: me,
+          userNames: _names,
+        );
+
+    test('narrates purchases, supplies, treasure & quests in game voice', () {
+      final events = [
+        _slice(
+            id: 'Groceries',
+            ownership: const GroupSlice(),
+            limit: 60000,
+            at: _day(2026, 7, 1)),
+        IncomeSet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: me,
+          occurredAt: _day(2026, 7, 1),
+          createdAt: _day(2026, 7, 1),
+          forUserId: me,
+          amountCents: 300000,
+          month: const Month(2026, 7),
+        ),
+        _buy(
+            id: 'p1',
+            target: const SliceCharge('Groceries'),
+            amount: 4200,
+            at: _day(2026, 7, 3)),
+        GiftReceived(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: me,
+          occurredAt: _day(2026, 7, 4),
+          createdAt: _day(2026, 7, 4),
+          forUserId: me,
+          amountCents: 5000,
+          note: 'Birthday',
+        ),
+        QuestSet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: me,
+          occurredAt: _day(2026, 7, 2),
+          createdAt: _day(2026, 7, 2),
+          questId: 'canoe',
+          name: 'Canoe',
+          targetCents: 130000,
+          ownership: const SharedParty(),
+        ),
+      ];
+      final entries = log(events, asOf: _day(2026, 7, 5));
+      // Newest first.
+      expect(entries.first.line, contains('TREASURE'));
+      final strike = entries.firstWhere((e) => e.tone == LogTone.strike);
+      expect(strike.line, r'GROCERIES MONSTER TAKES $42.00 DMG');
+      final supplies = entries.firstWhere((e) => e.tone == LogTone.supplies);
+      expect(supplies.line, contains('SUPPLIES'));
+      final quest = entries.firstWhere((e) => e.tone == LogTone.quest);
+      expect(quest.line, contains('Canoe'));
+    });
+
+    test('folds a war-chest ransack into the log', () {
+      final events = [
+        _slice(id: 'grp', ownership: const GroupSlice(), limit: 40000),
+        EmergencyFundSet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: me,
+          occurredAt: _day(2026, 1, 1),
+          createdAt: _day(2026, 1, 1),
+          fundId: 'f',
+          name: 'Car repairs',
+        ),
+        _buy(
+            id: 'g1',
+            target: const SliceCharge('grp'),
+            amount: 10000,
+            at: _day(2026, 6, 3)),
+        PurchaseAdded(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: me,
+          occurredAt: _day(2026, 7, 2),
+          createdAt: _day(2026, 7, 2),
+          purchaseId: 'em',
+          target: const EmergencyCharge('f'),
+          amountCents: 5000,
+          note: 'Tow truck',
+        ),
+      ];
+      final entries = log(events, asOf: _day(2026, 7, 5));
+      final ransack = entries.firstWhere((e) => e.tone == LogTone.ransack);
+      expect(ransack.line, contains('RANSACKED'));
+      expect(ransack.line, contains('Car repairs'));
+    });
+  });
+
   group('war chest', () {
     PoolWithdrawalProposed propose({required String by}) =>
         PoolWithdrawalProposed(
