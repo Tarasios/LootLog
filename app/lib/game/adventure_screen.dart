@@ -20,15 +20,18 @@ import 'adventure_dashboard.dart';
 import 'game_sprite.dart';
 import '../features/settings/visibility_prefs.dart';
 
-/// Reads every custom sprite blob the current state references (quest & pet
-/// sprites) into an in-memory `sha256 -> bytes` map for [AssetSpriteResolver].
-/// Missing blobs are simply skipped — the sprite falls back to a placeholder.
+/// Reads every custom sprite blob the current state references (member, quest
+/// & pet sprites) into an in-memory `sha256 -> bytes` map for
+/// [AssetSpriteResolver]. Missing blobs are simply skipped — the sprite falls
+/// back to a placeholder.
 final customSpriteBlobsProvider =
     FutureProvider<Map<String, Uint8List>>((ref) async {
   final state = ref.watch(householdStateProvider).value;
   if (state == null) return const {};
   final blobs = ref.watch(blobStoreProvider);
   final shas = <String>{
+    for (final m in state.members.values)
+      if (m.customSpriteSha256 != null) m.customSpriteSha256!,
     for (final q in state.quests.values)
       if (q.customSpriteSha256 != null) q.customSpriteSha256!,
     for (final p in state.pets.values)
