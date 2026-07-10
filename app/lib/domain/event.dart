@@ -1,4 +1,4 @@
-/// The sealed Event hierarchy. Every state change in DuoBudget is an immutable
+/// The sealed Event hierarchy. Every state change in LootLog is an immutable
 /// event appended to the local log; derived state comes only from the reducer.
 ///
 /// Every event shares a common envelope: `eventId` (UUIDv7), `deviceId`,
@@ -110,6 +110,7 @@ sealed class Event {
                   (p['emergencyContribution'] as Map).cast(),
                 ),
           petId: p['petId'] as String?,
+          priority: SlicePriority.fromName(p['priority'] as String?),
         );
       case 'RecurringExpenseSet':
         return RecurringExpenseSet(
@@ -165,6 +166,7 @@ sealed class Event {
           forUserId: p['forUserId'] as String,
           amountCents: p['amountCents'] as int,
           effectiveFromMonth: Month.parse(p['effectiveFromMonth'] as String),
+          estimatedHighCents: p['estimatedHighCents'] as int?,
         );
       case 'QuestSet':
         return QuestSet(
@@ -558,6 +560,7 @@ class BudgetSliceSet extends Event {
     this.mainCategoryId,
     this.emergencyContribution,
     this.petId,
+    this.priority = SlicePriority.important,
   });
 
   final String sliceId;
@@ -573,6 +576,10 @@ class BudgetSliceSet extends Event {
   final bool taxDeductibleByDefault;
   final EmergencyContribution? emergencyContribution;
   final String? petId;
+
+  /// How essential this category is (advisory; see [SlicePriority]).
+  /// Serialized only when not the default, for wire compatibility.
+  final SlicePriority priority;
 
   @override
   String get type => 'BudgetSliceSet';
@@ -590,6 +597,7 @@ class BudgetSliceSet extends Event {
         if (emergencyContribution != null)
           'emergencyContribution': emergencyContribution!.toJson(),
         if (petId != null) 'petId': petId,
+        if (priority != SlicePriority.important) 'priority': priority.name,
       };
 }
 
@@ -752,11 +760,21 @@ class DefaultIncomeSet extends Event {
     required this.forUserId,
     required this.amountCents,
     required this.effectiveFromMonth,
+    this.estimatedHighCents,
   });
 
   final String forUserId;
+
+  /// The planning figure. For a variable earner this is the LOW end of the
+  /// estimated range: budgets aim at what the month is sure to bring in.
   final int amountCents;
   final Month effectiveFromMonth;
+
+  /// The optimistic top of an estimated income range, for display only
+  /// ("$3,000 to $4,500 — planning at the low end"). Null for a fixed salary.
+  /// A month that actually pays more is recorded as a plain [IncomeSet]
+  /// override; nothing budget-side ever plans on this figure.
+  final int? estimatedHighCents;
 
   @override
   String get type => 'DefaultIncomeSet';
@@ -766,6 +784,8 @@ class DefaultIncomeSet extends Event {
         'forUserId': forUserId,
         'amountCents': amountCents,
         'effectiveFromMonth': effectiveFromMonth.toKey(),
+        if (estimatedHighCents != null)
+          'estimatedHighCents': estimatedHighCents,
       };
 }
 

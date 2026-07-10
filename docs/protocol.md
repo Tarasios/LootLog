@@ -1,6 +1,6 @@
-# DuoBudget Sync & Wire Protocol
+# LootLog Sync & Wire Protocol
 
-DuoBudget converges devices over the local network with **no internet services,
+LootLog converges devices over the local network with **no internet services,
 servers, or accounts**. Any desktop build can host a **hub** (a small
 `package:shelf` HTTP server); phones and the other desktop pair to it and sync.
 Convergence needs no conflict resolution — see [ADR 0002](adr/0002-multi-hub-lan-sync.md).

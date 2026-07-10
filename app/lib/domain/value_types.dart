@@ -255,6 +255,22 @@ class SharedParty extends PartyOwnership {
   int get hashCode => 'sharedParty'.hashCode;
 }
 
+/// How essential a budget category is. Purely advisory: it never changes a
+/// cent by itself. It orders the grace-expired defaults (fun leftovers pay an
+/// OVERBUDGET before important ones, which pay before necessities) and lets
+/// the ritual UI suggest forgoing "fun" money when a necessity is in debt.
+enum SlicePriority {
+  necessity,
+  important,
+  fun;
+
+  static SlicePriority fromName(String? name) => switch (name) {
+        'necessity' => SlicePriority.necessity,
+        'fun' => SlicePriority.fun,
+        _ => SlicePriority.important,
+      };
+}
+
 /// A destination for month-close leftover: carry within the slice, attack a
 /// quest, or convert to discretionary vault money. Also serves as a slice's
 /// default leftover policy.
@@ -271,6 +287,8 @@ sealed class LeftoverDestination {
         return QuestDestination(json['questId'] as String);
       case 'discretionary':
         return const Discretionary();
+      case 'overbudget':
+        return OverbudgetPayment(json['sliceId'] as String);
       default:
         throw FormatException('Unknown leftover destination kind: $kind');
     }
@@ -334,6 +352,21 @@ class Allocation {
 
   @override
   int get hashCode => Object.hash(destination, amountCents);
+}
+
+/// Pays down the OVERBUDGET debt of an overspent category. The attack is
+/// tithed by the category-match rule (matching main category = untithed);
+/// damage beyond the outstanding debt overflows to the owner's vault.
+class OverbudgetPayment extends LeftoverDestination {
+  const OverbudgetPayment(this.sliceId);
+  final String sliceId;
+  @override
+  Map<String, dynamic> toJson() => {'kind': 'overbudget', 'sliceId': sliceId};
+  @override
+  bool operator ==(Object other) =>
+      other is OverbudgetPayment && other.sliceId == sliceId;
+  @override
+  int get hashCode => Object.hash('overbudget', sliceId);
 }
 
 /// Where an approved pool withdrawal sends its money.

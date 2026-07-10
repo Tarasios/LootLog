@@ -36,7 +36,7 @@ class LocalSetup {
           'meUserId must be one of the two profiles',
         );
 
-  /// IANA-style household timezone. DuoBudget computes months in this zone
+  /// IANA-style household timezone. LootLog computes months in this zone
   /// (currently only America/Vancouver is supported by the reducer).
   final String timezone;
 

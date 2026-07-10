@@ -2,12 +2,12 @@
 /// order, with money rendered as cents-derived decimals.
 library;
 
-import 'package:duobudget/data/export/budget_workbook.dart';
-import 'package:duobudget/data/export/xlsx.dart';
-import 'package:duobudget/domain/event.dart';
-import 'package:duobudget/domain/reducer.dart';
-import 'package:duobudget/domain/time.dart';
-import 'package:duobudget/domain/value_types.dart';
+import 'package:lootlog/data/export/budget_workbook.dart';
+import 'package:lootlog/data/export/xlsx.dart';
+import 'package:lootlog/domain/event.dart';
+import 'package:lootlog/domain/reducer.dart';
+import 'package:lootlog/domain/time.dart';
+import 'package:lootlog/domain/value_types.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 int _n = 0;

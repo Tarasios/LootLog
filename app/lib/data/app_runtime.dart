@@ -16,9 +16,9 @@ import 'blobs/blob_store.dart';
 import 'db/database.dart';
 import 'providers.dart';
 
-/// Opens the app database file at `<documents>/duobudget.sqlite`.
+/// Opens the app database file at `<documents>/lootlog.sqlite`.
 AppDatabase openAppDatabase(Directory documentsDir) {
-  final file = File(p.join(documentsDir.path, 'duobudget.sqlite'));
+  final file = File(p.join(documentsDir.path, 'lootlog.sqlite'));
   return AppDatabase(NativeDatabase.createInBackground(file));
 }
 

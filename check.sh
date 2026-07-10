@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# DuoBudget pre-commit gate: static analysis + tests must both pass.
+# LootLog pre-commit gate: static analysis + tests must both pass.
 # Exits nonzero if either step fails. Run from anywhere; it operates on app/.
 set -euo pipefail
 

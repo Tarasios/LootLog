@@ -1,11 +1,11 @@
-# Releasing DuoBudget
+# Releasing LootLog
 
-DuoBudget ships as a Flutter app for **Android** and **desktop** (Windows,
+LootLog ships as a Flutter app for **Android** and **desktop** (Windows,
 macOS, Linux). There are no servers or accounts to deploy — a release is just
 signed, packaged binaries.
 
 > **Where to look.** [`distribution.md`](distribution.md) is the authoritative
-> guide to how DuoBudget is distributed (GitHub Releases only), the CI pipeline
+> guide to how LootLog is distributed (GitHub Releases only), the CI pipeline
 > that builds every artifact on a tag, the pinned toolchain, and the
 > telemetry-free download metrics. **This** page is the deeper reference for the
 > one-time **upload-keystore creation** and the optional **Play Store `.aab`**
@@ -41,7 +41,7 @@ dart run tool/generate_branding.dart
 
 ```bash
 keytool -genkey -v \
-  -keystore ~/duobudget-upload.jks \
+  -keystore ~/lootlog-upload.jks \
   -storetype JKS \
   -keyalg RSA -keysize 2048 -validity 10000 \
   -alias upload
@@ -56,7 +56,7 @@ in a password manager or secret store.
 Create `app/android/key.properties` (uncommitted):
 
 ```properties
-storeFile=/absolute/path/to/duobudget-upload.jks
+storeFile=/absolute/path/to/lootlog-upload.jks
 storePassword=<store password>
 keyAlias=upload
 keyPassword=<key password>
@@ -130,8 +130,8 @@ cd app
 flutter build macos --release
 ```
 
-Output: `build/macos/Build/Products/Release/duobudget.app` (the bundle's
-`PRODUCT_NAME` is lowercase `duobudget`).
+Output: `build/macos/Build/Products/Release/lootlog.app` (the bundle's
+`PRODUCT_NAME` is lowercase `lootlog`).
 
 - **Sign & notarize (optional but needed for distribution outside your own
   machine):**
@@ -139,12 +139,12 @@ Output: `build/macos/Build/Products/Release/duobudget.app` (the bundle's
   ```bash
   codesign --deep --force --options runtime \
     --sign "Developer ID Application: <Your Name> (<TEAMID>)" \
-    build/macos/Build/Products/Release/duobudget.app
+    build/macos/Build/Products/Release/lootlog.app
 
   # zip it, then submit for notarization:
-  xcrun notarytool submit duobudget.zip \
+  xcrun notarytool submit lootlog.zip \
     --apple-id <you@example.com> --team-id <TEAMID> --wait
-  xcrun stapler staple build/macos/Build/Products/Release/duobudget.app
+  xcrun stapler staple build/macos/Build/Products/Release/lootlog.app
   ```
 
 - **Package:** create a `.dmg` (e.g. with `create-dmg`) or a zip.

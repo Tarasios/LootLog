@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- DuoBudget splash field. Kept light to match the default app theme. -->
+    <!-- LootLog splash field. Kept light to match the default app theme. -->
     <color name="splash_background">#FFF7F4EF</color>
 </resources>

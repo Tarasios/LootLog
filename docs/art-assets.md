@@ -7,7 +7,7 @@ even if you only ever finish one sprite.
 
 Two things to hold onto before we start:
 
-1. **The art is a skin, never the game's brain.** DuoBudget is a real budgeting
+1. **The art is a skin, never the game's brain.** LootLog is a real budgeting
    app wearing a dungeon-crawler costume. Your sprites decorate numbers the app
    already computed; they never change a single cent. Draw freely — you cannot
    break the money.
@@ -205,6 +205,12 @@ optional; each asset that lands upgrades one more surface from placeholder to ar
 **Enraged variants** (overspent monsters, drenched in Red `#D04648`) — same
 sizes, `_enraged_` in the name, e.g. `monster_food_enraged_4f.png`, plus the
 generic `monster_enraged_4f.png`.
+
+**The OVERBUDGET** — `overbudget_idle_4f.png`, 32×32 ×4 strip. The debt
+monster that appears when a month's overspending outlives the gold pouch. It
+should look genuinely intimidating (the scariest silhouette in the set — think
+a hulking shadow with glowing eyes), because until it falls, the category it
+came from is locked. One asset covers every OVERBUDGET.
 
 **Portraits & roster:**
 

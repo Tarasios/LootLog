@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:duobudget/data/blobs/blob_store.dart';
-import 'package:duobudget/data/blobs/media_ingest.dart';
+import 'package:lootlog/data/blobs/blob_store.dart';
+import 'package:lootlog/data/blobs/media_ingest.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 

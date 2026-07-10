@@ -1,4 +1,4 @@
-/// Drift table definitions for DuoBudget's local store.
+/// Drift table definitions for LootLog's local store.
 ///
 /// The store is **append-only** for domain data: every state change is an
 /// immutable [Events] row. Nothing here is ever `UPDATE`d or `DELETE`d in the

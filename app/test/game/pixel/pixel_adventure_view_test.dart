@@ -1,6 +1,6 @@
-import 'package:duobudget/game/game_sprite.dart';
-import 'package:duobudget/game/pixel/pixel_adventure_view.dart';
-import 'package:duobudget/ui/theme.dart';
+import 'package:lootlog/game/game_sprite.dart';
+import 'package:lootlog/game/pixel/pixel_adventure_view.dart';
+import 'package:lootlog/ui/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

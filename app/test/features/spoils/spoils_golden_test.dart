@@ -1,5 +1,5 @@
-import 'package:duobudget/features/spoils/spoils_sheet.dart';
-import 'package:duobudget/ui/theme.dart';
+import 'package:lootlog/features/spoils/spoils_sheet.dart';
+import 'package:lootlog/ui/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

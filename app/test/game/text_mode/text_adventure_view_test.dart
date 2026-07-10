@@ -1,7 +1,7 @@
-import 'package:duobudget/game/adapter.dart';
-import 'package:duobudget/game/game_state.dart';
-import 'package:duobudget/game/text_mode/text_adventure_view.dart';
-import 'package:duobudget/ui/theme.dart';
+import 'package:lootlog/game/adapter.dart';
+import 'package:lootlog/game/game_state.dart';
+import 'package:lootlog/game/text_mode/text_adventure_view.dart';
+import 'package:lootlog/ui/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

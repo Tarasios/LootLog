@@ -1,4 +1,4 @@
-/// Calendar-time helpers for DuoBudget. Months are calendar months in the
+/// Calendar-time helpers for LootLog. Months are calendar months in the
 /// household timezone (America/Vancouver), keyed by each event's `occurredAt`.
 ///
 /// The household timezone offset is computed from the post-2007 US DST rules

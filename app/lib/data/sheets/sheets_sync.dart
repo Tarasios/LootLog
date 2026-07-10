@@ -1,4 +1,4 @@
-/// Optional Google Sheets sync — the ONLY feature in DuoBudget permitted to
+/// Optional Google Sheets sync — the ONLY feature in LootLog permitted to
 /// contact an outside service, and the only one that ever sends data off the
 /// local network.
 ///
@@ -27,11 +27,11 @@ import '../export/xlsx.dart';
 const String kSheetsPrivacyWarning =
     'Turning on Google Sheets sync sends a copy of your budget workbook to '
     'Google Sheets. Your data leaves your local network and this device. This '
-    'is the only DuoBudget feature that ever contacts an outside service; it '
+    'is the only LootLog feature that ever contacts an outside service; it '
     'stays off until you turn it on, you provide your own Google credentials, '
     'and you can turn it off at any time. Nothing else in the app depends on it.';
 
-/// The user-supplied OAuth credentials for their own Google account. DuoBudget
+/// The user-supplied OAuth credentials for their own Google account. LootLog
 /// ships no client secret of its own; the user creates an OAuth client in the
 /// Google Cloud console and supplies a refresh token (see `docs/exports.md`).
 class SheetsCredentials {

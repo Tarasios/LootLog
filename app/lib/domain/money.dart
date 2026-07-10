@@ -1,4 +1,4 @@
-/// Money is integer cents everywhere in DuoBudget. Never use `double` for
+/// Money is integer cents everywhere in LootLog. Never use `double` for
 /// money — this value type is the only carrier of monetary amounts. "Gold" is
 /// merely a display unit in the adventure skin; the ledger is always cents.
 ///

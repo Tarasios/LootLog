@@ -1,4 +1,4 @@
-import 'package:duobudget/domain/money.dart';
+import 'package:lootlog/domain/money.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

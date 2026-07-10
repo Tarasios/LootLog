@@ -1,6 +1,6 @@
-import 'package:duobudget/features/entry/amount_keypad.dart';
-import 'package:duobudget/features/entry/expense_entry_view.dart';
-import 'package:duobudget/ui/theme.dart';
+import 'package:lootlog/features/entry/amount_keypad.dart';
+import 'package:lootlog/features/entry/expense_entry_view.dart';
+import 'package:lootlog/ui/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

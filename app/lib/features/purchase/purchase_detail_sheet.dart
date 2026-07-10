@@ -19,6 +19,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../data/actions.dart';
 import '../../data/ocr/text_recognizer.dart';
 import '../../data/providers.dart';
+import '../../data/sync/sync_service.dart';
 import '../../domain/state.dart';
 import '../../domain/value_types.dart';
 import '../../game/skin_prefs.dart';
@@ -273,6 +274,20 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
 
   Future<void> _viewImage(String sha256) async {
     final store = ref.read(blobStoreProvider);
+    // An offloaded receipt lives on the hubs; fetch it back on demand.
+    if (!await store.exists(sha256)) {
+      final fetched =
+          await ref.read(syncServiceProvider)?.fetchBlob(sha256) ?? false;
+      if (!fetched) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('This receipt lives on your hub. Connect to your '
+                'home network to view it.'),
+          ));
+        }
+        return;
+      }
+    }
     final bytes = await store.read(sha256);
     if (!mounted) return;
     await showDialog<void>(

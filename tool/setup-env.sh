@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-time environment bootstrap for DuoBudget.
+# One-time environment bootstrap for LootLog.
 #
 # Purpose: install the Flutter SDK ONCE so it is baked into the container
 # snapshot and every later session (and ./check.sh) finds it already present —

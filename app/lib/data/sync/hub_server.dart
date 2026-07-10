@@ -32,7 +32,7 @@ import '../blobs/blob_store.dart';
 import '../db/database.dart';
 import 'wire.dart';
 
-/// A hosted DuoBudget sync hub bound to one device's [AppDatabase] and
+/// A hosted LootLog sync hub bound to one device's [AppDatabase] and
 /// [BlobStore]. Construct it, `await ready`, then either mount [handler] in a
 /// larger server or call [serve] to bind a socket.
 class HubServer {

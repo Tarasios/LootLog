@@ -1,13 +1,13 @@
 {
-  "_comment": "Celebrations for completing the monthly wrap-up (dividing leftovers). Shown once the ritual is confirmed. Warm and congratulatory.",
+  "_comment": "Celebrations for completing the monthly wrap-up (dividing leftovers). Shown once the ritual is confirmed. Warm, congratulatory, and earned. Keep the vocabulary mode-neutral so the same line works in Classic and Adventure.",
   "lines": [
-    "Month wrapped up — beautifully done.",
-    "Leftovers divided, the month is closed. Well played.",
-    "That’s a wrap. Everything’s settled and squared away.",
-    "Ritual complete. Your plan carries into next month.",
-    "Month closed with intention. That’s the whole game.",
-    "All settled. You finished the month on your terms.",
-    "Done and dusted — savings goals a little closer.",
-    "Another month put to bed. Momentum is yours."
+    "Month closed, and every coin knows where it lives. Well done.",
+    "Wrapped, settled, squared away. See you next month.",
+    "You closed the month on your terms. That is the whole game, played well.",
+    "Leftovers divided, plans carried forward. A clean finish.",
+    "Another month settled with intention. It adds up, and you get to watch it add up.",
+    "All decided. The goals inch closer and the plan rolls on.",
+    "Closed out and counted. Take the moment, you earned it.",
+    "That is a wrap. Next month starts with a clear board and a better map."
   ]
 }

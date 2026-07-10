@@ -122,6 +122,10 @@ class PixelAdventureView extends StatelessWidget {
                         _ransack(context, r),
                         const SizedBox(height: AppSpacing.md),
                       ],
+                      for (final d in game.overbudgets) ...[
+                        _overbudget(context, d),
+                        const SizedBox(height: AppSpacing.md),
+                      ],
                       _floorViewport(context),
                       const SizedBox(height: AppSpacing.md),
                       _minimap(context),
@@ -155,6 +159,10 @@ class PixelAdventureView extends StatelessWidget {
         ],
         for (final r in game.warChest.ransacks) ...[
           _ransack(context, r),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        for (final d in game.overbudgets) ...[
+          _overbudget(context, d),
           const SizedBox(height: AppSpacing.md),
         ],
         _partyStrip(context),
@@ -693,6 +701,49 @@ class PixelAdventureView extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _overbudget(BuildContext context, OverbudgetMonster d) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer,
+        borderRadius: AppRadii.card,
+        border: Border.all(color: scheme.error, width: 1.5),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.gavel_outlined, color: scheme.onErrorContainer, size: 22),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'THE OVERBUDGET LOOMS — ${d.categoryName.toUpperCase()}',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                        color: scheme.onErrorContainer,
+                      ),
+                ),
+                Text(
+                  '${money(d.outstandingCents)} HP remains'
+                  '${d.paidCents > 0 ? ' (${money(d.paidCents)} dealt)' : ''}'
+                  ' · ${d.categoryName} is locked until it falls'
+                  '${d.mine ? '' : ' · ${d.ownerName ?? 'ally'}’s hunt'}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onErrorContainer,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

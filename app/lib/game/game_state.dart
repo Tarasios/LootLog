@@ -100,6 +100,47 @@ class Monster {
   HpBar get hp => HpBar(currentCents: damageCents, maxCents: maxHpCents);
 }
 
+/// The OVERBUDGET: the intimidating debt monster spawned when a category's
+/// overspending outlived the owner's gold pouch at month close. Its HP is the
+/// accrued debt; damage is what has been repaid so far (attacks at the ritual
+/// plus the locked category's own funding at each close). While it stands,
+/// the category it came from is locked.
+class OverbudgetMonster {
+  const OverbudgetMonster({
+    required this.sliceId,
+    required this.categoryName,
+    required this.sprite,
+    required this.accruedCents,
+    required this.outstandingCents,
+    required this.mine,
+    this.ownerName,
+    this.mainCategoryId,
+  });
+
+  final String sliceId;
+
+  /// The overspent category this debt hangs off (and locks).
+  final String categoryName;
+  final SpriteRef sprite;
+
+  /// Total overflow that ever became debt — the monster's full HP.
+  final int accruedCents;
+
+  /// What still has to be repaid before the category unlocks.
+  final int outstandingCents;
+
+  /// Whether the debt belongs to the device owner.
+  final bool mine;
+  final String? ownerName;
+
+  /// The indebted category's main category (category-match attacks repay 1:1).
+  final String? mainCategoryId;
+
+  int get paidCents => accruedCents - outstandingCents;
+
+  HpBar get hp => HpBar(currentCents: paidCents, maxCents: accruedCents);
+}
+
 /// A group-slice party contract: a shared undertaking with a dual-colour
 /// banner. Overspend enrages it and bleeds the party's shared HP.
 class PartyContract {
@@ -498,6 +539,7 @@ class GameState {
     required this.expeditionSuppliesCents,
     required this.monsters,
     required this.contracts,
+    this.overbudgets = const [],
     required this.party,
     required this.questMonsters,
     required this.provisioning,
@@ -535,6 +577,10 @@ class GameState {
 
   /// Group-slice contracts NOT linked to a pet.
   final List<PartyContract> contracts;
+
+  /// Outstanding OVERBUDGET debt monsters, the device owner's first. They are
+  /// rendered loud: each one locks its category until it falls.
+  final List<OverbudgetMonster> overbudgets;
 
   /// Pet party members, each owning their linked monsters / contracts / caches.
   final List<PartyMember> party;

@@ -3,11 +3,11 @@
 /// household is the one the party described.
 library;
 
-import 'package:duobudget/domain/event.dart';
-import 'package:duobudget/domain/reducer.dart';
-import 'package:duobudget/domain/time.dart';
-import 'package:duobudget/domain/value_types.dart';
-import 'package:duobudget/features/setup/onboarding_plan.dart';
+import 'package:lootlog/domain/event.dart';
+import 'package:lootlog/domain/reducer.dart';
+import 'package:lootlog/domain/time.dart';
+import 'package:lootlog/domain/value_types.dart';
+import 'package:lootlog/features/setup/onboarding_plan.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// A deterministic id generator so event ids (and entity ids) are stable and

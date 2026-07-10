@@ -168,6 +168,26 @@ abstract final class Glossary {
         'into each month.',
   );
 
+  /// Unsettled overspending that must be repaid before its budget unlocks.
+  static const overbudget = GlossaryTerm(
+    internal: 'overbudget',
+    classic: 'overspending to repay',
+    adventure: 'OVERBUDGET',
+    helper: 'Overspending your personal spending could not cover at month '
+        'end. It gets repaid from leftovers, and until it is, that budget\'s '
+        'monthly funding goes to the repayment instead of new spending.',
+  );
+
+  /// Paying leftover toward the OVERBUDGET.
+  static const payOverbudget = GlossaryTerm(
+    internal: 'overbudgetPayment',
+    classic: 'Repay overspending',
+    adventure: 'Attack the OVERBUDGET',
+    helper: 'Use this leftover to pay down overspending from an earlier '
+        'month. Same-category leftovers repay in full; others pay the usual '
+        'shared-savings cut first.',
+  );
+
   /// Every defined term, for tests and any glossary/help screen.
   static const all = <GlossaryTerm>[
     leftoverAllocated,
@@ -183,6 +203,8 @@ abstract final class Glossary {
     withdrawal,
     ransack,
     emergencyFund,
+    overbudget,
+    payOverbudget,
   ];
 
   /// Flavor words that must never appear in Classic-mode copy. The glossary is

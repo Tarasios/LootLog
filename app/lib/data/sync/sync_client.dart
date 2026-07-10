@@ -65,6 +65,7 @@ class SyncClient {
     required this.db,
     required this.blobs,
     required this.deviceName,
+    this.pullExclusions,
     HttpClient? httpClient,
   }) : _http = httpClient ?? HttpClient();
 
@@ -73,6 +74,10 @@ class SyncClient {
 
   /// Display name announced to a hub at pairing.
   final String deviceName;
+
+  /// Blob hashes to skip when pulling — the receipts this device deliberately
+  /// offloaded, so a pull cycle never re-downloads what offloading removed.
+  final Future<Set<String>> Function()? pullExclusions;
 
   final HttpClient _http;
 
@@ -203,8 +208,10 @@ class SyncClient {
 
   Future<int> _pullBlobs(PairedHubRow hub) async {
     final referenced = BlobStore.referencedBlobs(await db.eventsDao.allEvents());
+    final excluded = await pullExclusions?.call() ?? const <String>{};
     var count = 0;
     for (final sha in referenced) {
+      if (excluded.contains(sha)) continue;
       if (await blobs.exists(sha)) continue;
       final res = await _sendBytes('GET', _uri(hub.baseUrl, 'blobs/$sha'),
           token: hub.deviceToken);
@@ -216,6 +223,53 @@ class SyncClient {
       count++;
     }
     return count;
+  }
+
+  // ---- offload support ------------------------------------------------------
+
+  /// The subset of [shas] that EVERY paired hub confirms holding (HEAD 200).
+  /// An unreachable hub, a failed check, or an empty hub list confirms
+  /// nothing, so offloading only ever errs on the side of keeping the local
+  /// copy. Never throws.
+  Future<Set<String>> confirmBlobsOnAllHubs(Set<String> shas) async {
+    if (shas.isEmpty) return {};
+    final hubs = await db.pairedHubDao.all();
+    if (hubs.isEmpty) return {};
+    var confirmed = Set<String>.of(shas);
+    for (final hub in hubs) {
+      final onThisHub = <String>{};
+      for (final sha in confirmed) {
+        try {
+          final head = await _sendBytes(
+              'HEAD', _uri(hub.baseUrl, 'blobs/$sha'),
+              token: hub.deviceToken);
+          if (head.status == 200) onThisHub.add(sha);
+        } on Object {
+          // Treat as not confirmed on this hub.
+        }
+      }
+      confirmed = confirmed.intersection(onThisHub);
+      if (confirmed.isEmpty) break;
+    }
+    return confirmed;
+  }
+
+  /// Fetches [sha] from the first paired hub that has it, saving it locally.
+  /// Returns true on success. Never throws.
+  Future<bool> fetchBlob(String sha) async {
+    for (final hub in await db.pairedHubDao.all()) {
+      try {
+        final res = await _sendBytes('GET', _uri(hub.baseUrl, 'blobs/$sha'),
+            token: hub.deviceToken);
+        if (res.status == 200) {
+          await blobs.save(res.bytes);
+          return true;
+        }
+      } on Object {
+        // Try the next hub.
+      }
+    }
+    return false;
   }
 
   // ---- transport ----------------------------------------------------------

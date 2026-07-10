@@ -32,16 +32,27 @@ class IncomeScreen extends ConsumerWidget {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     final current = Month.fromInstant(DateTime.now());
+    // One card per ledger-bearing adult, derived from household membership —
+    // never from device-local setup — so any household size (1, 2, 5, more)
+    // gets every earner listed. The device owner sorts first.
+    final meId = setup.me.userId;
+    final adults = state.adultIds.toList()
+      ..sort((a, b) {
+        final am = a == meId ? 0 : 1;
+        final bm = b == meId ? 0 : 1;
+        if (am != bm) return am - bm;
+        return (names[a] ?? a).compareTo(names[b] ?? b);
+      });
     return Scaffold(
       appBar: AppBar(title: const Text('Income')),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
-          for (final p in setup.profiles)
+          for (final id in adults)
             _UserIncomeCard(
-              key: ValueKey(p.userId),
-              userId: p.userId,
-              name: names[p.userId] ?? p.name,
+              key: ValueKey(id),
+              userId: id,
+              name: names[id] ?? id,
               state: state,
               currentMonth: current,
             ),
@@ -77,7 +88,9 @@ class _UserIncomeCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final defaultCents = state.defaultIncomeFor(userId, currentMonth);
+    final effective = state.effectiveIncomeDefault(userId, currentMonth);
+    final defaultCents = effective?.amountCents;
+    final highCents = effective?.estimatedHighCents;
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.lg),
       child: Padding(
@@ -88,15 +101,18 @@ class _UserIncomeCard extends ConsumerWidget {
             Text(name, style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: AppSpacing.md),
             _DefaultIncomeEditor(
-              key: ValueKey('default|$userId|${defaultCents ?? -1}'),
+              key: ValueKey(
+                  'default|$userId|${defaultCents ?? -1}|${highCents ?? -1}'),
               name: name,
               cents: defaultCents,
-              onSave: (cents) => ref
+              highCents: highCents,
+              onSave: (cents, high) => ref
                   .read(householdActionsProvider)
                   ?.setDefaultIncome(
                     forUserId: userId,
                     amountCents: cents,
                     effectiveFromMonth: currentMonth,
+                    estimatedHighCents: high,
                   ),
             ),
             const Divider(height: AppSpacing.xl),
@@ -137,11 +153,15 @@ class _DefaultIncomeEditor extends StatefulWidget {
     required this.name,
     required this.cents,
     required this.onSave,
+    this.highCents,
   });
 
   final String name;
   final int? cents;
-  final void Function(int cents) onSave;
+
+  /// The optimistic top of an estimated range, or null for a fixed salary.
+  final int? highCents;
+  final void Function(int cents, int? highCents) onSave;
 
   @override
   State<_DefaultIncomeEditor> createState() => _DefaultIncomeEditorState();
@@ -151,40 +171,80 @@ class _DefaultIncomeEditorState extends State<_DefaultIncomeEditor> {
   late final TextEditingController _c = TextEditingController(
     text: widget.cents != null ? Money(widget.cents!).format() : '',
   );
+  late final TextEditingController _high = TextEditingController(
+    text: widget.highCents != null ? Money(widget.highCents!).format() : '',
+  );
+  late bool _varies = widget.highCents != null;
 
   @override
   void dispose() {
     _c.dispose();
+    _high.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: TextField(
-            controller: _c,
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _c,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: _varies
+                      ? 'Monthly income — low estimate'
+                      : 'Default monthly income',
+                  helperText: _varies
+                      ? 'Budgets plan on this, the amount a slow month still '
+                          'brings in'
+                      : 'Carries forward to every month until changed',
+                  prefixText: r'$',
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            FilledButton(
+              onPressed: () {
+                final cents = tryParseMoneyCents(_c.text) ?? 0;
+                final high =
+                    _varies ? tryParseMoneyCents(_high.text) : null;
+                widget.onSave(cents, high);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content:
+                          Text('Saved ${widget.name}\'s default income')),
+                );
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          title: const Text('Income varies month to month'),
+          subtitle: const Text('Hourly, freelance, or shifting hours: plan '
+              'at the low end and record what each month really paid'),
+          value: _varies,
+          onChanged: (v) => setState(() => _varies = v),
+        ),
+        if (_varies)
+          TextField(
+            controller: _high,
             keyboardType:
                 const TextInputType.numberWithOptions(decimal: true),
             decoration: const InputDecoration(
-              labelText: 'Default monthly income',
-              helperText: 'Carries forward to every month until changed',
+              labelText: 'High estimate (a good month)',
+              helperText: 'Display only — anything above the low estimate '
+                  'arrives as a bonus, never as a plan',
               prefixText: r'$',
             ),
           ),
-        ),
-        const SizedBox(width: AppSpacing.md),
-        FilledButton(
-          onPressed: () {
-            final cents = tryParseMoneyCents(_c.text) ?? 0;
-            widget.onSave(cents);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Saved ${widget.name}\'s default income')),
-            );
-          },
-          child: const Text('Save'),
-        ),
       ],
     );
   }

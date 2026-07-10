@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:duobudget/data/blobs/blob_store.dart';
-import 'package:duobudget/domain/event.dart';
-import 'package:duobudget/domain/value_types.dart';
+import 'package:lootlog/data/blobs/blob_store.dart';
+import 'package:lootlog/domain/event.dart';
+import 'package:lootlog/domain/value_types.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 DateTime _at(int d) => DateTime.utc(2026, 3, d, 18);

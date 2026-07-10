@@ -5,7 +5,7 @@
 
 ## Context
 
-DuoBudget has no internet services, servers, or accounts. Two people on several
+LootLog has no internet services, servers, or accounts. Two people on several
 devices need their data to converge, with desktops acting as sync points on the
 local network. A device might reach different desktops at different times, and
 either desktop might be the one that is currently awake.

@@ -1,9 +1,9 @@
 import 'dart:convert';
 
-import 'package:duobudget/domain/event.dart';
-import 'package:duobudget/domain/ids.dart';
-import 'package:duobudget/domain/time.dart';
-import 'package:duobudget/domain/value_types.dart';
+import 'package:lootlog/domain/event.dart';
+import 'package:lootlog/domain/ids.dart';
+import 'package:lootlog/domain/time.dart';
+import 'package:lootlog/domain/value_types.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 final DateTime _occ = DateTime.utc(2026, 3, 15, 20);

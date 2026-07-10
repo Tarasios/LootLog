@@ -60,7 +60,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   }
 
   String get _title => switch (_pane) {
-        ShellPane.dashboard => 'DuoBudget',
+        ShellPane.dashboard => 'LootLog',
         ShellPane.ledger => 'Ledger',
         ShellPane.activity => 'Activity',
       };

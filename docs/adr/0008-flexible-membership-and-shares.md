@@ -5,10 +5,10 @@
 
 ## Context
 
-DuoBudget began as a strictly two-person app: two named members and a hard-coded
+LootLog began as a strictly two-person app: two named members and a hard-coded
 **50/50** split for every shared cost. Real households are not all couples — a
 household may have one adult or several, plus dependents (kids) and pets — and
-even two earners rarely split everything evenly. The name "DuoBudget" is now
+even two earners rarely split everything evenly. The name "LootLog" is now
 historical; the model has to stop assuming exactly two equal adults without
 breaking the events already on the wire.
 

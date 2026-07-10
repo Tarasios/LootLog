@@ -1,5 +1,5 @@
-import 'package:duobudget/game/game_sprite.dart';
-import 'package:duobudget/game/game_state.dart';
+import 'package:lootlog/game/game_sprite.dart';
+import 'package:lootlog/game/game_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

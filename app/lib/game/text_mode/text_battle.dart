@@ -18,7 +18,7 @@ import '../../ui/theme.dart';
 import 'text_widgets.dart';
 
 /// The move chosen for one felled monster's loot.
-enum _Move { carry, attack, pouch }
+enum _Move { smite, carry, attack, pouch }
 
 /// The turn-based month-close battle, rendered in text. Pure: it takes the
 /// ritual view-model and hands back a confirmed [SpoilsResult]; the caller
@@ -43,13 +43,20 @@ class _TextBattleViewState extends State<TextBattleView> {
   final Map<String, int> _actuals = {};
   final Map<String, _Move> _move = {};
   final Map<String, String?> _questChoice = {};
+  final Map<String, String?> _overbudgetChoice = {};
 
   @override
   void initState() {
     super.initState();
     for (final s in widget.ritual.sliceLeftovers) {
-      _move[s.sliceId] = _defaultMove(s);
+      // The OVERBUDGET MUST be dealt with: while one looms, smiting it is the
+      // pre-selected move; skipping it is a deliberate switch.
+      _move[s.sliceId] =
+          s.overbudgetOptions.isNotEmpty ? _Move.smite : _defaultMove(s);
       _questChoice[s.sliceId] = _defaultQuest(s);
+      _overbudgetChoice[s.sliceId] = s.overbudgetOptions.isNotEmpty
+          ? s.overbudgetOptions.first.sliceId
+          : null;
     }
   }
 
@@ -57,6 +64,7 @@ class _TextBattleViewState extends State<TextBattleView> {
         CarryInSlice() => _Move.carry,
         QuestDestination() => _Move.attack,
         Discretionary() => _Move.pouch,
+        OverbudgetPayment() => _Move.smite,
       };
 
   static String? _defaultQuest(SliceLeftover s) {
@@ -65,15 +73,53 @@ class _TextBattleViewState extends State<TextBattleView> {
     return s.questOptions.isNotEmpty ? s.questOptions.first.questId : null;
   }
 
-  LeftoverDestination _destination(SliceLeftover s) {
+  OverbudgetOption? _chosenOverbudget(SliceLeftover s) {
+    final id = _overbudgetChoice[s.sliceId];
+    for (final o in s.overbudgetOptions) {
+      if (o.sliceId == id) return o;
+    }
+    return s.overbudgetOptions.isNotEmpty ? s.overbudgetOptions.first : null;
+  }
+
+  List<Allocation> _allocationsFor(SliceLeftover s) {
     switch (_move[s.sliceId]!) {
       case _Move.carry:
-        return const CarryInSlice();
+        return [
+          Allocation(
+              destination: const CarryInSlice(), amountCents: s.leftoverCents),
+        ];
       case _Move.pouch:
-        return const Discretionary();
+        return [
+          Allocation(
+              destination: const Discretionary(),
+              amountCents: s.leftoverCents),
+        ];
       case _Move.attack:
         final q = _questChoice[s.sliceId];
-        return q == null ? const Discretionary() : QuestDestination(q);
+        return [
+          Allocation(
+            destination:
+                q == null ? const Discretionary() : QuestDestination(q),
+            amountCents: s.leftoverCents,
+          ),
+        ];
+      case _Move.smite:
+        final o = _chosenOverbudget(s);
+        if (o == null) {
+          return [
+            Allocation(
+                destination: const Discretionary(),
+                amountCents: s.leftoverCents),
+          ];
+        }
+        // The whole leftover goes in as one blow; the reducer tithes it
+        // (unless the categories match), pays no more than the debt, and
+        // pockets the rest — the OVERBUDGET never takes more than it needs.
+        return [
+          Allocation(
+              destination: OverbudgetPayment(o.sliceId),
+              amountCents: s.leftoverCents),
+        ];
     }
   }
 
@@ -89,10 +135,7 @@ class _TextBattleViewState extends State<TextBattleView> {
       for (final s in widget.ritual.sliceLeftovers)
         SliceAllocationResult(
           sliceId: s.sliceId,
-          allocations: [
-            Allocation(
-                destination: _destination(s), amountCents: s.leftoverCents),
-          ],
+          allocations: _allocationsFor(s),
         ),
     ];
     widget.onConfirm(SpoilsResult(tallies: tallies, allocations: allocations));
@@ -207,6 +250,12 @@ class _TextBattleViewState extends State<TextBattleView> {
           const SizedBox(height: AppSpacing.sm),
           SegmentedButton<_Move>(
             segments: [
+              if (s.overbudgetOptions.isNotEmpty)
+                const ButtonSegment(
+                  value: _Move.smite,
+                  icon: Icon(Icons.gavel_outlined, size: 16),
+                  label: Text('OVERBUDGET'),
+                ),
               const ButtonSegment(
                 value: _Move.carry,
                 icon: Icon(Icons.arrow_forward, size: 16),
@@ -238,6 +287,70 @@ class _TextBattleViewState extends State<TextBattleView> {
   Widget _outcome(BuildContext context, SliceLeftover s, _Move move) {
     final scheme = Theme.of(context).colorScheme;
     switch (move) {
+      case _Move.smite:
+        final o = _chosenOverbudget(s);
+        if (o == null) {
+          return Text('No OVERBUDGET looms.',
+              style: monoStyle(context, color: scheme.onSurfaceVariant));
+        }
+        final p = previewOverbudgetPayment(
+          s.leftoverCents,
+          s.poolTithePct,
+          outstandingCents: o.outstandingCents,
+          sliceMainCategoryId: s.mainCategoryId,
+          targetMainCategoryId: o.mainCategoryId,
+        );
+        final felled = p.payCents >= o.outstandingCents;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (s.overbudgetOptions.length > 1)
+              DropdownButton<String>(
+                value: o.sliceId,
+                isDense: true,
+                onChanged: (v) =>
+                    setState(() => _overbudgetChoice[s.sliceId] = v),
+                items: [
+                  for (final opt in s.overbudgetOptions)
+                    DropdownMenuItem(
+                        value: opt.sliceId,
+                        child: Text(opt.mainCategoryId != null &&
+                                opt.mainCategoryId == s.mainCategoryId
+                            ? '${opt.name} (same category, no tithe)'
+                            : opt.name)),
+                ],
+              ),
+            Text(
+              '→ ${money(p.payCents)} smites the OVERBUDGET on ${o.name}.',
+              style: monoStyle(context, weight: FontWeight.w700,
+                  color: scheme.error),
+            ),
+            if (p.matched)
+              Text('   Matching category — full value, no tithe.',
+                  style: monoStyle(context, color: scheme.tertiary))
+            else if (p.titheCents > 0)
+              Text(
+                '   The war chest takes its cut first: '
+                '${money(p.titheCents)} (${s.poolTithePct}%).',
+                style: monoStyle(context, color: scheme.onSurfaceVariant),
+              ),
+            Text(
+              felled
+                  ? '   THE OVERBUDGET FALLS. ${o.name} unlocks.'
+                  : '   It staggers — ${money(o.outstandingCents - p.payCents)} '
+                      'HP remains. ${o.name} stays locked.',
+              style: monoStyle(context,
+                  color: felled ? scheme.tertiary : scheme.onSurfaceVariant),
+            ),
+            if (p.toVaultCents > 0)
+              Text(
+                '   It takes no more than it needs: ${money(p.toVaultCents)} '
+                'to your pouch'
+                '${p.excessTitheCents > 0 ? ' after a ${money(p.excessTitheCents)} tithe' : ''}.',
+                style: monoStyle(context, color: scheme.onSurfaceVariant),
+              ),
+          ],
+        );
       case _Move.carry:
         return Text(
           '→ ${money(s.leftoverCents)} carried whole into next floor\'s '

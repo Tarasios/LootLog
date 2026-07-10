@@ -1,9 +1,9 @@
-import 'package:duobudget/domain/event.dart';
-import 'package:duobudget/domain/reducer.dart';
-import 'package:duobudget/domain/time.dart';
-import 'package:duobudget/domain/value_types.dart';
-import 'package:duobudget/features/dashboard/dashboard_model.dart';
-import 'package:duobudget/features/spoils/spoils_model.dart';
+import 'package:lootlog/domain/event.dart';
+import 'package:lootlog/domain/reducer.dart';
+import 'package:lootlog/domain/time.dart';
+import 'package:lootlog/domain/value_types.dart';
+import 'package:lootlog/features/dashboard/dashboard_model.dart';
+import 'package:lootlog/features/spoils/spoils_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const me = 'me';
