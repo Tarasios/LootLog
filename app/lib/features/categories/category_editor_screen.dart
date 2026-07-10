@@ -57,6 +57,7 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
   late final TextEditingController _emergencyAmount;
 
   _OwnerChoice _owner = _OwnerChoice.me;
+  SlicePriority _priority = SlicePriority.important;
   LeftoverDestination _policy = const CarryInSlice();
   String? _policyQuestId;
   String? _mainCategoryId;
@@ -81,6 +82,7 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
     _taxDefault = e?.taxDeductibleByDefault ?? false;
     _mainCategoryId = e?.mainCategoryId;
     _petId = e?.petId;
+    _priority = e?.priority ?? SlicePriority.important;
     if (e != null && e.emergencyFundId != null &&
         e.emergencyContributionCents > 0) {
       _emergencyOn = true;
@@ -145,6 +147,25 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
             controller: _name,
             decoration: const InputDecoration(labelText: 'Name'),
             textCapitalization: TextCapitalization.words,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Text('Priority', style: AppText.sectionLabel(context)),
+          const SizedBox(height: AppSpacing.sm),
+          DropdownButtonFormField<SlicePriority>(
+            initialValue: _priority,
+            decoration: const InputDecoration(
+              helperText: 'When overspending needs repaying, fun budgets are '
+                  'suggested first and necessities protected',
+            ),
+            items: const [
+              DropdownMenuItem(
+                  value: SlicePriority.necessity, child: Text('Necessity')),
+              DropdownMenuItem(
+                  value: SlicePriority.important, child: Text('Important')),
+              DropdownMenuItem(value: SlicePriority.fun, child: Text('Fun')),
+            ],
+            onChanged: (v) =>
+                setState(() => _priority = v ?? SlicePriority.important),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text('Main category', style: AppText.sectionLabel(context)),
@@ -398,6 +419,7 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
       taxDeductibleByDefault: _taxDefault,
       emergencyContribution: emergency,
       petId: _petId,
+      priority: _priority,
     );
     navigator.pop();
   }

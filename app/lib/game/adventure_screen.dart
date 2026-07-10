@@ -18,6 +18,7 @@ import '../features/spoils/spoils_screen.dart';
 import 'adapter.dart';
 import 'adventure_dashboard.dart';
 import 'game_sprite.dart';
+import '../features/settings/visibility_prefs.dart';
 
 /// Reads every custom sprite blob the current state references (quest & pet
 /// sprites) into an in-memory `sha256 -> bytes` map for [AssetSpriteResolver].
@@ -56,7 +57,10 @@ class AdventureDashboardScreen extends ConsumerWidget {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final game = buildGameState(state, meUserId: meUserId, userNames: names);
+    final game = buildGameState(state,
+        meUserId: meUserId,
+        userNames: names,
+        includeOtherAdults: ref.watch(showHouseholdBudgetsProvider));
     final ritual =
         buildSpoilsRitual(state, meUserId: meUserId, userNames: names);
     final banner = ritual == null

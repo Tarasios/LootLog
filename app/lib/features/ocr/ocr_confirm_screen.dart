@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../data/actions.dart';
+import '../../data/blobs/receipt_offload.dart';
 import '../../data/ocr/receipt_parse.dart';
 import '../../data/ocr/text_recognizer.dart';
 import '../../data/providers.dart';
@@ -107,11 +108,17 @@ class OcrConfirmScreen extends ConsumerWidget {
           merchant: result.merchant,
           occurredAt: result.occurredAt,
         );
-        await actions.attachReceiptBytes(
-          purchaseId,
-          receiptBytes,
-          isPdf: false,
-        );
+        // In OCR-only mode the image served its purpose (the prefill) and is
+        // discarded: nothing is attached, nothing is stored.
+        final storage =
+            await ref.read(receiptOffloadStoreProvider).mode();
+        if (storage != ReceiptStorageMode.none) {
+          await actions.attachReceiptBytes(
+            purchaseId,
+            receiptBytes,
+            isPdf: false,
+          );
+        }
         if (context.mounted) {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(

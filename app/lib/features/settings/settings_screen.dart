@@ -28,6 +28,7 @@ import 'emergency_funds_screen.dart';
 import 'income_screen.dart';
 import 'members_screen.dart';
 import 'recurring_screen.dart';
+import 'visibility_prefs.dart';
 
 /// Whether this build runs on a desktop OS (where the receipt library applies).
 bool get isDesktop =>
@@ -61,6 +62,17 @@ class SettingsScreen extends ConsumerWidget {
           _nav(context, Icons.emergency_outlined, 'Emergency funds',
               'Named rainy-day funds for unexpected costs',
               const EmergencyFundsScreen()),
+          SwitchListTile(
+            secondary: const Icon(Icons.visibility_outlined),
+            title: const Text('Show other adults\' budgets'),
+            subtitle: const Text(
+                'Display everyone\'s budgets and repayments on this device. '
+                'Turning this off only tidies the view here — the household '
+                'data still syncs in full and shared savings always show.'),
+            value: ref.watch(showHouseholdBudgetsProvider),
+            onChanged: (v) => unawaited(
+                ref.read(showHouseholdBudgetsProvider.notifier).select(v)),
+          ),
           const _SectionHeader('Appearance'),
           _SkinTile(
             skin: ref.watch(appSkinProvider),
@@ -139,18 +151,45 @@ class SettingsScreen extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => ChangeLogScreen.open(context),
           ),
-          if (!isDesktop)
-            SwitchListTile(
-              secondary: const Icon(Icons.cleaning_services_outlined),
-              title: const Text('Free up receipt space'),
-              subtitle: const Text(
-                  'Remove receipt images from this phone once every paired '
-                  'desktop hub holds a copy. Receipts stay in your budget and '
-                  'download again when you view them.'),
-              value: ref.watch(receiptOffloadEnabledProvider).value ?? false,
-              onChanged: (v) => unawaited(
-                  ref.read(receiptOffloadEnabledProvider.notifier).set(v)),
+          if (!isDesktop) ...[
+            ListTile(
+              leading: const Icon(Icons.receipt_long_outlined),
+              title: const Text('Receipt images on this phone'),
+              subtitle: const Text('How scanned receipts are stored'),
             ),
+            RadioGroup<ReceiptStorageMode>(
+              groupValue: ref.watch(receiptStorageModeProvider).value ??
+                  ReceiptStorageMode.keep,
+              onChanged: (v) => unawaited(ref
+                  .read(receiptStorageModeProvider.notifier)
+                  .set(v ?? ReceiptStorageMode.keep)),
+              child: const Column(
+                children: [
+                  RadioListTile<ReceiptStorageMode>(
+                    value: ReceiptStorageMode.keep,
+                    dense: true,
+                    title: Text('Keep them here'),
+                    subtitle: Text('Every receipt image stays on this phone'),
+                  ),
+                  RadioListTile<ReceiptStorageMode>(
+                    value: ReceiptStorageMode.offload,
+                    dense: true,
+                    title: Text('Free up space after syncing'),
+                    subtitle: Text('Images are removed once every paired '
+                        'desktop hub holds a copy; they stay in your budget '
+                        'and download again when viewed'),
+                  ),
+                  RadioListTile<ReceiptStorageMode>(
+                    value: ReceiptStorageMode.none,
+                    dense: true,
+                    title: Text('Scan only, never save'),
+                    subtitle: Text('The camera fills in the amount, date, and '
+                        'store, then the image is discarded'),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (isDesktop)
             _nav(context, Icons.folder_copy_outlined, 'Receipt library',
                 'Mirror receipts to a folder', const ReceiptLibraryScreen()),

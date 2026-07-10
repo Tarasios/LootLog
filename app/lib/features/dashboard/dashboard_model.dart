@@ -398,6 +398,7 @@ DashboardModel buildDashboardModel(
   required Map<String, String> userNames,
   Iterable<Event> events = const [],
   DateTime? asOf,
+  bool includeOtherAdults = true,
 }) {
   final now = (asOf ?? DateTime.now()).toUtc();
   final month = Month.fromInstant(now);
@@ -408,9 +409,16 @@ DashboardModel buildDashboardModel(
       id == null ? null : state.mainCategories[id]?.colorArgb;
 
   // ---- Slice rings -------------------------------------------------------
+  // With the household-visibility toggle off, other adults' personal budgets
+  // stay off this device's dashboard (shared/group ones always show).
   final rings = <SliceRing>[];
   for (final cfg in state.slices.values) {
     if (cfg.createdMonth.isAfter(month)) continue;
+    if (!includeOtherAdults &&
+        !cfg.isGroup &&
+        cfg.ownerUserId != meUserId) {
+      continue;
+    }
     final sm = state.sliceMonth(cfg.sliceId, month);
     rings.add(SliceRing(
       sliceId: cfg.sliceId,
@@ -614,10 +622,11 @@ DashboardModel buildDashboardModel(
     series: buildNetWorthSeries(events),
   );
 
-  // ---- Outstanding overspending to repay (visible to every adult) --------
+  // ---- Outstanding overspending to repay ----------------------------------
   final overbudgets = <OverbudgetCard>[
     for (final d in state.outstandingOverbudgets)
-      OverbudgetCard(
+      if (includeOtherAdults || d.ownerUserId == meUserId)
+        OverbudgetCard(
         sliceId: d.sliceId,
         categoryName: state.slices[d.sliceId]?.name ?? d.sliceId,
         outstandingCents: d.outstandingCents,

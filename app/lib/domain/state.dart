@@ -98,6 +98,7 @@ class SliceConfig {
     this.emergencyFundId,
     this.emergencyContributionCents = 0,
     this.petId,
+    this.priority = SlicePriority.important,
   });
 
   final String sliceId;
@@ -116,6 +117,10 @@ class SliceConfig {
   final String? emergencyFundId;
   final int emergencyContributionCents;
   final String? petId;
+
+  /// How essential this category is (advisory; orders default OVERBUDGET
+  /// payments and drives "spend the fun money first" suggestions).
+  final SlicePriority priority;
 
   bool get isGroup => ownership is GroupSlice;
 

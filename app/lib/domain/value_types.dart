@@ -255,6 +255,22 @@ class SharedParty extends PartyOwnership {
   int get hashCode => 'sharedParty'.hashCode;
 }
 
+/// How essential a budget category is. Purely advisory: it never changes a
+/// cent by itself. It orders the grace-expired defaults (fun leftovers pay an
+/// OVERBUDGET before important ones, which pay before necessities) and lets
+/// the ritual UI suggest forgoing "fun" money when a necessity is in debt.
+enum SlicePriority {
+  necessity,
+  important,
+  fun;
+
+  static SlicePriority fromName(String? name) => switch (name) {
+        'necessity' => SlicePriority.necessity,
+        'fun' => SlicePriority.fun,
+        _ => SlicePriority.important,
+      };
+}
+
 /// A destination for month-close leftover: carry within the slice, attack a
 /// quest, or convert to discretionary vault money. Also serves as a slice's
 /// default leftover policy.

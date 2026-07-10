@@ -40,6 +40,7 @@ GameState buildGameState(
   required String meUserId,
   required Map<String, String> userNames,
   DateTime? asOf,
+  bool includeOtherAdults = true,
 }) {
   final now = (asOf ?? DateTime.now()).toUtc();
   final month = Month.fromInstant(now);
@@ -69,6 +70,13 @@ GameState buildGameState(
 
   for (final cfg in state.slices.values) {
     if (cfg.createdMonth.isAfter(month)) continue;
+    // Visibility toggle: another adult's personal monsters stay off this
+    // device's floor (party contracts and everything shared always render).
+    if (!includeOtherAdults &&
+        !cfg.isGroup &&
+        cfg.ownerUserId != meUserId) {
+      continue;
+    }
     final sm = state.sliceMonth(cfg.sliceId, month);
     final maxHp = sm?.effectiveLimitCents ?? cfg.baseEffectiveLimitCents;
     final damage = sm?.spentCents ?? 0;
@@ -122,7 +130,8 @@ GameState buildGameState(
   // ---- OVERBUDGET debt monsters (outstanding only, mine first) ------------
   final overbudgets = <OverbudgetMonster>[
     for (final d in state.outstandingOverbudgets)
-      OverbudgetMonster(
+      if (includeOtherAdults || d.ownerUserId == meUserId)
+        OverbudgetMonster(
         sliceId: d.sliceId,
         categoryName: state.slices[d.sliceId]?.name ?? d.sliceId,
         sprite: SpriteRef.asset(

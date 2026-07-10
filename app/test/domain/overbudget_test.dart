@@ -289,14 +289,73 @@ void main() {
             at: day(2026, 1, 5)),
       ];
       final s = reduce(events, asOf: day(2026, 4, 10));
-      // Debt 25000 at Jan close. Feb eats 10000, Mar eats 10000; April (open)
-      // is fully locked but its payment is not recognised until it closes.
+      // Debt 25000 at Jan close. Feb eats 10000, Mar eats 10000; April is
+      // past its ritual window (Apr 8), so its funding pays the last 5000
+      // immediately and the monster leaves.
       expect(s.sliceMonth('a', feb)!.effectiveLimitCents, 0);
       expect(s.sliceMonth('a', const Month(2026, 3))!.effectiveLimitCents, 0);
       final apr = s.sliceMonth('a', const Month(2026, 4))!;
       expect(apr.lockedCents, 5000);
       expect(apr.effectiveLimitCents, 5000);
-      expect(s.overbudgets['a']!.outstandingCents, 5000);
+      expect(s.overbudgets['a']!.outstandingCents, 0);
+    });
+
+    test('the debt stands at full HP through the ritual window, then the '
+        'next month\'s funding fells it on its own', () {
+      final events = [
+        slice(id: 'a', ownership: const PersonalSlice(u1), limit: 10000),
+        buy(id: 'p', target: const SliceCharge('a'), amount: 14000,
+            at: day(2026, 1, 5)),
+      ];
+      // Feb 5: inside Feb's ritual window (grace 7 days) — the monster is
+      // attackable and February's budget is still whole.
+      final during = reduce(events, asOf: day(2026, 2, 5));
+      expect(during.overbudgets['a']!.outstandingCents, 4000);
+      final febDuring = during.sliceMonth('a', feb)!;
+      expect(febDuring.lockedCents, 0);
+      expect(febDuring.effectiveLimitCents, 10000);
+      // Feb 9: the window has passed with no attack; the budget immediately
+      // loses 4000 to the OVERBUDGET and it leaves.
+      final after = reduce(events, asOf: day(2026, 2, 9));
+      expect(after.overbudgets['a']!.outstandingCents, 0);
+      final febAfter = after.sliceMonth('a', feb)!;
+      expect(febAfter.lockedCents, 4000);
+      expect(febAfter.effectiveLimitCents, 6000);
+    });
+
+    test('the canonical example: \$40 debt, \$50 leftover at 10% tithe', () {
+      // Entertainment OVERBUDGET of $40; the clothes budget has $50 left at a
+      // 10% tithe. The whole $50 is tithed to $45, $40 pays the debt, and the
+      // remaining $5 goes to discretionary. The OVERBUDGET takes no more
+      // post-tithe funds than it needs.
+      final events = [
+        slice(
+            id: 'games',
+            ownership: const PersonalSlice(u1),
+            limit: 10000,
+            mainCategoryId: 'entertainment'),
+        slice(
+            id: 'clothes',
+            ownership: const PersonalSlice(u1),
+            limit: 5000,
+            tithePct: 10,
+            mainCategoryId: 'misc'),
+        buy(id: 'p', target: const SliceCharge('games'), amount: 14000,
+            at: day(2026, 1, 5)),
+        allocate(
+          sliceId: 'clothes',
+          month: jan,
+          allocations: const [
+            Allocation(
+                destination: OverbudgetPayment('games'), amountCents: 5000),
+          ],
+          at: day(2026, 2, 2),
+        ),
+      ];
+      final s = reduce(events, asOf: day(2026, 2, 3));
+      expect(s.warChest.balanceCents, 500);
+      expect(s.overbudgets['games']!.outstandingCents, 0);
+      expect(s.vaultOf(u1), 500);
     });
 
     test('past grace the default allocation attacks the debt first', () {

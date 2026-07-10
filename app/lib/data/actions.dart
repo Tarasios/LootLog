@@ -445,6 +445,7 @@ class HouseholdActions {
     String? mainCategoryId,
     EmergencyContribution? emergencyContribution,
     String? petId,
+    SlicePriority priority = SlicePriority.important,
   }) async {
     final now = DateTime.now().toUtc();
     final id = sliceId ?? uuidv7();
@@ -464,6 +465,7 @@ class HouseholdActions {
       taxDeductibleByDefault: taxDeductibleByDefault,
       emergencyContribution: emergencyContribution,
       petId: petId,
+      priority: priority,
     ));
     return id;
   }

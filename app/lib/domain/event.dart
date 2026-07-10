@@ -110,6 +110,7 @@ sealed class Event {
                   (p['emergencyContribution'] as Map).cast(),
                 ),
           petId: p['petId'] as String?,
+          priority: SlicePriority.fromName(p['priority'] as String?),
         );
       case 'RecurringExpenseSet':
         return RecurringExpenseSet(
@@ -559,6 +560,7 @@ class BudgetSliceSet extends Event {
     this.mainCategoryId,
     this.emergencyContribution,
     this.petId,
+    this.priority = SlicePriority.important,
   });
 
   final String sliceId;
@@ -574,6 +576,10 @@ class BudgetSliceSet extends Event {
   final bool taxDeductibleByDefault;
   final EmergencyContribution? emergencyContribution;
   final String? petId;
+
+  /// How essential this category is (advisory; see [SlicePriority]).
+  /// Serialized only when not the default, for wire compatibility.
+  final SlicePriority priority;
 
   @override
   String get type => 'BudgetSliceSet';
@@ -591,6 +597,7 @@ class BudgetSliceSet extends Event {
         if (emergencyContribution != null)
           'emergencyContribution': emergencyContribution!.toJson(),
         if (petId != null) 'petId': petId,
+        if (priority != SlicePriority.important) 'priority': priority.name,
       };
 }
 

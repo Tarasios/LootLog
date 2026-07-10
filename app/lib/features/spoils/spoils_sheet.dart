@@ -159,24 +159,14 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
                 amountCents: s.leftoverCents),
           ];
         }
-        // Pay exactly what clears the debt (grossed up for the tithe when the
-        // categories don't match); the rest converts to discretionary. The
-        // two lines always sum to the whole leftover.
-        final matched = o.mainCategoryId != null &&
-            o.mainCategoryId == s.mainCategoryId;
-        final needed = overbudgetGrossNeeded(
-          o.outstandingCents,
-          s.poolTithePct,
-          matched: matched,
-        );
-        final pay = needed < s.leftoverCents ? needed : s.leftoverCents;
+        // The whole leftover goes in as one payment. The reducer tithes it
+        // (unless the categories match), pays no more than the outstanding
+        // debt, and hands whatever is left to the pouch — so the OVERBUDGET
+        // never takes more than it needs.
         return [
           Allocation(
-              destination: OverbudgetPayment(o.sliceId), amountCents: pay),
-          if (s.leftoverCents - pay > 0)
-            Allocation(
-                destination: const Discretionary(),
-                amountCents: s.leftoverCents - pay),
+              destination: OverbudgetPayment(o.sliceId),
+              amountCents: s.leftoverCents),
         ];
     }
   }
@@ -487,8 +477,16 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
             children: [
               if (s.overbudgetOptions.isNotEmpty)
                 ChoiceChip(
-                  label: Text(Glossary.payOverbudget
-                      .label(isAdventure: widget.isAdventure)),
+                  label: Text(
+                    // Highlight a same-main-category source: it repays with
+                    // no shared-savings cut.
+                    s.overbudgetOptions.any((o) =>
+                            o.mainCategoryId != null &&
+                            o.mainCategoryId == s.mainCategoryId)
+                        ? '${Glossary.payOverbudget.label(isAdventure: widget.isAdventure)} · no cut'
+                        : Glossary.payOverbudget
+                            .label(isAdventure: widget.isAdventure),
+                  ),
                   selected: dest == _Dest.overbudget,
                   onSelected: (_) =>
                       setState(() => _dest[s.sliceId] = _Dest.overbudget),
@@ -519,6 +517,20 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
           ),
           const SizedBox(height: AppSpacing.sm),
           _preview(context, s),
+          if (s.priority == SlicePriority.fun &&
+              s.overbudgetOptions.isNotEmpty &&
+              dest != _Dest.overbudget)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              child: _previewText(
+                context,
+                Icons.lightbulb_outline,
+                widget.isAdventure
+                    ? 'A fun budget — prime loot for felling the OVERBUDGET.'
+                    : 'This is a fun budget — a good place to take the '
+                        'repayment from.',
+              ),
+            ),
         ],
       ),
     );
@@ -534,19 +546,13 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
           return _previewText(
               context, Icons.error_outline, 'Nothing left to repay.');
         }
-        final matched =
-            o.mainCategoryId != null && o.mainCategoryId == s.mainCategoryId;
-        final needed = overbudgetGrossNeeded(o.outstandingCents,
-            s.poolTithePct, matched: matched);
-        final pay = needed < s.leftoverCents ? needed : s.leftoverCents;
-        final split = previewQuestAttack(
-          pay,
+        final p = previewOverbudgetPayment(
+          s.leftoverCents,
           s.poolTithePct,
+          outstandingCents: o.outstandingCents,
           sliceMainCategoryId: s.mainCategoryId,
-          questMainCategoryId: o.mainCategoryId,
+          targetMainCategoryId: o.mainCategoryId,
         );
-        final rest = s.leftoverCents - pay;
-        final restSplit = previewDiscretionary(rest, s.poolTithePct);
         final noun = widget.isAdventure ? 'the OVERBUDGET on' : 'overspending in';
         final pouch = widget.isAdventure ? 'gold pouch' : 'personal spending';
         return Column(
@@ -560,7 +566,8 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
                   children: [
                     for (final opt in s.overbudgetOptions)
                       ChoiceChip(
-                        label: Text(opt.name),
+                        label: Text(
+                            '${opt.name}${opt.mainCategoryId != null && opt.mainCategoryId == s.mainCategoryId ? ' · same category' : ''}'),
                         selected: opt.sliceId == o.sliceId,
                         onSelected: (_) => setState(() =>
                             _overbudgetChoice[s.sliceId] = opt.sliceId),
@@ -571,29 +578,30 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
             _previewText(
               context,
               Icons.gavel_outlined,
-              matched
-                  ? '${money(split.damageCents)} pays $noun ${o.name} in full '
-                      'value (same category).'
-                  : '${money(split.damageCents)} pays $noun ${o.name}; '
-                      '${Glossary.sharedSavingsCut(money(split.titheCents), s.poolTithePct, isAdventure: widget.isAdventure)}.',
+              p.matched
+                  ? '${money(p.payCents)} pays $noun ${o.name} at full value '
+                      '(same category, no cut).'
+                  : '${money(p.payCents)} pays $noun ${o.name} after '
+                      '${Glossary.sharedSavingsCut(money(p.titheCents), s.poolTithePct, isAdventure: widget.isAdventure)}.',
               color: scheme.error,
             ),
             _previewText(
               context,
               Icons.flag_outlined,
-              split.damageCents >= o.outstandingCents
+              p.payCents >= o.outstandingCents
                   ? (widget.isAdventure
                       ? 'That fells the OVERBUDGET — ${o.name} unlocks.'
                       : 'That clears it — ${o.name} unlocks.')
-                  : '${money(o.outstandingCents - split.damageCents)} would '
+                  : '${money(o.outstandingCents - p.payCents)} would '
                       'remain to repay.',
             ),
-            if (rest > 0)
+            if (p.toVaultCents > 0 || p.excessTitheCents > 0)
               _previewText(
                 context,
                 Icons.savings_outlined,
-                'Remaining ${money(rest)}: ${money(restSplit.vaultCents)} to '
-                '$pouch, ${Glossary.sharedSavingsCut(money(restSplit.titheCents), s.poolTithePct, isAdventure: widget.isAdventure)}.',
+                'It takes no more than it needs: ${money(p.toVaultCents)} '
+                'goes to $pouch'
+                '${p.excessTitheCents > 0 ? ' (${Glossary.sharedSavingsCut(money(p.excessTitheCents), s.poolTithePct, isAdventure: widget.isAdventure)})' : ''}.',
               ),
           ],
         );

@@ -32,16 +32,27 @@ class IncomeScreen extends ConsumerWidget {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     final current = Month.fromInstant(DateTime.now());
+    // One card per ledger-bearing adult, derived from household membership —
+    // never from device-local setup — so any household size (1, 2, 5, more)
+    // gets every earner listed. The device owner sorts first.
+    final meId = setup.me.userId;
+    final adults = state.adultIds.toList()
+      ..sort((a, b) {
+        final am = a == meId ? 0 : 1;
+        final bm = b == meId ? 0 : 1;
+        if (am != bm) return am - bm;
+        return (names[a] ?? a).compareTo(names[b] ?? b);
+      });
     return Scaffold(
       appBar: AppBar(title: const Text('Income')),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
-          for (final p in setup.profiles)
+          for (final id in adults)
             _UserIncomeCard(
-              key: ValueKey(p.userId),
-              userId: p.userId,
-              name: names[p.userId] ?? p.name,
+              key: ValueKey(id),
+              userId: id,
+              name: names[id] ?? id,
               state: state,
               currentMonth: current,
             ),

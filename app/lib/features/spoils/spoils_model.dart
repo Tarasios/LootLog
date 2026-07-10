@@ -79,6 +79,7 @@ class SliceLeftover {
     required this.defaultPolicy,
     required this.questOptions,
     this.overbudgetOptions = const [],
+    this.priority = SlicePriority.important,
     this.mainCategoryId,
     this.petName,
   });
@@ -96,6 +97,10 @@ class SliceLeftover {
   /// The owner's outstanding OVERBUDGETs — when non-empty, paying them is the
   /// pushed (and default) move for this leftover.
   final List<OverbudgetOption> overbudgetOptions;
+
+  /// This category's priority tag; a "fun" leftover is the suggested source
+  /// when a necessity carries an OVERBUDGET.
+  final SlicePriority priority;
 
   /// This category's main category; drives category-match tithing.
   final String? mainCategoryId;
@@ -256,6 +261,7 @@ SpoilsRitual? buildSpoilsRitual(
       defaultPolicy: cfg.defaultLeftoverPolicy,
       questOptions: questOptions,
       overbudgetOptions: overbudgetOptions,
+      priority: cfg.priority,
       mainCategoryId: cfg.mainCategoryId,
       petName: cfg.petId == null ? null : state.pets[cfg.petId]?.name,
     ));
@@ -322,22 +328,48 @@ class DraftAllocation {
   return (damageCents: t.remainderCents, titheCents: t.titheCents, matched: false);
 }
 
-/// The gross leftover needed so the post-tithe damage covers an OVERBUDGET's
-/// [outstandingCents], mirroring the reducer's default exactly: a matching
-/// main category (or a zero tithe) repays 1:1; otherwise the gross is grossed
-/// up so the net after the [poolTithePct] cut still clears the debt.
-int overbudgetGrossNeeded(
-  int outstandingCents,
+/// Previews a whole-leftover OVERBUDGET payment exactly as the reducer will
+/// apply it. Non-matching categories: the pool tithe comes off the whole
+/// [amountCents] first, the post-tithe value pays up to [outstandingCents],
+/// and the rest lands in the vault (already tithed). Matching categories: the
+/// debt is paid at full value, and only the excess beyond the debt converts
+/// to discretionary with the usual tithe. Either way the OVERBUDGET never
+/// takes more than it needs.
+({
+  int payCents,
+  int titheCents,
+  int toVaultCents,
+  int excessTitheCents,
+  bool matched,
+}) previewOverbudgetPayment(
+  int amountCents,
   int poolTithePct, {
-  required bool matched,
+  required int outstandingCents,
+  required String? sliceMainCategoryId,
+  required String? targetMainCategoryId,
 }) {
-  if (matched || poolTithePct <= 0) {
-    return outstandingCents;
+  final matched = targetMainCategoryId != null &&
+      targetMainCategoryId == sliceMainCategoryId;
+  if (matched) {
+    final pay =
+        amountCents < outstandingCents ? amountCents : outstandingCents;
+    final t = Money.titheCents(amountCents - pay, poolTithePct);
+    return (
+      payCents: pay,
+      titheCents: 0,
+      toVaultCents: t.remainderCents,
+      excessTitheCents: t.titheCents,
+      matched: true,
+    );
   }
-  if (poolTithePct >= 100) {
-    // A 100% tithe can never net anything; the caller caps at the leftover.
-    return 1 << 48;
-  }
-  final keep = 100 - poolTithePct;
-  return (outstandingCents * 100 + keep - 1) ~/ keep;
+  final t = Money.titheCents(amountCents, poolTithePct);
+  final damage = t.remainderCents;
+  final pay = damage < outstandingCents ? damage : outstandingCents;
+  return (
+    payCents: pay,
+    titheCents: t.titheCents,
+    toVaultCents: damage - pay,
+    excessTitheCents: 0,
+    matched: false,
+  );
 }

@@ -112,21 +112,13 @@ class _TextBattleViewState extends State<TextBattleView> {
                 amountCents: s.leftoverCents),
           ];
         }
-        final matched = o.mainCategoryId != null &&
-            o.mainCategoryId == s.mainCategoryId;
-        final needed = overbudgetGrossNeeded(
-          o.outstandingCents,
-          s.poolTithePct,
-          matched: matched,
-        );
-        final pay = needed < s.leftoverCents ? needed : s.leftoverCents;
+        // The whole leftover goes in as one blow; the reducer tithes it
+        // (unless the categories match), pays no more than the debt, and
+        // pockets the rest — the OVERBUDGET never takes more than it needs.
         return [
           Allocation(
-              destination: OverbudgetPayment(o.sliceId), amountCents: pay),
-          if (s.leftoverCents - pay > 0)
-            Allocation(
-                destination: const Discretionary(),
-                amountCents: s.leftoverCents - pay),
+              destination: OverbudgetPayment(o.sliceId),
+              amountCents: s.leftoverCents),
         ];
     }
   }
@@ -301,19 +293,14 @@ class _TextBattleViewState extends State<TextBattleView> {
           return Text('No OVERBUDGET looms.',
               style: monoStyle(context, color: scheme.onSurfaceVariant));
         }
-        final matched = o.mainCategoryId != null &&
-            o.mainCategoryId == s.mainCategoryId;
-        final needed = overbudgetGrossNeeded(o.outstandingCents,
-            s.poolTithePct, matched: matched);
-        final pay = needed < s.leftoverCents ? needed : s.leftoverCents;
-        final split = previewQuestAttack(
-          pay,
+        final p = previewOverbudgetPayment(
+          s.leftoverCents,
           s.poolTithePct,
+          outstandingCents: o.outstandingCents,
           sliceMainCategoryId: s.mainCategoryId,
-          questMainCategoryId: o.mainCategoryId,
+          targetMainCategoryId: o.mainCategoryId,
         );
-        final rest = s.leftoverCents - pay;
-        final felled = split.damageCents >= o.outstandingCents;
+        final felled = p.payCents >= o.outstandingCents;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -326,33 +313,40 @@ class _TextBattleViewState extends State<TextBattleView> {
                 items: [
                   for (final opt in s.overbudgetOptions)
                     DropdownMenuItem(
-                        value: opt.sliceId, child: Text(opt.name)),
+                        value: opt.sliceId,
+                        child: Text(opt.mainCategoryId != null &&
+                                opt.mainCategoryId == s.mainCategoryId
+                            ? '${opt.name} (same category, no tithe)'
+                            : opt.name)),
                 ],
               ),
             Text(
-              '→ ${money(split.damageCents)} smites the OVERBUDGET on '
-              '${o.name}.',
+              '→ ${money(p.payCents)} smites the OVERBUDGET on ${o.name}.',
               style: monoStyle(context, weight: FontWeight.w700,
                   color: scheme.error),
             ),
-            if (!split.matched && split.titheCents > 0)
+            if (p.matched)
+              Text('   Matching category — full value, no tithe.',
+                  style: monoStyle(context, color: scheme.tertiary))
+            else if (p.titheCents > 0)
               Text(
                 '   The war chest takes its cut first: '
-                '${money(split.titheCents)} (${s.poolTithePct}%).',
+                '${money(p.titheCents)} (${s.poolTithePct}%).',
                 style: monoStyle(context, color: scheme.onSurfaceVariant),
               ),
             Text(
               felled
                   ? '   THE OVERBUDGET FALLS. ${o.name} unlocks.'
-                  : '   It staggers — ${money(o.outstandingCents - split.damageCents)} '
+                  : '   It staggers — ${money(o.outstandingCents - p.payCents)} '
                       'HP remains. ${o.name} stays locked.',
               style: monoStyle(context,
                   color: felled ? scheme.tertiary : scheme.onSurfaceVariant),
             ),
-            if (rest > 0)
+            if (p.toVaultCents > 0)
               Text(
-                '   The spare ${money(rest)} goes to your pouch '
-                '(tithe applies).',
+                '   It takes no more than it needs: ${money(p.toVaultCents)} '
+                'to your pouch'
+                '${p.excessTitheCents > 0 ? ' after a ${money(p.excessTitheCents)} tithe' : ''}.',
                 style: monoStyle(context, color: scheme.onSurfaceVariant),
               ),
           ],

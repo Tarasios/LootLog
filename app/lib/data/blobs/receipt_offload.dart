@@ -22,7 +22,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-/// File-backed switch + set of deliberately-offloaded receipt hashes.
+/// What this device does with receipt images.
+enum ReceiptStorageMode {
+  /// Keep every receipt image on this device (the default).
+  keep,
+
+  /// Delete local copies once every paired hub confirms holding them;
+  /// fetch back on demand.
+  offload,
+
+  /// Don't store receipt images at all: the camera is used for the OCR
+  /// prefill only, and nothing is attached to the purchase.
+  none,
+}
+
+/// File-backed receipt-storage mode + set of deliberately-offloaded hashes.
 class ReceiptOffloadStore {
   ReceiptOffloadStore({Future<Directory> Function()? dir})
       : _dir = dir ?? getApplicationDocumentsDirectory;
@@ -35,17 +49,28 @@ class ReceiptOffloadStore {
   Future<File> _shaFile() async =>
       File(p.join((await _dir()).path, 'offloaded_receipts.txt'));
 
-  /// Whether receipt offloading is on for this device. Off by default.
-  Future<bool> enabled() async {
+  /// The device's receipt-storage mode. 'on'/'off' are the legacy values of
+  /// the original two-state switch.
+  Future<ReceiptStorageMode> mode() async {
     final f = await _settingFile();
-    if (!await f.exists()) return false;
-    return (await f.readAsString()).trim() == 'on';
+    if (!await f.exists()) return ReceiptStorageMode.keep;
+    return switch ((await f.readAsString()).trim()) {
+      'on' || 'offload' => ReceiptStorageMode.offload,
+      'none' => ReceiptStorageMode.none,
+      _ => ReceiptStorageMode.keep,
+    };
   }
 
-  Future<void> setEnabled(bool value) async {
+  Future<void> setMode(ReceiptStorageMode value) async {
     final f = await _settingFile();
-    await f.writeAsString(value ? 'on' : 'off', flush: true);
+    await f.writeAsString(value.name, flush: true);
   }
+
+  /// Whether hub-confirmed offloading is on (the sync-cycle space saver).
+  Future<bool> enabled() async => await mode() == ReceiptStorageMode.offload;
+
+  Future<void> setEnabled(bool value) => setMode(
+      value ? ReceiptStorageMode.offload : ReceiptStorageMode.keep);
 
   /// The hashes this device has deliberately offloaded (skipped on pull).
   Future<Set<String>> shas() async {
@@ -81,17 +106,18 @@ class ReceiptOffloadStore {
 final receiptOffloadStoreProvider =
     Provider<ReceiptOffloadStore>((ref) => ReceiptOffloadStore());
 
-/// The offload switch as watchable state, for the settings screen.
-class ReceiptOffloadEnabled extends AsyncNotifier<bool> {
+/// The storage mode as watchable state, for the settings screen.
+class ReceiptStorageModeNotifier extends AsyncNotifier<ReceiptStorageMode> {
   @override
-  Future<bool> build() => ref.watch(receiptOffloadStoreProvider).enabled();
+  Future<ReceiptStorageMode> build() =>
+      ref.watch(receiptOffloadStoreProvider).mode();
 
-  Future<void> set(bool value) async {
-    await ref.read(receiptOffloadStoreProvider).setEnabled(value);
+  Future<void> set(ReceiptStorageMode value) async {
+    await ref.read(receiptOffloadStoreProvider).setMode(value);
     state = AsyncData(value);
   }
 }
 
-final receiptOffloadEnabledProvider =
-    AsyncNotifierProvider<ReceiptOffloadEnabled, bool>(
-        ReceiptOffloadEnabled.new);
+final receiptStorageModeProvider =
+    AsyncNotifierProvider<ReceiptStorageModeNotifier, ReceiptStorageMode>(
+        ReceiptStorageModeNotifier.new);

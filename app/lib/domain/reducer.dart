@@ -142,6 +142,7 @@ class _Builder {
           emergencyFundId: e.emergencyContribution?.fundId,
           emergencyContributionCents: e.emergencyContribution?.amountCents ?? 0,
           petId: e.petId,
+          priority: e.priority,
         );
       case MainCategorySet():
         mainCategoryCfg[e.id] = e;
@@ -608,8 +609,13 @@ class _Builder {
 
         // Phase 1: per-category figures. An outstanding OVERBUDGET debt locks
         // the category: its funding is withheld to cover the debt (effective
-        // limit shrinks, to zero if needed) and the withheld amount is
-        // recognised as payment once the month closes.
+        // limit shrinks, to zero if needed) and pays it immediately — but only
+        // once this month's ritual window (start + grace days) has passed, so
+        // during the ritual the monster stands at full HP for leftovers to
+        // attack, and afterwards the withheld funding fells it on its own.
+        final lockGate =
+            m.startInstantUtc().add(Duration(days: settings.spoilsGraceDays));
+        final lockActive = now.isAfter(lockGate);
         final calcs = <_SliceCalc>[];
         for (final cfg in sortedSlices) {
           if (cfg.createdMonth.isAfter(m)) {
@@ -644,10 +650,10 @@ class _Builder {
             final owner = cfg.ownerUserId!;
             final carryIn = carryPrev[cfg.sliceId] ?? 0;
             final funding = cfg.baseEffectiveLimitCents + carryIn;
-            final outstanding = debtBySlice[cfg.sliceId] ?? 0;
+            final outstanding = lockActive ? (debtBySlice[cfg.sliceId] ?? 0) : 0;
             final lockable = funding > 0 ? funding : 0;
             final locked = outstanding < lockable ? outstanding : lockable;
-            if (closed && locked > 0) {
+            if (locked > 0) {
               debtBySlice[cfg.sliceId] = outstanding - locked;
             }
             final eff = funding - locked;
@@ -705,10 +711,23 @@ class _Builder {
 
         // Phase 3: the spoils ritual — leftover allocations. Explicit
         // allocations win; past grace, the default attacks the owner's
-        // outstanding OVERBUDGETs first, then the configured policy.
+        // outstanding OVERBUDGETs first, then the configured policy. Fun
+        // categories resolve before important ones, which resolve before
+        // necessities, so default debt payments spend the fun money first.
+        final ritualOrder = calcs.toList()
+          ..sort((a, b) {
+            int rank(SlicePriority p) => switch (p) {
+                  SlicePriority.fun => 0,
+                  SlicePriority.important => 1,
+                  SlicePriority.necessity => 2,
+                };
+            final c =
+                rank(a.cfg.priority).compareTo(rank(b.cfg.priority));
+            return c != 0 ? c : a.cfg.sliceId.compareTo(b.cfg.sliceId);
+          });
         final graceDeadline =
             m.endInstantUtc().add(Duration(days: settings.spoilsGraceDays));
-        for (final c in calcs) {
+        for (final c in ritualOrder) {
           final cfg = c.cfg;
           final alloc = allocations['${c.owner}|${cfg.sliceId}|${m.toKey()}'];
           List<Allocation> effective;
