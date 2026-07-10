@@ -76,6 +76,9 @@ List<ActivityItem> buildActivityFeed(
       };
 
   final items = <ActivityItem>[];
+  // Tracks the last MemberSet seen per member while walking the (append-
+  // ordered) log, so later events read as updates rather than adds.
+  final lastMemberSet = <String, MemberSet>{};
   for (final e in events) {
     final mine = e.userId == meUserId;
     ActivityItem? item;
@@ -257,13 +260,27 @@ List<ActivityItem> buildActivityFeed(
           isMine: mine,
         );
       case MemberSet():
+        final prev = lastMemberSet[e.memberId];
+        lastMemberSet[e.memberId] = e;
+        final String title;
+        if (!e.active) {
+          title = '${who(e.userId)} retired ${e.name} from the party';
+        } else if (prev == null) {
+          title = '${who(e.userId)} added ${e.name} to the party';
+        } else if (prev.customSpriteSha256 != e.customSpriteSha256 &&
+            prev.name == e.name &&
+            prev.role == e.role &&
+            prev.active == e.active &&
+            prev.descriptionText == e.descriptionText) {
+          title = "${who(e.userId)} updated ${e.name}'s portrait";
+        } else {
+          title = '${who(e.userId)} updated ${e.name}';
+        }
         item = ActivityItem(
           eventId: e.eventId,
           kind: ActivityKind.config,
           userId: e.userId,
-          title: e.active
-              ? '${who(e.userId)} added ${e.name} to the party'
-              : '${who(e.userId)} retired ${e.name} from the party',
+          title: title,
           occurredAt: e.occurredAt,
           isMine: mine,
         );

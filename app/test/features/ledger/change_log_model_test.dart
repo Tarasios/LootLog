@@ -103,4 +103,48 @@ void main() {
     final log = buildChangeLog(state, events, userNames: const {});
     expect(log.single.author, 'Someone');
   });
+
+  test('a later MemberSet reads as an update, not an add', () {
+    final events = <Event>[
+      _member('m1', 'Riley', MemberRole.adult),
+      MemberSet(
+        eventId: _id(),
+        deviceId: 'd',
+        userId: 'a1',
+        occurredAt: _at(2026, 1, 2),
+        createdAt: _at(2026, 1, 2),
+        memberId: 'm1',
+        name: 'Riley R.',
+        role: MemberRole.adult,
+      ),
+    ];
+    final state = reduce(events);
+    final log = buildChangeLog(state, events, userNames: names);
+
+    expect(log, hasLength(2));
+    expect(log.first.title, contains('Updated Riley R.'));
+    expect(log.last.title, contains('Added Riley'));
+  });
+
+  test('a sprite-only change reads as a portrait update', () {
+    final events = <Event>[
+      _member('m1', 'Riley', MemberRole.adult),
+      MemberSet(
+        eventId: _id(),
+        deviceId: 'd',
+        userId: 'a1',
+        occurredAt: _at(2026, 1, 2),
+        createdAt: _at(2026, 1, 2),
+        memberId: 'm1',
+        name: 'Riley',
+        role: MemberRole.adult,
+        customSpriteSha256: 'a' * 64,
+      ),
+    ];
+    final state = reduce(events);
+    final log = buildChangeLog(state, events, userNames: names);
+
+    expect(log, hasLength(2));
+    expect(log.first.title, "Updated Riley's portrait");
+  });
 }
