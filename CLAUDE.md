@@ -35,7 +35,8 @@ A pixel-art dungeon-crawler that happens to be a rigorous shared budgeting app. 
 - A category may designate an **emergency fund contribution**: fixed amount off the top of its limit monthly into a named emergency fund, regardless of spending. Effective limit = limit − contribution.
 
 ### Income
-- `DefaultIncomeSet {forUserId, amountCents, effectiveFromMonth}` carries forward until changed; `IncomeSet {forUserId, month, amountCents}` overrides a single month. Resolved month income = override ?? latest effective default ?? 0. The income screen must never show blank months when a default exists.
+- `DefaultIncomeSet {forUserId, amountCents, effectiveFromMonth, estimatedHighCents?}` carries forward until changed; `IncomeSet {forUserId, month, amountCents}` overrides a single month. Resolved month income = override ?? latest effective default ?? 0. The income screen must never show blank months when a default exists.
+- **Variable earners plan at the low end:** `amountCents` is always the planning figure; `estimatedHighCents` (optional) is the optimistic top of the range, for display only — nothing budget-side may ever plan on it. Job loss, overtime, or short hours in a specific month are recorded as plain single-month overrides; a new default handles a lasting change.
 
 ### Recurring expenses ("equipment maintenance")
 - `RecurringExpenseSet {name, ownership personal(user)|shared, kind fixed|variable, cadence monthly|annual, amountCents, dueDay, dueMonth? (annual), startMonth, endMonth?}`. Shared ones split by shares off the top; personal ones off the top of that adult's budget. Modifiable and cancellable any time.

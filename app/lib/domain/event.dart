@@ -165,6 +165,7 @@ sealed class Event {
           forUserId: p['forUserId'] as String,
           amountCents: p['amountCents'] as int,
           effectiveFromMonth: Month.parse(p['effectiveFromMonth'] as String),
+          estimatedHighCents: p['estimatedHighCents'] as int?,
         );
       case 'QuestSet':
         return QuestSet(
@@ -752,11 +753,21 @@ class DefaultIncomeSet extends Event {
     required this.forUserId,
     required this.amountCents,
     required this.effectiveFromMonth,
+    this.estimatedHighCents,
   });
 
   final String forUserId;
+
+  /// The planning figure. For a variable earner this is the LOW end of the
+  /// estimated range: budgets aim at what the month is sure to bring in.
   final int amountCents;
   final Month effectiveFromMonth;
+
+  /// The optimistic top of an estimated income range, for display only
+  /// ("$3,000 to $4,500 — planning at the low end"). Null for a fixed salary.
+  /// A month that actually pays more is recorded as a plain [IncomeSet]
+  /// override; nothing budget-side ever plans on this figure.
+  final int? estimatedHighCents;
 
   @override
   String get type => 'DefaultIncomeSet';
@@ -766,6 +777,8 @@ class DefaultIncomeSet extends Event {
         'forUserId': forUserId,
         'amountCents': amountCents,
         'effectiveFromMonth': effectiveFromMonth.toKey(),
+        if (estimatedHighCents != null)
+          'estimatedHighCents': estimatedHighCents,
       };
 }
 
