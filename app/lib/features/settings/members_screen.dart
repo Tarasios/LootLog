@@ -15,6 +15,7 @@ import '../../domain/state.dart';
 import '../../domain/value_types.dart';
 import '../../ui/theme.dart';
 import '../shared/sprite_picker.dart';
+import 'member_edit_diff.dart';
 
 class MembersScreen extends ConsumerWidget {
   const MembersScreen({super.key});
@@ -217,14 +218,27 @@ class MembersScreen extends ConsumerWidget {
     );
 
     if (saved == true && nameController.text.trim().isNotEmpty) {
+      final name = nameController.text.trim();
       final desc = descController.text.trim();
-      await ref.read(householdActionsProvider)?.setMember(
-            memberId: existing?.memberId,
-            name: nameController.text.trim(),
+      final description = desc.isEmpty ? null : desc;
+      if (existing != null &&
+          !memberEditChanged(
+            existing,
+            name: name,
             role: role,
             active: active,
             customSpriteSha256: spriteSha,
-            descriptionText: desc.isEmpty ? null : desc,
+            descriptionText: description,
+          )) {
+        return; // Nothing changed — append no event.
+      }
+      await ref.read(householdActionsProvider)?.setMember(
+            memberId: existing?.memberId,
+            name: name,
+            role: role,
+            active: active,
+            customSpriteSha256: spriteSha,
+            descriptionText: description,
           );
     }
   }
