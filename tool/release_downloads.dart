@@ -15,7 +15,7 @@
 // Usage:
 //   dart run tool/release_downloads.dart [owner/repo]
 //
-//   owner/repo   Defaults to tarasios/duobudget.
+//   owner/repo   Defaults to Tarasios/LootLog.
 //
 // Environment:
 //   GITHUB_TOKEN  Optional. A classic/fine-grained token (no scopes needed for
@@ -37,7 +37,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-const _defaultRepo = 'tarasios/duobudget';
+const _defaultRepo = 'Tarasios/LootLog';
 
 Future<void> main(List<String> args) async {
   if (args.contains('-h') || args.contains('--help')) {
@@ -142,7 +142,7 @@ Future<List<dynamic>> _fetchAllReleases(String repo) async {
       final request = await client.getUrl(uri);
       request.headers
         ..set(HttpHeaders.acceptHeader, 'application/vnd.github+json')
-        ..set(HttpHeaders.userAgentHeader, 'duobudget-release-downloads')
+        ..set(HttpHeaders.userAgentHeader, 'lootlog-release-downloads')
         ..set('X-GitHub-Api-Version', '2022-11-28');
       if (token != null && token.isNotEmpty) {
         request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');

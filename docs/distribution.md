@@ -266,7 +266,7 @@ Release asset and exposes it on the public Releases API, with no cooperation fro
 the running app. The documented script:
 
 ```bash
-dart run tool/release_downloads.dart            # defaults to tarasios/duobudget
+dart run tool/release_downloads.dart            # defaults to Tarasios/LootLog
 dart run tool/release_downloads.dart owner/repo # any repo
 ```
 

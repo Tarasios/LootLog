@@ -3,10 +3,10 @@
 /// activity feed hides — so the log is a complete, append-only audit trail.
 library;
 
-import 'package:duobudget/domain/event.dart';
-import 'package:duobudget/domain/reducer.dart';
-import 'package:duobudget/domain/value_types.dart';
-import 'package:duobudget/features/ledger/change_log_model.dart';
+import 'package:lootlog/domain/event.dart';
+import 'package:lootlog/domain/reducer.dart';
+import 'package:lootlog/domain/value_types.dart';
+import 'package:lootlog/features/ledger/change_log_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 int _n = 0;

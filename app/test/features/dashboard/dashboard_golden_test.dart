@@ -1,8 +1,8 @@
-import 'package:duobudget/domain/time.dart';
-import 'package:duobudget/features/dashboard/dashboard_model.dart';
-import 'package:duobudget/features/dashboard/dashboard_view.dart';
-import 'package:duobudget/features/sync/sync_status.dart';
-import 'package:duobudget/ui/theme.dart';
+import 'package:lootlog/domain/time.dart';
+import 'package:lootlog/features/dashboard/dashboard_model.dart';
+import 'package:lootlog/features/dashboard/dashboard_view.dart';
+import 'package:lootlog/features/sync/sync_status.dart';
+import 'package:lootlog/ui/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

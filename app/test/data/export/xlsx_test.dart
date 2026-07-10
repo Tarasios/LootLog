@@ -5,7 +5,7 @@ library;
 import 'dart:convert';
 
 import 'package:archive/archive.dart';
-import 'package:duobudget/data/export/xlsx.dart';
+import 'package:lootlog/data/export/xlsx.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 String _entry(Archive archive, String name) {

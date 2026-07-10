@@ -568,7 +568,7 @@ class _EmptyHubs extends StatelessWidget {
 
   /// The one download link that always points at the newest desktop build.
   static const _releasesUrl =
-      'github.com/Tarasios/duobudget/releases/latest';
+      'github.com/Tarasios/LootLog/releases/latest';
 
   @override
   Widget build(BuildContext context) {

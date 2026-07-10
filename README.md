@@ -9,7 +9,7 @@ event, and the game layer can read those numbers but can never change them.
 
 Everything runs on your own devices. Phones and desktops sync over your home
 network, receipt scanning happens on the phone itself, and there are no
-accounts, servers, or subscriptions. LootLog was renamed from DuoBudget (the repository keeps the old name);
+accounts, servers, or subscriptions. LootLog used to be called DuoBudget;
 households of any size work fine.
 
 Built with Flutter for Android and desktop (Windows, macOS, Linux).
@@ -22,12 +22,12 @@ Built with Flutter for Android and desktop (Windows, macOS, Linux).
 ## Download
 
 Grab the latest release from the
-[releases page](https://github.com/Tarasios/duobudget/releases/latest). These
+[releases page](https://github.com/Tarasios/LootLog/releases/latest). These
 direct links always point at the newest version:
 
-- [Android APK](https://github.com/Tarasios/duobudget/releases/latest/download/lootlog-android.apk)
-- [Windows](https://github.com/Tarasios/duobudget/releases/latest/download/lootlog-windows-x64.zip)
-- [Linux](https://github.com/Tarasios/duobudget/releases/latest/download/lootlog-linux-x64.tar.gz)
+- [Android APK](https://github.com/Tarasios/LootLog/releases/latest/download/lootlog-android.apk)
+- [Windows](https://github.com/Tarasios/LootLog/releases/latest/download/lootlog-windows-x64.zip)
+- [Linux](https://github.com/Tarasios/LootLog/releases/latest/download/lootlog-linux-x64.tar.gz)
 
 The phone app is fully self-sufficient. You can budget on a single phone
 forever. Installing the desktop app on a machine that stays home gives you a
@@ -91,7 +91,7 @@ The easiest setup starts on the machine that stays on, a desktop:
 Phone only? That works too. Everything runs offline on the phone, and you can
 move data between phones with export files or the share sheet. When you want
 an always-on backup and the receipt folder, install the desktop build from the
-[releases page](https://github.com/Tarasios/duobudget/releases/latest) and
+[releases page](https://github.com/Tarasios/LootLog/releases/latest) and
 pair with it.
 
 ## How the money works

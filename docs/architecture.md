@@ -14,7 +14,7 @@ event-sourced, integer-cents ledger that the game layer can read but **never
 alter.** It is Flutter only (Android + desktop Windows/macOS/Linux), with no
 external services, servers, accounts, or SaaS beyond one opt-in exception
 (Google Sheets, §14). Desktops act as sync hubs on the local network; OCR runs
-on-device. (LootLog was renamed from DuoBudget (the repository keeps the old name); households are any size.)
+on-device. (LootLog used to be called DuoBudget; households are any size.)
 
 ## 0. Product priorities (in order)
 

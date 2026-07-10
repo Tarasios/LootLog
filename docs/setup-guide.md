@@ -37,7 +37,7 @@ desktop or a laptop that lives at home. That machine will host the hub the phone
 sync through.
 
 > **Get it from GitHub Releases.** LootLog is distributed through its
-> **[GitHub Releases page](https://github.com/tarasios/duobudget/releases)** —
+> **[GitHub Releases page](https://github.com/Tarasios/LootLog/releases)** —
 > that's the whole "app store". Each release attaches ready-to-run binaries:
 > a **Windows** zip, a **macOS** `.app`/`.dmg`, a **Linux** tarball, and an
 > **Android** APK (for the phones in [step 3](#3-host-a-hub-and-pair-your-other-devices)).
@@ -507,7 +507,7 @@ folder. Nothing about this touches the internet.
 Everything LootLog knows lives in **two things on the hosting device**, both
 inside the app's private application-documents directory:
 
-- **`duobudget.sqlite`** — the event log (every change ever made). This is the
+- **`lootlog.sqlite`** — the event log (every change ever made). This is the
   real record; all balances are recomputed from it.
 - **The `blobs/` folder** — your receipt images and any custom sprites, one file
   per item, named by content.
@@ -522,7 +522,7 @@ reinstalling or moving to a new machine.
 
 ### The raw-files way
 
-If you'd rather copy the underlying files, copy **both** `duobudget.sqlite` **and**
+If you'd rather copy the underlying files, copy **both** `lootlog.sqlite` **and**
 the entire `blobs/` folder together, from the app's documents directory. They live
 side by side. The exact location depends on the OS (it's the standard
 per-application documents folder — e.g. your **Documents** folder on Windows and

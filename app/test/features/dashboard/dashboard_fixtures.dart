@@ -4,12 +4,12 @@
 /// view-model constructors so the goldens are stable and self-contained.
 library;
 
-import 'package:duobudget/domain/time.dart';
-import 'package:duobudget/domain/value_types.dart';
-import 'package:duobudget/features/activity/activity_model.dart';
-import 'package:duobudget/features/dashboard/dashboard_model.dart';
-import 'package:duobudget/features/networth/networth_model.dart';
-import 'package:duobudget/features/spoils/spoils_model.dart';
+import 'package:lootlog/domain/time.dart';
+import 'package:lootlog/domain/value_types.dart';
+import 'package:lootlog/features/activity/activity_model.dart';
+import 'package:lootlog/features/dashboard/dashboard_model.dart';
+import 'package:lootlog/features/networth/networth_model.dart';
+import 'package:lootlog/features/spoils/spoils_model.dart';
 
 const _july = Month(2026, 7);
 const _june = Month(2026, 6);

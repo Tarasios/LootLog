@@ -1,4 +1,4 @@
-# lootlog (package name: duobudget)
+# lootlog
 
 Two-person local-first shared budgeting app with an optional dungeon adventure skin.
 

@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 
-import 'package:duobudget/game/narrative.dart';
+import 'package:lootlog/game/narrative.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Reads the shipped asset files off disk (tests run with the package root as

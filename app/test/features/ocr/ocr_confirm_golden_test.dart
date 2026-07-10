@@ -1,6 +1,6 @@
-import 'package:duobudget/data/ocr/receipt_parse.dart';
-import 'package:duobudget/features/ocr/ocr_confirm_view.dart';
-import 'package:duobudget/ui/theme.dart';
+import 'package:lootlog/data/ocr/receipt_parse.dart';
+import 'package:lootlog/features/ocr/ocr_confirm_view.dart';
+import 'package:lootlog/ui/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

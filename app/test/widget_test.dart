@@ -1,5 +1,5 @@
-import 'package:duobudget/data/providers.dart';
-import 'package:duobudget/main.dart';
+import 'package:lootlog/data/providers.dart';
+import 'package:lootlog/main.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 

@@ -3,8 +3,8 @@
 /// backed by a supported client with complete credentials.
 library;
 
-import 'package:duobudget/data/export/xlsx.dart';
-import 'package:duobudget/data/sheets/sheets_sync.dart';
+import 'package:lootlog/data/export/xlsx.dart';
+import 'package:lootlog/data/sheets/sheets_sync.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// A recording fake standing in for a real Google client.

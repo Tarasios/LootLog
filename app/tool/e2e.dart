@@ -19,19 +19,19 @@ import 'dart:io';
 import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
 import 'package:drift/native.dart';
-import 'package:duobudget/data/blobs/blob_store.dart';
-import 'package:duobudget/data/db/database.dart';
-import 'package:duobudget/data/export/event_export.dart';
-import 'package:duobudget/data/export/tax_package.dart';
-import 'package:duobudget/data/library/receipt_library.dart';
-import 'package:duobudget/data/sync/hub_server.dart';
-import 'package:duobudget/data/sync/sync_client.dart';
-import 'package:duobudget/domain/event.dart';
-import 'package:duobudget/domain/ids.dart';
-import 'package:duobudget/domain/reducer.dart';
-import 'package:duobudget/domain/state.dart';
-import 'package:duobudget/domain/time.dart';
-import 'package:duobudget/domain/value_types.dart';
+import 'package:lootlog/data/blobs/blob_store.dart';
+import 'package:lootlog/data/db/database.dart';
+import 'package:lootlog/data/export/event_export.dart';
+import 'package:lootlog/data/export/tax_package.dart';
+import 'package:lootlog/data/library/receipt_library.dart';
+import 'package:lootlog/data/sync/hub_server.dart';
+import 'package:lootlog/data/sync/sync_client.dart';
+import 'package:lootlog/domain/event.dart';
+import 'package:lootlog/domain/ids.dart';
+import 'package:lootlog/domain/reducer.dart';
+import 'package:lootlog/domain/state.dart';
+import 'package:lootlog/domain/time.dart';
+import 'package:lootlog/domain/value_types.dart';
 
 // ---- household fixture ------------------------------------------------------
 
@@ -174,7 +174,7 @@ BudgetSliceSet slice(
 // ---- main -------------------------------------------------------------------
 
 Future<void> main() async {
-  final root = await Directory.systemTemp.createTemp('duobudget-e2e-');
+  final root = await Directory.systemTemp.createTemp('lootlog-e2e-');
   print('LootLog e2e — scratch: ${root.path}\n');
 
   final a = Node('desktop-A', await _sub(root, 'A'), alice);

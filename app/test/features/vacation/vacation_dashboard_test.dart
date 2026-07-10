@@ -1,6 +1,6 @@
-import 'package:duobudget/domain/state.dart';
-import 'package:duobudget/domain/value_types.dart';
-import 'package:duobudget/features/vacation/vacation_dashboard.dart';
+import 'package:lootlog/domain/state.dart';
+import 'package:lootlog/domain/value_types.dart';
+import 'package:lootlog/features/vacation/vacation_dashboard.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 VacationState vac({

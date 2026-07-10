@@ -1,4 +1,4 @@
-import 'package:duobudget/domain/time.dart';
+import 'package:lootlog/domain/time.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

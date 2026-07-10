@@ -1,5 +1,5 @@
-import 'package:duobudget/game/adventure_dashboard.dart';
-import 'package:duobudget/ui/theme.dart';
+import 'package:lootlog/game/adventure_dashboard.dart';
+import 'package:lootlog/ui/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

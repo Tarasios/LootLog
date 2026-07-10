@@ -2,14 +2,14 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:drift/native.dart';
-import 'package:duobudget/data/blobs/blob_store.dart';
-import 'package:duobudget/data/blobs/receipt_offload.dart';
-import 'package:duobudget/data/db/database.dart';
-import 'package:duobudget/data/sync/hub_server.dart';
-import 'package:duobudget/data/sync/sync_client.dart';
-import 'package:duobudget/data/sync/sync_service.dart';
-import 'package:duobudget/domain/event.dart';
-import 'package:duobudget/domain/value_types.dart';
+import 'package:lootlog/data/blobs/blob_store.dart';
+import 'package:lootlog/data/blobs/receipt_offload.dart';
+import 'package:lootlog/data/db/database.dart';
+import 'package:lootlog/data/sync/hub_server.dart';
+import 'package:lootlog/data/sync/sync_client.dart';
+import 'package:lootlog/data/sync/sync_service.dart';
+import 'package:lootlog/domain/event.dart';
+import 'package:lootlog/domain/value_types.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 AppDatabase memDb() => AppDatabase(NativeDatabase.memory());
