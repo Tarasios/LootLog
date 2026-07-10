@@ -25,4 +25,33 @@ void main() {
     expect(TutorialProgress.decode('garbage'),
         const TutorialProgress(completed: false, stepIndex: 0));
   });
+
+  group('nextProgressAfterDismissal', () {
+    test('a completed tour stays completed after a barrier dismissal', () {
+      final next = nextProgressAfterDismissal(
+        before: TutorialProgress.done,
+        dialogOutcome: null,
+        lastShownStep: 2,
+      );
+      expect(next, TutorialProgress.done);
+    });
+
+    test('Done/Skip always completes, even mid-tour', () {
+      final next = nextProgressAfterDismissal(
+        before: const TutorialProgress(completed: false, stepIndex: 1),
+        dialogOutcome: true,
+        lastShownStep: 1,
+      );
+      expect(next, TutorialProgress.done);
+    });
+
+    test('a fresh tour dismissed mid-way saves the resume step', () {
+      final next = nextProgressAfterDismissal(
+        before: TutorialProgress.fresh,
+        dialogOutcome: null,
+        lastShownStep: 3,
+      );
+      expect(next, const TutorialProgress(completed: false, stepIndex: 3));
+    });
+  });
 }

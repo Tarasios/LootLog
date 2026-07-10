@@ -57,6 +57,22 @@ class TutorialProgress {
   int get hashCode => Object.hash(completed, stepIndex);
 }
 
+/// Decides what to persist after the tour dialog closes.
+///
+/// `dialogOutcome == true` means Done/Skip was pressed — always completed.
+/// Otherwise the dialog was dismissed some other way (barrier tap, navigator
+/// swap): if the tour was already completed on entry, that stays untouched
+/// (a replay dismissal must never un-complete a finished tour); otherwise the
+/// resume step is saved so the next launch picks up where it left off.
+TutorialProgress nextProgressAfterDismissal({
+  required TutorialProgress before,
+  required bool? dialogOutcome,
+  required int lastShownStep,
+}) {
+  if (dialogOutcome == true || before.completed) return TutorialProgress.done;
+  return TutorialProgress(completed: false, stepIndex: lastShownStep);
+}
+
 /// Loads the stored progress. A missing file (fresh install) reads as fresh.
 Future<TutorialProgress> loadTutorialProgress() async {
   final f = await _tutorialFile();

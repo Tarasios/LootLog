@@ -24,7 +24,8 @@ export 'tutorial_prefs.dart';
 abstract final class TutorialTour {
   /// Shows the tour, resuming at the saved step. Finishing or pressing Skip
   /// marks it completed; any other dismissal saves the current step so a
-  /// fresh launch resumes there.
+  /// fresh launch resumes there — unless the tour was already completed on
+  /// entry (a Settings replay), in which case it stays completed.
   static Future<void> show(BuildContext context, WidgetRef ref) async {
     final isAdventure = ref.read(appSkinProvider) == AppSkin.adventure;
     final progress = ref.read(tutorialProgressProvider);
@@ -40,10 +41,15 @@ abstract final class TutorialTour {
       builder: (_) => _TutorialDialog(steps: steps, startAt: startAt),
     );
     final notifier = ref.read(tutorialProgressProvider.notifier);
-    if (completed == true) {
+    final next = nextProgressAfterDismissal(
+      before: progress,
+      dialogOutcome: completed,
+      lastShownStep: _TutorialDialogState.lastShownStep,
+    );
+    if (next.completed) {
       await notifier.markCompleted();
     } else {
-      await notifier.saveStep(_TutorialDialogState.lastShownStep);
+      await notifier.saveStep(next.stepIndex);
     }
   }
 }
