@@ -1,5 +1,5 @@
-import 'package:lootlog/ui/glossary.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lootlog/ui/glossary.dart';
 
 void main() {
   group('Glossary', () {
