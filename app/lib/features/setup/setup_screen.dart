@@ -17,7 +17,7 @@ import '../../data/actions.dart';
 import '../../data/blobs/media_ingest.dart';
 import '../../data/providers.dart';
 import '../../domain/money.dart';
-import '../../domain/state.dart' show defaultMainCategories;
+import '../../domain/state.dart' show MainCategory;
 import '../../domain/time.dart';
 import '../../domain/value_types.dart';
 import '../../game/skin_prefs.dart';
@@ -80,6 +80,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     if (_index < 0) return true;
     return switch (_step) {
       _Step.party => _c.hasAdult && _c.meLocalId != null,
+      // The plan may not exceed anyone's income.
+      _Step.budget => !_c.anyOverAllocated,
       _ => true,
     };
   }
@@ -527,9 +529,22 @@ class _ExpensesStep extends StatelessWidget {
         '$owner · ${money(e.amountCents)} · '
         '${e.cadence == RecurringCadence.annual ? 'annual' : 'monthly'}',
       ),
-      trailing: IconButton(
-        icon: const Icon(Icons.delete_outline),
-        onPressed: () => c.removeFixedExpense(i),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: () async {
+              final edited =
+                  await showExpenseEditor(context, c, existing: e);
+              if (edited != null) c.updateFixedExpense(i, edited);
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () => c.removeFixedExpense(i),
+          ),
+        ],
       ),
     );
   }
@@ -557,6 +572,13 @@ class _BudgetStep extends StatelessWidget {
           'Fund group categories first, propose the split, then give each adult '
           'personal categories until their leftover counter reaches zero.',
         ),
+        if (c.anyOverAllocated)
+          _Banner(
+            icon: Icons.warning_amber_outlined,
+            text: 'A plan exceeds someone\'s income — trim limits below '
+                'until every adult is at or under zero.',
+          ),
+        _mainCategoriesCard(context),
         Text('Group categories', style: AppText.sectionLabel(context)),
         for (var i = 0; i < c.categories.length; i++)
           if (c.categories[i].group) _categoryTile(context, i),
@@ -581,6 +603,37 @@ class _BudgetStep extends StatelessWidget {
         Text('Personal categories', style: AppText.sectionLabel(context)),
         for (final a in c.adults) _adultBudget(context, a, scheme),
       ],
+    );
+  }
+
+  Widget _mainCategoriesCard(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text('Main categories',
+                      style: Theme.of(context).textTheme.titleSmall),
+                ),
+                TextButton(
+                  onPressed: () => showMainCategoriesEditor(context, c),
+                  child: const Text('Customize'),
+                ),
+              ],
+            ),
+            Text(
+              c.mainCategories.map((m) => m.name).join(' · '),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -657,17 +710,24 @@ class _BudgetStep extends StatelessWidget {
               if (!c.categories[i].group &&
                   c.categories[i].ownerLocalId == a.localId)
                 _categoryTile(context, i, dense: true),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () async {
-                  final cat = await showCategoryEditor(context, c,
-                      group: false, ownerLocalId: a.localId);
-                  if (cat != null) c.addCategory(cat);
-                },
-                icon: const Icon(Icons.add),
-                label: const Text('Add category'),
-              ),
+            Wrap(
+              spacing: AppSpacing.sm,
+              children: [
+                TextButton.icon(
+                  onPressed: () async {
+                    final cat = await showCategoryEditor(context, c,
+                        group: false, ownerLocalId: a.localId);
+                    if (cat != null) c.addCategory(cat);
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add category'),
+                ),
+                TextButton.icon(
+                  onPressed: () => c.splitEvenlyFor(a.localId),
+                  icon: const Icon(Icons.balance_outlined),
+                  label: const Text('Split evenly'),
+                ),
+              ],
             ),
           ],
         ),
@@ -682,10 +742,27 @@ class _BudgetStep extends StatelessWidget {
       contentPadding: EdgeInsets.zero,
       leading: dense ? null : const Icon(Icons.pie_chart_outline),
       title: Text(cat.name),
-      subtitle: Text(money(cat.limitCents)),
-      trailing: IconButton(
-        icon: const Icon(Icons.delete_outline),
-        onPressed: () => c.removeCategory(i),
+      subtitle: Text(cat.tithePct > 0
+          ? '${money(cat.limitCents)} · ${cat.tithePct}% tithe'
+          : money(cat.limitCents)),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: () async {
+              final edited = await showCategoryEditor(context, c,
+                  group: cat.group,
+                  ownerLocalId: cat.ownerLocalId,
+                  existing: cat);
+              if (edited != null) c.updateCategory(i, edited);
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () => c.removeCategory(i),
+          ),
+        ],
       ),
     );
   }
@@ -1194,14 +1271,17 @@ Future<DraftAccount?> showAccountEditor(BuildContext context) {
 }
 
 Future<DraftFixedExpense?> showExpenseEditor(
-    BuildContext context, SetupController c) {
-  final nameCtrl = TextEditingController();
-  final amountCtrl = TextEditingController();
-  final dayCtrl = TextEditingController(text: '1');
-  var shared = true;
-  String? owner = c.adults.isNotEmpty ? c.adults.first.localId : null;
-  var cadence = RecurringCadence.monthly;
-  var dueMonth = 1;
+    BuildContext context, SetupController c,
+    {DraftFixedExpense? existing}) {
+  final nameCtrl = TextEditingController(text: existing?.name ?? '');
+  final amountCtrl = TextEditingController(
+      text: existing == null ? '' : Money(existing.amountCents).format());
+  final dayCtrl = TextEditingController(text: '${existing?.dueDay ?? 1}');
+  var shared = existing?.shared ?? true;
+  String? owner = existing?.ownerLocalId ??
+      (c.adults.isNotEmpty ? c.adults.first.localId : null);
+  var cadence = existing?.cadence ?? RecurringCadence.monthly;
+  var dueMonth = existing?.dueMonth ?? 1;
 
   int centsOf() {
     final t = amountCtrl.text.trim();
@@ -1229,7 +1309,7 @@ Future<DraftFixedExpense?> showExpenseEditor(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('New fixed expense',
+              Text(existing == null ? 'New fixed expense' : 'Edit fixed expense',
                   style: Theme.of(sheetCtx).textTheme.titleLarge),
               const SizedBox(height: AppSpacing.md),
               TextField(
@@ -1311,7 +1391,7 @@ Future<DraftFixedExpense?> showExpenseEditor(
                         cadence == RecurringCadence.annual ? dueMonth : null,
                   ));
                 },
-                child: const Text('Add expense'),
+                child: Text(existing == null ? 'Add expense' : 'Save'),
               ),
             ],
           ),
@@ -1326,11 +1406,14 @@ Future<DraftCategory?> showCategoryEditor(
   SetupController c, {
   required bool group,
   String? ownerLocalId,
+  DraftCategory? existing,
 }) {
-  final nameCtrl = TextEditingController();
-  final limitCtrl = TextEditingController();
-  String mainCat = defaultMainCategories.first.id;
-  String? petId = c.pets.isNotEmpty ? null : null;
+  final nameCtrl = TextEditingController(text: existing?.name ?? '');
+  final limitCtrl = TextEditingController(
+      text: existing == null ? '' : Money(existing.limitCents).format());
+  final titheCtrl = TextEditingController(text: '${existing?.tithePct ?? 0}');
+  String mainCat = existing?.mainCategoryId ?? c.mainCategories.first.id;
+  String? petId = existing?.petId;
 
   int centsOf() {
     final t = limitCtrl.text.trim();
@@ -1358,7 +1441,10 @@ Future<DraftCategory?> showCategoryEditor(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('${group ? 'Group' : 'Personal'} category',
+              Text(
+                  existing == null
+                      ? '${group ? 'Group' : 'Personal'} category'
+                      : 'Edit category',
                   style: Theme.of(sheetCtx).textTheme.titleLarge),
               const SizedBox(height: AppSpacing.md),
               TextField(
@@ -1379,11 +1465,26 @@ Future<DraftCategory?> showCategoryEditor(
                 initialValue: mainCat,
                 decoration: const InputDecoration(labelText: 'Main category'),
                 items: [
-                  for (final m in defaultMainCategories)
+                  for (final m in c.mainCategories)
                     DropdownMenuItem(value: m.id, child: Text(m.name)),
                 ],
                 onChanged: (v) => setSheet(() => mainCat = v ?? mainCat),
               ),
+              if (!group) ...[
+                const SizedBox(height: AppSpacing.sm),
+                TextField(
+                  controller: titheCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Tithe % (0–100)',
+                    helperText:
+                        'When month-end leftover from this category converts '
+                        'to your own pocket money, this share goes to the '
+                        'household war chest instead. 0 keeps it all.',
+                    helperMaxLines: 3,
+                  ),
+                ),
+              ],
               if (group && c.pets.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.sm),
                 DropdownButtonFormField<String?>(
@@ -1410,9 +1511,11 @@ Future<DraftCategory?> showCategoryEditor(
                     ownerLocalId: group ? null : ownerLocalId,
                     mainCategoryId: mainCat,
                     petId: group ? petId : null,
+                    tithePct: (int.tryParse(titheCtrl.text.trim()) ?? 0)
+                        .clamp(0, 100),
                   ));
                 },
-                child: const Text('Add category'),
+                child: Text(existing == null ? 'Add category' : 'Save'),
               ),
             ],
           ),
@@ -1420,6 +1523,126 @@ Future<DraftCategory?> showCategoryEditor(
       ),
     ),
   );
+}
+
+/// Rename existing main categories or add new ones. Changes live in the
+/// controller and become `MainCategorySet` events at finish.
+Future<void> showMainCategoriesEditor(BuildContext context, SetupController c) {
+  final addCtrl = TextEditingController();
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    builder: (sheetCtx) => Padding(
+      padding: EdgeInsets.only(
+        left: AppSpacing.lg,
+        right: AppSpacing.lg,
+        top: AppSpacing.lg,
+        bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + AppSpacing.lg,
+      ),
+      child: StatefulBuilder(
+        builder: (sheetCtx, setSheet) => SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Main categories',
+                  style: Theme.of(sheetCtx).textTheme.titleLarge),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'The big buckets your reports and quests group by. Rename '
+                'any of them, or add your own.',
+                style: Theme.of(sheetCtx).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(sheetCtx).colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              for (final m in c.mainCategories)
+                _MainCategoryRow(
+                  key: ValueKey(m.id),
+                  category: m,
+                  onRenamed: (name) =>
+                      setSheet(() => c.renameMainCategory(m.id, name)),
+                ),
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: addCtrl,
+                      decoration:
+                          const InputDecoration(labelText: 'New main category'),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  FilledButton(
+                    onPressed: () {
+                      final name = addCtrl.text.trim();
+                      if (name.isEmpty) return;
+                      setSheet(() {
+                        c.addMainCategory(name);
+                        addCtrl.clear();
+                      });
+                    },
+                    child: const Text('Add'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// One rename row: a text field seeded with the category's name that commits
+/// on every change (the controller ignores empty names).
+class _MainCategoryRow extends StatefulWidget {
+  const _MainCategoryRow(
+      {super.key, required this.category, required this.onRenamed});
+
+  final MainCategory category;
+  final ValueChanged<String> onRenamed;
+
+  @override
+  State<_MainCategoryRow> createState() => _MainCategoryRowState();
+}
+
+class _MainCategoryRowState extends State<_MainCategoryRow> {
+  late final TextEditingController _ctrl =
+      TextEditingController(text: widget.category.name);
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Row(
+        children: [
+          Container(
+            width: 14,
+            height: 14,
+            decoration: BoxDecoration(
+              color: Color(widget.category.colorArgb),
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: TextField(
+              controller: _ctrl,
+              decoration: const InputDecoration(isDense: true),
+              onChanged: widget.onRenamed,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 Future<Map<String, int>?> showSharesEditor(

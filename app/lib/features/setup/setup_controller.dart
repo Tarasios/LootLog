@@ -9,6 +9,7 @@ library;
 import 'package:flutter/foundation.dart';
 
 import '../../domain/ids.dart';
+import '../../domain/state.dart' show MainCategory, defaultMainCategories;
 import '../../game/skin_prefs.dart';
 import 'onboarding_plan.dart';
 
@@ -55,6 +56,10 @@ class SetupController extends ChangeNotifier {
   final List<DraftAccount> accounts = [];
   final List<DraftFixedExpense> fixedExpenses = [];
   final List<DraftCategory> categories = [];
+
+  /// The editable main-category list, seeded from the app defaults. Renames
+  /// and additions here become `MainCategorySet` events at finish.
+  final List<MainCategory> mainCategories = [...defaultMainCategories];
 
   /// Adult localId → permille. Null means "even split" (written as such).
   Map<String, int>? shares;
@@ -165,6 +170,11 @@ class SetupController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateFixedExpense(int index, DraftFixedExpense e) {
+    fixedExpenses[index] = e;
+    notifyListeners();
+  }
+
   void removeFixedExpense(int index) {
     fixedExpenses.removeAt(index);
     notifyListeners();
@@ -175,9 +185,39 @@ class SetupController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateCategory(int index, DraftCategory c) {
+    categories[index] = c;
+    notifyListeners();
+  }
+
   void removeCategory(int index) {
     categories.removeAt(index);
     notifyListeners();
+  }
+
+  // ---- Main categories -------------------------------------------------------
+
+  void renameMainCategory(String id, String name) {
+    final i = mainCategories.indexWhere((m) => m.id == id);
+    if (i < 0 || name.trim().isEmpty) return;
+    mainCategories[i] = mainCategories[i].copyWith(name: name.trim());
+    notifyListeners();
+  }
+
+  /// Adds a new main category with a color cycled from the default palette.
+  String addMainCategory(String name) {
+    final id = uuidv7();
+    final color =
+        defaultMainCategories[mainCategories.length % defaultMainCategories.length]
+            .colorArgb;
+    mainCategories.add(MainCategory(
+      id: id,
+      name: name.trim(),
+      colorArgb: color,
+      sortOrder: mainCategories.length,
+    ));
+    notifyListeners();
+    return id;
   }
 
   void setShares(Map<String, int>? s) {
@@ -245,6 +285,34 @@ class SetupController extends ChangeNotifier {
     );
   }
 
+  /// Whether any adult's plan exceeds their income (budgets + fixed + group
+  /// share > income). The wizard blocks finishing while this is true.
+  bool get anyOverAllocated =>
+      adults.any((a) => allocationFor(a.localId).unallocatedCents < 0);
+
+  /// Replaces [adultId]'s personal category limits with an even division of
+  /// whatever their income leaves after the group share and personal fixed
+  /// expenses — so each category's limit IS the amount they may spend.
+  void splitEvenlyFor(String adultId) {
+    final indexes = [
+      for (var i = 0; i < categories.length; i++)
+        if (!categories[i].group && categories[i].ownerLocalId == adultId) i,
+    ];
+    if (indexes.isEmpty) return;
+    final alloc = allocationFor(adultId);
+    final available = (alloc.incomeCents -
+            alloc.groupShareCents -
+            alloc.personalFixedCents)
+        .clamp(0, 1 << 62);
+    final base = available ~/ indexes.length;
+    var remainder = available - base * indexes.length;
+    for (final i in indexes) {
+      categories[i] =
+          categories[i].copyWith(limitCents: base + (remainder-- > 0 ? 1 : 0));
+    }
+    notifyListeners();
+  }
+
   // ---- Hand-off to the pure model ------------------------------------------
 
   OnboardingInput buildInput() => OnboardingInput(
@@ -255,6 +323,7 @@ class SetupController extends ChangeNotifier {
         accounts: List.unmodifiable(accounts),
         fixedExpenses: List.unmodifiable(fixedExpenses),
         categories: List.unmodifiable(categories),
+        mainCategories: List.unmodifiable(mainCategories),
         shares: shares == null ? null : Map.unmodifiable(shares!),
         firstQuest: firstQuest,
       );
