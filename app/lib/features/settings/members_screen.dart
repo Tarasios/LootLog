@@ -6,10 +6,13 @@
 /// nothing is ever deleted.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/actions.dart';
+import '../../data/blobs/blob_store.dart';
 import '../../data/providers.dart';
 import '../../domain/state.dart';
 import '../../domain/value_types.dart';
@@ -197,6 +200,10 @@ class MembersScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
+                if (spriteSha != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  _SpritePreview(sha256: spriteSha!),
+                ],
                 if (existing != null)
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
@@ -240,6 +247,46 @@ class MembersScreen extends ConsumerWidget {
             customSpriteSha256: spriteSha,
             descriptionText: description,
           );
+    }
+  }
+}
+
+/// A small pixelated preview of an uploaded custom sprite, shown next to the
+/// sprite tile in the member editor. Renders nothing (never an error) if the
+/// blob is missing.
+class _SpritePreview extends ConsumerWidget {
+  const _SpritePreview({required this.sha256});
+
+  final String sha256;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final store = ref.watch(blobStoreProvider);
+    return FutureBuilder<Uint8List?>(
+      future: _loadBytes(store, sha256),
+      builder: (context, snapshot) {
+        final bytes = snapshot.data;
+        if (bytes == null) return const SizedBox.shrink();
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: Image.memory(
+            bytes,
+            width: 56,
+            height: 56,
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.none,
+          ),
+        );
+      },
+    );
+  }
+
+  static Future<Uint8List?> _loadBytes(BlobStore store, String sha) async {
+    if (!await store.exists(sha)) return null;
+    try {
+      return await store.read(sha);
+    } catch (_) {
+      return null;
     }
   }
 }
