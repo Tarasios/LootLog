@@ -11,13 +11,13 @@ import 'ui/theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final overrides = await buildDataLayerOverrides();
-  runApp(ProviderScope(overrides: overrides, child: const DuoBudgetApp()));
+  runApp(ProviderScope(overrides: overrides, child: const LootLogApp()));
 }
 
-/// Root of the DuoBudget application. All screens build from the shared
+/// Root of the LootLog application. All screens build from the shared
 /// [AppTheme]; go_router routes between first-run setup and the main shell.
-class DuoBudgetApp extends ConsumerWidget {
-  const DuoBudgetApp({super.key});
+class LootLogApp extends ConsumerWidget {
+  const LootLogApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -30,7 +30,7 @@ class DuoBudgetApp extends ConsumerWidget {
       unawaited(syncService.start());
     }
     return MaterialApp.router(
-      title: 'DuoBudget',
+      title: 'LootLog',
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       routerConfig: router,

@@ -1,4 +1,4 @@
-# Build every DuoBudget artifact on a version tag and attach them to a GitHub
+# Build every LootLog artifact on a version tag and attach them to a GitHub
 # Release, so that "sharing the app" is only ever "sharing a release link".
 #
 # Distribution is GitHub Releases only (see docs/distribution.md). There is no
@@ -92,7 +92,7 @@ jobs:
         run: |
           mkdir -p dist
           cp app/build/app/outputs/flutter-apk/app-release.apk \
-             "dist/duobudget-${{ needs.version.outputs.version }}-android.apk"
+             "dist/lootlog-${{ needs.version.outputs.version }}-android.apk"
       - name: Scrub signing material
         if: always()
         run: rm -f app/android/key.properties app/android/upload.jks
@@ -121,7 +121,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Compress-Archive -Path app/build/windows/x64/runner/Release/* `
-            -DestinationPath "dist/duobudget-${{ needs.version.outputs.version }}-windows-x64.zip"
+            -DestinationPath "dist/lootlog-${{ needs.version.outputs.version }}-windows-x64.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: windows
@@ -146,11 +146,11 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          app_path="app/build/macos/Build/Products/Release/duobudget.app"
+          app_path="app/build/macos/Build/Products/Release/lootlog.app"
           v="${{ needs.version.outputs.version }}"
-          ditto -c -k --keepParent "$app_path" "dist/duobudget-$v-macos.app.zip"
-          hdiutil create -volname DuoBudget -srcfolder "$app_path" \
-            -ov -format UDZO "dist/duobudget-$v-macos.dmg"
+          ditto -c -k --keepParent "$app_path" "dist/lootlog-$v-macos.app.zip"
+          hdiutil create -volname LootLog -srcfolder "$app_path" \
+            -ov -format UDZO "dist/lootlog-$v-macos.dmg"
       - uses: actions/upload-artifact@v4
         with:
           name: macos
@@ -182,7 +182,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          tar -czf "dist/duobudget-${{ needs.version.outputs.version }}-linux-x64.tar.gz" \
+          tar -czf "dist/lootlog-${{ needs.version.outputs.version }}-linux-x64.tar.gz" \
             -C app/build/linux/x64/release/bundle .
       - uses: actions/upload-artifact@v4
         with:
@@ -203,14 +203,14 @@ jobs:
       - name: Add stable-name download aliases
         run: |
           set -euo pipefail
-          cp artifacts/android/duobudget-*-android.apk artifacts/duobudget-android.apk
-          cp artifacts/windows/duobudget-*-windows-x64.zip artifacts/duobudget-windows-x64.zip
-          cp artifacts/linux/duobudget-*-linux-x64.tar.gz artifacts/duobudget-linux-x64.tar.gz
+          cp artifacts/android/lootlog-*-android.apk artifacts/lootlog-android.apk
+          cp artifacts/windows/lootlog-*-windows-x64.zip artifacts/lootlog-windows-x64.zip
+          cp artifacts/linux/lootlog-*-linux-x64.tar.gz artifacts/lootlog-linux-x64.tar.gz
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.version.outputs.tag }}
-          name: DuoBudget ${{ needs.version.outputs.tag }}
+          name: LootLog ${{ needs.version.outputs.tag }}
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: artifacts/**/*

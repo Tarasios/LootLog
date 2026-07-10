@@ -1,4 +1,4 @@
-package com.duobudget.duobudget
+package ca.tarasios.lootlog
 
 import io.flutter.embedding.android.FlutterActivity
 

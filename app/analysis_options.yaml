@@ -1,4 +1,4 @@
-# Static analysis configuration for DuoBudget.
+# Static analysis configuration for LootLog.
 #
 # Strict flutter_lints: on top of the recommended lint set we turn on the
 # analyzer's strict type-checking modes and treat the things that most often
@@ -39,7 +39,7 @@ linter:
     - throw_in_finally
     - unnecessary_statements
 
-    # Immutability — DuoBudget is event-sourced; domain values are immutable.
+    # Immutability — LootLog is event-sourced; domain values are immutable.
     - prefer_final_locals
     - prefer_final_in_for_each
     - avoid_field_initializers_in_const_classes

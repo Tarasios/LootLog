@@ -174,7 +174,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                       size: 72,
                       color: Theme.of(context).colorScheme.primary),
                   const SizedBox(height: AppSpacing.lg),
-                  Text('Welcome to DuoBudget',
+                  Text('Welcome to LootLog',
                       style: text.headlineSmall, textAlign: TextAlign.center),
                   const SizedBox(height: AppSpacing.sm),
                   Text(

@@ -7,7 +7,7 @@ even if you only ever finish one sprite.
 
 Two things to hold onto before we start:
 
-1. **The art is a skin, never the game's brain.** DuoBudget is a real budgeting
+1. **The art is a skin, never the game's brain.** LootLog is a real budgeting
    app wearing a dungeon-crawler costume. Your sprites decorate numbers the app
    already computed; they never change a single cent. Draw freely — you cannot
    break the money.

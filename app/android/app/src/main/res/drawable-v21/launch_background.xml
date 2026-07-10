@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- DuoBudget launch splash (API 21+): the placeholder logo centered on the
+<!-- LootLog launch splash (API 21+): the placeholder logo centered on the
      themed window background. Regenerate the logo with
      `dart run tool/generate_branding.dart`. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">

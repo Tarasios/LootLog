@@ -1,12 +1,12 @@
-# DuoBudget Architecture
+# LootLog Architecture
 
 This is a reference document restating, in our own words, the invariants and
-subsystems that govern DuoBudget. It is descriptive: when this document and
+subsystems that govern LootLog. It is descriptive: when this document and
 `CLAUDE.md` disagree, `CLAUDE.md` wins. Nothing here is a suggestion — the
 "non-negotiable invariants" are load-bearing constraints that the whole design
 depends on.
 
-DuoBudget is a **pixel-art dungeon-crawler that happens to be a rigorous shared
+LootLog is a **pixel-art dungeon-crawler that happens to be a rigorous shared
 budgeting app.** The game is the product: the household is a party of
 adventurers delving a dungeon, budget categories are monsters, savings goals are
 quest bosses, and month close is a battle ritual. Underneath sits a local-first,
@@ -14,7 +14,7 @@ event-sourced, integer-cents ledger that the game layer can read but **never
 alter.** It is Flutter only (Android + desktop Windows/macOS/Linux), with no
 external services, servers, accounts, or SaaS beyond one opt-in exception
 (Google Sheets, §14). Desktops act as sync hubs on the local network; OCR runs
-on-device. (The name "DuoBudget" is historical; households are any size.)
+on-device. (LootLog was renamed from DuoBudget (the repository keeps the old name); households are any size.)
 
 ## 0. Product priorities (in order)
 

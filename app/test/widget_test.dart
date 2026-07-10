@@ -13,13 +13,13 @@ void main() {
         overrides: [
           localSetupProvider.overrideWith((ref) => Stream.value(null)),
         ],
-        child: const DuoBudgetApp(),
+        child: const LootLogApp(),
       ),
     );
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('Welcome to DuoBudget'), findsOneWidget);
+    expect(find.text('Welcome to LootLog'), findsOneWidget);
     expect(find.text('Start a new party'), findsOneWidget);
     expect(find.text('Join an existing party'), findsOneWidget);
   });

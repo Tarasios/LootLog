@@ -15,7 +15,7 @@
 
 ## Context
 
-DuoBudget offers an optional "dungeon adventure" presentation, but it must
+LootLog offers an optional "dungeon adventure" presentation, but it must
 remain a real budgeting tool. The game must never influence money, and users
 must be able to switch it off and see identical numbers.
 

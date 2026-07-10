@@ -1,6 +1,6 @@
-# DuoBudget
+# LootLog
 
-DuoBudget is a rigorous shared budgeting app that plays like a pixel art
+LootLog is a rigorous shared budgeting app that plays like a pixel art
 dungeon crawler. Your household is a party of adventurers. Budget categories
 are monsters, savings goals are quest bosses, and closing out the month is a
 battle ritual where you divide the spoils. Underneath the game sits a strict,
@@ -9,7 +9,7 @@ event, and the game layer can read those numbers but can never change them.
 
 Everything runs on your own devices. Phones and desktops sync over your home
 network, receipt scanning happens on the phone itself, and there are no
-accounts, servers, or subscriptions. The name "DuoBudget" is historical;
+accounts, servers, or subscriptions. LootLog was renamed from DuoBudget (the repository keeps the old name);
 households of any size work fine.
 
 Built with Flutter for Android and desktop (Windows, macOS, Linux).
@@ -25,9 +25,9 @@ Grab the latest release from the
 [releases page](https://github.com/Tarasios/duobudget/releases/latest). These
 direct links always point at the newest version:
 
-- [Android APK](https://github.com/Tarasios/duobudget/releases/latest/download/duobudget-android.apk)
-- [Windows](https://github.com/Tarasios/duobudget/releases/latest/download/duobudget-windows-x64.zip)
-- [Linux](https://github.com/Tarasios/duobudget/releases/latest/download/duobudget-linux-x64.tar.gz)
+- [Android APK](https://github.com/Tarasios/duobudget/releases/latest/download/lootlog-android.apk)
+- [Windows](https://github.com/Tarasios/duobudget/releases/latest/download/lootlog-windows-x64.zip)
+- [Linux](https://github.com/Tarasios/duobudget/releases/latest/download/lootlog-linux-x64.tar.gz)
 
 The phone app is fully self-sufficient. You can budget on a single phone
 forever. Installing the desktop app on a machine that stays home gives you a
@@ -170,7 +170,7 @@ tax-deductible by default with per-purchase overrides, kept off the quick
 entry keypad on purpose. At year end, export a tax package: a zip with a
 summary CSV and every referenced receipt.
 
-**The receipt library.** On desktop, point DuoBudget at a folder and it files
+**The receipt library.** On desktop, point LootLog at a folder and it files
 your receipts as ordinary documents:
 `<year>/<category>/<date>_<merchant>_<amount>.jpg`. The app only ever adds and
 refreshes its own mirrored copies there, and the originals live in
@@ -196,7 +196,7 @@ it.
 
 ## Distribution
 
-DuoBudget ships through GitHub Releases only. Pushing a `v*` tag runs
+LootLog ships through GitHub Releases only. Pushing a `v*` tag runs
 [`.github/workflows/release.yml`](.github/workflows/release.yml), which builds
 a signed Android APK plus Windows, macOS, and Linux bundles and attaches them
 to one release. Sharing the app means sharing a release link.

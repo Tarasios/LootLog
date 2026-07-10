@@ -127,7 +127,7 @@ class SettingsScreen extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.school_outlined),
             title: const Text('Tutorial'),
-            subtitle: const Text('Replay the guided tour of how DuoBudget works'),
+            subtitle: const Text('Replay the guided tour of how LootLog works'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => unawaited(TutorialTour.show(context, ref)),
           ),

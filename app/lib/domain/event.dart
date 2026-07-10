@@ -1,4 +1,4 @@
-/// The sealed Event hierarchy. Every state change in DuoBudget is an immutable
+/// The sealed Event hierarchy. Every state change in LootLog is an immutable
 /// event appended to the local log; derived state comes only from the reducer.
 ///
 /// Every event shares a common envelope: `eventId` (UUIDv7), `deviceId`,

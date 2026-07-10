@@ -1,5 +1,5 @@
 // ignore_for_file: avoid_print
-/// Generates DuoBudget's placeholder app icon and splash logo, then writes the
+/// Generates LootLog's placeholder app icon and splash logo, then writes the
 /// platform-specific launcher-icon sizes. Real branding just replaces the
 /// generated PNGs (or the drawing here) and re-runs this — no code changes.
 ///
@@ -17,7 +17,7 @@ import 'dart:io';
 
 import 'package:image/image.dart' as img;
 
-// DuoBudget mark: two overlapping "coins" (the two members) on a deep slate
+// LootLog mark: two overlapping "coins" (the two members) on a deep slate
 // field — a placeholder that reads as a shared purse without any real artwork.
 const int _bg1 = 0xFF1F2A44; // slate top
 const int _bg2 = 0xFF16233B; // slate bottom

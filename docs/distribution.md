@@ -1,6 +1,6 @@
-# Distributing DuoBudget
+# Distributing LootLog
 
-DuoBudget is distributed through **GitHub Releases only**. A release is a set of
+LootLog is distributed through **GitHub Releases only**. A release is a set of
 tagged, reproducible binaries attached to a Release page:
 
 - a **signed, sideloadable Android APK**,
@@ -34,7 +34,7 @@ without the app ever phoning home.
 
 ## Reproducibility & the pinned toolchain
 
-Every DuoBudget build — CI or local — uses **one pinned Flutter version** so a
+Every LootLog build — CI or local — uses **one pinned Flutter version** so a
 given tag produces the same binaries anywhere. The pin lives in three places
 that must stay in lockstep:
 
@@ -85,7 +85,7 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-Artifacts are named `duobudget-<version>-<platform>.<ext>` (the CI strips the
+Artifacts are named `lootlog-<version>-<platform>.<ext>` (the CI strips the
 leading `v` from the tag), so the Release page reads cleanly and the metrics
 script can bucket downloads by platform.
 
@@ -150,7 +150,7 @@ Verify the signature, then rename for the Release page:
 jarsigner -verify -verbose -certs \
   build/app/outputs/flutter-apk/app-release.apk
 cp build/app/outputs/flutter-apk/app-release.apk \
-   duobudget-1.0.0-android.apk
+   lootlog-1.0.0-android.apk
 ```
 
 Users sideload it by copying the APK to the phone and opening it (they enable
@@ -171,7 +171,7 @@ Ship the **whole** `Release/` folder, zipped:
 
 ```powershell
 Compress-Archive -Path build/windows/x64/runner/Release/* `
-  -DestinationPath duobudget-1.0.0-windows-x64.zip
+  -DestinationPath lootlog-1.0.0-windows-x64.zip
 ```
 
 Optional signing: `signtool sign /fd SHA256 /a <artifact>` with an Authenticode
@@ -184,29 +184,29 @@ Prerequisites: Xcode.
 ```bash
 cd app
 flutter build macos --release
-# -> build/macos/Build/Products/Release/duobudget.app
+# -> build/macos/Build/Products/Release/lootlog.app
 ```
 
 Package both a zip (preserves the bundle exactly) and a `.dmg`:
 
 ```bash
-app="build/macos/Build/Products/Release/duobudget.app"
-ditto -c -k --keepParent "$app" duobudget-1.0.0-macos.app.zip
-hdiutil create -volname DuoBudget -srcfolder "$app" \
-  -ov -format UDZO duobudget-1.0.0-macos.dmg
+app="build/macos/Build/Products/Release/lootlog.app"
+ditto -c -k --keepParent "$app" lootlog-1.0.0-macos.app.zip
+hdiutil create -volname LootLog -srcfolder "$app" \
+  -ov -format UDZO lootlog-1.0.0-macos.dmg
 ```
 
 **Unsigned caveat:** CI ships these unsigned/un-notarized. Gatekeeper will block
 them on first open — a user must right-click → **Open** (or
-`xattr -dr com.apple.quarantine duobudget.app`). For frictionless distribution,
+`xattr -dr com.apple.quarantine lootlog.app`). For frictionless distribution,
 sign and notarize with a Developer ID (needs a paid Apple Developer account):
 
 ```bash
 codesign --deep --force --options runtime \
   --sign "Developer ID Application: <Your Name> (<TEAMID>)" "$app"
-xcrun notarytool submit duobudget-1.0.0-macos.dmg \
+xcrun notarytool submit lootlog-1.0.0-macos.dmg \
   --apple-id <you@example.com> --team-id <TEAMID> --wait
-xcrun stapler staple duobudget-1.0.0-macos.dmg
+xcrun stapler staple lootlog-1.0.0-macos.dmg
 ```
 
 ### Linux (tar / AppImage)
@@ -223,7 +223,7 @@ flutter build linux --release
 Tarball the whole bundle (this is what CI ships):
 
 ```bash
-tar -czf duobudget-1.0.0-linux-x64.tar.gz \
+tar -czf lootlog-1.0.0-linux-x64.tar.gz \
   -C build/linux/x64/release/bundle .
 ```
 
@@ -234,20 +234,20 @@ bundle, add a `.desktop` file and an icon, then run
 [`appimagetool`](https://github.com/AppImage/AppImageKit):
 
 ```bash
-appdir=DuoBudget.AppDir
+appdir=LootLog.AppDir
 mkdir -p "$appdir/usr/bin"
 cp -r build/linux/x64/release/bundle/* "$appdir/usr/bin/"
-cat > "$appdir/duobudget.desktop" <<'EOF'
+cat > "$appdir/lootlog.desktop" <<'EOF'
 [Desktop Entry]
 Type=Application
-Name=DuoBudget
-Exec=duobudget
-Icon=duobudget
+Name=LootLog
+Exec=lootlog
+Icon=lootlog
 Categories=Office;Finance;
 EOF
-cp path/to/duobudget.png "$appdir/duobudget.png"   # 256x256 icon
-ln -sf usr/bin/duobudget "$appdir/AppRun"
-appimagetool "$appdir" duobudget-1.0.0-linux-x86_64.AppImage
+cp path/to/lootlog.png "$appdir/lootlog.png"   # 256x256 icon
+ln -sf usr/bin/lootlog "$appdir/AppRun"
+appimagetool "$appdir" lootlog-1.0.0-linux-x86_64.AppImage
 ```
 
 ---
@@ -258,7 +258,7 @@ appimagetool "$appdir" duobudget-1.0.0-linux-x86_64.AppImage
 usage ping, and no network call you didn't initiate: sync is LAN-only between
 your own paired devices, and the optional Google Sheets integration is off by
 default, isolated behind an interface, and uses your own credentials. Strip that
-one opt-in seam and DuoBudget makes **zero** outbound connections.
+one opt-in seam and LootLog makes **zero** outbound connections.
 
 So we count usage the only honest way available: **how many times the release
 binaries were downloaded from GitHub.** GitHub records `download_count` for every
@@ -301,7 +301,7 @@ not counted — only the binaries we upload are.
 4. Tag and push: `git tag v<version> && git push origin v<version>`.
 5. Watch the **Release** workflow build all four platforms and create the
    Release. Confirm each artifact is attached and named
-   `duobudget-<version>-<platform>.<ext>`.
+   `lootlog-<version>-<platform>.<ext>`.
 6. Smoke-test at least one desktop build and the APK:
    first-run party creation → start a hub → pair a second device → export a
    `.dbevents.zip` and re-import it on a fresh install (state matches).

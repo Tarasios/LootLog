@@ -1,6 +1,6 @@
 # Exports
 
-DuoBudget ships two export paths. One is fully offline and always available; the
+LootLog ships two export paths. One is fully offline and always available; the
 other is an explicit, off-by-default opt-in — the *only* feature in the app that
 ever sends data outside your local network.
 
@@ -60,7 +60,7 @@ budget ledger.
 
 ### Supplying your own credentials
 
-DuoBudget bundles no Google client secret; you bring your own so your data goes to
+LootLog bundles no Google client secret; you bring your own so your data goes to
 *your* account under *your* control:
 
 1. In the [Google Cloud console](https://console.cloud.google.com/), create a

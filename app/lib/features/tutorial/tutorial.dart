@@ -1,4 +1,4 @@
-/// The first-use tour: a skippable, replayable walkthrough of DuoBudget's core
+/// The first-use tour: a skippable, replayable walkthrough of LootLog's core
 /// flows. It shows once automatically on a fresh device (via [TutorialGate]) and
 /// can be replayed any time from Settings → Tutorial (via [TutorialTour.show]).
 ///

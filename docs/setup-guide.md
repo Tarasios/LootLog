@@ -1,6 +1,6 @@
-# DuoBudget household setup guide
+# LootLog household setup guide
 
-A step-by-step guide to getting your household budgeting together on DuoBudget,
+A step-by-step guide to getting your household budgeting together on LootLog,
 written for non-technical users. It follows the app exactly as it exists today —
 every screen name and button label below matches what you will see on screen.
 
@@ -8,7 +8,7 @@ Where the app doesn't yet have something this guide would otherwise tell you to
 tap, you'll find a **⚠️ Not built yet** note instead of invented instructions.
 Those are real gaps in the current build, not steps you're missing.
 
-> **The one-minute picture.** DuoBudget runs entirely on your own devices — your
+> **The one-minute picture.** LootLog runs entirely on your own devices — your
 > household's phones and desktops, syncing over your home Wi-Fi. There are no
 > accounts, no cloud, and no servers on the internet. One desktop that stays
 > powered on acts as the **hub** everyone else syncs through. Everything works
@@ -32,11 +32,11 @@ Those are real gaps in the current build, not steps you're missing.
 
 ## 1. Install on the desktop that stays on
 
-DuoBudget is peer-to-peer, so start on the machine that's awake most often — a
+LootLog is peer-to-peer, so start on the machine that's awake most often — a
 desktop or a laptop that lives at home. That machine will host the hub the phones
 sync through.
 
-> **Get it from GitHub Releases.** DuoBudget is distributed through its
+> **Get it from GitHub Releases.** LootLog is distributed through its
 > **[GitHub Releases page](https://github.com/tarasios/duobudget/releases)** —
 > that's the whole "app store". Each release attaches ready-to-run binaries:
 > a **Windows** zip, a **macOS** `.app`/`.dmg`, a **Linux** tarball, and an
@@ -45,12 +45,12 @@ sync through.
 > installer and no account. If a friend sent you a release link, that's all you
 > need; skip to [step 2](#2-first-run-create-the-household).
 >
-> - **Windows:** unzip and run `duobudget.exe`. On first launch SmartScreen may
+> - **Windows:** unzip and run `lootlog.exe`. On first launch SmartScreen may
 >   warn (the build is unsigned) — choose **More info → Run anyway**.
-> - **macOS:** open the `.dmg` and drag **DuoBudget** to Applications. The build
+> - **macOS:** open the `.dmg` and drag **LootLog** to Applications. The build
 >   is un-notarized, so the first time, **right-click the app → Open** to get
 >   past Gatekeeper.
-> - **Linux:** extract the tarball and run `./duobudget` (needs GTK 3 and
+> - **Linux:** extract the tarball and run `./lootlog` (needs GTK 3 and
 >   `libsqlite3`, present on most distros).
 
 **Building from source instead (optional).** If there's no prebuilt binary for
@@ -86,7 +86,7 @@ Requires Xcode.
 flutter build macos --release
 ```
 
-The app is `build/macos/Build/Products/Release/DuoBudget.app`. Drag it to
+The app is `build/macos/Build/Products/Release/LootLog.app`. Drag it to
 Applications. (Distributing it to another Mac needs code-signing and
 notarization — see [`docs/release.md`](release.md).)
 
@@ -118,7 +118,7 @@ phone and open it to install (you'll need "install unknown apps" enabled). See
 ## 2. First run: create the household
 
 Launch the app on the desktop. Because nothing is set up yet, it opens on the
-**Welcome to DuoBudget** screen, which asks one question first: are you *joining*
+**Welcome to LootLog** screen, which asks one question first: are you *joining*
 a party that already exists on another device, or *starting a new one*?
 
 - **Join an existing party** — for a second device (a phone, or the other
@@ -159,7 +159,7 @@ Completing the wizard *is* creating the household — everything you entered is
 written to the permanent, append-only event log. There is no separate
 household-name step.
 
-> **⚠️ Timezone is fixed to America/Vancouver.** DuoBudget currently computes
+> **⚠️ Timezone is fixed to America/Vancouver.** LootLog currently computes
 > every calendar month in the America/Vancouver timezone, and there is no setting
 > to change it. If your household is in another timezone, month boundaries
 > (and therefore which month a late-night expense lands in) will follow Vancouver
@@ -212,7 +212,7 @@ Every other device *joins* the household the first device created — it doesn't
 build its own. Make sure the desktop's hub from [3a](#3a-start-the-hub-on-the-desktop)
 is running and both devices are on the **same Wi-Fi**, then on the new device:
 
-1. Install and launch DuoBudget. On the **Welcome to DuoBudget** screen, tap
+1. Install and launch LootLog. On the **Welcome to LootLog** screen, tap
    **Join an existing party** (not "Start a new party").
 2. Fill in:
    - **This device's name** — e.g. "Robin's phone" (so you can recognise it in
@@ -267,7 +267,7 @@ income. Open **Manage → Budget setup**; it shows each adult's categories with
 group budgets below, for the month shown at the top (use the ‹ › arrows to change
 month).
 
-DuoBudget divides your money into **budget categories**. A category is either:
+LootLog divides your money into **budget categories**. A category is either:
 
 - **Personal** — belongs to one of you (e.g. "Alice — coffee"). Only its owner
   hunts it down, and its leftover is theirs to divide at month close.
@@ -386,7 +386,7 @@ is taken from their vault at read time (odd penny goes to the buyer).
 Tap the **Scan a receipt** button (the document-scanner floating button next to
 **New**):
 
-- **On Android:** it opens the camera. Photograph the receipt. DuoBudget runs
+- **On Android:** it opens the camera. Photograph the receipt. LootLog runs
   **on-device** text recognition (no internet, no cloud) and opens a confirm
   screen with the amount, date, and merchant **pre-filled but editable**, and the
   photo already attached. Nothing is saved until you **tap a charge chip to
@@ -452,7 +452,7 @@ resume another time — it's never blocking.
 
 ## 7. The receipt library (desktop)
 
-On desktop, DuoBudget can mirror your receipt images into an ordinary folder you
+On desktop, LootLog can mirror your receipt images into an ordinary folder you
 can browse and back up like any other documents.
 
 **Manage → Settings → Receipt library** (this entry appears on desktop only):
@@ -486,7 +486,7 @@ off), you can still move everything by file. **Manage → Sync & hubs → Backup
 restore**:
 
 - **Export** writes a `.dbevents.zip` file (its suggested name is
-  `duobudget-backup.dbevents.zip`). This contains every recorded change **plus**
+  `lootlog-backup.dbevents.zip`). This contains every recorded change **plus**
   the receipt images they reference.
 - **Import** reads a `.dbevents.zip` (or a plain `.dbevents` text file) back in.
 
@@ -494,7 +494,7 @@ Importing is **safe to repeat**: changes are matched by their unique ID and
 receipts by their content, so importing the same file twice — or one that overlaps
 what a hub already delivered — does nothing extra. You'll see "Imported N events."
 A corrupt or tampered file is refused before anything is applied, with a plain
-message ("this file isn't a valid DuoBudget backup," or a warning that a receipt
+message ("this file isn't a valid LootLog backup," or a warning that a receipt
 in it is corrupt).
 
 Get the file between devices however you like — a USB stick, AirDrop, a shared
@@ -504,7 +504,7 @@ folder. Nothing about this touches the internet.
 
 ## 9. Backup and disaster recovery
 
-Everything DuoBudget knows lives in **two things on the hosting device**, both
+Everything LootLog knows lives in **two things on the hosting device**, both
 inside the app's private application-documents directory:
 
 - **`duobudget.sqlite`** — the event log (every change ever made). This is the
@@ -580,7 +580,7 @@ ones.
 
 - **Firewall:** the hosting desktop must allow **incoming TCP connections on port
   8787**. On the first run your OS may have popped a firewall prompt — if you
-  dismissed it, add an allow rule for DuoBudget (or for port 8787) in Windows
+  dismissed it, add an allow rule for LootLog (or for port 8787) in Windows
   Defender Firewall / macOS "Firewall" settings / your Linux firewall (`ufw allow
   8787/tcp`).
 - **Router "AP isolation" / "client isolation":** some routers block devices from
@@ -593,7 +593,7 @@ ones.
 
 **An import was rejected.**
 
-- "This file isn't a valid DuoBudget backup" means the file is malformed or not a
+- "This file isn't a valid LootLog backup" means the file is malformed or not a
   `.dbevents`/`.dbevents.zip` — re-export it.
 - A message that a receipt is "corrupt or tampered" means a receipt's contents
   didn't match its fingerprint. Nothing was imported; re-export a fresh backup
@@ -655,7 +655,7 @@ MONTH CLOSE ("Spoils" button appears when it's time)
 
 BACKUP (do this regularly!)
   Manage(☰) → Sync & hubs → Backup & restore → Export
-    → save duobudget-backup.dbevents.zip somewhere OFF this machine.
+    → save lootlog-backup.dbevents.zip somewhere OFF this machine.
   New/replacement device: pair to the hub, OR Import that .zip.
 
 TROUBLESHOOTING

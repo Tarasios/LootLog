@@ -244,12 +244,12 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
       final url = map['url'] as String?;
       final secret = map['pairingSecret'] as String?;
       if (url == null || secret == null) {
-        _snack("That QR code isn't a DuoBudget pairing code.");
+        _snack("That QR code isn't a LootLog pairing code.");
         return;
       }
       await _pair(service, url, secret);
     } on FormatException {
-      _snack("That QR code isn't a DuoBudget pairing code.");
+      _snack("That QR code isn't a LootLog pairing code.");
     }
   }
 
@@ -382,7 +382,7 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
     try {
       final bytes = await service.exportArchive();
       final delivered =
-          await _deliverExport(bytes, 'duobudget-backup.dbevents.zip');
+          await _deliverExport(bytes, 'lootlog-backup.dbevents.zip');
       if (delivered) _snack('Exported full backup');
     } on Object catch (e) {
       _snack('Export failed: $e');
@@ -400,7 +400,7 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
         return;
       }
       final delivered =
-          await _deliverExport(export.bytes, 'duobudget-changes.dbevents.zip');
+          await _deliverExport(export.bytes, 'lootlog-changes.dbevents.zip');
       if (delivered) {
         final n = export.eventCount;
         _snack('Exported $n new ${n == 1 ? 'event' : 'events'}');
@@ -427,7 +427,7 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
         ShareParams(
           files: [XFile(file.path, mimeType: 'application/zip')],
           subject: name,
-          text: 'DuoBudget data to merge on your other device.',
+          text: 'LootLog data to merge on your other device.',
         ),
       );
       return result.status != ShareResultStatus.dismissed;
@@ -445,7 +445,7 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
 
   Future<void> _import(SyncService service) async {
     const group = XTypeGroup(
-      label: 'DuoBudget backup',
+      label: 'LootLog backup',
       extensions: ['zip', 'dbevents'],
     );
     final file = await openFile(acceptedTypeGroups: [group]);
@@ -472,7 +472,7 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
       // A receipt's bytes didn't match its hash — a corrupt or tampered file.
       _snack('Import blocked: a receipt in this file is corrupt or tampered.');
     } on ImportException {
-      _snack("Import failed: this file isn't a valid DuoBudget backup.");
+      _snack("Import failed: this file isn't a valid LootLog backup.");
     } on FileSystemException {
       _snack('Import failed: could not read that file.');
     } on Object catch (e) {

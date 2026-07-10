@@ -1,7 +1,7 @@
 #!/usr/bin/env dart
-// DuoBudget "resume number" — cumulative release download counts.
+// LootLog "resume number" — cumulative release download counts.
 //
-// DuoBudget ships **no telemetry**. The app never phones home, has no analytics
+// LootLog ships **no telemetry**. The app never phones home, has no analytics
 // SDK, and opens no network connection you didn't ask for (sync is LAN-only;
 // Google Sheets is opt-in and isolated). So the only honest way to answer "how
 // many people use it?" is to count how many times the release binaries were
@@ -73,7 +73,7 @@ Future<void> main(List<String> args) async {
   var grandTotal = 0;
   final perAssetName = <String, int>{};
 
-  stdout.writeln('DuoBudget download counts — $repo');
+  stdout.writeln('LootLog download counts — $repo');
   stdout.writeln('=' * 56);
 
   // Releases come back newest-first; show them that way.

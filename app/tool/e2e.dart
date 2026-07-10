@@ -1,5 +1,5 @@
 // ignore_for_file: avoid_print
-/// End-to-end convergence harness for DuoBudget's multi-hub LAN sync.
+/// End-to-end convergence harness for LootLog's multi-hub LAN sync.
 ///
 /// Stands up three real, file-backed instances over loopback HTTP — two desktops
 /// (each hosting a hub) and a third client paired to both — and drives the full
@@ -175,7 +175,7 @@ BudgetSliceSet slice(
 
 Future<void> main() async {
   final root = await Directory.systemTemp.createTemp('duobudget-e2e-');
-  print('DuoBudget e2e — scratch: ${root.path}\n');
+  print('LootLog e2e — scratch: ${root.path}\n');
 
   final a = Node('desktop-A', await _sub(root, 'A'), alice);
   final b = Node('desktop-B', await _sub(root, 'B'), bob);
