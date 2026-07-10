@@ -20,10 +20,10 @@ import '../budget_setup/budget_setup_screen.dart';
 import '../household_context.dart';
 import '../quests/quests_screen.dart';
 import '../report/report_screen.dart';
+import '../settings/visibility_prefs.dart';
 import '../spoils/spoils_screen.dart';
 import 'dashboard_model.dart';
 import 'dashboard_view.dart';
-import '../settings/visibility_prefs.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key, this.showActivity = true});

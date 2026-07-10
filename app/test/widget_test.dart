@@ -1,7 +1,7 @@
-import 'package:lootlog/data/providers.dart';
-import 'package:lootlog/main.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lootlog/data/providers.dart';
+import 'package:lootlog/main.dart';
 
 void main() {
   testWidgets('an unconfigured device boots into first-run setup',
