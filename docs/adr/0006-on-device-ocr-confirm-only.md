@@ -5,7 +5,7 @@
 
 ## Context
 
-Receipt entry is tedious. OCR can speed it up, but DuoBudget has a hard
+Receipt entry is tedious. OCR can speed it up, but LootLog has a hard
 no-network, no-SaaS constraint, and we must never let a machine guess create
 ledger entries silently.
 

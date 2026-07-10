@@ -84,13 +84,24 @@ Future<File> _tierFile() async {
   return File(p.join(dir.path, 'adventure_tier.txt'));
 }
 
-/// Loads the persisted tier, defaulting to [AdventureTier.pixel] — the pixel
-/// presentation is the target experience; missing sprites degrade on their own.
+/// The tier a device starts on before it makes an explicit choice.
+///
+/// Text mode today: Adventure reads as a text-based RPG unless real art is
+/// provided, and the sprites currently bundled are script-generated
+/// placeholders (tool/generate_placeholder_sprites.dart), not the
+/// commissioned art. When the real pixel art lands in `assets/game/`, flip
+/// this to [AdventureTier.pixel] — the persisted per-device choice always
+/// wins either way.
+const AdventureTier defaultAdventureTier = AdventureTier.text;
+
+/// Loads the persisted tier, defaulting to [defaultAdventureTier].
 Future<AdventureTier> loadAdventureTier() async {
   final f = await _tierFile();
-  if (!f.existsSync()) return AdventureTier.pixel;
+  if (!f.existsSync()) return defaultAdventureTier;
   final s = f.readAsStringSync().trim();
-  return s == AdventureTier.text.name ? AdventureTier.text : AdventureTier.pixel;
+  if (s == AdventureTier.text.name) return AdventureTier.text;
+  if (s == AdventureTier.pixel.name) return AdventureTier.pixel;
+  return defaultAdventureTier;
 }
 
 /// Persists the chosen [tier].
@@ -100,12 +111,13 @@ Future<void> saveAdventureTier(AdventureTier tier) async {
 }
 
 /// The current adventure render tier. Loads the persisted value on first build
-/// (defaulting to pixel until it arrives) and writes through on [select].
+/// (holding [defaultAdventureTier] until it arrives) and writes through on
+/// [select].
 class AdventureTierNotifier extends Notifier<AdventureTier> {
   @override
   AdventureTier build() {
     unawaited(_restore());
-    return AdventureTier.pixel;
+    return defaultAdventureTier;
   }
 
   Future<void> _restore() async {

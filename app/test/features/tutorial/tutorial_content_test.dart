@@ -1,5 +1,5 @@
-import 'package:duobudget/features/tutorial/tutorial_content.dart';
-import 'package:duobudget/ui/glossary.dart';
+import 'package:lootlog/features/tutorial/tutorial_content.dart';
+import 'package:lootlog/ui/glossary.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

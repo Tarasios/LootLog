@@ -1,9 +1,9 @@
-import 'package:duobudget/domain/event.dart';
-import 'package:duobudget/domain/reducer.dart';
-import 'package:duobudget/domain/time.dart';
-import 'package:duobudget/domain/value_types.dart';
-import 'package:duobudget/game/adapter.dart';
-import 'package:duobudget/game/game_state.dart';
+import 'package:lootlog/domain/event.dart';
+import 'package:lootlog/domain/reducer.dart';
+import 'package:lootlog/domain/time.dart';
+import 'package:lootlog/domain/value_types.dart';
+import 'package:lootlog/game/adapter.dart';
+import 'package:lootlog/game/game_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // Two adventurers.
@@ -172,6 +172,35 @@ void main() {
       // Excess is dealt to the hero as HP loss.
       expect(g.heroHpLostCents, 2000);
       expect(g.heroWounded, isTrue);
+    });
+  });
+
+  group('OVERBUDGET debt monsters', () {
+    test('an unsettled overflow surfaces as an outstanding OVERBUDGET', () {
+      final events = [
+        _slice(id: 'ent', ownership: const PersonalSlice(me), limit: 10000),
+        _buy(id: 'p', target: const SliceCharge('ent'), amount: 14000,
+            at: _day(2026, 1, 5)),
+      ];
+      final g = _game(events, asOf: _day(2026, 2, 2));
+      final d = g.overbudgets.single;
+      expect(d.categoryName, 'ent');
+      expect(d.outstandingCents, 4000);
+      expect(d.accruedCents, 4000);
+      expect(d.paidCents, 0);
+      expect(d.mine, isTrue);
+      expect(d.sprite.assetName, Sprites.overbudget);
+    });
+
+    test('a settled debt leaves the floor', () {
+      final events = [
+        _slice(id: 'ent', ownership: const PersonalSlice(me), limit: 10000),
+        _buy(id: 'p', target: const SliceCharge('ent'), amount: 14000,
+            at: _day(2026, 1, 5)),
+      ];
+      // By March, February's locked funding has paid the debt off.
+      final g = _game(events, asOf: _day(2026, 3, 10));
+      expect(g.overbudgets, isEmpty);
     });
   });
 

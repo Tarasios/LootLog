@@ -22,6 +22,7 @@ import '../game_sprite.dart';
 import '../skin_prefs.dart';
 import '../text_mode/text_adventure_screen.dart' show narrativeProvider;
 import 'pixel_adventure_view.dart';
+import '../../features/settings/visibility_prefs.dart';
 
 class PixelAdventureScreen extends ConsumerWidget {
   const PixelAdventureScreen({super.key});
@@ -39,7 +40,10 @@ class PixelAdventureScreen extends ConsumerWidget {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final game = buildGameState(state, meUserId: meUserId, userNames: names);
+    final game = buildGameState(state,
+        meUserId: meUserId,
+        userNames: names,
+        includeOtherAdults: ref.watch(showHouseholdBudgetsProvider));
     final log = buildAdventureLog(state, events,
         meUserId: meUserId, userNames: names, limit: 40);
     final ritual =

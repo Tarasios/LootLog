@@ -23,6 +23,7 @@ import '../report/report_screen.dart';
 import '../spoils/spoils_screen.dart';
 import 'dashboard_model.dart';
 import 'dashboard_view.dart';
+import '../settings/visibility_prefs.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key, this.showActivity = true});
@@ -56,6 +57,7 @@ class DashboardScreen extends ConsumerWidget {
       meUserId: meUserId,
       userNames: names,
       events: events,
+      includeOtherAdults: ref.watch(showHouseholdBudgetsProvider),
     );
     final activity = showActivity
         ? buildActivityFeed(

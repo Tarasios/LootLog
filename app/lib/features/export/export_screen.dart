@@ -210,7 +210,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     try {
       final bytes = encodeXlsx(workbook);
       final location = await getSaveLocation(
-        suggestedName: 'duobudget.xlsx',
+        suggestedName: 'lootlog.xlsx',
         acceptedTypeGroups: const [
           XTypeGroup(label: 'Excel workbook', extensions: ['xlsx']),
         ],

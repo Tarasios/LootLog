@@ -1,4 +1,4 @@
-/// The DuoBudget design system.
+/// The LootLog design system.
 ///
 /// One seed color drives a Material 3 palette in both light and dark. Every
 /// screen builds from [AppTheme.light] / [AppTheme.dark] and reaches for the

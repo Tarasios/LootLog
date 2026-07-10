@@ -5,7 +5,7 @@
 
 ## Context
 
-DuoBudget is a two-person, local-first budget shared across multiple devices
+LootLog is a two-person, local-first budget shared across multiple devices
 that sync opportunistically over a LAN. We need corrections, an audit trail,
 month-end behavior that is computed rather than scheduled, and — crucially —
 conflict-free convergence when the same data arrives from more than one hub.

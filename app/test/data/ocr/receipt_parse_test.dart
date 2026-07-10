@@ -1,4 +1,4 @@
-import 'package:duobudget/data/ocr/receipt_parse.dart';
+import 'package:lootlog/data/ocr/receipt_parse.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Splits a triple-quoted fixture into trimmed, non-empty-aware lines exactly as

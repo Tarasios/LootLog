@@ -9,7 +9,7 @@ off by default.
 ## Context
 
 Users want their data in a spreadsheet: for their own analysis, for a tax
-preparer, or to share a snapshot. DuoBudget's founding rule is **no external
+preparer, or to share a snapshot. LootLog's founding rule is **no external
 services** — the whole app runs on the user's own devices. But "get my numbers
 into a spreadsheet" has two very different flavours: a file the user saves
 locally (no rule to relax), and live sync to a cloud service (a genuine

@@ -98,6 +98,7 @@ class SliceConfig {
     this.emergencyFundId,
     this.emergencyContributionCents = 0,
     this.petId,
+    this.priority = SlicePriority.important,
   });
 
   final String sliceId;
@@ -116,6 +117,10 @@ class SliceConfig {
   final String? emergencyFundId;
   final int emergencyContributionCents;
   final String? petId;
+
+  /// How essential this category is (advisory; orders default OVERBUDGET
+  /// payments and drives "spend the fun money first" suggestions).
+  final SlicePriority priority;
 
   bool get isGroup => ownership is GroupSlice;
 
@@ -140,6 +145,7 @@ class SliceMonth {
     required this.carryOutCents,
     required this.overspendCents,
     required this.resolved,
+    this.lockedCents = 0,
   });
 
   final String sliceId;
@@ -159,7 +165,40 @@ class SliceMonth {
   /// exists, or the grace period has lapsed and the default policy applied).
   final bool resolved;
 
+  /// Funding withheld this month to cover an outstanding OVERBUDGET debt: the
+  /// category is locked for this portion of its budget (fully locked when the
+  /// whole limit is eaten). Recognised as debt payment once the month closes.
+  final int lockedCents;
+
   bool get overspent => overspendCents > 0;
+
+  bool get locked => lockedCents > 0;
+}
+
+/// The OVERBUDGET: unsettled overspending of a personal category. Created at
+/// month close for whatever the owner's vault could not cover, paid down by
+/// leftover attacks (`OverbudgetPayment`, category-match tithed) and by the
+/// locked category's own funding at each subsequent close, until cleared.
+class OverbudgetState {
+  const OverbudgetState({
+    required this.sliceId,
+    required this.ownerUserId,
+    required this.accruedCents,
+    required this.outstandingCents,
+  });
+
+  final String sliceId;
+  final String ownerUserId;
+
+  /// Total overflow that ever became debt on this category.
+  final int accruedCents;
+
+  /// What still has to be paid; the category stays locked while > 0.
+  final int outstandingCents;
+
+  int get paidCents => accruedCents - outstandingCents;
+
+  bool get settled => outstandingCents == 0;
 }
 
 /// Derived configuration of a recurring expense ("equipment maintenance").
@@ -698,10 +737,20 @@ class DefaultIncome {
   const DefaultIncome({
     required this.effectiveFromMonth,
     required this.amountCents,
+    this.estimatedHighCents,
   });
 
   final Month effectiveFromMonth;
+
+  /// The planning figure — the low end of the range for a variable earner.
   final int amountCents;
+
+  /// The optimistic top of an estimated range (display only), or null for a
+  /// fixed salary.
+  final int? estimatedHighCents;
+
+  bool get isRange =>
+      estimatedHighCents != null && estimatedHighCents! > amountCents;
 }
 
 /// The full derived read-model of the household.
@@ -718,6 +767,7 @@ class HouseholdState {
     required this.pets,
     required this.withdrawals,
     required this.warChest,
+    required this.overbudgets,
     required this.vaultCents,
     required this.inconsistentVaults,
     required this.ransacks,
@@ -751,6 +801,10 @@ class HouseholdState {
   final Map<String, PetState> pets;
   final Map<String, WithdrawalProposal> withdrawals;
   final WarChestState warChest;
+
+  /// OVERBUDGET debts keyed by sliceId — every category whose overspending
+  /// ever became debt, settled or not. Visible to all adults.
+  final Map<String, OverbudgetState> overbudgets;
   final Map<String, int> vaultCents;
   final Set<String> inconsistentVaults;
   final List<RansackRecord> ransacks;
@@ -804,6 +858,18 @@ class HouseholdState {
 
   int vaultOf(String userId) => vaultCents[userId] ?? 0;
 
+  /// The outstanding OVERBUDGET debts owned by [userId], sorted by sliceId.
+  List<OverbudgetState> outstandingOverbudgetsFor(String userId) =>
+      (overbudgets.values
+          .where((d) => d.ownerUserId == userId && !d.settled)
+          .toList())
+        ..sort((a, b) => a.sliceId.compareTo(b.sliceId));
+
+  /// Every outstanding OVERBUDGET in the household, sorted by sliceId.
+  List<OverbudgetState> get outstandingOverbudgets =>
+      (overbudgets.values.where((d) => !d.settled).toList())
+        ..sort((a, b) => a.sliceId.compareTo(b.sliceId));
+
   bool isVaultInconsistent(String userId) =>
       inconsistentVaults.contains(userId);
 
@@ -822,25 +888,31 @@ class HouseholdState {
   bool hasIncomeOverride(String userId, Month month) =>
       incomeByUserMonth.containsKey(monthKey(userId, month));
 
-  /// The default monthly income in effect for [userId] as of [month] — the
-  /// latest default whose effective month is on or before [month] — or null
-  /// when no default has taken effect yet.
-  int? defaultIncomeFor(String userId, Month month) {
+  /// The full default-income record in effect for [userId] as of [month] —
+  /// the latest default whose effective month is on or before [month] — or
+  /// null when no default has taken effect yet. Carries the estimated range
+  /// for variable earners.
+  DefaultIncome? effectiveIncomeDefault(String userId, Month month) {
     final defaults = incomeDefaultsByUser[userId];
     if (defaults == null) {
       return null;
     }
-    int? amount;
+    DefaultIncome? best;
     for (final d in defaults) {
       // Sorted ascending: keep the last one that is already effective.
       if (!d.effectiveFromMonth.isAfter(month)) {
-        amount = d.amountCents;
+        best = d;
       } else {
         break;
       }
     }
-    return amount;
+    return best;
   }
+
+  /// The default monthly income in effect for [userId] as of [month], or null
+  /// when no default has taken effect yet.
+  int? defaultIncomeFor(String userId, Month month) =>
+      effectiveIncomeDefault(userId, month)?.amountCents;
 
   /// Resolved income for [userId] in [month]: a single-month override wins,
   /// else the latest effective default, else zero.
@@ -874,6 +946,13 @@ class HouseholdState {
       },
       'ransacks': ransacks.length,
       'ransackExcess': ransacks.fold<int>(0, (a, r) => a + r.excessCents),
+      'overbudgets': {
+        for (final k in overbudgets.keys.toList()..sort())
+          k: {
+            'accrued': overbudgets[k]!.accruedCents,
+            'outstanding': overbudgets[k]!.outstandingCents,
+          },
+      },
       'sliceMonths': {
         for (final k in sortedSliceMonths)
           k: {

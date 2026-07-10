@@ -1,8 +1,8 @@
 /// Shared, deterministic charge-group fixtures for widget and golden tests.
 library;
 
-import 'package:duobudget/domain/value_types.dart';
-import 'package:duobudget/features/entry/charge_choice.dart';
+import 'package:lootlog/domain/value_types.dart';
+import 'package:lootlog/features/entry/charge_choice.dart';
 
 /// A representative set of grouped charge choices covering every kind, so the
 /// golden captures the visual grouping and distinct tints.

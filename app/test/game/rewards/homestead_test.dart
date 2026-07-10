@@ -1,7 +1,7 @@
-import 'package:duobudget/domain/event.dart';
-import 'package:duobudget/domain/reducer.dart';
-import 'package:duobudget/domain/state.dart';
-import 'package:duobudget/game/rewards/homestead.dart';
+import 'package:lootlog/domain/event.dart';
+import 'package:lootlog/domain/reducer.dart';
+import 'package:lootlog/domain/state.dart';
+import 'package:lootlog/game/rewards/homestead.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _u1 = 'u1';

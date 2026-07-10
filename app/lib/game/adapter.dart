@@ -23,6 +23,7 @@ abstract final class Sprites {
   static const heroB = 'hero_b_idle_4f.png';
   static const monster = 'monster_idle_4f.png';
   static const monsterEnraged = 'monster_enraged_4f.png';
+  static const overbudget = 'overbudget_idle_4f.png';
   static const pet = 'pet_idle_4f.png';
   static const questMonster = 'quest_monster_4f.png';
   static const goldPouch = 'gold_pouch_1f.png';
@@ -39,6 +40,7 @@ GameState buildGameState(
   required String meUserId,
   required Map<String, String> userNames,
   DateTime? asOf,
+  bool includeOtherAdults = true,
 }) {
   final now = (asOf ?? DateTime.now()).toUtc();
   final month = Month.fromInstant(now);
@@ -68,6 +70,13 @@ GameState buildGameState(
 
   for (final cfg in state.slices.values) {
     if (cfg.createdMonth.isAfter(month)) continue;
+    // Visibility toggle: another adult's personal monsters stay off this
+    // device's floor (party contracts and everything shared always render).
+    if (!includeOtherAdults &&
+        !cfg.isGroup &&
+        cfg.ownerUserId != meUserId) {
+      continue;
+    }
     final sm = state.sliceMonth(cfg.sliceId, month);
     final maxHp = sm?.effectiveLimitCents ?? cfg.baseEffectiveLimitCents;
     final damage = sm?.spentCents ?? 0;
@@ -117,6 +126,28 @@ GameState buildGameState(
     return c != 0 ? c : a.name.compareTo(b.name);
   });
   looseContracts.sort((a, b) => a.name.compareTo(b.name));
+
+  // ---- OVERBUDGET debt monsters (outstanding only, mine first) ------------
+  final overbudgets = <OverbudgetMonster>[
+    for (final d in state.outstandingOverbudgets)
+      if (includeOtherAdults || d.ownerUserId == meUserId)
+        OverbudgetMonster(
+        sliceId: d.sliceId,
+        categoryName: state.slices[d.sliceId]?.name ?? d.sliceId,
+        sprite: SpriteRef.asset(
+          Sprites.overbudget,
+          label: 'OVERBUDGET — ${state.slices[d.sliceId]?.name ?? d.sliceId}',
+        ),
+        accruedCents: d.accruedCents,
+        outstandingCents: d.outstandingCents,
+        mine: d.ownerUserId == meUserId,
+        ownerName: nameOf(d.ownerUserId),
+        mainCategoryId: state.slices[d.sliceId]?.mainCategoryId,
+      ),
+  ]..sort((a, b) {
+      final c = (a.mine ? 0 : 1).compareTo(b.mine ? 0 : 1);
+      return c != 0 ? c : a.categoryName.compareTo(b.categoryName);
+    });
 
   // ---- Reserve caches (emergency funds), pet-linked ones set aside -------
   final looseCaches = <ReserveCache>[];
@@ -349,6 +380,7 @@ GameState buildGameState(
     expeditionSuppliesCents: state.incomeFor(meUserId, month),
     monsters: looseMonsters,
     contracts: looseContracts,
+    overbudgets: overbudgets,
     party: party,
     questMonsters: questMonsters,
     provisioning: provisioning,

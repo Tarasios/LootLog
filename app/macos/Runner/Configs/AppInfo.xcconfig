@@ -5,10 +5,10 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = duobudget
+PRODUCT_NAME = lootlog
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.duobudget.duobudget
+PRODUCT_BUNDLE_IDENTIFIER = ca.tarasios.lootlog
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.duobudget. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 ca.tarasios. All rights reserved.

@@ -1,4 +1,4 @@
-import 'package:duobudget/features/spoils/spoils_model.dart';
+import 'package:lootlog/features/spoils/spoils_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

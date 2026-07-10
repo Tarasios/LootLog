@@ -3,7 +3,7 @@
 /// Transactions, Monthly summary, Members & income, Savings goals, Net worth,
 /// and Recurring expenses.
 ///
-/// Like every DuoBudget read model this computes nothing itself: the reducer
+/// Like every LootLog read model this computes nothing itself: the reducer
 /// already did the money math, and this only groups and labels it. Every money
 /// figure is emitted with [Money.format] as a cents-derived decimal string, so
 /// no amount is ever carried as a `double`.

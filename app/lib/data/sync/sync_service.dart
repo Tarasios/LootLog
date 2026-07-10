@@ -15,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/sync/sync_status.dart';
 import '../blobs/blob_store.dart';
+import '../blobs/receipt_offload.dart';
 import '../db/database.dart';
 import '../export/event_export.dart';
 import '../export/merge_import.dart';
@@ -66,12 +67,25 @@ class SyncService {
     required this.blobs,
     required this.deviceName,
     required this.onStatus,
-  }) : _client = SyncClient(db: db, blobs: blobs, deviceName: deviceName);
+    this.offload,
+  }) : _client = SyncClient(
+          db: db,
+          blobs: blobs,
+          deviceName: deviceName,
+          pullExclusions: offload == null
+              ? null
+              : () async =>
+                  await offload.enabled() ? await offload.shas() : <String>{},
+        );
 
   final AppDatabase db;
   final BlobStore blobs;
   final String deviceName;
   final void Function(SyncStatus) onStatus;
+
+  /// The device's receipt-offload preference, or null when the feature is
+  /// unavailable (tests, or a caller that opts out).
+  final ReceiptOffloadStore? offload;
 
   final SyncClient _client;
   HttpServer? _httpServer;
@@ -118,8 +132,51 @@ class SyncService {
     }
     onStatus(SyncStatus.syncing);
     final result = await _client.syncOnce();
+    if (result.allOk) {
+      await maybeOffloadReceipts();
+    }
     onStatus(result.allOk ? SyncStatus.synced : SyncStatus.offline);
     return result;
+  }
+
+  /// The opt-in phone space saver: after a clean cycle, deletes the local
+  /// copies of receipt blobs that EVERY paired hub confirms holding, and
+  /// remembers them so pulls don't bring them straight back. Confirmations
+  /// are conservative (any doubt keeps the blob) and this never throws.
+  /// Returns how many blobs were offloaded.
+  Future<int> maybeOffloadReceipts() async {
+    final store = offload;
+    if (store == null) return 0;
+    try {
+      if (!await store.enabled()) return 0;
+      if ((await db.pairedHubDao.all()).isEmpty) return 0;
+      final receipts = BlobStore.receiptBlobs(await db.eventsDao.allEvents());
+      final local = <String>{
+        for (final sha in receipts)
+          if (await blobs.exists(sha)) sha,
+      };
+      if (local.isEmpty) return 0;
+      final confirmed = await _client.confirmBlobsOnAllHubs(local);
+      if (confirmed.isEmpty) return 0;
+      await store.addAll(confirmed);
+      var n = 0;
+      for (final sha in confirmed) {
+        if (await blobs.offload(sha)) n++;
+      }
+      return n;
+    } on Object {
+      return 0; // Space saving must never interfere with sync.
+    }
+  }
+
+  /// Fetches an offloaded (or otherwise missing) blob back from any paired
+  /// hub, un-marking it so it counts as locally present again. Returns true
+  /// when the bytes are available locally afterwards.
+  Future<bool> fetchBlob(String sha) async {
+    if (await blobs.exists(sha)) return true;
+    final ok = await _client.fetchBlob(sha);
+    if (ok) await offload?.remove(sha);
+    return ok;
   }
 
   /// The offline fallback: exports the whole event log plus its receipt blobs as
@@ -270,6 +327,7 @@ final syncServiceProvider = Provider<SyncService?>((ref) {
     blobs: ref.watch(blobStoreProvider),
     deviceName: setup.me.name,
     onStatus: (s) => ref.read(liveSyncStatusProvider.notifier).set(s),
+    offload: ref.watch(receiptOffloadStoreProvider),
   );
   ref.onDispose(service.dispose);
   return service;
@@ -277,4 +335,5 @@ final syncServiceProvider = Provider<SyncService?>((ref) {
   localSetupProvider,
   appDatabaseProvider,
   blobStoreProvider,
+  receiptOffloadStoreProvider,
 ]);

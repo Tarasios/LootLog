@@ -52,6 +52,23 @@ class QuestOption {
   final String? mainCategoryId;
 }
 
+/// An outstanding OVERBUDGET the slice owner can pay down with leftover.
+class OverbudgetOption {
+  const OverbudgetOption({
+    required this.sliceId,
+    required this.name,
+    required this.outstandingCents,
+    this.mainCategoryId,
+  });
+
+  final String sliceId;
+  final String name;
+  final int outstandingCents;
+
+  /// The indebted category's main category; drives category-match tithing.
+  final String? mainCategoryId;
+}
+
 /// One personal slice with an undecided leftover — step 2 of the ritual.
 class SliceLeftover {
   const SliceLeftover({
@@ -61,6 +78,8 @@ class SliceLeftover {
     required this.poolTithePct,
     required this.defaultPolicy,
     required this.questOptions,
+    this.overbudgetOptions = const [],
+    this.priority = SlicePriority.important,
     this.mainCategoryId,
     this.petName,
   });
@@ -74,6 +93,14 @@ class SliceLeftover {
   final int poolTithePct;
   final LeftoverDestination defaultPolicy;
   final List<QuestOption> questOptions;
+
+  /// The owner's outstanding OVERBUDGETs — when non-empty, paying them is the
+  /// pushed (and default) move for this leftover.
+  final List<OverbudgetOption> overbudgetOptions;
+
+  /// This category's priority tag; a "fun" leftover is the suggested source
+  /// when a necessity carries an OVERBUDGET.
+  final SlicePriority priority;
 
   /// This category's main category; drives category-match tithing.
   final String? mainCategoryId;
@@ -192,6 +219,17 @@ SpoilsRitual? buildSpoilsRitual(
   }
   questOptions.sort((a, b) => a.name.compareTo(b.name));
 
+  // My outstanding OVERBUDGETs, payable from any of my leftovers.
+  final overbudgetOptions = <OverbudgetOption>[
+    for (final d in state.outstandingOverbudgetsFor(meUserId))
+      OverbudgetOption(
+        sliceId: d.sliceId,
+        name: state.slices[d.sliceId]?.name ?? d.sliceId,
+        outstandingCents: d.outstandingCents,
+        mainCategoryId: state.slices[d.sliceId]?.mainCategoryId,
+      ),
+  ];
+
   // Step 2: my personal slices with an unresolved leftover for that month.
   final leftovers = <SliceLeftover>[];
   final groupFlows = <GroupFlow>[];
@@ -222,6 +260,8 @@ SpoilsRitual? buildSpoilsRitual(
       poolTithePct: cfg.poolTithePct,
       defaultPolicy: cfg.defaultLeftoverPolicy,
       questOptions: questOptions,
+      overbudgetOptions: overbudgetOptions,
+      priority: cfg.priority,
       mainCategoryId: cfg.mainCategoryId,
       petName: cfg.petId == null ? null : state.pets[cfg.petId]?.name,
     ));
@@ -286,4 +326,50 @@ class DraftAllocation {
   }
   final t = Money.titheCents(amountCents, poolTithePct);
   return (damageCents: t.remainderCents, titheCents: t.titheCents, matched: false);
+}
+
+/// Previews a whole-leftover OVERBUDGET payment exactly as the reducer will
+/// apply it. Non-matching categories: the pool tithe comes off the whole
+/// [amountCents] first, the post-tithe value pays up to [outstandingCents],
+/// and the rest lands in the vault (already tithed). Matching categories: the
+/// debt is paid at full value, and only the excess beyond the debt converts
+/// to discretionary with the usual tithe. Either way the OVERBUDGET never
+/// takes more than it needs.
+({
+  int payCents,
+  int titheCents,
+  int toVaultCents,
+  int excessTitheCents,
+  bool matched,
+}) previewOverbudgetPayment(
+  int amountCents,
+  int poolTithePct, {
+  required int outstandingCents,
+  required String? sliceMainCategoryId,
+  required String? targetMainCategoryId,
+}) {
+  final matched = targetMainCategoryId != null &&
+      targetMainCategoryId == sliceMainCategoryId;
+  if (matched) {
+    final pay =
+        amountCents < outstandingCents ? amountCents : outstandingCents;
+    final t = Money.titheCents(amountCents - pay, poolTithePct);
+    return (
+      payCents: pay,
+      titheCents: 0,
+      toVaultCents: t.remainderCents,
+      excessTitheCents: t.titheCents,
+      matched: true,
+    );
+  }
+  final t = Money.titheCents(amountCents, poolTithePct);
+  final damage = t.remainderCents;
+  final pay = damage < outstandingCents ? damage : outstandingCents;
+  return (
+    payCents: pay,
+    titheCents: t.titheCents,
+    toVaultCents: damage - pay,
+    excessTitheCents: 0,
+    matched: false,
+  );
 }

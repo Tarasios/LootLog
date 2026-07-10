@@ -376,7 +376,7 @@ class LocalSetupDao extends DatabaseAccessor<AppDatabase>
       );
 }
 
-/// The DuoBudget local database.
+/// The LootLog local database.
 @DriftDatabase(
   tables: [
     Events,

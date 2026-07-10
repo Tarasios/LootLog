@@ -4,10 +4,10 @@
 /// image loading (the default placeholder resolver renders every sprite).
 library;
 
-import 'package:duobudget/domain/time.dart';
-import 'package:duobudget/game/adapter.dart';
-import 'package:duobudget/game/adventure_dashboard.dart';
-import 'package:duobudget/game/game_state.dart';
+import 'package:lootlog/domain/time.dart';
+import 'package:lootlog/game/adapter.dart';
+import 'package:lootlog/game/adventure_dashboard.dart';
+import 'package:lootlog/game/game_state.dart';
 
 const _july = Month(2026, 7);
 

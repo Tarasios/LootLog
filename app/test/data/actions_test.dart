@@ -1,13 +1,13 @@
 import 'dart:io';
 
 import 'package:drift/native.dart';
-import 'package:duobudget/data/actions.dart';
-import 'package:duobudget/data/blobs/blob_store.dart';
-import 'package:duobudget/data/db/database.dart';
-import 'package:duobudget/domain/event.dart';
-import 'package:duobudget/domain/reducer.dart';
-import 'package:duobudget/domain/state.dart';
-import 'package:duobudget/domain/value_types.dart';
+import 'package:lootlog/data/actions.dart';
+import 'package:lootlog/data/blobs/blob_store.dart';
+import 'package:lootlog/data/db/database.dart';
+import 'package:lootlog/domain/event.dart';
+import 'package:lootlog/domain/reducer.dart';
+import 'package:lootlog/domain/state.dart';
+import 'package:lootlog/domain/value_types.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -18,7 +18,7 @@ void main() {
     db = AppDatabase(NativeDatabase.memory());
     actions = HouseholdActions(
       db: db,
-      blobs: BlobStore(Directory.systemTemp.createTempSync('duobudget_test')),
+      blobs: BlobStore(Directory.systemTemp.createTempSync('lootlog_test')),
       deviceId: 'dev',
       meUserId: 'u1',
     );

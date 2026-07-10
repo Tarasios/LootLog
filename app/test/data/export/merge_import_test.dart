@@ -1,6 +1,6 @@
-import 'package:duobudget/data/export/merge_import.dart';
-import 'package:duobudget/domain/event.dart';
-import 'package:duobudget/domain/value_types.dart';
+import 'package:lootlog/data/export/merge_import.dart';
+import 'package:lootlog/domain/event.dart';
+import 'package:lootlog/domain/value_types.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 PurchaseAdded buy(String id) => PurchaseAdded(

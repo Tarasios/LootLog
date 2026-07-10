@@ -2,11 +2,11 @@
 /// slices separated, income surfaced, and per-slice month figures pulled through.
 library;
 
-import 'package:duobudget/domain/event.dart';
-import 'package:duobudget/domain/reducer.dart';
-import 'package:duobudget/domain/time.dart';
-import 'package:duobudget/domain/value_types.dart';
-import 'package:duobudget/features/budget_setup/budget_setup_model.dart';
+import 'package:lootlog/domain/event.dart';
+import 'package:lootlog/domain/reducer.dart';
+import 'package:lootlog/domain/time.dart';
+import 'package:lootlog/domain/value_types.dart';
+import 'package:lootlog/features/budget_setup/budget_setup_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 int _n = 0;

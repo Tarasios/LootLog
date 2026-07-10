@@ -22,6 +22,7 @@ import '../narrative.dart';
 import '../skin_prefs.dart';
 import 'text_adventure_view.dart';
 import 'text_battle.dart';
+import '../../features/settings/visibility_prefs.dart';
 
 /// The narrative/encouragement asset bundle (loaded once). Cosmetic strings
 /// only — they decorate the log, never the numbers.
@@ -42,7 +43,10 @@ class TextAdventureScreen extends ConsumerWidget {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final game = buildGameState(state, meUserId: meUserId, userNames: names);
+    final game = buildGameState(state,
+        meUserId: meUserId,
+        userNames: names,
+        includeOtherAdults: ref.watch(showHouseholdBudgetsProvider));
     final log = buildAdventureLog(state, events,
         meUserId: meUserId, userNames: names, limit: 40);
     final ritual =

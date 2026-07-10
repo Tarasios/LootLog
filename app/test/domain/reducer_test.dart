@@ -1,8 +1,8 @@
-import 'package:duobudget/domain/event.dart';
-import 'package:duobudget/domain/reducer.dart';
-import 'package:duobudget/domain/state.dart';
-import 'package:duobudget/domain/time.dart';
-import 'package:duobudget/domain/value_types.dart';
+import 'package:lootlog/domain/event.dart';
+import 'package:lootlog/domain/reducer.dart';
+import 'package:lootlog/domain/state.dart';
+import 'package:lootlog/domain/time.dart';
+import 'package:lootlog/domain/value_types.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Household users.
@@ -1839,6 +1839,37 @@ void main() {
           amountCents: amount,
           month: month,
         );
+
+    test('a variable earner plans at the low end of an estimated range', () {
+      final withRange = DefaultIncomeSet(
+        eventId: _seq.id(),
+        deviceId: 'd',
+        userId: u1,
+        occurredAt: const Month(2026, 1).startInstantUtc(),
+        createdAt: const Month(2026, 1).startInstantUtc(),
+        forUserId: u1,
+        amountCents: 300000,
+        estimatedHighCents: 450000,
+        effectiveFromMonth: const Month(2026, 1),
+      );
+      final s = reduce([withRange], asOf: day(2026, 2, 10));
+      // Everything budget-side plans on the conservative low figure.
+      expect(s.incomeFor(u1, const Month(2026, 2)), 300000);
+      // The range surfaces for display ("$3,000 to $4,500, planning low").
+      final d = s.effectiveIncomeDefault(u1, const Month(2026, 2))!;
+      expect(d.amountCents, 300000);
+      expect(d.estimatedHighCents, 450000);
+      // The range survives the wire.
+      final back = Event.fromJson(withRange.toJson()) as DefaultIncomeSet;
+      expect(back.estimatedHighCents, 450000);
+      // A month that actually paid more is a plain override.
+      final s2 = reduce([
+        withRange,
+        override(u1, 420000, const Month(2026, 2)),
+      ], asOf: day(2026, 3, 10));
+      expect(s2.incomeFor(u1, const Month(2026, 2)), 420000);
+      expect(s2.incomeFor(u1, const Month(2026, 3)), 300000);
+    });
 
     test('a default carries forward to later months with no override', () {
       final s = reduce([

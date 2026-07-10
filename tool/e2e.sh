@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# DuoBudget end-to-end multi-hub sync convergence test.
+# LootLog end-to-end multi-hub sync convergence test.
 #
 # Stands up two desktop instances (each hosting a LAN hub) and a third client
 # paired to both, over real loopback HTTP, and drives every convergence scenario

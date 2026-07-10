@@ -5,7 +5,7 @@
 
 ## Context
 
-We want to know roughly how many people use DuoBudget — the kind of "resume
+We want to know roughly how many people use LootLog — the kind of "resume
 number" any project likes to cite. The usual way to get it, an analytics SDK or
 a phone-home ping, is flatly incompatible with this app's promise: everything
 runs on the user's own devices and nothing leaves their network without an
