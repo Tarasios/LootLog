@@ -1125,6 +1125,7 @@ class _Builder {
             DefaultIncome(
               effectiveFromMonth: d.effectiveFromMonth,
               amountCents: d.amountCents,
+              estimatedHighCents: d.estimatedHighCents,
             ),
           );
     }

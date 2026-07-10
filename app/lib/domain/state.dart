@@ -732,10 +732,20 @@ class DefaultIncome {
   const DefaultIncome({
     required this.effectiveFromMonth,
     required this.amountCents,
+    this.estimatedHighCents,
   });
 
   final Month effectiveFromMonth;
+
+  /// The planning figure — the low end of the range for a variable earner.
   final int amountCents;
+
+  /// The optimistic top of an estimated range (display only), or null for a
+  /// fixed salary.
+  final int? estimatedHighCents;
+
+  bool get isRange =>
+      estimatedHighCents != null && estimatedHighCents! > amountCents;
 }
 
 /// The full derived read-model of the household.
@@ -873,25 +883,31 @@ class HouseholdState {
   bool hasIncomeOverride(String userId, Month month) =>
       incomeByUserMonth.containsKey(monthKey(userId, month));
 
-  /// The default monthly income in effect for [userId] as of [month] — the
-  /// latest default whose effective month is on or before [month] — or null
-  /// when no default has taken effect yet.
-  int? defaultIncomeFor(String userId, Month month) {
+  /// The full default-income record in effect for [userId] as of [month] —
+  /// the latest default whose effective month is on or before [month] — or
+  /// null when no default has taken effect yet. Carries the estimated range
+  /// for variable earners.
+  DefaultIncome? effectiveIncomeDefault(String userId, Month month) {
     final defaults = incomeDefaultsByUser[userId];
     if (defaults == null) {
       return null;
     }
-    int? amount;
+    DefaultIncome? best;
     for (final d in defaults) {
       // Sorted ascending: keep the last one that is already effective.
       if (!d.effectiveFromMonth.isAfter(month)) {
-        amount = d.amountCents;
+        best = d;
       } else {
         break;
       }
     }
-    return amount;
+    return best;
   }
+
+  /// The default monthly income in effect for [userId] as of [month], or null
+  /// when no default has taken effect yet.
+  int? defaultIncomeFor(String userId, Month month) =>
+      effectiveIncomeDefault(userId, month)?.amountCents;
 
   /// Resolved income for [userId] in [month]: a single-month override wins,
   /// else the latest effective default, else zero.
