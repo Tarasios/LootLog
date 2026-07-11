@@ -15,6 +15,7 @@ import '../ledger/change_log_screen.dart';
 import '../networth/networth_screen.dart';
 import '../quests/quests_screen.dart';
 import '../rewards/trophy_hall_screen.dart';
+import '../settings/emergency_funds_screen.dart';
 import '../settings/settings_screen.dart';
 import '../sync/sync_hubs_screen.dart';
 import '../vacation/vacation_screen.dart';
@@ -59,6 +60,15 @@ class ManageScreen extends ConsumerWidget {
             subtitle: 'The shared pool, writs, gifts and refunds',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const WarChestScreen()),
+            ),
+          ),
+          _Entry(
+            icon: Icons.medical_services_outlined,
+            title: 'Emergency funds',
+            subtitle: 'Named reserves for the unexpected, pet-linkable',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                  builder: (_) => const EmergencyFundsScreen()),
             ),
           ),
           _Entry(

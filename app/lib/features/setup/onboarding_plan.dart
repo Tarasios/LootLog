@@ -12,6 +12,7 @@ library;
 import '../../data/setup/local_setup.dart';
 import '../../domain/event.dart';
 import '../../domain/ids.dart';
+import '../../domain/state.dart' show MainCategory, defaultMainCategories;
 import '../../domain/time.dart';
 import '../../domain/value_types.dart';
 
@@ -35,6 +36,7 @@ class DraftMember {
     required this.name,
     this.descriptionText,
     this.spriteSha256,
+    this.fundedByUserId,
   });
 
   final String localId;
@@ -44,6 +46,10 @@ class DraftMember {
   /// The invited free-text character description that feeds text-mode adventure.
   final String? descriptionText;
   final String? spriteSha256;
+
+  /// For a pet: the adult (localId) whose budget funds this pet's categories;
+  /// null means the group funds them (the common case).
+  final String? fundedByUserId;
 
   bool get isAdult => role == DraftRole.adult;
 }
@@ -111,6 +117,8 @@ class DraftCategory {
     this.ownerLocalId,
     this.mainCategoryId,
     this.petId,
+    this.petOwnerIds = const [],
+    this.tithePct = 0,
   });
 
   final String name;
@@ -123,6 +131,25 @@ class DraftCategory {
 
   /// A pet member this category is displayed under (its micro-budget), if any.
   final String? petId;
+
+  /// The pet members that own this category (a shared pet budget). Group
+  /// categories only; each pet's equal share is planned against its funding
+  /// source.
+  final List<String> petOwnerIds;
+
+  /// Pool tithe % (0–100) applied when leftover converts to discretionary.
+  final int tithePct;
+
+  DraftCategory copyWith({String? name, int? limitCents}) => DraftCategory(
+        name: name ?? this.name,
+        limitCents: limitCents ?? this.limitCents,
+        group: group,
+        ownerLocalId: ownerLocalId,
+        mainCategoryId: mainCategoryId,
+        petId: petId,
+        petOwnerIds: petOwnerIds,
+        tithePct: tithePct,
+      );
 }
 
 /// The optional first savings goal (the first quest boss).
@@ -156,6 +183,7 @@ class OnboardingInput {
     this.accounts = const [],
     this.fixedExpenses = const [],
     this.categories = const [],
+    this.mainCategories = const [],
     this.shares,
     this.firstQuest,
   });
@@ -176,6 +204,11 @@ class OnboardingInput {
   final List<DraftFixedExpense> fixedExpenses;
   final List<DraftCategory> categories;
 
+  /// The wizard's (possibly customized) main-category list. Entries that match
+  /// [defaultMainCategories] byte-for-byte write no event; renames and
+  /// additions become `MainCategorySet` events.
+  final List<MainCategory> mainCategories;
+
   /// Per-adult share weights in permille (localId → permille). When null, an
   /// even split is written; supply this only to record a custom split.
   final Map<String, int>? shares;
@@ -194,10 +227,6 @@ class OnboardingPlan {
   final List<Event> events;
   final LocalSetup localSetup;
 }
-
-/// Default pool-tithe percent seeded on a personal category at onboarding. Zero
-/// keeps leftover fully with the owner until they tune it later in Settings.
-const int _defaultPoolTithePct = 0;
 
 /// An even permille split across [n] adults that always sums to exactly 1000;
 /// the remainder cents land on the earliest adults.
@@ -254,6 +283,7 @@ OnboardingPlan buildOnboardingEvents(
           role: _roleOf(m.role),
           descriptionText: m.descriptionText,
           customSpriteSha256: m.spriteSha256,
+          fundedByUserId: m.role == DraftRole.pet ? m.fundedByUserId : null,
         )));
   }
 
@@ -340,6 +370,30 @@ OnboardingPlan buildOnboardingEvents(
         )));
   }
 
+  // 5a. Main-category customizations: only entries that differ from the
+  // built-in defaults (renames, recolors) or are brand new write an event.
+  final defaultsById = {for (final d in defaultMainCategories) d.id: d};
+  for (final m in input.mainCategories) {
+    final d = defaultsById[m.id];
+    if (d != null &&
+        d.name == m.name &&
+        d.colorArgb == m.colorArgb &&
+        d.sortOrder == m.sortOrder) {
+      continue;
+    }
+    events.add(stamp((eventId) => MainCategorySet(
+          eventId: eventId,
+          deviceId: deviceId,
+          userId: me,
+          occurredAt: at,
+          createdAt: at,
+          id: m.id,
+          name: m.name,
+          colorArgb: m.colorArgb,
+          sortOrder: m.sortOrder,
+        )));
+  }
+
   // 5. Budget: group categories first, then personal (BudgetSliceSet).
   final orderedCategories = [
     ...input.categories.where((c) => c.group),
@@ -360,10 +414,11 @@ OnboardingPlan buildOnboardingEvents(
           ownership: ownership,
           mainCategoryId: c.mainCategoryId,
           limitCents: c.limitCents,
-          poolTithePct: _defaultPoolTithePct,
+          poolTithePct: c.tithePct,
           defaultLeftoverPolicy: const CarryInSlice(),
           taxDeductibleByDefault: false,
           petId: c.petId,
+          petOwnerIds: c.petOwnerIds,
         )));
   }
 

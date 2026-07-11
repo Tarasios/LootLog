@@ -83,17 +83,25 @@ GameState buildGameState(
     final excess = sm?.overspendCents ?? 0;
     heroHpLost += excess;
 
+    // A category owned by pets anchors under its first owning pet; the legacy
+    // single-pet link keeps working.
+    final petAnchor = cfg.petId ??
+        (cfg.petOwnerIds.isNotEmpty ? cfg.petOwnerIds.first : null);
     if (cfg.isGroup) {
+      final petNames = [
+        for (final id in cfg.petOwnerIds)
+          if (petNameOf(id) != null) petNameOf(id)!,
+      ];
       final contract = PartyContract(
         sliceId: cfg.sliceId,
         name: cfg.name,
         maxHpCents: maxHp,
         damageCents: damage,
         excessCents: excess,
-        petName: petNameOf(cfg.petId),
+        petName: petNames.isNotEmpty ? petNames.join(' & ') : petNameOf(petAnchor),
       );
-      if (cfg.petId != null) {
-        (petContracts[cfg.petId!] ??= []).add(contract);
+      if (petAnchor != null) {
+        (petContracts[petAnchor] ??= []).add(contract);
       } else {
         looseContracts.add(contract);
       }
@@ -112,8 +120,8 @@ GameState buildGameState(
         mine: mine,
         ownerName: nameOf(cfg.ownerUserId ?? ''),
       );
-      if (cfg.petId != null) {
-        (petMonsters[cfg.petId!] ??= []).add(monster);
+      if (petAnchor != null) {
+        (petMonsters[petAnchor] ??= []).add(monster);
       } else {
         looseMonsters.add(monster);
       }

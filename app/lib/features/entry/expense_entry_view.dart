@@ -57,6 +57,8 @@ class ExpenseEntryView extends StatefulWidget {
 }
 
 class _ExpenseEntryViewState extends State<ExpenseEntryView> {
+  bool _showMore = false;
+
   late int _cents = widget.initialCents;
   bool _shared = false;
   String? _merchant;
@@ -271,7 +273,15 @@ class _ExpenseEntryViewState extends State<ExpenseEntryView> {
     );
   }
 
+  /// Everyday spending targets show immediately; the vault and quests are
+  /// rarer, deliberate moves and stay behind "More targets" so the everyday
+  /// screen reads as "which budget did this come from".
+  static bool _isAdvanced(ChargeGroup g) =>
+      g.kind == ChargeGroupKind.vault || g.kind == ChargeGroupKind.quest;
+
   Widget _chargeArea(BuildContext context) {
+    final primary = [for (final g in widget.groups) if (!_isAdvanced(g)) g];
+    final advanced = [for (final g in widget.groups) if (_isAdvanced(g)) g];
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
@@ -286,7 +296,18 @@ class _ExpenseEntryViewState extends State<ExpenseEntryView> {
             padding: const EdgeInsets.only(bottom: AppSpacing.xs),
             child: Text('Charge to', style: AppText.sectionLabel(context)),
           ),
-          for (final group in widget.groups) _groupSection(context, group),
+          for (final group in primary) _groupSection(context, group),
+          if (advanced.isNotEmpty && !_showMore)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.sm),
+              child: TextButton.icon(
+                onPressed: () => setState(() => _showMore = true),
+                icon: const Icon(Icons.unfold_more),
+                label: const Text('More targets (vault, quests)'),
+              ),
+            ),
+          if (_showMore)
+            for (final group in advanced) _groupSection(context, group),
         ],
       ),
     );

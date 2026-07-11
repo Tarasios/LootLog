@@ -22,17 +22,23 @@ import '../activity/activity_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../entry/expense_entry_screen.dart';
 import '../ledger/ledger_screen.dart';
+import '../homestead/homestead_screen.dart';
 import '../menu/manage_screen.dart';
 import '../ocr/ocr_confirm_screen.dart';
+import '../quests/quests_screen.dart';
+import '../rewards/trophy_hall_screen.dart';
 import '../spoils/spoils_screen.dart';
+import '../warchest/warchest_screen.dart';
 import '../sync/sync_status.dart';
 import '../tutorial/tutorial.dart';
 
 /// The width at or above which the shell switches to the rail + two-pane layout.
 const double kWideBreakpoint = 840;
 
-/// The main panes reachable from navigation.
-enum ShellPane { dashboard, ledger, activity }
+/// The main panes reachable from navigation. Goals, the war chest, the trophy
+/// hall and the homestead are first-class destinations (not buried in Manage);
+/// the narrow layout surfaces Goals directly and keeps the rest one tap away.
+enum ShellPane { dashboard, ledger, goals, warchest, trophies, homestead, activity }
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key, this.initialPane = ShellPane.dashboard});
@@ -54,6 +60,14 @@ class _AppShellState extends ConsumerState<AppShell> {
         return DashboardScreen(showActivity: showActivity);
       case ShellPane.ledger:
         return const LedgerScreen();
+      case ShellPane.goals:
+        return const QuestsScreen();
+      case ShellPane.warchest:
+        return const WarChestScreen();
+      case ShellPane.trophies:
+        return const TrophyHallScreen();
+      case ShellPane.homestead:
+        return const HomesteadScreen();
       case ShellPane.activity:
         return const ActivityScreen();
     }
@@ -62,6 +76,10 @@ class _AppShellState extends ConsumerState<AppShell> {
   String get _title => switch (_pane) {
         ShellPane.dashboard => 'LootLog',
         ShellPane.ledger => 'Ledger',
+        ShellPane.goals => 'Savings goals',
+        ShellPane.warchest => 'War chest',
+        ShellPane.trophies => 'Trophy hall',
+        ShellPane.homestead => 'Homestead',
         ShellPane.activity => 'Activity',
       };
 
@@ -92,9 +110,16 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   // ---- Narrow: bottom navigation, single pane ---------------------------
   Widget _buildNarrow(BuildContext context) {
-    // On phones the dashboard folds the activity feed into itself, so the
-    // bottom bar exposes the three panes directly.
-    final index = _pane.index;
+    // On phones the dashboard folds the activity feed into itself. The bottom
+    // bar carries the four everyday panes; war chest / trophies / homestead
+    // stay one tap away in Manage.
+    const tabs = [
+      ShellPane.dashboard,
+      ShellPane.ledger,
+      ShellPane.goals,
+      ShellPane.activity,
+    ];
+    final index = tabs.contains(_pane) ? tabs.indexOf(_pane) : 0;
     return Scaffold(
       appBar: AppBar(
         title: Text(_title),
@@ -111,7 +136,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       floatingActionButton: _fab(context),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
-        onDestinationSelected: (i) => _select(ShellPane.values[i]),
+        onDestinationSelected: (i) => _select(tabs[i]),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
@@ -122,6 +147,11 @@ class _AppShellState extends ConsumerState<AppShell> {
             icon: Icon(Icons.receipt_long_outlined),
             selectedIcon: Icon(Icons.receipt_long),
             label: 'Ledger',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.flag_outlined),
+            selectedIcon: Icon(Icons.flag),
+            label: 'Goals',
           ),
           NavigationDestination(
             icon: Icon(Icons.forum_outlined),
@@ -135,10 +165,17 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   // ---- Wide: navigation rail, two panes (slices | activity) -------------
   Widget _buildWide(BuildContext context) {
-    // The rail switches the left pane; activity is pinned on the right, so the
-    // rail only offers the two left-pane choices.
-    final leftPanes = [ShellPane.dashboard, ShellPane.ledger];
-    final railIndex = _pane == ShellPane.ledger ? 1 : 0;
+    // The rail switches the left pane; activity is pinned on the right.
+    const leftPanes = [
+      ShellPane.dashboard,
+      ShellPane.ledger,
+      ShellPane.goals,
+      ShellPane.warchest,
+      ShellPane.trophies,
+      ShellPane.homestead,
+    ];
+    final railIndex =
+        leftPanes.contains(_pane) ? leftPanes.indexOf(_pane) : 0;
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
@@ -169,6 +206,26 @@ class _AppShellState extends ConsumerState<AppShell> {
                 icon: Icon(Icons.receipt_long_outlined),
                 selectedIcon: Icon(Icons.receipt_long),
                 label: Text('Ledger'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.flag_outlined),
+                selectedIcon: Icon(Icons.flag),
+                label: Text('Goals'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.account_balance_outlined),
+                selectedIcon: Icon(Icons.account_balance),
+                label: Text('War chest'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.emoji_events_outlined),
+                selectedIcon: Icon(Icons.emoji_events),
+                label: Text('Trophies'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.cottage_outlined),
+                selectedIcon: Icon(Icons.cottage),
+                label: Text('Homestead'),
               ),
             ],
           ),

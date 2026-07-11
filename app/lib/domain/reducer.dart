@@ -142,6 +142,7 @@ class _Builder {
           emergencyFundId: e.emergencyContribution?.fundId,
           emergencyContributionCents: e.emergencyContribution?.amountCents ?? 0,
           petId: e.petId,
+          petOwnerIds: e.petOwnerIds,
           priority: e.priority,
         );
       case MainCategorySet():
@@ -978,6 +979,7 @@ class _Builder {
         active: m.active,
         customSpriteSha256: m.customSpriteSha256,
         descriptionText: m.descriptionText,
+        fundedByUserId: m.fundedByUserId,
       );
     }
 

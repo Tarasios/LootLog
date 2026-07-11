@@ -102,6 +102,11 @@ class MembersScreen extends ConsumerWidget {
     var role = existing?.role ?? MemberRole.adult;
     var active = existing?.active ?? true;
     String? spriteSha = existing?.customSpriteSha256;
+    String? fundedBy = existing?.fundedByUserId;
+    final adults = (ref.read(householdStateProvider).value?.members.values ??
+            const <MemberState>[])
+        .where((m) => m.isAdult && m.active)
+        .toList();
 
     final saved = await showModalBottomSheet<bool>(
       context: context,
@@ -162,6 +167,27 @@ class MembersScreen extends ConsumerWidget {
                             Theme.of(sheetContext).colorScheme.onSurfaceVariant,
                       ),
                 ),
+                if (role == MemberRole.pet && adults.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  DropdownButtonFormField<String?>(
+                    initialValue: fundedBy,
+                    decoration: const InputDecoration(
+                      labelText: 'Whose budget funds this pet?',
+                      helperText:
+                          'The group splits pet costs by shares unless one '
+                          'adult takes them on.',
+                      helperMaxLines: 2,
+                    ),
+                    items: [
+                      const DropdownMenuItem(
+                          value: null, child: Text('The group')),
+                      for (final a in adults)
+                        DropdownMenuItem(
+                            value: a.memberId, child: Text(a.name)),
+                    ],
+                    onChanged: (v) => setSheet(() => fundedBy = v),
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.md),
                 TextField(
                   controller: descController,
@@ -228,6 +254,7 @@ class MembersScreen extends ConsumerWidget {
       final name = nameController.text.trim();
       final desc = descController.text.trim();
       final description = desc.isEmpty ? null : desc;
+      final petFunding = role == MemberRole.pet ? fundedBy : null;
       if (existing != null &&
           !memberEditChanged(
             existing,
@@ -236,6 +263,7 @@ class MembersScreen extends ConsumerWidget {
             active: active,
             customSpriteSha256: spriteSha,
             descriptionText: description,
+            fundedByUserId: petFunding,
           )) {
         return; // Nothing changed — append no event.
       }
@@ -246,6 +274,7 @@ class MembersScreen extends ConsumerWidget {
             active: active,
             customSpriteSha256: spriteSha,
             descriptionText: description,
+            fundedByUserId: petFunding,
           );
     }
   }

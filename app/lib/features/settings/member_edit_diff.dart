@@ -15,11 +15,13 @@ bool memberEditChanged(
   required bool active,
   String? customSpriteSha256,
   String? descriptionText,
+  String? fundedByUserId,
 }) {
   String norm(String? s) => (s ?? '').trim();
   return existing.name != name ||
       existing.role != role ||
       existing.active != active ||
       existing.customSpriteSha256 != customSpriteSha256 ||
-      norm(existing.descriptionText) != norm(descriptionText);
+      norm(existing.descriptionText) != norm(descriptionText) ||
+      existing.fundedByUserId != fundedByUserId;
 }

@@ -98,6 +98,7 @@ class SliceConfig {
     this.emergencyFundId,
     this.emergencyContributionCents = 0,
     this.petId,
+    this.petOwnerIds = const [],
     this.priority = SlicePriority.important,
   });
 
@@ -117,6 +118,11 @@ class SliceConfig {
   final String? emergencyFundId;
   final int emergencyContributionCents;
   final String? petId;
+
+  /// The pet members this category belongs to (a shared pet budget). Empty
+  /// for non-pet categories. Planning surfaces attribute the limit to each
+  /// pet's funding source ([MemberState.fundedByUserId]) in equal parts.
+  final List<String> petOwnerIds;
 
   /// How essential this category is (advisory; orders default OVERBUDGET
   /// payments and drives "spend the fun money first" suggestions).
@@ -566,6 +572,7 @@ class MemberState {
     required this.active,
     this.customSpriteSha256,
     this.descriptionText,
+    this.fundedByUserId,
   });
 
   final String memberId;
@@ -574,6 +581,10 @@ class MemberState {
   final bool active;
   final String? customSpriteSha256;
   final String? descriptionText;
+
+  /// For a pet: the adult whose budget funds this pet's categories, or null
+  /// when the group funds them (the default). Meaningless for non-pets.
+  final String? fundedByUserId;
 
   bool get isAdult => role == MemberRole.adult;
 }
