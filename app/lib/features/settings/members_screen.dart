@@ -6,15 +6,19 @@
 /// nothing is ever deleted.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/actions.dart';
+import '../../data/blobs/blob_store.dart';
 import '../../data/providers.dart';
 import '../../domain/state.dart';
 import '../../domain/value_types.dart';
 import '../../ui/theme.dart';
 import '../shared/sprite_picker.dart';
+import 'member_edit_diff.dart';
 
 class MembersScreen extends ConsumerWidget {
   const MembersScreen({super.key});
@@ -98,6 +102,11 @@ class MembersScreen extends ConsumerWidget {
     var role = existing?.role ?? MemberRole.adult;
     var active = existing?.active ?? true;
     String? spriteSha = existing?.customSpriteSha256;
+    String? fundedBy = existing?.fundedByUserId;
+    final adults = (ref.read(householdStateProvider).value?.members.values ??
+            const <MemberState>[])
+        .where((m) => m.isAdult && m.active)
+        .toList();
 
     final saved = await showModalBottomSheet<bool>(
       context: context,
@@ -158,6 +167,27 @@ class MembersScreen extends ConsumerWidget {
                             Theme.of(sheetContext).colorScheme.onSurfaceVariant,
                       ),
                 ),
+                if (role == MemberRole.pet && adults.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  DropdownButtonFormField<String?>(
+                    initialValue: fundedBy,
+                    decoration: const InputDecoration(
+                      labelText: 'Whose budget funds this pet?',
+                      helperText:
+                          'The group splits pet costs by shares unless one '
+                          'adult takes them on.',
+                      helperMaxLines: 2,
+                    ),
+                    items: [
+                      const DropdownMenuItem(
+                          value: null, child: Text('The group')),
+                      for (final a in adults)
+                        DropdownMenuItem(
+                            value: a.memberId, child: Text(a.name)),
+                    ],
+                    onChanged: (v) => setSheet(() => fundedBy = v),
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.md),
                 TextField(
                   controller: descController,
@@ -196,6 +226,10 @@ class MembersScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
+                if (spriteSha != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  _SpritePreview(sha256: spriteSha!),
+                ],
                 if (existing != null)
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
@@ -217,15 +251,71 @@ class MembersScreen extends ConsumerWidget {
     );
 
     if (saved == true && nameController.text.trim().isNotEmpty) {
+      final name = nameController.text.trim();
       final desc = descController.text.trim();
-      await ref.read(householdActionsProvider)?.setMember(
-            memberId: existing?.memberId,
-            name: nameController.text.trim(),
+      final description = desc.isEmpty ? null : desc;
+      final petFunding = role == MemberRole.pet ? fundedBy : null;
+      if (existing != null &&
+          !memberEditChanged(
+            existing,
+            name: name,
             role: role,
             active: active,
             customSpriteSha256: spriteSha,
-            descriptionText: desc.isEmpty ? null : desc,
+            descriptionText: description,
+            fundedByUserId: petFunding,
+          )) {
+        return; // Nothing changed — append no event.
+      }
+      await ref.read(householdActionsProvider)?.setMember(
+            memberId: existing?.memberId,
+            name: name,
+            role: role,
+            active: active,
+            customSpriteSha256: spriteSha,
+            descriptionText: description,
+            fundedByUserId: petFunding,
           );
+    }
+  }
+}
+
+/// A small pixelated preview of an uploaded custom sprite, shown next to the
+/// sprite tile in the member editor. Renders nothing (never an error) if the
+/// blob is missing.
+class _SpritePreview extends ConsumerWidget {
+  const _SpritePreview({required this.sha256});
+
+  final String sha256;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final store = ref.watch(blobStoreProvider);
+    return FutureBuilder<Uint8List?>(
+      future: _loadBytes(store, sha256),
+      builder: (context, snapshot) {
+        final bytes = snapshot.data;
+        if (bytes == null) return const SizedBox.shrink();
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: Image.memory(
+            bytes,
+            width: 56,
+            height: 56,
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.none,
+          ),
+        );
+      },
+    );
+  }
+
+  static Future<Uint8List?> _loadBytes(BlobStore store, String sha) async {
+    if (!await store.exists(sha)) return null;
+    try {
+      return await store.read(sha);
+    } catch (_) {
+      return null;
     }
   }
 }

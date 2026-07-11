@@ -543,6 +543,7 @@ class HouseholdActions {
     bool active = true,
     String? customSpriteSha256,
     String? descriptionText,
+    String? fundedByUserId,
   }) async {
     final now = DateTime.now().toUtc();
     final id = memberId ?? uuidv7();
@@ -558,6 +559,7 @@ class HouseholdActions {
       active: active,
       customSpriteSha256: customSpriteSha256,
       descriptionText: descriptionText,
+      fundedByUserId: role == MemberRole.pet ? fundedByUserId : null,
     ));
     return id;
   }

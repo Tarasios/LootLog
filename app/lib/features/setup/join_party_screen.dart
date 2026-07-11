@@ -15,6 +15,7 @@ import '../../data/setup/local_setup.dart';
 import '../../data/sync/sync_client.dart';
 import '../../domain/state.dart';
 import '../../ui/theme.dart';
+import '../sync/pairing_qr.dart';
 
 class JoinPartyScreen extends ConsumerStatefulWidget {
   const JoinPartyScreen({super.key});
@@ -72,6 +73,29 @@ class _JoinPartyScreenState extends ConsumerState<JoinPartyScreen> {
     }
   }
 
+  Future<void> _scan() async {
+    final payload = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const ScanPairingQrScreen()),
+    );
+    if (payload == null || !mounted) return;
+    final parsed = parsePairingQr(payload);
+    if (parsed == null) {
+      setState(() => _error = "That QR code isn't a LootLog pairing code.");
+      return;
+    }
+    setState(() {
+      _url.text = parsed.url;
+      _secret.text = parsed.pairingSecret;
+      _error = null;
+    });
+    if (_deviceName.text.trim().isNotEmpty) {
+      await _pair();
+    } else {
+      setState(() =>
+          _error = 'Scanned! Now give this device a name and tap Pair & sync.');
+    }
+  }
+
   Future<void> _claim(MemberState adult, HouseholdState state) async {
     final adults = state.members.values.where((m) => m.isAdult && m.active);
     final other = adults.firstWhere(
@@ -108,8 +132,9 @@ class _JoinPartyScreenState extends ConsumerState<JoinPartyScreen> {
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
         const Text(
-          'On the hosting device (a desktop running a hub), open Sync & hubs '
-          'and read off its address and pairing secret. Enter them here.',
+          'On the hosting device (a desktop running a hub), open Sync & hubs. '
+          'Scan its QR code — or read off its address and pairing secret and '
+          'enter them here.',
         ),
         const SizedBox(height: AppSpacing.lg),
         TextField(
@@ -139,6 +164,14 @@ class _JoinPartyScreenState extends ConsumerState<JoinPartyScreen> {
               style: TextStyle(color: Theme.of(context).colorScheme.error)),
         ],
         const SizedBox(height: AppSpacing.lg),
+        if (canScanPairingQr) ...[
+          FilledButton.icon(
+            onPressed: _busy ? null : _scan,
+            icon: const Icon(Icons.qr_code_scanner),
+            label: const Text('Scan the hub\'s QR code'),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+        ],
         FilledButton.icon(
           onPressed: _busy ? null : _pair,
           icon: _busy

@@ -70,16 +70,18 @@ dev_dependencies:
   riverpod_generator: ^4.0.4
 
 # Native-asset build hooks (drift pulls in package:sqlite3, which builds a code
-# asset). Use the OS-provided SQLite instead of downloading a prebuilt binary:
-# desktop targets ship one (libsqlite3.so on Linux, libsqlite3.dylib on macOS,
-# winsqlite3.dll on Windows), so no network fetch is needed. Android native-lib
-# provisioning (e.g. sqlite3_flutter_libs) is wired up when the data layer lands.
+# asset). Use the package default: a hash-verified precompiled SQLite fetched at
+# BUILD time and bundled with the app, identical on every platform.
+# `source: system` is NOT usable here even though desktops ship a sqlite3:
+# Android forbids apps from dlopen-ing the platform's private libsqlite3.so,
+# which made every database call fail on phones (sqlite3_initialize lookup
+# errors). The precompiled Android binaries are 16KB-page-aligned as required
+# on Android 15+. No runtime network use — the fetch happens on the build
+# machine only.
 hooks:
   user_defines:
     sqlite3:
-      source: system
-      name: sqlite3
-      name_windows: winsqlite3
+      source: sqlite3
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

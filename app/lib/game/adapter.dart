@@ -56,9 +56,9 @@ GameState buildGameState(
   final partnerId =
       state.userIds.firstWhere((u) => u != meUserId, orElse: () => meUserId);
   final heroSprite =
-      SpriteRef.asset(Sprites.heroA, label: nameOf(meUserId) ?? 'You');
-  final partnerSprite =
-      SpriteRef.asset(Sprites.heroB, label: nameOf(partnerId) ?? 'Partner');
+      _memberSprite(state, meUserId, Sprites.heroA, nameOf(meUserId) ?? 'You');
+  final partnerSprite = _memberSprite(
+      state, partnerId, Sprites.heroB, nameOf(partnerId) ?? 'Partner');
 
   // ---- Monsters (personal slices) & contracts (group slices) -------------
   // Pet-linked ones are set aside to hang under their party member.
@@ -83,17 +83,25 @@ GameState buildGameState(
     final excess = sm?.overspendCents ?? 0;
     heroHpLost += excess;
 
+    // A category owned by pets anchors under its first owning pet; the legacy
+    // single-pet link keeps working.
+    final petAnchor = cfg.petId ??
+        (cfg.petOwnerIds.isNotEmpty ? cfg.petOwnerIds.first : null);
     if (cfg.isGroup) {
+      final petNames = [
+        for (final id in cfg.petOwnerIds)
+          if (petNameOf(id) != null) petNameOf(id)!,
+      ];
       final contract = PartyContract(
         sliceId: cfg.sliceId,
         name: cfg.name,
         maxHpCents: maxHp,
         damageCents: damage,
         excessCents: excess,
-        petName: petNameOf(cfg.petId),
+        petName: petNames.isNotEmpty ? petNames.join(' & ') : petNameOf(petAnchor),
       );
-      if (cfg.petId != null) {
-        (petContracts[cfg.petId!] ??= []).add(contract);
+      if (petAnchor != null) {
+        (petContracts[petAnchor] ??= []).add(contract);
       } else {
         looseContracts.add(contract);
       }
@@ -112,8 +120,8 @@ GameState buildGameState(
         mine: mine,
         ownerName: nameOf(cfg.ownerUserId ?? ''),
       );
-      if (cfg.petId != null) {
-        (petMonsters[cfg.petId!] ??= []).add(monster);
+      if (petAnchor != null) {
+        (petMonsters[petAnchor] ??= []).add(monster);
       } else {
         looseMonsters.add(monster);
       }
@@ -390,6 +398,16 @@ GameState buildGameState(
     roster: roster,
     expeditions: expeditions,
   );
+}
+
+/// The party-frame sprite for a member: their uploaded custom sprite when one
+/// is set, else the role's default asset.
+SpriteRef _memberSprite(
+    HouseholdState state, String userId, String fallbackAsset, String label) {
+  final sha = state.members[userId]?.customSpriteSha256;
+  return sha != null
+      ? SpriteRef.custom(sha, label: label)
+      : SpriteRef.asset(fallbackAsset, label: label);
 }
 
 AdventurerRole _roleOf(MemberRole role) => switch (role) {

@@ -1,0 +1,20 @@
+{
+  "flawless": [
+    "The {name} monster falls without you lifting a finger — all {leftover} of your strength is saved!",
+    "{name} didn't even get a swing in. Zero effort spent, {leftover} banked!",
+    "A flawless victory over {name} — your whole {leftover} guard is intact."
+  ],
+  "victory": [
+    "{name} takes {spent} damage and crumbles — {leftover} of effort saved for the spoils!",
+    "Down goes {name} after {spent}. You walk away {leftover} stronger.",
+    "{name} is felled for {spent} — the remaining {leftover} is yours to divide."
+  ],
+  "exact": [
+    "{name} falls with your final swing — every coin of {limit} spent, nothing wasted.",
+    "A hard-fought draw-down: {name} took exactly {limit} to fell. Clean kill."
+  ],
+  "enraged": [
+    "{name} fought ENRAGED — it took {spent}, {over} past your guard. The party regroups; next floor, we fight smarter.",
+    "{name} hit harder than planned: {over} beyond the limit. No shame — mark it, plan it, slay it next month."
+  ]
+}

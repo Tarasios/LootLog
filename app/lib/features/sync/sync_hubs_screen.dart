@@ -16,7 +16,6 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
@@ -26,6 +25,7 @@ import '../../data/export/event_export.dart';
 import '../../data/export/merge_import.dart';
 import '../../data/sync/sync_service.dart';
 import '../../ui/theme.dart';
+import 'pairing_qr.dart';
 import 'sync_status.dart';
 
 class SyncHubsScreen extends ConsumerStatefulWidget {
@@ -216,7 +216,7 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
                   icon: const Icon(Icons.link),
                   label: const Text('Pair'),
                 ),
-                if (_canScanQr)
+                if (canScanPairingQr)
                   OutlinedButton.icon(
                     onPressed: _busy ? null : () => _scanAndPair(service),
                     icon: const Icon(Icons.qr_code_scanner),
@@ -230,27 +230,17 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
     );
   }
 
-  /// Whether this build can scan a pairing QR with the camera. Android only;
-  /// the desktop side is the one showing the code.
-  bool get _canScanQr => !kIsWeb && Platform.isAndroid;
-
   Future<void> _scanAndPair(SyncService service) async {
     final payload = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => const _ScanPairingQrScreen()),
+      MaterialPageRoute(builder: (_) => const ScanPairingQrScreen()),
     );
-    if (payload == null) return;
-    try {
-      final map = (jsonDecode(payload) as Map).cast<String, dynamic>();
-      final url = map['url'] as String?;
-      final secret = map['pairingSecret'] as String?;
-      if (url == null || secret == null) {
-        _snack("That QR code isn't a LootLog pairing code.");
-        return;
-      }
-      await _pair(service, url, secret);
-    } on FormatException {
+    if (payload == null || !mounted) return;
+    final parsed = parsePairingQr(payload);
+    if (parsed == null) {
       _snack("That QR code isn't a LootLog pairing code.");
+      return;
     }
+    await _pair(service, parsed.url, parsed.pairingSecret);
   }
 
   Widget _backupCard(SyncService service) {
@@ -526,40 +516,6 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
-  }
-}
-
-/// A full-screen camera scanner for the hub pairing QR. Pops with the raw
-/// payload string on the first detected code. Android only (guarded by the
-/// caller); fully on-device, no network involved.
-class _ScanPairingQrScreen extends StatefulWidget {
-  const _ScanPairingQrScreen();
-
-  @override
-  State<_ScanPairingQrScreen> createState() => _ScanPairingQrScreenState();
-}
-
-class _ScanPairingQrScreenState extends State<_ScanPairingQrScreen> {
-  bool _done = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Scan the hub\'s QR code')),
-      body: MobileScanner(
-        onDetect: (capture) {
-          if (_done) return;
-          for (final code in capture.barcodes) {
-            final value = code.rawValue;
-            if (value != null && value.isNotEmpty) {
-              _done = true;
-              Navigator.of(context).pop(value);
-              return;
-            }
-          }
-        },
-      ),
-    );
   }
 }
 

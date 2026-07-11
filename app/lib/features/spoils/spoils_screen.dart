@@ -10,8 +10,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/actions.dart';
 import '../../data/providers.dart';
+import '../../game/adventure_screen.dart' show customSpriteBlobsProvider;
 import '../../game/adventure_spoils.dart';
+import '../../game/game_sprite.dart';
+import '../../game/month_end_encounters.dart';
 import '../../game/skin_prefs.dart';
+import '../../ui/format.dart';
 import '../../ui/theme.dart';
 import '../household_context.dart';
 import '../report/report_screen.dart';
@@ -36,6 +40,31 @@ Future<void> openSpoilsRitual(BuildContext context, WidgetRef ref) async {
 
   final adventure = ref.read(appSkinProvider) == AppSkin.adventure;
   final intro = adventure ? AdventureSpoilsRecap(ritual: ritual) : null;
+
+  // Adventure mode replays the floor monster by monster before the division:
+  // spending less than a monster's max HP is the win state, and the walkthrough
+  // says so out loud. Pure display — the ritual sheet still owns every event.
+  if (adventure && context.mounted) {
+    final encounters = buildEncounters(state, ritual.month, meUserId);
+    if (encounters.isNotEmpty) {
+      final lines = await EncounterLines.load();
+      final blobs = ref.read(customSpriteBlobsProvider).value ?? const {};
+      if (!context.mounted) return;
+      final proceed = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (routeCtx) => MonthEndEncountersScreen(
+            encounters: encounters,
+            lines: lines,
+            monthLabel: monthLabel(ritual.month.year, ritual.month.month),
+            resolver: AssetSpriteResolver(customBlobs: blobs),
+            onFinished: () => Navigator.of(routeCtx).pop(true),
+          ),
+        ),
+      );
+      // Backing out of the walkthrough leaves the ritual pending, untouched.
+      if (proceed != true || !context.mounted) return;
+    }
+  }
 
   await showModalBottomSheet<void>(
     context: context,

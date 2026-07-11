@@ -110,6 +110,8 @@ sealed class Event {
                   (p['emergencyContribution'] as Map).cast(),
                 ),
           petId: p['petId'] as String?,
+          petOwnerIds:
+              (p['petOwnerIds'] as List?)?.cast<String>() ?? const [],
           priority: SlicePriority.fromName(p['priority'] as String?),
         );
       case 'RecurringExpenseSet':
@@ -319,6 +321,7 @@ sealed class Event {
           active: p['active'] as bool? ?? true,
           customSpriteSha256: p['customSpriteSha256'] as String?,
           descriptionText: p['descriptionText'] as String?,
+          fundedByUserId: p['fundedByUserId'] as String?,
         );
       case 'GroupShareSet':
         return GroupShareSet(
@@ -560,6 +563,7 @@ class BudgetSliceSet extends Event {
     this.mainCategoryId,
     this.emergencyContribution,
     this.petId,
+    this.petOwnerIds = const [],
     this.priority = SlicePriority.important,
   });
 
@@ -576,6 +580,12 @@ class BudgetSliceSet extends Event {
   final bool taxDeductibleByDefault;
   final EmergencyContribution? emergencyContribution;
   final String? petId;
+
+  /// The pet members this category belongs to (their shared budget, e.g. two
+  /// cats sharing "Litter"). The cost is planned against each pet's funding
+  /// source ([MemberSet.fundedByUserId]) in equal parts. Empty for non-pet
+  /// categories; serialized only when non-empty for wire compatibility.
+  final List<String> petOwnerIds;
 
   /// How essential this category is (advisory; see [SlicePriority]).
   /// Serialized only when not the default, for wire compatibility.
@@ -597,6 +607,7 @@ class BudgetSliceSet extends Event {
         if (emergencyContribution != null)
           'emergencyContribution': emergencyContribution!.toJson(),
         if (petId != null) 'petId': petId,
+        if (petOwnerIds.isNotEmpty) 'petOwnerIds': petOwnerIds,
         if (priority != SlicePriority.important) 'priority': priority.name,
       };
 }
@@ -1102,6 +1113,7 @@ class MemberSet extends Event {
     this.active = true,
     this.customSpriteSha256,
     this.descriptionText,
+    this.fundedByUserId,
   });
 
   final String memberId;
@@ -1110,6 +1122,10 @@ class MemberSet extends Event {
   final bool active;
   final String? customSpriteSha256;
   final String? descriptionText;
+
+  /// For a pet: which adult funds this pet's budgets (null = the group,
+  /// split by shares — the common case). Ignored for non-pet members.
+  final String? fundedByUserId;
 
   @override
   String get type => 'MemberSet';
@@ -1122,6 +1138,7 @@ class MemberSet extends Event {
         'active': active,
         if (customSpriteSha256 != null) 'customSpriteSha256': customSpriteSha256,
         if (descriptionText != null) 'descriptionText': descriptionText,
+        if (fundedByUserId != null) 'fundedByUserId': fundedByUserId,
       };
 }
 

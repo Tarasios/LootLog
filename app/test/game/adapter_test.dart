@@ -422,6 +422,40 @@ void main() {
     });
   });
 
+  group('hero / partner party frames', () {
+    MemberSet member(String id, MemberRole role, {String? sprite}) =>
+        MemberSet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: me,
+          occurredAt: _day(2026, 1, 1),
+          createdAt: _day(2026, 1, 1),
+          memberId: id,
+          name: _names[id] ?? id,
+          role: role,
+          customSpriteSha256: sprite,
+        );
+
+    test('hero party frame uses the member custom sprite when set', () {
+      final events = [
+        member(me, MemberRole.adult, sprite: 'a' * 64),
+        member(partner, MemberRole.adult),
+      ];
+      final g = _game(events, asOf: _day(2026, 7, 5));
+      expect(g.heroSprite.isCustom, isTrue);
+      expect(g.heroSprite.customSpriteSha256, 'a' * 64);
+      expect(g.partnerSprite.isCustom, isFalse);
+    });
+
+    test('falls back to the default asset when no custom sprite is set', () {
+      final g = _game(_twoAdults(), asOf: _day(2026, 7, 5));
+      expect(g.heroSprite.isCustom, isFalse);
+      expect(g.heroSprite.assetName, Sprites.heroA);
+      expect(g.partnerSprite.isCustom, isFalse);
+      expect(g.partnerSprite.assetName, Sprites.heroB);
+    });
+  });
+
   group('party roster', () {
     MemberSet member(
       String id,

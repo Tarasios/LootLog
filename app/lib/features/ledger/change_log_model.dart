@@ -75,6 +75,9 @@ List<ChangeLogEntry> buildChangeLog(
       };
 
   final entries = <ChangeLogEntry>[];
+  // Tracks the last MemberSet seen per member while walking the (append-
+  // ordered) log, so later events read as updates rather than adds.
+  final lastMemberSet = <String, MemberSet>{};
 
   for (final e in events) {
     ChangeLogEntry entry(
@@ -197,9 +200,23 @@ List<ChangeLogEntry> buildChangeLog(
         ),
       MemberSet() => entry(
           ChangeLogKind.config,
-          e.active
-              ? 'Added ${e.name} (${e.role.name}) to the party'
-              : 'Retired ${e.name} from the party',
+          () {
+            final prev = lastMemberSet[e.memberId];
+            lastMemberSet[e.memberId] = e;
+            if (!e.active) {
+              return 'Retired ${e.name} from the party';
+            } else if (prev == null) {
+              return 'Added ${e.name} (${e.role.name}) to the party';
+            } else if (prev.customSpriteSha256 != e.customSpriteSha256 &&
+                prev.name == e.name &&
+                prev.role == e.role &&
+                prev.active == e.active &&
+                prev.descriptionText == e.descriptionText) {
+              return "Updated ${e.name}'s portrait";
+            } else {
+              return 'Updated ${e.name} (${e.role.name})';
+            }
+          }(),
         ),
       PetSet() => entry(
           ChangeLogKind.config,
