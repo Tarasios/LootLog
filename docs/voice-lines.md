@@ -116,3 +116,15 @@ legend. Add tiers freely (e.g. 365) — keep `minDays` ascending.
 3. Placeholders mid-sentence, never leading, so a missing value degrades
    cleanly.
 4. Keep each set at 8+ lines so repeats stay rare.
+
+## Month-end encounter lines (`encounter_lines.json`)
+
+Shown once per monster in the floor-cleared walkthrough before dividing the
+spoils. Placeholders: `{name}` `{spent}` `{leftover}` `{limit}` `{over}`.
+
+| Group | Trigger | Intended outcome |
+|-------|---------|------------------|
+| `flawless` | Category with a limit and zero spend | Celebrate that NOT spending is the strongest win |
+| `victory` | Spent under the limit | Frame leftover as effort saved, feeding the spoils |
+| `exact` | Spent exactly the limit | Neutral, satisfied close — no shame, no reward inflation |
+| `enraged` | Spent over the limit | Supportive, forward-looking; never blames |
