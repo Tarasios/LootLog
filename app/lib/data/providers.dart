@@ -79,17 +79,30 @@ final homesteadFlavorProvider = Provider<String>((ref) {
   return flavor;
 });
 
+/// The full Homestead config: the renameable flavour plus the stage ladder from
+/// the latest valid `homestead.stages` cosmetic setting (defaults when unset or
+/// malformed). Cosmetic settings sync as events like everything else; nothing
+/// here touches a cent.
+final homesteadConfigProvider = Provider<HomesteadConfig>((ref) {
+  final log = ref.watch(eventLogProvider).value ?? const [];
+  var stages = HomesteadConfig.defaults().stages;
+  for (final e in log) {
+    if (e is CosmeticSet && e.key == 'homestead.stages') {
+      stages = stagesFromCosmetic(e.value) ?? HomesteadConfig.defaults().stages;
+    }
+  }
+  return HomesteadConfig(
+    flavorName: ref.watch(homesteadFlavorProvider),
+    stages: stages,
+  );
+});
+
 /// The read-time Homestead meta-progression view: the war chest visualized as a
 /// homestead built up in stages. Pure visualization of the real pool balance.
 final homesteadViewProvider = Provider<HomesteadView?>((ref) {
   final state = ref.watch(householdStateProvider).value;
   if (state == null) return null;
-  final defaults = HomesteadConfig.defaults();
-  final config = HomesteadConfig(
-    flavorName: ref.watch(homesteadFlavorProvider),
-    stages: defaults.stages,
-  );
-  return buildHomestead(state, config: config);
+  return buildHomestead(state, config: ref.watch(homesteadConfigProvider));
 });
 
 /// The device-local first-run setup, or null until it has been completed.

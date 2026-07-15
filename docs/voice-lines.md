@@ -1,6 +1,6 @@
 # Voice lines — the writer's guide
 
-Every encouragement line the app speaks lives in four JSON files under
+Every encouragement line the app speaks lives in JSON files under
 `app/assets/game/text/`. They are data, not code: edit the JSON, run
 `./check.sh`, and the app picks the new lines up with no code change. This
 page lists every current line next to the outcome it is trying to produce, so
@@ -106,6 +106,30 @@ legend. Add tiers freely (e.g. 365) — keep `minDays` ascending.
 | 100 | {n} days. Triple digits. Legendary is the correct word. |
 | 100 | One hundred days of showing up. Few ever get here, and you did. |
 | 100 | {n}-day streak. Whatever you are guarding, it is well guarded. |
+
+## 5. `camp_ambience.json` — the campfire scene-setter
+
+**Trigger:** shown once a day (seeded by the date, so it doesn't flicker
+between rebuilds) at the top of the Adventure camp screen, under "The Camp".
+**Intended outcome:** the dashboard opens like a game, not a report — a
+single line of scene-setting that rewards coming back daily (a new line each
+day). Adventure-only, so game vocabulary (floors, war chest, HP, quest
+bosses) is welcome here — this file is the exception to the both-modes rule.
+Keep every line cozy and safe: the camp is the app's home screen, so no
+tension, no urgency, nothing that reads as a warning.
+
+| Current line |
+|---|
+| The fire crackles. Somewhere below, a monster counts its hoard. |
+| Sparks drift toward the stars. The ledger sleeps under a bedroll. |
+| The kettle whistles over the coals. The dungeon can wait a moment. |
+| A quiet night at camp. The war chest sits heavy and content. |
+| The party trades tales of monsters felled and coin well spent. |
+| An owl calls. The next floor's monsters shuffle in their sleep. |
+| The campfire pops. Fresh supplies are stacked and counted twice. |
+| Boots dry by the fire. Tomorrow's delve is planned over stew. |
+| The banner flutters. Every pouch is exactly where its owner left it. |
+| Embers rise. Far below, a quest boss grumbles about its dwindling HP. |
 
 ## Checklist for new lines
 

@@ -116,7 +116,8 @@ class BlobStore {
   ///  * every receipt `sha256` with a live `ReceiptAttached` (an attach not
   ///    cancelled by a later matching `ReceiptDetached`), and
   ///  * every custom-sprite `sha256` on the latest `QuestSet` / `PetSet`, and
-  ///  * any 64-hex `CosmeticSet` value (a cosmetic sprite reference).
+  ///  * any 64-hex string inside a `CosmeticSet` value — a bare value (avatar
+  ///    sprites) or nested in lists/maps (homestead stage art).
   static Set<String> referencedBlobs(Iterable<Event> events) {
     // Order attach/detach chronologically so a detach only cancels a prior
     // attach, mirroring the reducer's per-purchase receipt handling.
@@ -145,10 +146,7 @@ class BlobStore {
         case MemberSet():
           memberSprite[e.memberId] = e.customSpriteSha256;
         case CosmeticSet():
-          final v = e.value;
-          if (v is String && _isSha256(v)) {
-            cosmeticSprites.add(v);
-          }
+          _collectCosmeticShas(e.value, cosmeticSprites);
         default:
           break;
       }
@@ -189,4 +187,24 @@ class BlobStore {
   static final RegExp _sha256Re = RegExp(r'^[0-9a-f]{64}$');
 
   static bool _isSha256(String s) => _sha256Re.hasMatch(s);
+
+  /// Collects every 64-hex string in a cosmetic value, however nested — a bare
+  /// sprite sha, or per-stage `spriteSha256` entries inside the homestead
+  /// ladder's list of maps.
+  static void _collectCosmeticShas(Object? value, Set<String> out) {
+    switch (value) {
+      case String s when _isSha256(s):
+        out.add(s);
+      case List<dynamic> l:
+        for (final v in l) {
+          _collectCosmeticShas(v, out);
+        }
+      case Map<dynamic, dynamic> m:
+        for (final v in m.values) {
+          _collectCosmeticShas(v, out);
+        }
+      default:
+        break;
+    }
+  }
 }

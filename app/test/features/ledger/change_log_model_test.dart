@@ -147,4 +147,26 @@ void main() {
     expect(log, hasLength(2));
     expect(log.first.title, "Updated Riley's portrait");
   });
+
+  test('deactivating a member reads as a retirement', () {
+    final events = <Event>[
+      _member('m1', 'Riley', MemberRole.adult),
+      MemberSet(
+        eventId: _id(),
+        deviceId: 'd',
+        userId: 'a1',
+        occurredAt: _at(2026, 1, 2),
+        createdAt: _at(2026, 1, 2),
+        memberId: 'm1',
+        name: 'Riley',
+        role: MemberRole.adult,
+        active: false,
+      ),
+    ];
+    final state = reduce(events);
+    final log = buildChangeLog(state, events, userNames: names);
+
+    expect(log, hasLength(2));
+    expect(log.first.title, 'Retired Riley from the party');
+  });
 }

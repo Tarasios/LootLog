@@ -11,6 +11,7 @@ import '../../domain/event.dart';
 import '../../domain/state.dart';
 import '../../domain/value_types.dart';
 import '../../ui/format.dart';
+import '../shared/classify_member_set.dart';
 
 /// The visual family of a change-log entry, used only to pick an icon/tint.
 enum ChangeLogKind {
@@ -203,19 +204,13 @@ List<ChangeLogEntry> buildChangeLog(
           () {
             final prev = lastMemberSet[e.memberId];
             lastMemberSet[e.memberId] = e;
-            if (!e.active) {
-              return 'Retired ${e.name} from the party';
-            } else if (prev == null) {
-              return 'Added ${e.name} (${e.role.name}) to the party';
-            } else if (prev.customSpriteSha256 != e.customSpriteSha256 &&
-                prev.name == e.name &&
-                prev.role == e.role &&
-                prev.active == e.active &&
-                prev.descriptionText == e.descriptionText) {
-              return "Updated ${e.name}'s portrait";
-            } else {
-              return 'Updated ${e.name} (${e.role.name})';
-            }
+            return switch (classifyMemberSet(e, prev)) {
+              MemberSetChange.retired => 'Retired ${e.name} from the party',
+              MemberSetChange.added =>
+                'Added ${e.name} (${e.role.name}) to the party',
+              MemberSetChange.portraitOnly => "Updated ${e.name}'s portrait",
+              MemberSetChange.updated => 'Updated ${e.name} (${e.role.name})',
+            };
           }(),
         ),
       PetSet() => entry(

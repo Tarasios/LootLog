@@ -66,17 +66,22 @@ void main() {
     ),
   ];
 
-  testWidgets('renders the floor, roster, quests, treasury and log', (t) async {
+  testWidgets('renders the camp, roster, dungeon entrance, quests, treasury '
+      'and log', (t) async {
     await t.pumpWidget(_wrap(TextAdventureView(
       game: _withRoster(sampleGameState()),
       log: log,
     )));
 
-    // The two prime actions and the always-visible Classic toggle.
-    expect(find.text('Strike a monster'), findsOneWidget);
+    // The camp scene frames the screen: the party rests outside the dungeon.
+    expect(find.textContaining('THE CAMP'), findsOneWidget);
+    expect(find.textContaining('THE DUNGEON ENTRANCE'), findsOneWidget);
+
+    // The prime action and the always-visible Classic toggle.
+    expect(find.textContaining('Strike a monster'), findsOneWidget);
     expect(find.text('Classic'), findsOneWidget);
 
-    // Party roster with the user-written description.
+    // Party roster (around the campfire) with the user-written description.
     expect(find.text('A steady hand with a ledger.'), findsOneWidget);
 
     // A monster, a quest boss, and the treasury.
@@ -86,6 +91,32 @@ void main() {
 
     // The adventure log, in game voice.
     expect(find.text(r'GROCERIES MONSTER TAKES $42.00 DMG'), findsOneWidget);
+  });
+
+  testWidgets('the log-a-purchase bar is pinned outside the scroll view',
+      (t) async {
+    await t.pumpWidget(_wrap(TextAdventureView(
+      game: _withRoster(sampleGameState()),
+      log: log,
+    )));
+
+    // The strike affordance names its plain meaning too (log a purchase) and
+    // is NOT a descendant of the scrollable, so it can never scroll away.
+    final button = find.widgetWithText(FilledButton, 'Strike a monster — '
+        'log a purchase');
+    expect(button, findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(SingleChildScrollView),
+        matching: button,
+      ),
+      findsNothing,
+    );
+
+    // Scroll to the bottom of the scene: the bar is still there and tappable.
+    await t.drag(find.byType(SingleChildScrollView), const Offset(0, -4000));
+    await t.pumpAndSettle();
+    expect(button.hitTestable(), findsOneWidget);
   });
 
   testWidgets('Strike a monster and Classic fire their callbacks', (t) async {
@@ -100,7 +131,7 @@ void main() {
       ),
     )));
 
-    await t.tap(find.text('Strike a monster'));
+    await t.tap(find.textContaining('Strike a monster'));
     await t.tap(find.text('Classic'));
     expect(struck, 1);
     expect(classic, 1);

@@ -24,7 +24,7 @@ void main() {
   final game = sampleGameStateWithRoster();
   final log = sampleAdventureLog();
 
-  testWidgets('renders the floor, party frames, monsters, minimap and log',
+  testWidgets('renders the camp, party frames, monsters, minimap and log',
       (t) async {
     _bigSurface(t);
     await t.pumpWidget(_wrap(PixelAdventureView(
@@ -33,9 +33,23 @@ void main() {
       animate: false,
     )));
 
+    // The camp scene frames the screen; the floor reads as the entrance.
+    expect(find.textContaining('THE CAMP'), findsOneWidget);
+    expect(find.text('THE DUNGEON ENTRANCE'), findsOneWidget);
+
     // Prime action and the two-way toggles are present.
-    expect(find.text('Strike a monster'), findsOneWidget);
+    expect(
+        find.text('Strike a monster — log a purchase'), findsOneWidget);
     expect(find.text('Classic'), findsOneWidget);
+
+    // The strike bar is pinned outside any scrollable — it can't scroll away.
+    expect(
+      find.ancestor(
+        of: find.text('Strike a monster — log a purchase'),
+        matching: find.byType(Scrollable),
+      ),
+      findsNothing,
+    );
 
     // Every party frame (adventurer, companion, familiar) shows.
     expect(find.text('Robin'), findsWidgets);
@@ -69,7 +83,7 @@ void main() {
       ),
     )));
 
-    await t.tap(find.text('Strike a monster'));
+    await t.tap(find.text('Strike a monster — log a purchase'));
     await t.tap(find.byTooltip('Text mode'));
     await t.tap(find.text('Classic'));
     expect(struck, 1);

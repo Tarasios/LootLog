@@ -36,6 +36,10 @@ class _JoinPartyScreenState extends ConsumerState<JoinPartyScreen> {
   bool _paired = false;
   String? _error;
 
+  /// A friendly progress note (e.g. after a successful QR scan) — shown in
+  /// regular styling, unlike [_error].
+  String? _notice;
+
   @override
   void dispose() {
     _deviceName.dispose();
@@ -49,12 +53,16 @@ class _JoinPartyScreenState extends ConsumerState<JoinPartyScreen> {
     final url = _url.text.trim();
     final secret = _secret.text.trim();
     if (name.isEmpty || url.isEmpty || secret.isEmpty) {
-      setState(() => _error = 'Fill in your device name, the address, and secret.');
+      setState(() {
+        _error = 'Fill in your device name, the address, and secret.';
+        _notice = null;
+      });
       return;
     }
     setState(() {
       _busy = true;
       _error = null;
+      _notice = null;
     });
     final client = SyncClient(
       db: ref.read(appDatabaseProvider),
@@ -80,19 +88,23 @@ class _JoinPartyScreenState extends ConsumerState<JoinPartyScreen> {
     if (payload == null || !mounted) return;
     final parsed = parsePairingQr(payload);
     if (parsed == null) {
-      setState(() => _error = "That QR code isn't a LootLog pairing code.");
+      setState(() {
+        _error = "That QR code isn't a LootLog pairing code.";
+        _notice = null;
+      });
       return;
     }
     setState(() {
       _url.text = parsed.url;
       _secret.text = parsed.pairingSecret;
       _error = null;
+      _notice = null;
     });
     if (_deviceName.text.trim().isNotEmpty) {
       await _pair();
     } else {
-      setState(() =>
-          _error = 'Scanned! Now give this device a name and tap Pair & sync.');
+      setState(() => _notice =
+          'Scanned! Now give this device a name and tap Pair & sync.');
     }
   }
 
@@ -162,6 +174,11 @@ class _JoinPartyScreenState extends ConsumerState<JoinPartyScreen> {
           const SizedBox(height: AppSpacing.md),
           Text(_error!,
               style: TextStyle(color: Theme.of(context).colorScheme.error)),
+        ],
+        if (_notice != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          Text(_notice!,
+              style: TextStyle(color: Theme.of(context).colorScheme.primary)),
         ],
         const SizedBox(height: AppSpacing.lg),
         if (canScanPairingQr) ...[

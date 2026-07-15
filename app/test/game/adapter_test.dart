@@ -578,6 +578,71 @@ void main() {
       expect(quest.line, contains('Canoe'));
     });
 
+    test('narrates each divided-spoils destination in game voice', () {
+      final events = [
+        _slice(
+            id: 'Games',
+            ownership: const PersonalSlice(me),
+            limit: 10000,
+            at: _day(2026, 6, 1)),
+        _slice(
+            id: 'Food',
+            ownership: const PersonalSlice(me),
+            limit: 10000,
+            at: _day(2026, 6, 1)),
+        QuestSet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: me,
+          occurredAt: _day(2026, 6, 2),
+          createdAt: _day(2026, 6, 2),
+          questId: 'canoe',
+          name: 'Canoe',
+          targetCents: 130000,
+          ownership: const SharedParty(),
+        ),
+        _allocate(
+          user: me,
+          sliceId: 'Games',
+          month: const Month(2026, 6),
+          allocations: const [
+            Allocation(
+                destination: QuestDestination('canoe'), amountCents: 3000),
+            Allocation(destination: CarryInSlice(), amountCents: 1000),
+            Allocation(destination: Discretionary(), amountCents: 500),
+            Allocation(
+                destination: OverbudgetPayment('Food'), amountCents: 250),
+          ],
+          at: _day(2026, 7, 2),
+        ),
+      ];
+      final entries = log(events, asOf: _day(2026, 7, 5));
+      final lines = entries.map((e) => e.line).toList();
+
+      // One game-voice line per non-zero allocation, not one flat summary.
+      expect(
+          lines,
+          contains(
+              r'Robin hurls $30.00 of GAMES loot at the CANOE quest boss'));
+      expect(lines,
+          contains(r'Robin banks $10.00 in GAMES for the next floor'));
+      expect(lines, contains(r'Robin pockets $5.00 of GAMES loot'));
+      expect(
+          lines,
+          contains(
+              r'Robin strikes the FOOD OVERBUDGET with $2.50 of GAMES loot'));
+
+      // Tones: quest attacks read as quest beats, debt strikes as strikes.
+      expect(
+        entries.firstWhere((e) => e.line.contains('hurls')).tone,
+        LogTone.quest,
+      );
+      expect(
+        entries.firstWhere((e) => e.line.contains('OVERBUDGET')).tone,
+        LogTone.strike,
+      );
+    });
+
     test('folds a war-chest ransack into the log', () {
       final events = [
         _slice(id: 'grp', ownership: const GroupSlice(), limit: 40000),

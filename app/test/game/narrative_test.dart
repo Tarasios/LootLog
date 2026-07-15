@@ -13,6 +13,7 @@ Narrative _loadFromDisk() {
     streakCelebrationsJson: read(NarrativeAssets.streakCelebrations),
     ritualCelebrationsJson: read(NarrativeAssets.ritualCelebrations),
     overspendSupportJson: read(NarrativeAssets.overspendSupport),
+    campAmbienceJson: read(NarrativeAssets.campAmbience),
   );
 }
 
@@ -26,10 +27,12 @@ void main() {
       expect(n.ritualCelebrations, isNotEmpty);
       expect(n.overspendSupport, isNotEmpty);
       expect(n.streakTiers, isNotEmpty);
+      expect(n.campAmbience, isNotEmpty);
       final all = [
         ...n.purchaseLogged,
         ...n.ritualCelebrations,
         ...n.overspendSupport,
+        ...n.campAmbience,
         for (final t in n.streakTiers) ...t.lines,
       ];
       for (final line in all) {
@@ -80,6 +83,13 @@ void main() {
       final withNothing = n.purchaseAck(rng: Random(2));
       expect(withNothing, isNot(contains('{')));
       expect(withNothing.trim(), isNotEmpty);
+    });
+
+    test('campLine draws from the ambience set, stable for one seed', () {
+      final line = n.campLine(rng: Random(5));
+      expect(n.campAmbience, contains(line));
+      expect(n.campLine(rng: Random(5)), line,
+          reason: 'a fixed seed picks a fixed line (no flicker per rebuild)');
     });
 
     test('streakLine picks the highest applicable tier and fills {n}', () {

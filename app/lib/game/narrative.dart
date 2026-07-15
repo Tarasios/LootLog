@@ -20,13 +20,14 @@ class StreakTier {
   final List<String> lines;
 }
 
-/// The parsed contents of the four narrative files.
+/// The parsed contents of the five narrative files.
 class Narrative {
   const Narrative({
     required this.purchaseLogged,
     required this.streakTiers,
     required this.ritualCelebrations,
     required this.overspendSupport,
+    this.campAmbience = const [],
   });
 
   /// Acknowledgments after a purchase is logged. May contain `{amount}` /
@@ -43,6 +44,10 @@ class Narrative {
   /// Supportive, never-shaming lines for an over-limit budget.
   final List<String> overspendSupport;
 
+  /// Scene-setting ambience for the Adventure camp header. Pure flavor, shown
+  /// only in Adventure mode (game vocabulary allowed).
+  final List<String> campAmbience;
+
   /// A random purchase acknowledgment with placeholders filled in. [rng] is
   /// injectable for deterministic tests.
   String purchaseAck({String? amount, String? merchant, Random? rng}) {
@@ -55,6 +60,10 @@ class Narrative {
 
   /// A random ritual-completion celebration.
   String ritualLine({Random? rng}) => _pick(ritualCelebrations, rng);
+
+  /// A camp ambience line. Seed [rng] (e.g. by day) for a stable pick, so the
+  /// camp doesn't flicker to a new line on every rebuild.
+  String campLine({Random? rng}) => _pick(campAmbience, rng);
 
   /// The celebration for a [streakDays]-day streak: the highest tier the streak
   /// reaches, a line at random, `{n}` filled in. Null when no tier applies yet.
@@ -94,6 +103,7 @@ abstract final class NarrativeAssets {
   static const streakCelebrations = '$dir/streak_celebrations.json';
   static const ritualCelebrations = '$dir/ritual_celebrations.json';
   static const overspendSupport = '$dir/overspend_support.json';
+  static const campAmbience = '$dir/camp_ambience.json';
 }
 
 /// Parses the four raw JSON documents into a [Narrative]. Pure — no I/O — so it
@@ -103,6 +113,7 @@ Narrative parseNarrative({
   required String streakCelebrationsJson,
   required String ritualCelebrationsJson,
   required String overspendSupportJson,
+  required String campAmbienceJson,
 }) {
   final streaks = <StreakTier>[
     for (final raw in _list(
@@ -119,6 +130,7 @@ Narrative parseNarrative({
     streakTiers: streaks,
     ritualCelebrations: _linesOf(ritualCelebrationsJson),
     overspendSupport: _linesOf(overspendSupportJson),
+    campAmbience: _linesOf(campAmbienceJson),
   );
 }
 
@@ -139,11 +151,13 @@ Future<Narrative> loadNarrative([AssetBundle? bundle]) async {
     b.loadString(NarrativeAssets.streakCelebrations),
     b.loadString(NarrativeAssets.ritualCelebrations),
     b.loadString(NarrativeAssets.overspendSupport),
+    b.loadString(NarrativeAssets.campAmbience),
   ]);
   return parseNarrative(
     purchaseLoggedJson: results[0],
     streakCelebrationsJson: results[1],
     ritualCelebrationsJson: results[2],
     overspendSupportJson: results[3],
+    campAmbienceJson: results[4],
   );
 }

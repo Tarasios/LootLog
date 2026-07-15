@@ -22,6 +22,7 @@ class HomesteadStage {
     required this.name,
     required this.thresholdCents,
     required this.spriteSlot,
+    this.customSpriteSha256,
   });
 
   final int index;
@@ -29,17 +30,66 @@ class HomesteadStage {
   final int thresholdCents;
   final String spriteSlot;
 
+  /// A user-uploaded stage sprite blob (same content-addressed pipeline as
+  /// member sprites), or null to use the positional [spriteSlot] asset.
+  final String? customSpriteSha256;
+
   @override
   bool operator ==(Object other) =>
       other is HomesteadStage &&
       other.index == index &&
       other.name == name &&
       other.thresholdCents == thresholdCents &&
-      other.spriteSlot == spriteSlot;
+      other.spriteSlot == spriteSlot &&
+      other.customSpriteSha256 == customSpriteSha256;
 
   @override
-  int get hashCode => Object.hash(index, name, thresholdCents, spriteSlot);
+  int get hashCode =>
+      Object.hash(index, name, thresholdCents, spriteSlot, customSpriteSha256);
 }
+
+/// Parses the `homestead.stages` cosmetic value (a JSON list of
+/// `{name, thresholdCents, spriteSha256?}` maps) into a stage ladder, or null
+/// when the value is malformed — the caller then falls back to
+/// [HomesteadConfig.defaults]. Indexes and [HomesteadStage.spriteSlot] names
+/// are positional, so shipped stage art keeps lining up under a renamed
+/// ladder. Cosmetic only: thresholds shape the visualization, never the money.
+List<HomesteadStage>? stagesFromCosmetic(Object? value) {
+  if (value is! List || value.isEmpty) return null;
+  final out = <HomesteadStage>[];
+  for (final raw in value) {
+    if (raw is! Map) return null;
+    final name = raw['name'];
+    final threshold = raw['thresholdCents'];
+    final sha = raw['spriteSha256'];
+    if (name is! String || name.trim().isEmpty) return null;
+    if (threshold is! int || threshold < 0) return null;
+    if (sha is! String?) return null;
+    final i = out.length;
+    if (i == 0 ? threshold != 0 : threshold <= out.last.thresholdCents) {
+      return null;
+    }
+    out.add(HomesteadStage(
+      index: i,
+      name: name.trim(),
+      thresholdCents: threshold,
+      spriteSlot: 'homestead_stage_$i.png',
+      customSpriteSha256: sha,
+    ));
+  }
+  return out;
+}
+
+/// Serialises a stage ladder back into the `homestead.stages` cosmetic value.
+List<Map<String, Object?>> stagesToCosmetic(List<HomesteadStage> stages) => [
+      for (final s in stages)
+        {
+          'name': s.name,
+          'thresholdCents': s.thresholdCents,
+          if (s.customSpriteSha256 != null)
+            'spriteSha256': s.customSpriteSha256,
+        },
+    ];
 
 /// The configurable homestead ladder plus its renameable flavour label. Stages
 /// must be sorted ascending by threshold with the first stage at 0.

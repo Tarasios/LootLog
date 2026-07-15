@@ -282,17 +282,38 @@ class MembersScreen extends ConsumerWidget {
 
 /// A small pixelated preview of an uploaded custom sprite, shown next to the
 /// sprite tile in the member editor. Renders nothing (never an error) if the
-/// blob is missing.
-class _SpritePreview extends ConsumerWidget {
+/// blob is missing. The load future is memoized per sha so sheet rebuilds
+/// (every setSheet call) don't refetch and flash the image.
+class _SpritePreview extends ConsumerStatefulWidget {
   const _SpritePreview({required this.sha256});
 
   final String sha256;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final store = ref.watch(blobStoreProvider);
+  ConsumerState<_SpritePreview> createState() => _SpritePreviewState();
+}
+
+class _SpritePreviewState extends ConsumerState<_SpritePreview> {
+  late Future<Uint8List?> _bytes;
+
+  @override
+  void initState() {
+    super.initState();
+    _bytes = _loadBytes(ref.read(blobStoreProvider), widget.sha256);
+  }
+
+  @override
+  void didUpdateWidget(covariant _SpritePreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.sha256 != widget.sha256) {
+      _bytes = _loadBytes(ref.read(blobStoreProvider), widget.sha256);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return FutureBuilder<Uint8List?>(
-      future: _loadBytes(store, sha256),
+      future: _bytes,
       builder: (context, snapshot) {
         final bytes = snapshot.data;
         if (bytes == null) return const SizedBox.shrink();

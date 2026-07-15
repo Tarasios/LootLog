@@ -10,9 +10,12 @@ import 'package:lootlog/features/setup/setup_screen.dart';
 void main() {
   testWidgets('a failing finish shows an error instead of doing nothing',
       (tester) async {
-    // A closed database makes every DB call throw — the same shape of failure
-    // Android users hit when sqlite could not load. Drift treats a close
-    // before first use as a no-op, so touch the database before closing it.
+    // Jumping straight to the summary leaves the wizard without a party, so
+    // finishing throws in buildInput() — before any database write. Whatever
+    // the throw site, the screen must surface a visible error rather than
+    // silently doing nothing. (The database is closed too, so the finish
+    // could not succeed even if buildInput passed; drift treats a close
+    // before first use as a no-op, so touch it before closing.)
     final db = AppDatabase(NativeDatabase.memory());
     await db.customSelect('SELECT 1').get();
     await db.close();
@@ -71,8 +74,13 @@ void main() {
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
 
-    // Advance through the remaining steps to the summary.
+    // Advance through the remaining steps to the summary. Bounded so a future
+    // step that disables Next fails the test instead of hanging it.
+    const maxSteps = 12;
+    var steps = 0;
     while (find.text('Next').evaluate().isNotEmpty) {
+      expect(++steps <= maxSteps, isTrue,
+          reason: 'wizard did not reach the summary within $maxSteps steps');
       await tester.tap(find.text('Next'));
       await tester.pumpAndSettle();
     }

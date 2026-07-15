@@ -67,6 +67,10 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
+  # Already in the dependency graph via path_provider; declared directly so
+  # tests can substitute a temp-directory PathProviderPlatform and exercise
+  # the real pref-file loaders (update-safety tests). Test-only.
+  path_provider_platform_interface: ^2.1.0
   riverpod_generator: ^4.0.4
 
 # Native-asset build hooks (drift pulls in package:sqlite3, which builds a code

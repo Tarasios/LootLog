@@ -114,4 +114,83 @@ void main() {
       expect(view.progressToNext, inInclusiveRange(0.0, 1.0));
     });
   });
+
+  group('stagesFromCosmetic', () {
+    test('parses a valid custom ladder, sprite blobs included', () {
+      final stages = stagesFromCosmetic([
+        {'name': 'Empty lot', 'thresholdCents': 0},
+        {'name': 'Foundations', 'thresholdCents': 10000},
+        {
+          'name': 'Town square',
+          'thresholdCents': 90000,
+          'spriteSha256': 'abc123',
+        },
+      ]);
+      expect(stages, isNotNull);
+      expect(stages!.map((s) => s.name),
+          ['Empty lot', 'Foundations', 'Town square']);
+      expect(stages.map((s) => s.thresholdCents), [0, 10000, 90000]);
+      expect(stages.map((s) => s.index), [0, 1, 2]);
+      expect(stages[2].customSpriteSha256, 'abc123');
+      expect(stages[0].customSpriteSha256, isNull);
+      // Sprite slots stay positional so shipped stage art keeps working.
+      expect(stages[1].spriteSlot, 'homestead_stage_1.png');
+    });
+
+    test('rejects malformed ladders (fallback to defaults)', () {
+      // Not a list / empty.
+      expect(stagesFromCosmetic(null), isNull);
+      expect(stagesFromCosmetic('nope'), isNull);
+      expect(stagesFromCosmetic(const []), isNull);
+      // First stage must start at zero.
+      expect(
+          stagesFromCosmetic([
+            {'name': 'A', 'thresholdCents': 100},
+          ]),
+          isNull);
+      // Thresholds strictly ascending.
+      expect(
+          stagesFromCosmetic([
+            {'name': 'A', 'thresholdCents': 0},
+            {'name': 'B', 'thresholdCents': 5000},
+            {'name': 'C', 'thresholdCents': 5000},
+          ]),
+          isNull);
+      // Names must be non-blank.
+      expect(
+          stagesFromCosmetic([
+            {'name': '  ', 'thresholdCents': 0},
+          ]),
+          isNull);
+      // Threshold must be a non-negative int.
+      expect(
+          stagesFromCosmetic([
+            {'name': 'A', 'thresholdCents': 0},
+            {'name': 'B', 'thresholdCents': 'lots'},
+          ]),
+          isNull);
+    });
+
+    test('round-trips through stagesToCosmetic', () {
+      final original = stagesFromCosmetic([
+        {'name': 'Empty lot', 'thresholdCents': 0},
+        {'name': 'Keep', 'thresholdCents': 70000, 'spriteSha256': 'deadbeef'},
+      ])!;
+      final again = stagesFromCosmetic(stagesToCosmetic(original));
+      expect(again, original);
+    });
+
+    test('a custom ladder drives buildHomestead like any other config', () {
+      final stages = stagesFromCosmetic([
+        {'name': 'Empty lot', 'thresholdCents': 0},
+        {'name': 'Foundations', 'thresholdCents': 10000},
+      ])!;
+      final view = buildHomestead(
+        stateWithChest(10000),
+        config: HomesteadConfig(flavorName: 'The Ward', stages: stages),
+      );
+      expect(view.currentStage.name, 'Foundations');
+      expect(view.atTopStage, isTrue);
+    });
+  });
 }

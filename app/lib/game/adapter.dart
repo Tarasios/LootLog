@@ -31,6 +31,7 @@ abstract final class Sprites {
   static const reserveCache = 'reserve_cache_1f.png';
   static const coin = 'coin_spin_6f.png';
   static const trophy = 'trophy_1f.png';
+  static const campfire = 'campfire_idle_4f.png';
 }
 
 /// Builds the adventure [GameState] for [meUserId] as of [asOf] (now by
@@ -512,11 +513,54 @@ List<LogEntry> buildAdventureLog(
           LogTone.quest,
         );
       case LeftoverAllocated():
-        entry = make(
-          '${who(e.forUserId)} divides the spoils of ${sliceName(e.sliceId)}',
-          LogTone.ritual,
-          isMine: e.forUserId == meUserId,
-        );
+        // One game-voice beat per destination the spoils went to — the log
+        // narrates the ritual's outcome, it never re-computes it. Amounts are
+        // the event's own gross figures (tithes are the spoils sheet's story).
+        final src = sliceName(e.sliceId).toUpperCase();
+        final mineAlloc = e.forUserId == meUserId;
+        var i = 0;
+        for (final a in e.allocations) {
+          i++;
+          if (a.amountCents <= 0) continue;
+          final (line, tone) = switch (a.destination) {
+            QuestDestination(:final questId) => (
+                '${who(e.forUserId)} hurls ${money(a.amountCents)} of $src '
+                    'loot at the ${questName(questId).toUpperCase()} '
+                    'quest boss',
+                LogTone.quest,
+              ),
+            CarryInSlice() => (
+                '${who(e.forUserId)} banks ${money(a.amountCents)} in $src '
+                    'for the next floor',
+                LogTone.ritual,
+              ),
+            Discretionary() => (
+                '${who(e.forUserId)} pockets ${money(a.amountCents)} of '
+                    '$src loot',
+                LogTone.ritual,
+              ),
+            OverbudgetPayment(:final sliceId) => (
+                '${who(e.forUserId)} strikes the '
+                    '${sliceName(sliceId).toUpperCase()} OVERBUDGET with '
+                    '${money(a.amountCents)} of $src loot',
+                LogTone.strike,
+              ),
+          };
+          entries.add(LogEntry(
+            id: '${e.eventId}#$i',
+            line: line,
+            tone: tone,
+            occurredAt: e.occurredAt,
+            isMine: mineAlloc,
+          ));
+        }
+        if (e.allocations.every((a) => a.amountCents <= 0)) {
+          entry = make(
+            '${who(e.forUserId)} divides the spoils of ${sliceName(e.sliceId)}',
+            LogTone.ritual,
+            isMine: mineAlloc,
+          );
+        }
       case PoolContributionMade():
         entry = make(
           '${who(e.fromUserId)} feeds the war chest ${money(e.amountCents)}',

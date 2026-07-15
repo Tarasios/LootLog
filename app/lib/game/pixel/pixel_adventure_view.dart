@@ -63,6 +63,7 @@ class PixelAdventureView extends StatelessWidget {
     required this.log,
     this.resolver = const PlaceholderSpriteResolver(),
     this.encouragement,
+    this.campAmbience,
     this.spoilsPending = false,
     this.animate = true,
     this.callbacks = const PixelAdventureCallbacks(),
@@ -78,6 +79,10 @@ class PixelAdventureView extends StatelessWidget {
   /// A supportive line drawn from `assets/game/text/`, shown atop the log.
   final String? encouragement;
 
+  /// A scene-setting ambience line drawn from `assets/game/text/`, spoken at
+  /// the campfire. Null hides the line.
+  final String? campAmbience;
+
   /// Whether a month-close battle is waiting to be fought.
   final bool spoilsPending;
 
@@ -85,10 +90,45 @@ class PixelAdventureView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
-      final wide = constraints.maxWidth >= _wideBreakpoint;
-      return wide ? _wide(context) : _narrow(context);
-    });
+    return Column(
+      children: [
+        Expanded(
+          child: LayoutBuilder(builder: (context, constraints) {
+            final wide = constraints.maxWidth >= _wideBreakpoint;
+            return wide ? _wide(context) : _narrow(context);
+          }),
+        ),
+        _strikeBar(context),
+      ],
+    );
+  }
+
+  /// The pinned prime action — quick entry, never scrolled away.
+  Widget _strikeBar(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surfaceContainerHigh,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: callbacks.onStrikeMonster,
+                  icon: const Icon(Icons.bolt),
+                  label: const Text('Strike a monster — log a purchase'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // ---- Layouts ------------------------------------------------------------
@@ -99,7 +139,7 @@ class PixelAdventureView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _floorBanner(context),
+          _campBanner(context),
           const SizedBox(height: AppSpacing.md),
           Expanded(
             child: Row(
@@ -151,7 +191,7 @@ class PixelAdventureView extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
-        _floorBanner(context),
+        _campBanner(context),
         const SizedBox(height: AppSpacing.md),
         if (spoilsPending) ...[
           _spoilsCta(context),
@@ -178,11 +218,12 @@ class PixelAdventureView extends StatelessWidget {
     );
   }
 
-  // ---- Floor banner: floor number, supplies, hero HP, prime actions -------
+  // ---- Camp banner: the party around the fire outside the floor -----------
 
-  Widget _floorBanner(BuildContext context) {
+  Widget _campBanner(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return _PixelPanel(
+      title: 'The Camp — outside floor ${game.floorNumber}',
       accent: game.heroWounded ? scheme.error : scheme.primary,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -190,24 +231,11 @@ class PixelAdventureView extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Dungeon floor ${game.floorNumber}',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleLarge
-                          ?.copyWith(fontWeight: FontWeight.w800),
-                    ),
-                    Text(
-                      monthLabel(
-                          game.currentMonth.year, game.currentMonth.month),
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
-                    ),
-                  ],
+                child: Text(
+                  monthLabel(game.currentMonth.year, game.currentMonth.month),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
                 ),
               ),
               if (game.expeditionSuppliesCents > 0)
@@ -217,8 +245,38 @@ class PixelAdventureView extends StatelessWidget {
                   color: scheme.tertiaryContainer,
                   onColor: scheme.onTertiaryContainer,
                 ),
+              IconButton(
+                onPressed: callbacks.onSwitchToText,
+                tooltip: 'Text mode',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.text_fields, size: 18),
+              ),
+              TextButton.icon(
+                onPressed: callbacks.onSwitchToClassic,
+                icon: const Icon(Icons.list_alt, size: 16),
+                label: const Text('Classic'),
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
             ],
           ),
+          const SizedBox(height: AppSpacing.sm),
+          _campfireScene(context),
+          if (campAmbience?.isNotEmpty == true)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              child: Center(
+                child: Text(
+                  campAmbience!,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        fontStyle: FontStyle.italic,
+                      ),
+                ),
+              ),
+            ),
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
@@ -243,32 +301,43 @@ class PixelAdventureView extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: callbacks.onStrikeMonster,
-                  icon: const Icon(Icons.bolt),
-                  label: const Text('Strike a monster'),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              IconButton(
-                onPressed: callbacks.onSwitchToText,
-                tooltip: 'Text mode',
-                icon: const Icon(Icons.text_fields),
-              ),
-              TextButton.icon(
-                onPressed: callbacks.onSwitchToClassic,
-                icon: const Icon(Icons.list_alt, size: 16),
-                label: const Text('Classic'),
-                style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                ),
-              ),
-            ],
+        ],
+      ),
+    );
+  }
+
+  /// The party gathered around the campfire: sprite slots that render as
+  /// labelled placeholders until art lands, arranged either side of the fire.
+  Widget _campfireScene(BuildContext context) {
+    final fire = GameSprite(
+      sprite: const SpriteRef.asset(Sprites.campfire, label: 'Campfire'),
+      resolver: resolver,
+      scale: 2,
+      animate: animate,
+    );
+    if (game.roster.isEmpty) return Center(child: fire);
+    final left = game.roster.take((game.roster.length + 1) ~/ 2).toList();
+    final right = game.roster.skip(left.length).toList();
+    Widget slot(Adventurer a) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+          child: GameSprite(
+            sprite: a.sprite,
+            resolver: resolver,
+            scale: 2,
+            animate: animate,
           ),
+        );
+    return Center(
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.end,
+        alignment: WrapAlignment.center,
+        children: [
+          for (final a in left) slot(a),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            child: fire,
+          ),
+          for (final a in right) slot(a),
         ],
       ),
     );
@@ -377,7 +446,7 @@ class PixelAdventureView extends StatelessWidget {
     final maxBudget = monsters.fold<int>(
         0, (m, x) => x.maxHpCents > m ? x.maxHpCents : m);
     return _PixelPanel(
-      title: 'The Floor',
+      title: 'The Dungeon Entrance',
       accent: scheme.secondary,
       child: Container(
         width: double.infinity,

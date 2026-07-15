@@ -9,6 +9,7 @@ import '../../domain/event.dart';
 import '../../domain/state.dart';
 import '../../domain/value_types.dart';
 import '../../ui/format.dart';
+import '../shared/classify_member_set.dart';
 
 /// The visual family of an activity line, used only to pick an icon/tint.
 enum ActivityKind {
@@ -262,20 +263,15 @@ List<ActivityItem> buildActivityFeed(
       case MemberSet():
         final prev = lastMemberSet[e.memberId];
         lastMemberSet[e.memberId] = e;
-        final String title;
-        if (!e.active) {
-          title = '${who(e.userId)} retired ${e.name} from the party';
-        } else if (prev == null) {
-          title = '${who(e.userId)} added ${e.name} to the party';
-        } else if (prev.customSpriteSha256 != e.customSpriteSha256 &&
-            prev.name == e.name &&
-            prev.role == e.role &&
-            prev.active == e.active &&
-            prev.descriptionText == e.descriptionText) {
-          title = "${who(e.userId)} updated ${e.name}'s portrait";
-        } else {
-          title = '${who(e.userId)} updated ${e.name}';
-        }
+        final title = switch (classifyMemberSet(e, prev)) {
+          MemberSetChange.retired =>
+            '${who(e.userId)} retired ${e.name} from the party',
+          MemberSetChange.added =>
+            '${who(e.userId)} added ${e.name} to the party',
+          MemberSetChange.portraitOnly =>
+            "${who(e.userId)} updated ${e.name}'s portrait",
+          MemberSetChange.updated => '${who(e.userId)} updated ${e.name}',
+        };
         item = ActivityItem(
           eventId: e.eventId,
           kind: ActivityKind.config,
