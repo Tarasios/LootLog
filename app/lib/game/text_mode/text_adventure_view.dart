@@ -52,6 +52,7 @@ class TextAdventureView extends StatelessWidget {
     required this.game,
     required this.log,
     this.encouragement,
+    this.campAmbience,
     this.spoilsPending = false,
     this.callbacks = const TextAdventureCallbacks(),
   });
@@ -61,6 +62,10 @@ class TextAdventureView extends StatelessWidget {
 
   /// A supportive line drawn from `assets/game/text/`, shown atop the log.
   final String? encouragement;
+
+  /// A scene-setting ambience line drawn from `assets/game/text/`, spoken at
+  /// the campfire. Falls back to a built-in line when the assets are unloaded.
+  final String? campAmbience;
 
   /// Whether a month-close battle is waiting to be fought.
   final bool spoilsPending;
@@ -135,10 +140,13 @@ class TextAdventureView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'The fire crackles. '
-            '${monthLabel(game.currentMonth.year, game.currentMonth.month)}\'s '
-            'floor awaits.',
-            style: monoStyle(context, color: scheme.onSurfaceVariant),
+            campAmbience?.isNotEmpty == true
+                ? campAmbience!
+                : 'The fire crackles. '
+                    '${monthLabel(game.currentMonth.year, game.currentMonth.month)}\'s '
+                    'floor awaits.',
+            style: monoStyle(context, color: scheme.onSurfaceVariant)
+                .copyWith(fontStyle: FontStyle.italic),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(

@@ -31,10 +31,21 @@ class EncounterData {
     required this.maxHpCents,
     required this.spentCents,
     required this.isGroup,
+    this.championName,
+    this.championDescription,
   });
 
   final String sliceId;
   final String name;
+
+  /// Whose charge this monster was: the owning member for a personal category,
+  /// the linked pet for a pet-owned one, null for a plain group category (the
+  /// whole party's). Display flavor only.
+  final String? championName;
+
+  /// The champion's user-written `descriptionText`, when they have one — the
+  /// heart of the text-mode presentation, echoed into the walkthrough.
+  final String? championDescription;
 
   /// The monster's max HP: the category's effective limit that month.
   final int maxHpCents;
@@ -64,12 +75,35 @@ List<EncounterData> buildEncounters(
     final sm = state.sliceMonth(cfg.sliceId, month);
     final maxHp = sm?.effectiveLimitCents ?? cfg.baseEffectiveLimitCents;
     if (maxHp <= 0 && (sm?.spentCents ?? 0) <= 0) continue;
+
+    // The champion: the linked pet for a pet-owned category, the owner for a
+    // personal one, nobody for a plain group category.
+    final petIds = cfg.petOwnerIds.isNotEmpty
+        ? cfg.petOwnerIds
+        : [if (cfg.petId != null) cfg.petId!];
+    final pets = [
+      for (final id in petIds)
+        if (state.members[id] != null) state.members[id]!,
+    ];
+    final champion = pets.isNotEmpty
+        ? pets.first
+        : (cfg.isGroup ? null : state.members[cfg.ownerUserId]);
+
     out.add(EncounterData(
       sliceId: cfg.sliceId,
       name: cfg.name,
       maxHpCents: maxHp,
       spentCents: sm?.spentCents ?? 0,
       isGroup: cfg.isGroup,
+      championName: pets.isNotEmpty
+          ? pets.map((p) => p.name).join(' & ')
+          : champion?.name,
+      championDescription: pets.isNotEmpty
+          ? pets
+              .map((p) => p.descriptionText)
+              .where((d) => d?.isNotEmpty == true)
+              .firstOrNull
+          : champion?.descriptionText,
     ));
   }
   out.sort((a, b) {
@@ -277,6 +311,21 @@ class _EncounterPage extends StatelessWidget {
                     ?.copyWith(fontWeight: FontWeight.w800),
                 textAlign: TextAlign.center,
               ),
+              if (e.championName != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xs),
+                  child: Text(
+                    e.championDescription?.isNotEmpty == true
+                        ? '${e.championName}\'s charge — '
+                            '${e.championDescription}'
+                        : '${e.championName}\'s charge',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          fontStyle: FontStyle.italic,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               const SizedBox(height: AppSpacing.md),
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
