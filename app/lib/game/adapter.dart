@@ -31,6 +31,7 @@ abstract final class Sprites {
   static const reserveCache = 'reserve_cache_1f.png';
   static const coin = 'coin_spin_6f.png';
   static const trophy = 'trophy_1f.png';
+  static const campfire = 'campfire_idle_4f.png';
 }
 
 /// Builds the adventure [GameState] for [meUserId] as of [asOf] (now by

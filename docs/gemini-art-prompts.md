@@ -76,6 +76,9 @@ step 4 trivial.)
   crate mimic.)
 - **Enraged variants** — reuse the matching monster prompt + "enraged variant:
   drenched in red #D04648, furious eyes, steam bursts, aggressive pose."
+- **campfire_idle_4f.png** — "…a small crackling campfire of stacked logs with
+  orange #D27D2C and yellow #DAD45E flames, a few embers rising," + the 4-frame
+  flicker suffixes (flame leaning neutral / left / neutral / right).
 - **gold_pouch_1f.png** — "…a plump drawstring leather coin pouch overflowing
   with gold coins."
 - **war_chest_1f.png** — "…a heavy iron-banded treasure war chest, closed, with

@@ -1,7 +1,9 @@
-/// The text-adventure dashboard (tier 3): the whole app rendered as styled text
-/// panels — party roster, the current floor's monsters, quest bosses, the
-/// treasury (gold pouch / war chest / reserve caches), the equipment-maintenance
-/// report, and a scrolling adventure log in game voice.
+/// The text-adventure dashboard (tier 3): a camp outside the dungeon, rendered
+/// entirely as styled text panels — the party gathered around the campfire, the
+/// current floor's monsters waiting at the dungeon entrance, the treasury
+/// (gold pouch / war chest / reserve caches), the equipment-maintenance report,
+/// and a scrolling adventure log in game voice. A pinned "strike a monster —
+/// log a purchase" bar keeps quick entry one tap away, never scrolled off.
 ///
 /// A pure [StatelessWidget]: it renders the [GameState] + [LogEntry] list the
 /// adapter produced and calls back for the few actions. It reads only the game
@@ -67,43 +69,47 @@ class TextAdventureView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
-      return SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _header(context),
-                if (spoilsPending) _spoilsCallout(context),
-                for (final r in game.warChest.ransacks) _ransack(context, r),
-                if (game.overbudgets.isNotEmpty) _overbudgets(context),
-                _roster(context),
-                _floor(context),
-                if (game.questMonsters.isNotEmpty) _questBosses(context),
-                _treasury(context),
-                if (game.warChest.writsForMe.isNotEmpty ||
-                    game.warChest.writsForOther.isNotEmpty)
-                  _writs(context),
-                if (game.provisioning.isNotEmpty) _provisioning(context),
-                _logPanel(context),
-              ],
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _campHeader(context),
+                    if (spoilsPending) _spoilsCallout(context),
+                    for (final r in game.warChest.ransacks)
+                      _ransack(context, r),
+                    if (game.overbudgets.isNotEmpty) _overbudgets(context),
+                    _dungeonEntrance(context),
+                    if (game.questMonsters.isNotEmpty) _questBosses(context),
+                    _treasury(context),
+                    if (game.warChest.writsForMe.isNotEmpty ||
+                        game.warChest.writsForOther.isNotEmpty)
+                      _writs(context),
+                    if (game.provisioning.isNotEmpty) _provisioning(context),
+                    _logPanel(context),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
-      );
-    });
+        _strikeBar(context),
+      ],
+    );
   }
 
-  // ---- Header: floor, supplies, hero HP, and the two prime actions --------
-  Widget _header(BuildContext context) {
+  // ---- The camp: the party around the fire, supplies, hero HP -------------
+  Widget _campHeader(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return TextPanel(
-      title: 'Floor ${game.floorNumber} · '
-          '${monthLabel(game.currentMonth.year, game.currentMonth.month)}',
-      icon: Icons.terrain,
+      title: 'The Camp — outside Floor ${game.floorNumber}',
+      icon: Icons.local_fire_department_outlined,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -129,7 +135,9 @@ class TextAdventureView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'The party of ${game.heroName} delves on.',
+            'The fire crackles. '
+            '${monthLabel(game.currentMonth.year, game.currentMonth.month)}\'s '
+            'floor awaits.',
             style: monoStyle(context, color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -146,19 +154,48 @@ class TextAdventureView extends StatelessWidget {
           else
             Text('The party stands unhurt.',
                 style: monoStyle(context, color: scheme.tertiary)),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: callbacks.onStrikeMonster,
-                  icon: const Icon(Icons.bolt),
-                  label: const Text('Strike a monster'),
-                ),
-              ),
-            ],
-          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text('Around the campfire:',
+              style: monoStyle(context, color: scheme.secondary)),
+          if (game.roster.isEmpty)
+            Text('No adventurers mustered yet.',
+                style: monoStyle(context, color: scheme.onSurfaceVariant))
+          else
+            for (final a in game.roster) _rosterLine(context, a),
         ],
+      ),
+    );
+  }
+
+  // ---- The pinned prime action: quick entry, never scrolled away ----------
+  Widget _strikeBar(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surfaceContainerHigh,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.sm,
+          ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: callbacks.onStrikeMonster,
+                      icon: const Icon(Icons.bolt),
+                      label: const Text('Strike a monster — log a purchase'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -236,25 +273,7 @@ class TextAdventureView extends StatelessWidget {
     );
   }
 
-  // ---- Party roster -------------------------------------------------------
-  Widget _roster(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return TextPanel(
-      title: 'The Party',
-      icon: Icons.groups_outlined,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (game.roster.isEmpty)
-            Text('No adventurers mustered yet.',
-                style: monoStyle(context, color: scheme.onSurfaceVariant))
-          else
-            for (final a in game.roster) _rosterLine(context, a),
-        ],
-      ),
-    );
-  }
-
+  // ---- Party roster (rendered around the campfire) ------------------------
   Widget _rosterLine(BuildContext context, Adventurer a) {
     final scheme = Theme.of(context).colorScheme;
     final tag = switch (a.role) {
@@ -297,21 +316,30 @@ class TextAdventureView extends StatelessWidget {
     );
   }
 
-  // ---- The floor: monsters + contracts + pet-linked ones ------------------
-  Widget _floor(BuildContext context) {
+  // ---- The dungeon entrance: this floor's monsters + contracts ------------
+  Widget _dungeonEntrance(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final empty = game.monsters.isEmpty &&
         game.contracts.isEmpty &&
         game.party.every((p) => p.monsters.isEmpty && p.contracts.isEmpty);
     return TextPanel(
-      title: 'The Floor',
+      title: 'The Dungeon Entrance',
       icon: Icons.grid_view_outlined,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (empty)
             Text('No monsters stir on this floor yet.',
-                style: monoStyle(context, color: scheme.onSurfaceVariant)),
+                style: monoStyle(context, color: scheme.onSurfaceVariant))
+          else
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+              child: Text(
+                'Floor ${game.floorNumber} gapes ahead. Within, the '
+                'monsters stir:',
+                style: monoStyle(context, color: scheme.onSurfaceVariant),
+              ),
+            ),
           for (final m in game.monsters) _monsterLine(context, m),
           for (final c in game.contracts) _contractLine(context, c),
           for (final p in game.party)

@@ -226,6 +226,10 @@ came from is locked. One asset covers every OVERBUDGET.
   (equipment maintenance), `supplies_1f.png` (income), `contract_seal_1f.png`
   (party contracts), `ransack_1f.png`.
 
+**The camp** (the main screen's framing scene) — `campfire_idle_4f.png`, 32×32
+×4 strip: a crackling campfire the party gathers around at the top of the
+Adventure home. Until it lands, a labelled placeholder slot marks its spot.
+
 **Floor backgrounds** (the one place you may exceed 32×32) — a tileable dungeon
 floor/wall the viewport sits on. Author a **tileable** chunk (e.g. 64×64 or
 128×128) so it repeats seamlessly; still integer-scaled. `floor_bg_<theme>.png`.
