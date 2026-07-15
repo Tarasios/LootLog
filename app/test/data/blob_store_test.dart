@@ -163,6 +163,23 @@ void main() {
     });
   });
 
+  group('update safety', () {
+    test('blobs survive a restart: a fresh store on the same root reads them',
+        () async {
+      // An app update replaces the binary, not the documents directory. A new
+      // BlobStore instance (the "updated app") must find every blob by the
+      // same content-addressed name.
+      final bytes = Uint8List.fromList(List.generate(64, (i) => i));
+      final sha = await store.save(bytes);
+
+      final reopened = BlobStore(Directory('${tmp.path}/blobs'));
+      expect(await reopened.exists(sha), isTrue);
+      expect(await reopened.read(sha), bytes);
+      expect(reopened.fileFor(sha).path, store.fileFor(sha).path,
+          reason: 'the blobs/<sha256> layout is a compatibility contract');
+    });
+  });
+
   group('deletion never touches referenced blobs', () {
     test('delete() refuses a referenced blob but removes an orphan', () async {
       final keep = await store.save(Uint8List.fromList([9, 9, 9]));
