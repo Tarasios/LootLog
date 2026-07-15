@@ -20,7 +20,8 @@ import '../adapter.dart';
 import '../adventure_screen.dart' show customSpriteBlobsProvider;
 import '../game_sprite.dart';
 import '../skin_prefs.dart';
-import '../text_mode/text_adventure_screen.dart' show narrativeProvider;
+import '../text_mode/text_adventure_screen.dart'
+    show campAmbienceRng, narrativeProvider;
 import 'pixel_adventure_view.dart';
 import '../../features/settings/visibility_prefs.dart';
 
@@ -58,6 +59,7 @@ class PixelAdventureScreen extends ConsumerWidget {
       log: log,
       resolver: AssetSpriteResolver(customBlobs: blobs),
       encouragement: encouragement,
+      campAmbience: narrative?.campLine(rng: campAmbienceRng()),
       spoilsPending: ritual != null,
       callbacks: PixelAdventureCallbacks(
         onStrikeMonster: () => ExpenseEntryScreen.open(context),

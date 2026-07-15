@@ -63,6 +63,7 @@ class PixelAdventureView extends StatelessWidget {
     required this.log,
     this.resolver = const PlaceholderSpriteResolver(),
     this.encouragement,
+    this.campAmbience,
     this.spoilsPending = false,
     this.animate = true,
     this.callbacks = const PixelAdventureCallbacks(),
@@ -77,6 +78,10 @@ class PixelAdventureView extends StatelessWidget {
 
   /// A supportive line drawn from `assets/game/text/`, shown atop the log.
   final String? encouragement;
+
+  /// A scene-setting ambience line drawn from `assets/game/text/`, spoken at
+  /// the campfire. Null hides the line.
+  final String? campAmbience;
 
   /// Whether a month-close battle is waiting to be fought.
   final bool spoilsPending;
@@ -258,6 +263,20 @@ class PixelAdventureView extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           _campfireScene(context),
+          if (campAmbience?.isNotEmpty == true)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              child: Center(
+                child: Text(
+                  campAmbience!,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        fontStyle: FontStyle.italic,
+                      ),
+                ),
+              ),
+            ),
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [

@@ -6,6 +6,7 @@
 library;
 
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,6 +28,13 @@ import '../../features/settings/visibility_prefs.dart';
 /// The narrative/encouragement asset bundle (loaded once). Cosmetic strings
 /// only — they decorate the log, never the numbers.
 final narrativeProvider = FutureProvider<Narrative>((ref) => loadNarrative());
+
+/// A day-seeded RNG for the camp ambience line: the same line all day (no
+/// flicker across rebuilds), a fresh one tomorrow.
+Random campAmbienceRng() {
+  final now = DateTime.now();
+  return Random(now.year * 10000 + now.month * 100 + now.day);
+}
 
 class TextAdventureScreen extends ConsumerWidget {
   const TextAdventureScreen({super.key});
@@ -63,6 +71,7 @@ class TextAdventureScreen extends ConsumerWidget {
       game: game,
       log: log,
       encouragement: encouragement,
+      campAmbience: narrative?.campLine(rng: campAmbienceRng()),
       spoilsPending: ritual != null,
       callbacks: TextAdventureCallbacks(
         onStrikeMonster: () => ExpenseEntryScreen.open(context),
