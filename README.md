@@ -237,7 +237,7 @@ library naming are all developed test-first. Money is integer cents
 everywhere. Domain rows are never updated or deleted; corrections are
 compensating events. The firewall test (cosmetic-stripped ledger produces
 identical balances) has to pass from the first rewards commit onward. See
-[`CLAUDE.md`](CLAUDE.md) for the full invariants, plus the
-[setup guide](docs/setup-guide.md), [sync protocol](docs/protocol.md),
+[`docs/architecture.md`](docs/architecture.md) for the full invariants, plus
+the [setup guide](docs/setup-guide.md), [sync protocol](docs/protocol.md),
 [distribution guide](docs/distribution.md), [release guide](docs/release.md),
 and the [ADRs](docs/adr/).

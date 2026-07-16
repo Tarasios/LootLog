@@ -392,7 +392,7 @@ void main() {
     });
   });
 
-  // The canonical category-match tithing invariant from CLAUDE.md: an attack
+  // The canonical category-match tithing invariant (docs/architecture.md): an attack
   // funded from a category whose main category MATCHES the quest's is untithed
   // (full damage); from a NON-matching category the source category's pool tithe
   // is skimmed to the war chest and only the remainder lands as damage.

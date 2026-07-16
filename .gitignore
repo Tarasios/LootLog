@@ -1,0 +1,12 @@
+# AI-assistant working files (local development notes, not part of the app)
+CLAUDE.md
+.claude/
+.superpowers/
+docs/opus-prompts.md
+docs/gemini-art-prompts.md
+docs/superpowers/
+
+# Build artifacts (releases ship via GitHub Releases, never the repo)
+app/*.zip
+app/*.apk
+app/*.tar.gz

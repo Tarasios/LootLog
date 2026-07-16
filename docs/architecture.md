@@ -1,10 +1,8 @@
 # LootLog Architecture
 
-This is a reference document restating, in our own words, the invariants and
-subsystems that govern LootLog. It is descriptive: when this document and
-`CLAUDE.md` disagree, `CLAUDE.md` wins. Nothing here is a suggestion — the
-"non-negotiable invariants" are load-bearing constraints that the whole design
-depends on.
+This is the reference document for the invariants and subsystems that govern
+LootLog. Nothing here is a suggestion — the "non-negotiable invariants" are
+load-bearing constraints that the whole design depends on.
 
 LootLog is a **pixel-art dungeon-crawler that happens to be a rigorous shared
 budgeting app.** The game is the product: the household is a party of

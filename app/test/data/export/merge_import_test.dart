@@ -56,7 +56,7 @@ void main() {
   });
 
   group('MergePreview.describe', () {
-    test('matches the CLAUDE.md example shape', () {
+    test('matches the spec example shape', () {
       const preview = MergePreview(
         newEvents: 14,
         presentEvents: 210,
