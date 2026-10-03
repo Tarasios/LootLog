@@ -92,6 +92,20 @@ class _Builder {
 
   int? goalTarget;
 
+  // Savings-rule general rates keyed by the 'yyyy-MM' month they take effect.
+  final Map<String, int> savingsRuleRates = {};
+
+  SavingsRules? get savingsRules {
+    if (savingsRuleRates.isEmpty) return null;
+    final from = savingsRuleRates.keys
+        .map(Month.parse)
+        .reduce((a, b) => a.isBefore(b) ? a : b);
+    return SavingsRules(
+      fromMonth: from,
+      generalPctByFromMonth: savingsRuleRates,
+    );
+  }
+
   // Savings economy (applied only from the adoption month).
   final List<ShortfallCovered> covers = [];
   final Map<String, AllowanceAdvanceProposed> advanceProposals = {};
@@ -251,6 +265,18 @@ class _Builder {
         if (v is int) settings = settings.copyWith(dissolutionTithePct: v);
       case 'showNetWorth':
         if (v is bool) settings = settings.copyWith(showNetWorth: v);
+      case 'savingsRules':
+        if (v is Map) {
+          final from = v['fromMonth'];
+          final pct = v['generalTithePct'];
+          if (from is String && pct is int && pct >= 0 && pct <= 100) {
+            try {
+              savingsRuleRates[Month.parse(from).toKey()] = pct;
+            } on FormatException {
+              // Malformed month: ignore the entry.
+            }
+          }
+        }
     }
   }
 
@@ -1316,6 +1342,7 @@ class _Builder {
       },
       variableActuals: Map<String, int>.from(variableActuals),
       vacations: vacationStates,
+      savingsRules: savingsRules,
     );
   }
 

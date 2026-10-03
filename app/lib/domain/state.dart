@@ -795,6 +795,34 @@ class DefaultIncome {
       estimatedHighCents != null && estimatedHighCents! > amountCents;
 }
 
+/// The household's savings-economy rules: active from [fromMonth] (the
+/// adoption month), with the general-pool tax rate as it stood each month.
+/// Months before adoption keep the legacy math exactly.
+class SavingsRules {
+  const SavingsRules({
+    required this.fromMonth,
+    required this.generalPctByFromMonth,
+  });
+
+  final Month fromMonth;
+
+  /// General rate keyed by the 'yyyy-MM' month it takes effect from.
+  final Map<String, int> generalPctByFromMonth;
+
+  bool appliesTo(Month m) => !m.isBefore(fromMonth);
+
+  /// The general rate in force for [m]: the entry with the latest effective
+  /// month ≤ [m] (the adoption entry's rate before any later change).
+  int generalRateFor(Month m) {
+    Month? best;
+    for (final k in generalPctByFromMonth.keys) {
+      final km = Month.parse(k);
+      if (!km.isAfter(m) && (best == null || km.isAfter(best))) best = km;
+    }
+    return generalPctByFromMonth[(best ?? fromMonth).toKey()] ?? 0;
+  }
+}
+
 /// The full derived read-model of the household.
 class HouseholdState {
   const HouseholdState({
@@ -822,6 +850,7 @@ class HouseholdState {
     required this.recurringExpenses,
     required this.variableActuals,
     required this.vacations,
+    this.savingsRules,
   });
 
   final Settings settings;
@@ -872,6 +901,10 @@ class HouseholdState {
 
   /// Vacations (open and closed), keyed by `vacationId`.
   final Map<String, VacationState> vacations;
+
+  /// The savings-economy rules, or null when the household hasn't adopted them
+  /// (every month then reduces with the legacy math).
+  final SavingsRules? savingsRules;
 
   /// The currently-open vacations, sorted by name — the ones quick entry offers
   /// a charge target for and the dashboard boards while a trip is under way.
