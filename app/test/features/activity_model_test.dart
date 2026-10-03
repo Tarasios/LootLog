@@ -81,4 +81,48 @@ void main() {
       ]);
     });
   });
+
+  group('savings lines', () {
+    final at = DateTime.utc(2026, 7, 10, 18);
+    test('covers and borrowing read in plain language', () {
+      final titles = feedTitles([
+        ShortfallCovered(
+          eventId: 's-1',
+          deviceId: 'd',
+          userId: 'u-robin',
+          occurredAt: at,
+          createdAt: at,
+          purchaseId: 'p1',
+          source: const GeneralCover(),
+          amountCents: 5000,
+        ),
+        AllowanceAdvanceProposed(
+          eventId: 's-2',
+          deviceId: 'd',
+          userId: 'u-robin',
+          occurredAt: at.add(const Duration(minutes: 1)),
+          createdAt: at.add(const Duration(minutes: 1)),
+          advanceId: 'a1',
+          byUserId: 'u-robin',
+          sliceId: 'clothes',
+          amountCents: 5000,
+          months: 2,
+        ),
+        AllowanceAdvanceApproved(
+          eventId: 's-3',
+          deviceId: 'd',
+          userId: 'u-robin',
+          occurredAt: at.add(const Duration(minutes: 2)),
+          createdAt: at.add(const Duration(minutes: 2)),
+          advanceId: 'a1',
+          byUserId: 'u-robin',
+        ),
+      ]);
+      expect(titles, [
+        'Robin covered part of a purchase from general savings',
+        'Robin asked to borrow from future months (2 months)',
+        'Robin approved borrowing from future months',
+      ]);
+    });
+  });
 }

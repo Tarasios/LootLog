@@ -69,12 +69,12 @@ List<ActivityItem> buildActivityFeed(
   String vacationName(String id) => state.vacations[id]?.name ?? 'a vacation';
 
   String targetLabel(ChargeTarget t) => switch (t) {
-        SliceCharge(:final sliceId) => sliceName(sliceId),
-        VaultCharge() => 'their vault',
-        QuestCharge(:final questId) => questName(questId),
-        EmergencyCharge(:final fundId) => fundName(fundId),
-        VacationCharge(:final vacationId) => vacationName(vacationId),
-      };
+    SliceCharge(:final sliceId) => sliceName(sliceId),
+    VaultCharge() => 'their vault',
+    QuestCharge(:final questId) => questName(questId),
+    EmergencyCharge(:final fundId) => fundName(fundId),
+    VacationCharge(:final vacationId) => vacationName(vacationId),
+  };
 
   final items = <ActivityItem>[];
   // Tracks the last MemberSet seen per member while walking the (append-
@@ -138,8 +138,7 @@ List<ActivityItem> buildActivityFeed(
           isMine: mine,
         );
       case LeftoverAllocated():
-        final total =
-            e.allocations.fold<int>(0, (a, x) => a + x.amountCents);
+        final total = e.allocations.fold<int>(0, (a, x) => a + x.amountCents);
         item = ActivityItem(
           eventId: e.eventId,
           kind: ActivityKind.allocation,
@@ -150,6 +149,53 @@ List<ActivityItem> buildActivityFeed(
           amountCents: total,
           occurredAt: e.occurredAt,
           isMine: e.forUserId == meUserId,
+        );
+      case ShortfallCovered():
+        item = ActivityItem(
+          eventId: e.eventId,
+          kind: ActivityKind.allocation,
+          userId: e.userId,
+          title: switch (e.source) {
+            GeneralCover() =>
+              '${who(e.userId)} covered part of a purchase from general savings',
+            CategorySavingsCover() =>
+              '${who(e.userId)} put category savings toward a goal purchase',
+          },
+          amountCents: -e.amountCents,
+          occurredAt: e.occurredAt,
+          isMine: e.userId == meUserId,
+        );
+      case AllowanceAdvanceProposed():
+        item = ActivityItem(
+          eventId: e.eventId,
+          kind: ActivityKind.withdrawal,
+          userId: e.userId,
+          title:
+              '${who(e.byUserId)} asked to borrow from future months '
+              '(${e.months} month${e.months == 1 ? '' : 's'})',
+          amountCents: -e.amountCents,
+          occurredAt: e.occurredAt,
+          isMine: e.byUserId == meUserId,
+        );
+      case AllowanceAdvanceApproved():
+        item = ActivityItem(
+          eventId: e.eventId,
+          kind: ActivityKind.withdrawal,
+          userId: e.userId,
+          title: '${who(e.byUserId)} approved borrowing from future months',
+          occurredAt: e.occurredAt,
+          isMine: e.byUserId == meUserId,
+        );
+      case AllowanceAdvanceCancelled():
+        item = ActivityItem(
+          eventId: e.eventId,
+          kind: ActivityKind.withdrawal,
+          userId: e.userId,
+          title:
+              '${who(e.userId)} cancelled a request to borrow from future '
+              'months',
+          occurredAt: e.occurredAt,
+          isMine: e.userId == meUserId,
         );
       case PoolWithdrawalProposed():
         item = ActivityItem(
@@ -293,10 +339,6 @@ List<ActivityItem> buildActivityFeed(
       case CosmeticSet():
       case GameRewardGranted():
       case UnknownEvent():
-      case ShortfallCovered():
-      case AllowanceAdvanceProposed():
-      case AllowanceAdvanceApproved():
-      case AllowanceAdvanceCancelled():
       case VariableExpenseRecorded():
       case MainCategorySet():
       case VacationSet():
