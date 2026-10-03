@@ -583,6 +583,36 @@ class WarChestState {
 
 enum WithdrawalStatus { pending, approved, cancelled }
 
+/// A request to borrow from a category's future monthly allowances to cover a
+/// purchase now. Same approval rule as a war-chest withdrawal: another adult
+/// signs (auto-approved in a one-adult household). Once approved it covers
+/// the category in [month] and trims the next [months] allowances.
+class AdvanceState {
+  const AdvanceState({
+    required this.advanceId,
+    required this.byUserId,
+    required this.sliceId,
+    required this.amountCents,
+    required this.months,
+    required this.month,
+    required this.status,
+    this.approvedByUserId,
+    this.purchaseId,
+  });
+
+  final String advanceId;
+  final String byUserId;
+  final String sliceId;
+  final int amountCents;
+  final int months;
+
+  /// The month the advance covers (the proposal's month).
+  final Month month;
+  final WithdrawalStatus status;
+  final String? approvedByUserId;
+  final String? purchaseId;
+}
+
 /// A pool withdrawal proposal and its resolution.
 class WithdrawalProposal {
   const WithdrawalProposal({
@@ -877,6 +907,7 @@ class HouseholdState {
     required this.vacations,
     this.savingsRules,
     this.categorySavings = const {},
+    this.advances = const {},
   });
 
   final Settings settings;
@@ -935,6 +966,9 @@ class HouseholdState {
   /// Savings rules only: each personal category's savings pool right now (the
   /// already-taxed money it holds), keyed by sliceId.
   final Map<String, TaxedBalance> categorySavings;
+
+  /// Savings rules only: requests to borrow from future months, keyed by id.
+  final Map<String, AdvanceState> advances;
 
   /// The currently-open vacations, sorted by name — the ones quick entry offers
   /// a charge target for and the dashboard boards while a trip is under way.

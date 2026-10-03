@@ -312,6 +312,7 @@ class _Builder {
   final Map<String, TaxedBalance> savings = {};
   final Map<String, int> coverBySliceMonth = {};
   final Map<String, int> trimBySliceMonth = {};
+  final Map<String, int> trimRoll = {};
 
   void _flow(String user, Month month, int amount) {
     final bucket = vaultFlowByMonth.putIfAbsent(month.toKey(), () => {});
@@ -681,6 +682,57 @@ class _Builder {
         destination: prop.destination,
         status: status,
         approvedByUserId: approvedBy,
+      );
+    }
+
+    final advanceStates = <String, AdvanceState>{};
+    for (final prop in advanceProposals.values) {
+      final cfg = slices[prop.sliceId];
+      if (rules == null ||
+          !rules.appliesTo(prop.occurredMonth) ||
+          cfg == null ||
+          cfg.isGroup) {
+        continue;
+      }
+      var status = WithdrawalStatus.pending;
+      String? approvedBy;
+      if (cancelledAdvances.contains(prop.advanceId)) {
+        status = WithdrawalStatus.cancelled;
+      } else if (_adultIds().length <= 1) {
+        status = WithdrawalStatus.approved;
+        approvedBy = prop.byUserId;
+      } else {
+        final valid = (advanceApprovals[prop.advanceId] ?? [])
+            .where((a) => a.byUserId != prop.byUserId && _isAdult(a.byUserId))
+            .toList();
+        if (valid.isNotEmpty) {
+          status = WithdrawalStatus.approved;
+          approvedBy = valid.first.byUserId;
+        }
+      }
+      if (status == WithdrawalStatus.approved) {
+        final k = '${prop.sliceId}|${prop.occurredMonth.toKey()}';
+        coverBySliceMonth[k] = (coverBySliceMonth[k] ?? 0) + prop.amountCents;
+        var tm = prop.occurredMonth;
+        for (final cents in advanceTrimSchedule(
+          prop.amountCents,
+          prop.months,
+        )) {
+          tm = tm.next();
+          final tk = '${prop.sliceId}|${tm.toKey()}';
+          trimBySliceMonth[tk] = (trimBySliceMonth[tk] ?? 0) + cents;
+        }
+      }
+      advanceStates[prop.advanceId] = AdvanceState(
+        advanceId: prop.advanceId,
+        byUserId: prop.byUserId,
+        sliceId: prop.sliceId,
+        amountCents: prop.amountCents,
+        months: prop.months,
+        month: prop.occurredMonth,
+        status: status,
+        approvedByUserId: approvedBy,
+        purchaseId: prop.purchaseId,
       );
     }
 
@@ -1482,6 +1534,7 @@ class _Builder {
       vacations: vacationStates,
       savingsRules: rules,
       categorySavings: Map.unmodifiable(savings),
+      advances: advanceStates,
     );
   }
 
@@ -1682,9 +1735,19 @@ class _Builder {
     return lines;
   }
 
-  /// Allowance withheld from [cfg] in [m] to repay approved advances. Filled
-  /// in with advances; until then nothing is ever trimmed.
-  int _takeTrim(SliceConfig cfg, Month m, int carryIn) => 0;
+  /// Allowance withheld from [cfg] in [m] to repay approved advances: this
+  /// month's scheduled trim plus anything earlier months couldn't absorb,
+  /// capped at the month's funding (the excess rolls on).
+  int _takeTrim(SliceConfig cfg, Month m, int carryIn) {
+    final due =
+        (trimBySliceMonth['${cfg.sliceId}|${m.toKey()}'] ?? 0) +
+        (trimRoll[cfg.sliceId] ?? 0);
+    if (due <= 0) return 0;
+    final room = cfg.baseEffectiveLimitCents + carryIn;
+    final take = due < room ? due : (room > 0 ? room : 0);
+    trimRoll[cfg.sliceId] = due - take;
+    return take;
+  }
 
   /// The grace-expired default for a personal category's leftover: the
   /// owner's outstanding OVERBUDGETs are attacked first (gross amounts sized
@@ -1850,6 +1913,9 @@ class _Builder {
     }
     for (final a in allocations.values) {
       consider(a.month);
+    }
+    for (final p in advanceProposals.values) {
+      consider(p.occurredMonth);
     }
 
     final asOfMonth = Month.fromInstant(now);

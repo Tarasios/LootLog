@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/domain/event.dart';
 import 'package:lootlog/domain/pools.dart';
 import 'package:lootlog/domain/reducer.dart';
+import 'package:lootlog/domain/state.dart';
 import 'package:lootlog/domain/time.dart';
 import 'package:lootlog/domain/value_types.dart';
 
@@ -384,6 +385,89 @@ void main() {
         cover('jacket', const GeneralCover(), 20000, day(2026, 7, 10)),
       ];
       expect(reduce(events, asOf: justClosed(jul)).vaultOf(u1), 100000 - 30000);
+    });
+  });
+
+  group('advances', () {
+    AllowanceAdvanceProposed propose(
+      String id,
+      int amt,
+      int months, {
+      String by = u1,
+    }) => AllowanceAdvanceProposed(
+      eventId: _id(),
+      deviceId: 'd',
+      userId: by,
+      occurredAt: day(2026, 7, 10),
+      createdAt: day(2026, 7, 10),
+      advanceId: id,
+      byUserId: by,
+      sliceId: 'clothes',
+      amountCents: amt,
+      months: months,
+    );
+    AllowanceAdvanceApproved approve(String id, String by) =>
+        AllowanceAdvanceApproved(
+          eventId: _id(),
+          deviceId: 'd',
+          userId: by,
+          occurredAt: day(2026, 7, 11),
+          createdAt: day(2026, 7, 11),
+          advanceId: id,
+          byUserId: by,
+        );
+    List<Event> base() => [
+      rules(jul, 20),
+      adult(u1),
+      adult(u2),
+      slice('clothes', 25000),
+      buy('jacket', const SliceCharge('clothes'), 30000, day(2026, 7, 10)),
+    ];
+
+    test('pending until another adult approves; self-approval rejected', () {
+      final s = reduce([
+        ...base(),
+        propose('a', 5000, 2),
+        approve('a', u1),
+      ], asOf: day(2026, 7, 20));
+      expect(s.advances['a']!.status, WithdrawalStatus.pending);
+      expect(s.sliceMonth('clothes', jul)!.overspendCents, 5000);
+    });
+
+    test('approved: covers now, trims the next months evenly', () {
+      final s = reduce([
+        ...base(),
+        propose('a', 5001, 2),
+        approve('a', u2),
+      ], asOf: day(2026, 9, 20));
+      expect(s.advances['a']!.status, WithdrawalStatus.approved);
+      expect(s.sliceMonth('clothes', jul)!.overspendCents, 0);
+      expect(s.sliceMonth('clothes', aug)!.trimmedCents, 2501);
+      expect(s.sliceMonth('clothes', aug)!.effectiveLimitCents, 25000 - 2501);
+      expect(s.sliceMonth('clothes', sep)!.trimmedCents, 2500);
+    });
+
+    test('a one-adult household auto-approves', () {
+      final s = reduce([
+        rules(jul, 20),
+        adult(u1),
+        slice('clothes', 25000),
+        buy('jacket', const SliceCharge('clothes'), 30000, day(2026, 7, 10)),
+        propose('a', 5000, 1),
+      ], asOf: day(2026, 7, 20));
+      expect(s.advances['a']!.status, WithdrawalStatus.approved);
+    });
+
+    test('a trim larger than the allowance rolls into the next month', () {
+      final s = reduce([
+        rules(jul, 20),
+        adult(u1),
+        slice('clothes', 1000),
+        buy('big', const SliceCharge('clothes'), 3000, day(2026, 7, 10)),
+        propose('a', 2000, 1),
+      ], asOf: day(2026, 9, 20));
+      expect(s.sliceMonth('clothes', aug)!.trimmedCents, 1000);
+      expect(s.sliceMonth('clothes', sep)!.trimmedCents, 1000);
     });
   });
 }
