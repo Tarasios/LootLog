@@ -27,6 +27,8 @@ import '../tutorial/tutorial.dart';
 import 'emergency_funds_screen.dart';
 import 'income_screen.dart';
 import 'members_screen.dart';
+import 'play_mode.dart';
+import 'play_mode_providers.dart';
 import 'recurring_screen.dart';
 import 'visibility_prefs.dart';
 
@@ -73,13 +75,9 @@ class SettingsScreen extends ConsumerWidget {
             onChanged: (v) => unawaited(
                 ref.read(showHouseholdBudgetsProvider.notifier).select(v)),
           ),
-          const _SectionHeader('Appearance'),
-          _SkinTile(
-            skin: ref.watch(appSkinProvider),
-            onChanged: (s) =>
-                unawaited(ref.read(appSkinProvider.notifier).select(s)),
-          ),
-          if (ref.watch(appSkinProvider) == AppSkin.adventure)
+          const _SectionHeader('Play mode'),
+          const _PlayModeSection(),
+          if (ref.watch(isAdventureProvider))
             SwitchListTile(
               secondary: const Icon(Icons.text_fields),
               title: const Text('Text mode'),
@@ -260,62 +258,87 @@ class SettingsScreen extends ConsumerWidget {
 
 /// The Classic / Adventure skin chooser. Both render identical numbers; the
 /// choice only swaps the dashboard's presentation widgets.
-class _SkinTile extends StatelessWidget {
-  const _SkinTile({required this.skin, required this.onChanged});
-
-  final AppSkin skin;
-  final ValueChanged<AppSkin> onChanged;
+/// This person's Standard / Adventure choice, plus — for Adventure — which
+/// screen opens at launch. Saved per person (it follows them to every paired
+/// device); switching never deletes any game progress.
+class _PlayModeSection extends ConsumerWidget {
+  const _PlayModeSection();
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.sm,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final prefs = ref.watch(playPrefsProvider) ?? PlayPrefs.defaults;
+    final actions = ref.watch(householdActionsProvider);
+    final helper = Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        );
+
+    Widget choice<T>({
+      required IconData icon,
+      required String title,
+      required String subtitle,
+      required List<ButtonSegment<T>> segments,
+      required T selected,
+      required Future<void> Function(HouseholdActions, T) save,
+    }) =>
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.sm,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.videogame_asset_outlined),
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Theme'),
-                    Text(
-                      'Classic ledger or the dungeon adventure skin',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                    ),
-                  ],
+              Row(children: [
+                Icon(icon),
+                const SizedBox(width: AppSpacing.lg),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [Text(title), Text(subtitle, style: helper)],
+                  ),
                 ),
+              ]),
+              const SizedBox(height: AppSpacing.sm),
+              SegmentedButton<T>(
+                segments: segments,
+                selected: {selected},
+                onSelectionChanged: actions == null
+                    ? null
+                    : (s) => unawaited(save(actions, s.first)),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
-          SegmentedButton<AppSkin>(
-            segments: const [
-              ButtonSegment(
-                value: AppSkin.classic,
-                label: Text('Classic'),
-                icon: Icon(Icons.dashboard_outlined),
-              ),
-              ButtonSegment(
-                value: AppSkin.adventure,
-                label: Text('Adventure'),
-                icon: Icon(Icons.castle_outlined),
-              ),
-            ],
-            selected: {skin},
-            onSelectionChanged: (s) => onChanged(s.first),
-          ),
+        );
+
+    return Column(children: [
+      choice<PlayMode>(
+        icon: Icons.sports_esports_outlined,
+        title: 'Mode',
+        subtitle: 'Adventure turns your budget into a game. Standard is the '
+            'plain budgeting app — your logging still helps the household. '
+            'Your choice follows you to every device, and switching back '
+            'never loses progress.',
+        segments: const [
+          ButtonSegment(value: PlayMode.standard, label: Text('Standard')),
+          ButtonSegment(value: PlayMode.adventure, label: Text('Adventure')),
         ],
+        selected: prefs.mode,
+        save: setPlayMode,
       ),
-    );
+      if (prefs.mode == PlayMode.adventure)
+        choice<AdventureHome>(
+          icon: Icons.home_outlined,
+          title: 'Home screen',
+          subtitle: 'What opens when you launch the app. The other is always '
+              'one tap away.',
+          segments: const [
+            ButtonSegment(value: AdventureHome.hall, label: Text('Hall')),
+            ButtonSegment(value: AdventureHome.ledger, label: Text('Ledger')),
+          ],
+          selected: prefs.home,
+          save: setAdventureHome,
+        ),
+    ]);
   }
 }
 

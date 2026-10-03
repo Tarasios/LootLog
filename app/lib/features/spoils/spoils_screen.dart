@@ -14,11 +14,11 @@ import '../../game/adventure_screen.dart' show customSpriteBlobsProvider;
 import '../../game/adventure_spoils.dart';
 import '../../game/game_sprite.dart';
 import '../../game/month_end_encounters.dart';
-import '../../game/skin_prefs.dart';
 import '../../ui/format.dart';
 import '../../ui/theme.dart';
 import '../household_context.dart';
 import '../report/report_screen.dart';
+import '../settings/play_mode_providers.dart';
 import 'spoils_model.dart';
 import 'spoils_sheet.dart';
 
@@ -38,7 +38,7 @@ Future<void> openSpoilsRitual(BuildContext context, WidgetRef ref) async {
   );
   if (ritual == null) return;
 
-  final adventure = ref.read(appSkinProvider) == AppSkin.adventure;
+  final adventure = ref.read(isAdventureProvider);
   final intro = adventure ? AdventureSpoilsRecap(ritual: ritual) : null;
 
   // Adventure mode replays the floor monster by monster before the division:
@@ -135,7 +135,7 @@ class SpoilsEntryButton extends ConsumerWidget {
     final ritual =
         buildSpoilsRitual(state, meUserId: meUserId, userNames: names);
     if (ritual == null) return const SizedBox.shrink();
-    final adventure = ref.watch(appSkinProvider) == AppSkin.adventure;
+    final adventure = ref.watch(isAdventureProvider);
     return Padding(
       padding: const EdgeInsets.only(right: AppSpacing.sm),
       child: FilledButton.tonalIcon(

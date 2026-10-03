@@ -23,6 +23,8 @@ import '../skin_prefs.dart';
 import '../text_mode/text_adventure_screen.dart'
     show campAmbienceRng, narrativeProvider;
 import 'pixel_adventure_view.dart';
+import '../../features/settings/play_mode.dart';
+import '../../features/settings/play_mode_providers.dart';
 import '../../features/settings/visibility_prefs.dart';
 
 class PixelAdventureScreen extends ConsumerWidget {
@@ -66,8 +68,13 @@ class PixelAdventureScreen extends ConsumerWidget {
         onOpenSpoils: () => unawaited(openSpoilsRitual(context, ref)),
         onSwitchToText: () => unawaited(
             ref.read(adventureTierProvider.notifier).select(AdventureTier.text)),
-        onSwitchToClassic: () => unawaited(
-            ref.read(appSkinProvider.notifier).select(AppSkin.classic)),
+        // "Classic" here switches this person to Standard mode — reversible,
+        // nothing in the game is lost.
+        onSwitchToClassic: () {
+          if (actions != null) {
+            unawaited(setPlayMode(actions, PlayMode.standard));
+          }
+        },
         onSignWrit: (id) {
           if (actions != null) unawaited(actions.approveWithdrawal(id));
         },

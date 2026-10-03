@@ -41,9 +41,17 @@ const double kWideBreakpoint = 840;
 enum ShellPane { dashboard, ledger, goals, warchest, trophies, homestead, activity }
 
 class AppShell extends ConsumerStatefulWidget {
-  const AppShell({super.key, this.initialPane = ShellPane.dashboard});
+  const AppShell({
+    super.key,
+    this.initialPane = ShellPane.dashboard,
+    this.onOpenHall,
+  });
 
   final ShellPane initialPane;
+
+  /// Opens the guild hall. Set only for Adventure-mode users (by the home
+  /// gate); null in Standard mode, where no hall entry point is shown.
+  final VoidCallback? onOpenHall;
 
   @override
   ConsumerState<AppShell> createState() => _AppShellState();
@@ -124,6 +132,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       appBar: AppBar(
         title: Text(_title),
         actions: [
+          ..._hallAction(),
           const SpoilsEntryButton(),
           IconButton(
             tooltip: 'Manage',
@@ -181,6 +190,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       appBar: AppBar(
         title: Text(_title),
         actions: [
+          ..._hallAction(),
           const SpoilsEntryButton(),
           IconButton(
             tooltip: 'Manage',
@@ -246,6 +256,16 @@ class _AppShellState extends ConsumerState<AppShell> {
       ),
     );
   }
+
+  /// The guild-hall entry point, present only in Adventure mode.
+  List<Widget> _hallAction() => [
+        if (widget.onOpenHall != null)
+          IconButton(
+            tooltip: 'Guild hall',
+            icon: const Icon(Icons.castle_outlined),
+            onPressed: widget.onOpenHall,
+          ),
+      ];
 
   /// Builds the current workbook and hands it to the isolated Sheets gate,
   /// which only pushes when the user has enabled "also push after each sync".

@@ -12,8 +12,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../game/skin_prefs.dart';
 import '../../ui/theme.dart';
+import '../settings/play_mode_providers.dart';
 import 'tutorial_content.dart';
 import 'tutorial_prefs.dart';
 
@@ -27,7 +27,7 @@ abstract final class TutorialTour {
   /// fresh launch resumes there — unless the tour was already completed on
   /// entry (a Settings replay), in which case it stays completed.
   static Future<void> show(BuildContext context, WidgetRef ref) async {
-    final isAdventure = ref.read(appSkinProvider) == AppSkin.adventure;
+    final isAdventure = ref.read(isAdventureProvider);
     final progress = ref.read(tutorialProgressProvider);
     final steps = tutorialSteps(isAdventure: isAdventure);
     final startAt = progress.completed

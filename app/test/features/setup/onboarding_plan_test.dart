@@ -3,12 +3,13 @@
 /// household is the one the party described.
 library;
 
+import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/domain/event.dart';
 import 'package:lootlog/domain/reducer.dart';
 import 'package:lootlog/domain/time.dart';
 import 'package:lootlog/domain/value_types.dart';
+import 'package:lootlog/features/settings/play_mode.dart';
 import 'package:lootlog/features/setup/onboarding_plan.dart';
-import 'package:flutter_test/flutter_test.dart';
 
 /// A deterministic id generator so event ids (and entity ids) are stable and
 /// sort in emission order.
@@ -30,6 +31,33 @@ OnboardingPlan _plan(OnboardingInput input) => buildOnboardingEvents(
 
 void main() {
   group('buildOnboardingEvents', () {
+    test('each adult can be set up in their own play mode', () {
+      // Ada plays the game; Ben just wants the budget. Ben can still switch
+      // to Adventure later on his own device.
+      final plan = _plan(const OnboardingInput(
+        members: [
+          DraftMember(localId: 'a1', role: DraftRole.adult, name: 'Ada'),
+          DraftMember(localId: 'a2', role: DraftRole.adult, name: 'Ben'),
+        ],
+        meLocalId: 'a1',
+        playModes: {'a1': PlayMode.adventure, 'a2': PlayMode.standard},
+      ));
+
+      expect(resolvePlayPrefs(plan.events, 'a1').mode, PlayMode.adventure);
+      expect(resolvePlayPrefs(plan.events, 'a2').mode, PlayMode.standard);
+      expect(plan.events.whereType<CosmeticSet>(), hasLength(2));
+    });
+
+    test('no play-mode choice writes no play-mode events', () {
+      final plan = _plan(const OnboardingInput(
+        members: [
+          DraftMember(localId: 'a1', role: DraftRole.adult, name: 'Robin'),
+        ],
+        meLocalId: 'a1',
+      ));
+      expect(plan.events.whereType<CosmeticSet>(), isEmpty);
+    });
+
     test('single-adult party writes member, income and no share table', () {
       final plan = _plan(const OnboardingInput(
         members: [
