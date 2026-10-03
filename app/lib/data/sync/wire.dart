@@ -7,6 +7,7 @@
 library;
 
 import '../../domain/event.dart';
+import '../../game/domain/game_event.dart';
 
 /// Result of `POST /pair`: the hub's stable identity plus the bearer token this
 /// device must present on every subsequent request.
@@ -53,6 +54,37 @@ class EventPage {
         events: [
           for (final e in (json['events'] as List))
             Event.fromJson((e as Map).cast<String, dynamic>()),
+        ],
+        cursor: json['cursor'] as int,
+        maxSeq: json['maxSeq'] as int,
+      );
+}
+
+/// Result of `GET /game-events?after=`: the game log's equivalent of
+/// [EventPage], paged over the hub's separate game `seq`. Game events travel
+/// as their own envelope (`GameEvent.toJson`) and never mix with ledger events,
+/// so a device that predates game sync never has to decode one.
+class GameEventPage {
+  const GameEventPage({
+    required this.events,
+    required this.cursor,
+    required this.maxSeq,
+  });
+
+  final List<GameEvent> events;
+  final int cursor;
+  final int maxSeq;
+
+  Map<String, dynamic> toJson() => {
+        'events': [for (final e in events) e.toJson()],
+        'cursor': cursor,
+        'maxSeq': maxSeq,
+      };
+
+  factory GameEventPage.fromJson(Map<String, dynamic> json) => GameEventPage(
+        events: [
+          for (final e in (json['events'] as List))
+            GameEvent.fromJson((e as Map).cast<String, dynamic>()),
         ],
         cursor: json['cursor'] as int,
         maxSeq: json['maxSeq'] as int,

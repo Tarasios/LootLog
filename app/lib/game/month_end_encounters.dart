@@ -21,7 +21,7 @@ import '../domain/time.dart';
 import '../ui/theme.dart';
 import 'adapter.dart' show Sprites;
 import 'game_sprite.dart';
-import 'game_state.dart';
+import 'dungeon_state.dart';
 
 /// One felled (or enraging) monster in the month-end replay.
 class EncounterData {

@@ -1,10 +1,10 @@
-/// The adventure dashboard: a pure widget that renders a [GameState] as a
+/// The adventure dashboard: a pure widget that renders a [DungeonState] as a
 /// dungeon floor. It owns no state and reads no providers, so it is
 /// golden-testable at any size. Sprites resolve through the injected
 /// [SpriteResolver]; goldens pass a placeholder-only resolver so nothing decodes
 /// asynchronously.
 ///
-/// Every number here is copied from [GameState] (which came straight from the
+/// Every number here is copied from [DungeonState] (which came straight from the
 /// reducer). This file adds vocabulary and pixels, never arithmetic.
 library;
 
@@ -13,7 +13,7 @@ import 'package:flutter/material.dart';
 import '../ui/format.dart';
 import '../ui/theme.dart';
 import 'game_sprite.dart';
-import 'game_state.dart';
+import 'dungeon_state.dart';
 
 /// Callbacks the adventure dashboard needs; defaulted to no-ops for goldens.
 class AdventureCallbacks {
@@ -37,7 +37,7 @@ class AdventureDashboard extends StatelessWidget {
     this.callbacks = const AdventureCallbacks(),
   });
 
-  final GameState game;
+  final DungeonState game;
   final SpriteResolver resolver;
 
   /// An optional "divide the spoils" call-to-action, when a ritual is pending.
@@ -237,7 +237,7 @@ class _ExpeditionRingChip extends StatelessWidget {
 class _FloorHeader extends StatelessWidget {
   const _FloorHeader({required this.game, required this.resolver});
 
-  final GameState game;
+  final DungeonState game;
   final SpriteResolver resolver;
 
   @override
@@ -310,7 +310,7 @@ class _FloorHeader extends StatelessWidget {
 class _HeroStatus extends StatelessWidget {
   const _HeroStatus({required this.game});
 
-  final GameState game;
+  final DungeonState game;
 
   @override
   Widget build(BuildContext context) {

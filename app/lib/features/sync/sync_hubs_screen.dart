@@ -392,7 +392,7 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
       final delivered =
           await _deliverExport(export.bytes, 'lootlog-changes.dbevents.zip');
       if (delivered) {
-        final n = export.eventCount;
+        final n = export.eventCount + export.gameEventCount;
         _snack('Exported $n new ${n == 1 ? 'event' : 'events'}');
       }
     } on Object catch (e) {

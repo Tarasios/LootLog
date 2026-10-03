@@ -19,7 +19,7 @@ import '../features/spoils/spoils_model.dart';
 import '../ui/format.dart';
 import '../ui/theme.dart';
 import 'game_sprite.dart';
-import 'game_state.dart';
+import 'dungeon_state.dart';
 
 /// Coin sprite used for the burst/arc flourishes.
 const _coinSprite = SpriteRef.asset('coin_spin_6f.png', label: 'Gold');

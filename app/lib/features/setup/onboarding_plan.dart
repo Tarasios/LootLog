@@ -521,6 +521,25 @@ OnboardingPlan buildOnboardingEvents(
     ),
   );
 
+  // Each adult's play mode (cosmetic; the money reducer ignores it).
+  for (final adult in input.adults) {
+    final mode = input.playModes[adult.localId];
+    if (mode == null) continue;
+    events.add(
+      stamp(
+        (eventId) => CosmeticSet(
+          eventId: eventId,
+          deviceId: deviceId,
+          userId: me,
+          occurredAt: at,
+          createdAt: at,
+          key: playModeKey(adult.localId),
+          value: mode.name,
+        ),
+      ),
+    );
+  }
+
   return OnboardingPlan(events: events, localSetup: _localSetupFor(input));
 }
 

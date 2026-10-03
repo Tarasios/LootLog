@@ -3,7 +3,7 @@
 /// monsters are sized by their budget; a year minimap charts the floors and a
 /// scrolling adventure log runs alongside.
 ///
-/// A pure [StatelessWidget]: it renders the [GameState] + [LogEntry] list the
+/// A pure [StatelessWidget]: it renders the [DungeonState] + [LogEntry] list the
 /// adapter produced and calls back for the few actions, so it is golden-testable
 /// at any size. Sprites resolve through the injected [SpriteResolver]:
 ///
@@ -12,7 +12,7 @@
 ///     labelled placeholder while everything around it stays art.
 ///
 /// (Tier 3, text mode, is a separate screen reached by the global text-mode
-/// toggle.) Every number here is copied from [GameState]; this file adds pixels
+/// toggle.) Every number here is copied from [DungeonState]; this file adds pixels
 /// and layout, never arithmetic.
 library;
 
@@ -22,7 +22,7 @@ import '../../ui/format.dart';
 import '../../ui/theme.dart';
 import '../adapter.dart' show Sprites;
 import '../game_sprite.dart';
-import '../game_state.dart';
+import '../dungeon_state.dart';
 import '../text_mode/text_widgets.dart' show toneStyle;
 
 /// The actions the pixel dashboard can trigger; all optional (no-ops in goldens).
@@ -69,7 +69,7 @@ class PixelAdventureView extends StatelessWidget {
     this.callbacks = const PixelAdventureCallbacks(),
   });
 
-  final GameState game;
+  final DungeonState game;
   final List<LogEntry> log;
   final SpriteResolver resolver;
 

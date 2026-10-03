@@ -1,7 +1,7 @@
-/// The adventure-skin adapter: a pure `HouseholdState -> GameState` projection.
+/// The adventure-skin adapter: a pure `HouseholdState -> DungeonState` projection.
 ///
 /// This is the ONLY bridge between the domain and the game. The domain has zero
-/// game knowledge; the adventure widgets read only [GameState]. Every monetary
+/// game knowledge; the adventure widgets read only [DungeonState]. Every monetary
 /// number is copied verbatim from the reducer's read-model — the skin never
 /// re-derives balances, limits, or leftovers.
 ///
@@ -14,7 +14,7 @@ import '../domain/state.dart';
 import '../domain/time.dart';
 import '../domain/value_types.dart';
 import '../ui/format.dart';
-import 'game_state.dart';
+import 'dungeon_state.dart';
 
 /// Default sprite strips (see `docs/art-assets.md`). Kept here so the mapping
 /// and the widgets agree on names without a shared magic-string soup.
@@ -34,9 +34,9 @@ abstract final class Sprites {
   static const campfire = 'campfire_idle_4f.png';
 }
 
-/// Builds the adventure [GameState] for [meUserId] as of [asOf] (now by
+/// Builds the adventure [DungeonState] for [meUserId] as of [asOf] (now by
 /// default). [userNames] maps user ids to display names.
-GameState buildGameState(
+DungeonState buildDungeonState(
   HouseholdState state, {
   required String meUserId,
   required Map<String, String> userNames,
@@ -381,7 +381,7 @@ GameState buildGameState(
       ),
   ];
 
-  return GameState(
+  return DungeonState(
     currentMonth: month,
     floorNumber: floorNumber,
     heroName: nameOf(meUserId) ?? 'You',

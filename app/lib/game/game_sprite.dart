@@ -13,7 +13,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-import 'game_state.dart';
+import 'dungeon_state.dart';
 
 /// The base authoring size of one dungeon sprite frame, in logical pixels (see
 /// `docs/art-assets.md`). A sprite occupies `baseSize * scale` on screen; this

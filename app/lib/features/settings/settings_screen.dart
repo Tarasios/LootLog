@@ -321,8 +321,6 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-/// The Classic / Adventure skin chooser. Both render identical numbers; the
-/// choice only swaps the dashboard's presentation widgets.
 /// This person's Standard / Adventure choice, plus — for Adventure — which
 /// screen opens at launch. Saved per person (it follows them to every paired
 /// device); switching never deletes any game progress.
@@ -353,22 +351,18 @@ class _PlayModeSection extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.videogame_asset_outlined),
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Theme'),
-                    Text(
-                      'Classic ledger or the dungeon adventure skin',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+              Row(
+                children: [
+                  Icon(icon),
+                  const SizedBox(width: AppSpacing.lg),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [Text(title), Text(subtitle, style: helper)],
                     ),
-                  ],
-                ),
-              ]),
+                  ),
+                ],
+              ),
               const SizedBox(height: AppSpacing.sm),
               SegmentedButton<T>(
                 segments: segments,

@@ -32,6 +32,8 @@ import 'package:lootlog/domain/reducer.dart';
 import 'package:lootlog/domain/state.dart';
 import 'package:lootlog/domain/time.dart';
 import 'package:lootlog/domain/value_types.dart';
+import 'package:lootlog/game/domain/game_event.dart';
+import 'package:lootlog/game/domain/game_projection.dart';
 
 // ---- household fixture ------------------------------------------------------
 
@@ -98,6 +100,13 @@ class Node {
 
   Future<String> snapshot() async =>
       jsonEncode((await reduced()).debugSnapshot());
+
+  Future<void> authorGame(Iterable<GameEvent> events) =>
+      db.gameEventsDao.appendGameEvents(events);
+
+  /// The guild-hall game log, verbatim and in canonical order.
+  Future<String> gameSnapshot() async => jsonEncode(
+      [for (final e in await db.gameEventsDao.allGameEvents()) e.toJson()]);
 
   Future<void> startHub(String hubId, String secret) async {
     final h = HubServer(db: db, blobs: blobs, hubId: hubId, pairingSecret: secret);
@@ -258,8 +267,56 @@ Future<void> main() async {
       purchase(c, alice, 'p-retro', const SliceCharge(sBobFun), 5000, june(20),
           merchant: 'LastMonth'),
     ]);
+    // The guild-hall game log rides the same mesh on its own endpoints. The
+    // phone's event comes from a newer release this build cannot interpret.
+    await a.authorGame([
+      PartyJoined(
+        eventId: uuidv7(),
+        deviceId: a.deviceId,
+        actorId: alice,
+        occurredAt: july(3),
+        createdAt: july(3),
+        partyId: 'party-1',
+      ),
+    ]);
+    await b.authorGame([
+      HeroCustomized(
+        eventId: uuidv7(),
+        deviceId: b.deviceId,
+        actorId: bob,
+        occurredAt: july(6),
+        createdAt: july(6),
+        heroId: bob,
+        field: 'cloak',
+        value: 'green',
+      ),
+    ]);
+    await c.authorGame([
+      GameEvent.fromJson({
+        'eventId': uuidv7(),
+        'deviceId': c.deviceId,
+        'actorId': alice,
+        'occurredAt': july(7).toIso8601String(),
+        'createdAt': july(7).toIso8601String(),
+        'schemaVersion': 9,
+        'type': 'FromANewerRelease',
+        'payload': {'anything': true},
+      }),
+    ]);
     await convergeAll(nodes);
     await assertConverged(nodes, 'offline entries from all three devices');
+    for (final n in nodes) {
+      final game = await n.db.gameEventsDao.allGameEvents();
+      checkEq(game.length, 3, '${n.label}: game log holds all three devices\' '
+          'game events');
+      checkEq(game.whereType<UnknownGameEvent>().length, 1,
+          '${n.label}: newer-release game event relayed, kept verbatim');
+      checkEq(projectGameState(game).person(bob).hero.cosmetics['cloak'],
+          'green', '${n.label}: game state projects the synced log');
+      checkEq((await n.db.eventsDao.allEvents()).length,
+          (await a.db.eventsDao.allEvents()).length,
+          '${n.label}: game events never enter the ledger log');
+    }
 
     // --- Scenario 2: a shared purchase splits correctly everywhere ----------
     print('\n== 2. shared purchase split ==');
@@ -300,8 +357,12 @@ Future<void> main() async {
     print('\n== 5. spoils allocation converges ==');
     // Alice allocates her Alice-Fun July leftover on desktop B.
     // eff = base 25000 (limit 30000 - emergency 5000), spent 2000 -> leftover
-    // 23000. Attack Jacket 10000 (untithed) + 13000 discretionary (10% tithe ->
-    // 1300 to the chest, 11700 to Alice's vault).
+    // 23000. This ledger never adopts the savings rules, so legacy allocation
+    // applies. Attack Jacket 10000: the quest has no main category, so it
+    // never matches the source category and Alice-Fun's 10% pool tithe
+    // applies (category-match tithing) -> 1000 to the chest, 9000 damage.
+    // 13000 discretionary (10% tithe -> 1300 to the chest, 11700 to Alice's
+    // vault).
     await b.author([
       LeftoverAllocated(
         eventId: uuidv7(),
@@ -322,7 +383,7 @@ Future<void> main() async {
     await assertConverged(nodes, 'spoils allocation');
     for (final n in nodes) {
       final st = await n.reduced();
-      checkEq(st.quests[qJacket]!.balanceCents, 10000,
+      checkEq(st.quests[qJacket]!.balanceCents, 9000,
           '${n.label}: Jacket quest funded by spoils');
     }
 
@@ -487,9 +548,13 @@ Future<void> main() async {
     // --- Scenario 10: export-with-receipts into a fresh instance ------------
     print('\n== 10. export into a fresh instance ==');
     final fresh = Node('fresh-D', await _sub(root, 'D'), alice);
-    final zip = await exportEventsZip(await a.db.eventsDao.allEvents(), a.blobs);
+    final zip = await exportEventsZip(await a.db.eventsDao.allEvents(), a.blobs,
+        gameEvents: await a.db.gameEventsDao.allGameEvents());
     final imported = readEventsZip(zip);
     await fresh.author(imported.events);
+    await fresh.authorGame(imported.gameEvents);
+    check(await fresh.gameSnapshot() == await a.gameSnapshot(),
+        'fresh instance holds the identical game log from export');
     await saveImportedBlobs(imported, fresh.blobs);
     final freshSnap = await fresh.snapshot();
     final aSnap = await a.snapshot();
@@ -550,11 +615,11 @@ Future<void> convergeAll(List<Node> nodes) async {
     for (final n in nodes) {
       if (n.httpServer == null && n.hub != null) continue; // dead hub host
       final r = await n.client.syncOnce();
-      moved += r.pulled;
+      moved += r.pulled + r.hubs.fold(0, (s, h) => s + h.gamePulled);
     }
     final snaps = <String>{};
     for (final n in nodes) {
-      snaps.add(await n.snapshot());
+      snaps.add('${await n.snapshot()}|${await n.gameSnapshot()}');
     }
     if (moved == 0 && snaps.length == 1) return;
   }
@@ -563,7 +628,7 @@ Future<void> convergeAll(List<Node> nodes) async {
 Future<void> assertConverged(List<Node> nodes, String label) async {
   final snaps = <String, String>{};
   for (final n in nodes) {
-    snaps[n.label] = await n.snapshot();
+    snaps[n.label] = '${await n.snapshot()}|${await n.gameSnapshot()}';
   }
   final distinct = snaps.values.toSet();
   check(distinct.length == 1, '$label: all instances identical');

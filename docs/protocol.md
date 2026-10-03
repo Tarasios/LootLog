@@ -86,6 +86,27 @@ no-op. `200` on success.
 `GET` returns the raw bytes or `404`. `HEAD` returns `200`/`404` so a client can
 skip a `PUT` for a blob the hub already has.
 
+### `POST /game-events` · `GET /game-events?after=<seq>&limit=<n>`
+
+The guild-hall game keeps its own append-only log (`GameEvent`, envelope
+`{eventId, deviceId, actorId, occurredAt, createdAt, schemaVersion, type,
+payload}`), stored apart from the ledger. These two endpoints move it with
+exactly the semantics of `/events` above — idempotent batch append, pages of
+`{events, cursor, maxSeq}` — over a **separate per-hub `seq`**, client cursor
+and push log, so game events never appear in `/events`.
+
+Compatibility, both directions:
+
+- A hub that predates game sync answers these paths `404`. The client treats
+  that as "this hub doesn't carry the game log yet": the cycle still counts as
+  successful, nothing is marked pushed, and the queued game events go out once
+  the hub is updated.
+- A client that predates game sync never calls them, so it never has to decode
+  a game event.
+- A game event type (or enum value) a build doesn't know decodes as
+  `UnknownGameEvent` and is stored and relayed byte-identically, so a newer
+  device's game events pass through older hubs and clients unchanged.
+
 ## A sync cycle (client side)
 
 For each paired hub, in order:
@@ -97,6 +118,9 @@ For each paired hub, in order:
 3. **Pull events** — loop `GET /events?after=<cursor>`, appending each page and
    advancing the cursor, until a short page.
 4. **Pull blobs** — for each newly referenced blob missing locally, `GET` it.
+5. **Game log** — push unpushed game events (`POST /game-events`), then pull
+   (`GET /game-events?after=`) until a short page. A `404` ends this step
+   quietly (see above).
 
 Failures are **silent-but-visible**: an unreachable hub yields a per-hub error
 surfaced on the status chip, never a thrown exception or a blocking dialog. The
@@ -108,7 +132,10 @@ When two devices can't reach a hub, the same events and blobs move as files:
 
 - `.dbevents` — JSON Lines, one event envelope per line.
 - `.dbevents.zip` — `events.jsonl` plus a `blobs/<sha256>` entry per referenced
-  blob.
+  blob, plus `game_events.jsonl` (the game log, JSON Lines) when there is any.
+  Older readers only open the entries they know, so they import the ledger and
+  ignore the game log. Plain `.dbevents` stays ledger-only, because an older
+  importer would reject a game envelope line.
 
 Import is idempotent (events by id, blobs by hash) and defensive: a malformed
 file raises `ImportException` and a blob whose bytes don't match its name raises
@@ -119,4 +146,5 @@ file raises `ImportException` and a blob whose bytes don't match its name raises
 `tool/e2e.sh` stands up two hubs and a third client over real loopback sockets
 and asserts convergence across every scenario above — offline entries, shared and
 group purchases, retroactive months, spoils, withdrawals, ransacks, receipt
-propagation, surviving a hub outage, and file export/import parity.
+propagation, surviving a hub outage, file export/import parity, and the
+guild-hall game log (including a newer release's event relayed verbatim).

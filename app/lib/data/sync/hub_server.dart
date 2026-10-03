@@ -11,6 +11,10 @@
 ///   * `POST /pair`            {pairingSecret, deviceName} -> {hubId, deviceToken}
 ///   * `POST /events`          {events:[envelope…]} -> {maxSeq} (idempotent batch)
 ///   * `GET  /events?after=&limit=` -> {events:[…], maxSeq}
+///   * `POST /game-events`     {events:[game envelope…]} -> {maxSeq}
+///   * `GET  /game-events?after=&limit=` -> {events:[…], maxSeq}
+///     (the guild-hall game log: same semantics, its own `seq`; a hub that
+///     predates game sync answers 404 and clients skip game sync for it)
 ///   * `PUT  /blobs/<sha256>`  raw bytes (hash-verified, 20 MB cap) -> 200
 ///   * `GET  /blobs/<sha256>`  raw bytes | 404
 ///   * `HEAD /blobs/<sha256>`  200 | 404 (lets a client skip a re-PUT)
@@ -28,6 +32,7 @@ import 'package:shelf/shelf_io.dart' as shelf_io;
 
 import '../../domain/event.dart';
 import '../../domain/ids.dart';
+import '../../game/domain/game_event.dart';
 import '../blobs/blob_store.dart';
 import '../db/database.dart';
 import 'wire.dart';
@@ -63,6 +68,7 @@ class HubServer {
     hubId = cfg.hubId;
     pairingSecret = cfg.pairingSecret;
     await db.hubHostDao.assignSeqs();
+    await db.gameSyncDao.assignHostedSeqs();
     _ready = true;
   }
 
@@ -95,6 +101,10 @@ class HubServer {
       if (_isPath(segments, ['events'])) {
         if (method == 'POST') return await _handlePostEvents(request);
         if (method == 'GET') return await _handleGetEvents(request);
+      }
+      if (_isPath(segments, ['game-events'])) {
+        if (method == 'POST') return await _handlePostGameEvents(request);
+        if (method == 'GET') return await _handleGetGameEvents(request);
       }
       if (segments.length == 2 && segments[0] == 'blobs') {
         final sha = segments[1];
@@ -149,6 +159,43 @@ class HubServer {
     return _json(
       200,
       EventPage(events: page.events, cursor: page.cursor, maxSeq: maxSeq)
+          .toJson(),
+    );
+  }
+
+  Future<Response> _handlePostGameEvents(Request request) async {
+    final body = await _readJson(request);
+    final list = body['events'];
+    if (list is! List) {
+      return _json(400, {'error': 'events must be a list'});
+    }
+    final List<GameEvent> events;
+    try {
+      events = [
+        for (final e in list)
+          GameEvent.fromJson((e as Map).cast<String, dynamic>()),
+      ];
+    } on TypeError catch (e) {
+      // A structurally broken envelope (missing or mistyped field). Unknown
+      // types and values are fine — they decode as UnknownGameEvent.
+      return _json(400, {'error': 'bad game event', 'detail': '$e'});
+    }
+    await db.gameEventsDao.appendGameEvents(events);
+    final maxSeq = await db.gameSyncDao.assignHostedSeqs();
+    return _json(200, {'accepted': events.length, 'maxSeq': maxSeq});
+  }
+
+  Future<Response> _handleGetGameEvents(Request request) async {
+    // Pick up game events authored locally on the host since the last request.
+    await db.gameSyncDao.assignHostedSeqs();
+    final after = int.tryParse(request.url.queryParameters['after'] ?? '0') ?? 0;
+    final limit =
+        int.tryParse(request.url.queryParameters['limit'] ?? '500') ?? 500;
+    final page = await db.gameSyncDao.hostedAfter(after, limit: limit);
+    final maxSeq = await db.gameSyncDao.maxHostedSeq();
+    return _json(
+      200,
+      GameEventPage(events: page.events, cursor: page.cursor, maxSeq: maxSeq)
           .toJson(),
     );
   }

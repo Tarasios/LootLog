@@ -1,4 +1,4 @@
-/// A fully-populated adventure [GameState] (every card kind exercised) for the
+/// A fully-populated adventure [DungeonState] (every card kind exercised) for the
 /// adventure-dashboard goldens. Built directly from the pure model constructors
 /// so the goldens are deterministic and self-contained — no reducer, no async
 /// image loading (the default placeholder resolver renders every sprite).
@@ -7,14 +7,14 @@ library;
 import 'package:lootlog/domain/time.dart';
 import 'package:lootlog/game/adapter.dart';
 import 'package:lootlog/game/adventure_dashboard.dart';
-import 'package:lootlog/game/game_state.dart';
+import 'package:lootlog/game/dungeon_state.dart';
 
 const _july = Month(2026, 7);
 
 SpriteRef _asset(String name, String label) =>
     SpriteRef.asset(name, label: label);
 
-GameState sampleGameState() => GameState(
+DungeonState sampleDungeonState() => DungeonState(
       currentMonth: _july,
       floorNumber: 7,
       heroName: 'Robin',
@@ -181,9 +181,9 @@ GameState sampleGameState() => GameState(
 /// device owner (owns two monsters, one enraged), another adventurer (owns one),
 /// a companion with no ledger, and the pet familiar (owns the pet-linked
 /// monster). Used by the pixel-dashboard goldens to exercise every party frame.
-GameState sampleGameStateWithRoster() {
-  final g = sampleGameState();
-  return GameState(
+DungeonState sampleDungeonStateWithRoster() {
+  final g = sampleDungeonState();
+  return DungeonState(
     currentMonth: g.currentMonth,
     floorNumber: g.floorNumber,
     heroName: g.heroName,

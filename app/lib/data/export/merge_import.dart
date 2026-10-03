@@ -9,6 +9,7 @@
 library;
 
 import '../../domain/event.dart';
+import '../../game/domain/game_event.dart';
 
 /// How much of an incoming file is new versus already present locally.
 class MergePreview {
@@ -17,6 +18,8 @@ class MergePreview {
     required this.presentEvents,
     required this.newReceipts,
     required this.presentReceipts,
+    this.newGameEvents = 0,
+    this.presentGameEvents = 0,
   });
 
   /// Incoming events whose `eventId` is not already in the local log.
@@ -31,11 +34,17 @@ class MergePreview {
   /// Carried blobs already stored locally.
   final int presentReceipts;
 
+  /// Incoming guild-hall game events not already in the local game log.
+  final int newGameEvents;
+
+  /// Incoming game events already in the local game log.
+  final int presentGameEvents;
+
   /// Total distinct events described by the file.
   int get totalEvents => newEvents + presentEvents;
 
   /// Whether applying this file would change nothing at all.
-  bool get isNoOp => newEvents == 0 && newReceipts == 0;
+  bool get isNoOp => newEvents == 0 && newReceipts == 0 && newGameEvents == 0;
 
   /// A one-line human summary, e.g. `14 new events, 3 receipts — 210 already
   /// present`. Receipts are omitted when none are new; the "already present"
@@ -45,10 +54,14 @@ class MergePreview {
     if (newReceipts > 0) {
       head.write(', $newReceipts ${_plural(newReceipts, 'receipt')}');
     }
-    if (presentEvents == 0) {
+    if (newGameEvents > 0) {
+      head.write(', $newGameEvents game ${_plural(newGameEvents, 'event')}');
+    }
+    final present = presentEvents + presentGameEvents;
+    if (present == 0) {
       return head.toString();
     }
-    return '$head — $presentEvents already present';
+    return '$head — $present already present';
   }
 
   static String _plural(int n, String word) => n == 1 ? word : '${word}s';
@@ -63,6 +76,8 @@ MergePreview computeMergePreview({
   required Set<String> existingEventIds,
   required Iterable<String> incomingBlobShas,
   required Set<String> existingBlobShas,
+  Iterable<GameEvent> incomingGameEvents = const [],
+  Set<String> existingGameEventIds = const {},
 }) {
   var newEvents = 0;
   var presentEvents = 0;
@@ -88,10 +103,24 @@ MergePreview computeMergePreview({
     }
   }
 
+  var newGameEvents = 0;
+  var presentGameEvents = 0;
+  final seenGame = <String>{};
+  for (final e in incomingGameEvents) {
+    if (!seenGame.add(e.eventId)) continue;
+    if (existingGameEventIds.contains(e.eventId)) {
+      presentGameEvents++;
+    } else {
+      newGameEvents++;
+    }
+  }
+
   return MergePreview(
     newEvents: newEvents,
     presentEvents: presentEvents,
     newReceipts: newReceipts,
     presentReceipts: presentReceipts,
+    newGameEvents: newGameEvents,
+    presentGameEvents: presentGameEvents,
   );
 }

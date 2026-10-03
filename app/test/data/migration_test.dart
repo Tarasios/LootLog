@@ -19,6 +19,7 @@ import 'package:lootlog/data/db/database.dart';
 import 'package:lootlog/data/setup/local_setup.dart';
 import 'package:lootlog/domain/event.dart';
 import 'package:lootlog/domain/value_types.dart';
+import 'package:lootlog/game/domain/game_event.dart';
 import 'package:sqlite3/sqlite3.dart' as sq;
 
 /// SQL table names by the schema version that introduced them. Dropping every
@@ -32,6 +33,12 @@ List<String> _tablesAddedAfter(int version) => [
         'paired_hubs',
       ],
       if (version < 3) 'export_bookmarks',
+      if (version < 4) ...[
+        'game_events',
+        'hosted_game_event_seq',
+        'game_hub_cursors',
+        'game_hub_push_log',
+      ],
     ];
 
 Event _member(String id, String name) => MemberSet(
@@ -155,8 +162,32 @@ void main() {
     await db.close();
   });
 
-  test('reopening a current-version file is a clean no-op', () async {
+  test('a v3 file upgrades with an empty, working game event log', () async {
     await seedAsVersion(3);
+
+    final db = AppDatabase(NativeDatabase(dbFile()));
+    await expectDataSurvived(db);
+
+    expect(await db.gameEventsDao.allGameEvents(), isEmpty);
+    await db.gameEventsDao.appendGameEvents([
+      PartyJoined(
+        eventId: 'g-1',
+        deviceId: 'dev-1',
+        actorId: 'u1',
+        occurredAt: DateTime.utc(2026, 10, 1, 18),
+        createdAt: DateTime.utc(2026, 10, 1, 18),
+        partyId: 'party-1',
+      ),
+    ]);
+    expect((await db.gameEventsDao.allGameEvents()).single.eventId, 'g-1');
+    expect((await db.eventsDao.allEvents()).map((e) => e.eventId),
+        isNot(contains('g-1')),
+        reason: 'game events never enter the ledger log');
+    await db.close();
+  });
+
+  test('reopening a current-version file is a clean no-op', () async {
+    await seedAsVersion(4);
     final db = AppDatabase(NativeDatabase(dbFile()));
     await expectDataSurvived(db);
     await db.close();

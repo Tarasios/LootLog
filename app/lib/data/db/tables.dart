@@ -34,6 +34,62 @@ class Events extends Table {
   Set<Column<Object>> get primaryKey => {eventId};
 }
 
+/// The guild-hall game's own append-only event log, kept apart from the
+/// ledger's [Events] so game events can never be mistaken for (or reduced as)
+/// money events. Same conventions: `eventId` (UUIDv7) primary key for
+/// idempotent inserts, envelope columns, and the type-specific JSON `payload`.
+/// A row round-trips back to a `GameEvent` via `GameEvent.fromJson`.
+@DataClassName('GameEventRow')
+class GameEvents extends Table {
+  TextColumn get eventId => text()();
+  TextColumn get deviceId => text()();
+
+  /// The person who acted.
+  TextColumn get actorId => text()();
+  TextColumn get type => text()();
+  DateTimeColumn get occurredAt => dateTime()();
+  DateTimeColumn get createdAt => dateTime()();
+
+  /// The payload schema version the event was written with.
+  IntColumn get schemaVersion => integer()();
+
+  /// The type-specific payload as a JSON object string.
+  TextColumn get payload => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {eventId};
+}
+
+/// The game log's per-hub sequence, the mirror of [HostedEventSeq] for a
+/// device acting as a hub: every hosted game event gets one `seq`, in arrival
+/// order, served by `GET /game-events?after=<seq>`. Separate from the ledger's
+/// sequence so a hub that predates game sync keeps its ledger cursors intact.
+@DataClassName('HostedGameEventRow')
+class HostedGameEventSeq extends Table {
+  IntColumn get seq => integer().autoIncrement()();
+  TextColumn get eventId => text().unique()();
+}
+
+/// One game-log pull cursor per paired hub (the mirror of [HubCursors]).
+@DataClassName('GameHubCursorRow')
+class GameHubCursors extends Table {
+  TextColumn get hubId => text()();
+  IntColumn get lastPulledSeq => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {hubId};
+}
+
+/// Per-hub push tracking for game events (the mirror of [HubPushLog]).
+@DataClassName('GameHubPushRow')
+class GameHubPushLog extends Table {
+  TextColumn get hubId => text()();
+  TextColumn get eventId => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {hubId, eventId};
+}
+
 /// One pull cursor per paired hub. A device may pair with multiple hubs and
 /// keeps an independent `lastPulledSeq` for each, so `GET /events?after=` can
 /// resume where it left off per hub.
@@ -120,10 +176,12 @@ class PairedHubs extends Table {
 /// device-local bookkeeping, never synced.
 @DataClassName('ExportBookmarkRow')
 class ExportBookmarks extends Table {
-  /// Singleton row; always 0.
+  /// Which log the bookmark is for: 0 = the ledger's events, 1 = the game
+  /// log's (see `kGameExportBookmarkId`). One row per log.
   IntColumn get id => integer().withDefault(const Constant(0))();
 
-  /// The highest event rowid folded into the last export (0 = never exported).
+  /// The highest rowid of that log folded into the last export (0 = never
+  /// exported).
   IntColumn get lastExportedRowid => integer().withDefault(const Constant(0))();
 
   @override

@@ -21,7 +21,7 @@ void _bigSurface(WidgetTester t) {
 }
 
 void main() {
-  final game = sampleGameStateWithRoster();
+  final game = sampleDungeonStateWithRoster();
   final log = sampleAdventureLog();
 
   testWidgets('renders the camp, party frames, monsters, minimap and log',
