@@ -20,7 +20,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(_host(AdventureDashboard(
-      game: sampleGameState(),
+      game: sampleDungeonState(),
       // Default PlaceholderSpriteResolver: sprites render as labelled grey
       // placeholders, so the golden is deterministic with no real art.
       spoilsBanner: sampleSpoilsBanner(),
@@ -41,7 +41,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(_host(AdventureDashboard(
-      game: sampleGameState(),
+      game: sampleDungeonState(),
       spoilsBanner: sampleSpoilsBanner(),
     )));
     await tester.pump(const Duration(milliseconds: 200));

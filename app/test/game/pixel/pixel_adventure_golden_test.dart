@@ -1,7 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:lootlog/game/game_sprite.dart';
-import 'package:lootlog/game/game_state.dart';
+import 'package:lootlog/game/dungeon_state.dart';
 import 'package:lootlog/game/pixel/pixel_adventure_view.dart';
 import 'package:lootlog/game/text_mode/text_adventure_view.dart';
 import 'package:lootlog/ui/theme.dart';
@@ -76,7 +76,7 @@ Widget _host(Widget child, {required Size size}) => MaterialApp(
     );
 
 void main() {
-  final game = sampleGameStateWithRoster();
+  final game = sampleDungeonStateWithRoster();
   final log = sampleAdventureLog();
 
   Future<void> pumpAt(WidgetTester tester, Widget child, Size size) async {

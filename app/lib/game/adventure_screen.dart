@@ -60,7 +60,7 @@ class AdventureDashboardScreen extends ConsumerWidget {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final game = buildGameState(state,
+    final game = buildDungeonState(state,
         meUserId: meUserId,
         userNames: names,
         includeOtherAdults: ref.watch(showHouseholdBudgetsProvider));

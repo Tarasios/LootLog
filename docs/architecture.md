@@ -331,7 +331,7 @@ abroad" side-floor.
 The game is not a skin bolted on — it is the primary experience (§0). But it
 never moves a cent.
 
-**The firewall.** `lib/game/` maps `HouseholdState -> GameState` via
+**The firewall.** `lib/game/` maps `HouseholdState -> DungeonState` via
 `lib/game/adapter.dart` (pure, tested) and may append **only cosmetic events**
 (`CosmeticSet`, `GameRewardGranted`, sprite/description references). The money
 reducer **ignores cosmetic events entirely** — a ledger with all cosmetic events
@@ -490,7 +490,7 @@ whole sync path end to end.
   store, `ocr/` (pure parser + a thin plugin wrapper), the receipt-library
   projector, import/export (+ merge preview), xlsx export, `sheets/` (optional,
   isolated), and tax package export.
-- `app/lib/game/` — `adapter.dart` (pure `GameState` mapping) + `rewards/`
+- `app/lib/game/` — `adapter.dart` (pure `DungeonState` mapping) + `rewards/`
   (cosmetic reward logic, pure) + `text_mode/` + pixel widgets;
   narrative/encouragement strings under `app/assets/game/text/`.
 - `app/lib/features/<name>/` — classic UI, per feature.

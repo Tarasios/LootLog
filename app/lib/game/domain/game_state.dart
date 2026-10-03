@@ -2,9 +2,8 @@
 /// log (see `game_projection.dart`). Party-level hall state plus per-person
 /// state. Immutable; [GameState.apply] returns a new state.
 ///
-/// Not to be confused with `lib/game/game_state.dart`, the dungeon adapter's
-/// read-model of the ledger. Import one of them with a prefix where both are
-/// needed.
+/// Distinct from `DungeonState` (`lib/game/dungeon_state.dart`), the dungeon
+/// adapter's read-model of the ledger.
 ///
 /// Pure Dart, zero Flutter imports.
 library;

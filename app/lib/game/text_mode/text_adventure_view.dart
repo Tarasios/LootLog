@@ -5,7 +5,7 @@
 /// and a scrolling adventure log in game voice. A pinned "strike a monster —
 /// log a purchase" bar keeps quick entry one tap away, never scrolled off.
 ///
-/// A pure [StatelessWidget]: it renders the [GameState] + [LogEntry] list the
+/// A pure [StatelessWidget]: it renders the [DungeonState] + [LogEntry] list the
 /// adapter produced and calls back for the few actions. It reads only the game
 /// read-model and never computes a cent, so it is widget-testable without the
 /// data layer.
@@ -15,7 +15,7 @@ import 'package:flutter/material.dart';
 
 import '../../ui/format.dart';
 import '../../ui/theme.dart';
-import '../game_state.dart';
+import '../dungeon_state.dart';
 import 'text_widgets.dart';
 
 /// The handful of things the text dashboard can trigger.
@@ -57,7 +57,7 @@ class TextAdventureView extends StatelessWidget {
     this.callbacks = const TextAdventureCallbacks(),
   });
 
-  final GameState game;
+  final DungeonState game;
   final List<LogEntry> log;
 
   /// A supportive line drawn from `assets/game/text/`, shown atop the log.

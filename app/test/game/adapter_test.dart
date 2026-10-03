@@ -3,7 +3,7 @@ import 'package:lootlog/domain/reducer.dart';
 import 'package:lootlog/domain/time.dart';
 import 'package:lootlog/domain/value_types.dart';
 import 'package:lootlog/game/adapter.dart';
-import 'package:lootlog/game/game_state.dart';
+import 'package:lootlog/game/dungeon_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // Two adventurers.
@@ -105,8 +105,8 @@ List<Event> _twoAdults() => [
       _member(partner, MemberRole.adult),
     ];
 
-GameState _game(List<Event> events, {required DateTime asOf}) =>
-    buildGameState(
+DungeonState _game(List<Event> events, {required DateTime asOf}) =>
+    buildDungeonState(
       reduce(events, asOf: asOf),
       meUserId: me,
       userNames: _names,

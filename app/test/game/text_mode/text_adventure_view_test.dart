@@ -1,5 +1,5 @@
 import 'package:lootlog/game/adapter.dart';
-import 'package:lootlog/game/game_state.dart';
+import 'package:lootlog/game/dungeon_state.dart';
 import 'package:lootlog/game/text_mode/text_adventure_view.dart';
 import 'package:lootlog/ui/theme.dart';
 import 'package:flutter/material.dart';
@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../adventure_fixtures.dart';
 
-GameState _withRoster(GameState g) => GameState(
+DungeonState _withRoster(DungeonState g) => DungeonState(
       currentMonth: g.currentMonth,
       floorNumber: g.floorNumber,
       heroName: g.heroName,
@@ -69,7 +69,7 @@ void main() {
   testWidgets('renders the camp, roster, dungeon entrance, quests, treasury '
       'and log', (t) async {
     await t.pumpWidget(_wrap(TextAdventureView(
-      game: _withRoster(sampleGameState()),
+      game: _withRoster(sampleDungeonState()),
       log: log,
     )));
 
@@ -96,7 +96,7 @@ void main() {
   testWidgets('the log-a-purchase bar is pinned outside the scroll view',
       (t) async {
     await t.pumpWidget(_wrap(TextAdventureView(
-      game: _withRoster(sampleGameState()),
+      game: _withRoster(sampleDungeonState()),
       log: log,
     )));
 
@@ -123,7 +123,7 @@ void main() {
     var struck = 0;
     var classic = 0;
     await t.pumpWidget(_wrap(TextAdventureView(
-      game: _withRoster(sampleGameState()),
+      game: _withRoster(sampleDungeonState()),
       log: log,
       callbacks: TextAdventureCallbacks(
         onStrikeMonster: () => struck++,
@@ -139,7 +139,7 @@ void main() {
 
   testWidgets('a wounded party shows the encouragement line', (t) async {
     await t.pumpWidget(_wrap(TextAdventureView(
-      game: _withRoster(sampleGameState()),
+      game: _withRoster(sampleDungeonState()),
       log: log,
       encouragement: 'Every hero has an off day. Onward.',
     )));

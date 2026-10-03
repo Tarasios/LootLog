@@ -1,4 +1,4 @@
-/// `GameState` and its parts: the adventure skin's read-model. The adapter
+/// `DungeonState` and its parts: the adventure skin's read-model. The adapter
 /// (`adapter.dart`) maps the domain's [HouseholdState] into this shape; the
 /// adventure widgets render only from here. Nothing in the domain knows this
 /// file exists, and nothing here computes money — every number is copied
@@ -528,8 +528,8 @@ class LogEntry {
 }
 
 /// The whole adventure read-model for one dungeon floor.
-class GameState {
-  const GameState({
+class DungeonState {
+  const DungeonState({
     required this.currentMonth,
     required this.floorNumber,
     required this.heroName,

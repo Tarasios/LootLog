@@ -8,7 +8,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../ui/theme.dart';
-import '../game_state.dart';
+import '../dungeon_state.dart';
 
 /// A block-character progress bar, e.g. `████████░░░░`. [fraction] is clamped to
 /// 0..1; [width] is the number of cells.
