@@ -41,7 +41,7 @@ class ManageScreen extends ConsumerWidget {
           _Entry(
             icon: Icons.tune,
             title: 'Budget setup',
-            subtitle: "Both members' categories, side by side",
+            subtitle: "Everyone's categories, side by side",
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const BudgetSetupScreen()),
             ),

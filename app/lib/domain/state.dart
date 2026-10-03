@@ -3,6 +3,7 @@
 /// event log every time. Pure Dart, zero Flutter imports.
 library;
 
+import 'pools.dart';
 import 'time.dart';
 import 'value_types.dart';
 
@@ -18,12 +19,15 @@ class Settings {
   final int dissolutionTithePct;
   final bool showNetWorth;
 
-  Settings copyWith({int? spoilsGraceDays, int? dissolutionTithePct, bool? showNetWorth}) =>
-      Settings(
-        spoilsGraceDays: spoilsGraceDays ?? this.spoilsGraceDays,
-        dissolutionTithePct: dissolutionTithePct ?? this.dissolutionTithePct,
-        showNetWorth: showNetWorth ?? this.showNetWorth,
-      );
+  Settings copyWith({
+    int? spoilsGraceDays,
+    int? dissolutionTithePct,
+    bool? showNetWorth,
+  }) => Settings(
+    spoilsGraceDays: spoilsGraceDays ?? this.spoilsGraceDays,
+    dissolutionTithePct: dissolutionTithePct ?? this.dissolutionTithePct,
+    showNetWorth: showNetWorth ?? this.showNetWorth,
+  );
 }
 
 /// A **main category** — the coarse grouping every budget category belongs to.
@@ -71,14 +75,38 @@ class MainCategory {
 /// reducer always seeds these, so every household has them even with no
 /// `MainCategorySet` events on the log.
 const List<MainCategory> defaultMainCategories = [
-  MainCategory(id: 'housing', name: 'Housing', colorArgb: 0xFF4E79A7, sortOrder: 0),
-  MainCategory(id: 'food', name: 'Food', colorArgb: 0xFFF28E2B, sortOrder: 1),
-  MainCategory(id: 'transport', name: 'Transport', colorArgb: 0xFFE15759, sortOrder: 2),
-  MainCategory(id: 'health', name: 'Health', colorArgb: 0xFF76B7B2, sortOrder: 3),
   MainCategory(
-      id: 'entertainment', name: 'Entertainment', colorArgb: 0xFF59A14F, sortOrder: 4),
+    id: 'housing',
+    name: 'Housing',
+    colorArgb: 0xFF4E79A7,
+    sortOrder: 0,
+  ),
+  MainCategory(id: 'food', name: 'Food', colorArgb: 0xFFF28E2B, sortOrder: 1),
+  MainCategory(
+    id: 'transport',
+    name: 'Transport',
+    colorArgb: 0xFFE15759,
+    sortOrder: 2,
+  ),
+  MainCategory(
+    id: 'health',
+    name: 'Health',
+    colorArgb: 0xFF76B7B2,
+    sortOrder: 3,
+  ),
+  MainCategory(
+    id: 'entertainment',
+    name: 'Entertainment',
+    colorArgb: 0xFF59A14F,
+    sortOrder: 4,
+  ),
   MainCategory(id: 'pets', name: 'Pets', colorArgb: 0xFFEDC948, sortOrder: 5),
-  MainCategory(id: 'savings', name: 'Savings', colorArgb: 0xFFB07AA1, sortOrder: 6),
+  MainCategory(
+    id: 'savings',
+    name: 'Savings',
+    colorArgb: 0xFFB07AA1,
+    sortOrder: 6,
+  ),
   MainCategory(id: 'misc', name: 'Misc', colorArgb: 0xFF9C755F, sortOrder: 7),
 ];
 
@@ -152,6 +180,10 @@ class SliceMonth {
     required this.overspendCents,
     required this.resolved,
     this.lockedCents = 0,
+    this.fromSavingsCents = 0,
+    this.savingsCents = 0,
+    this.coveredCents = 0,
+    this.trimmedCents = 0,
   });
 
   final String sliceId;
@@ -176,6 +208,21 @@ class SliceMonth {
   /// whole limit is eaten). Recognised as debt payment once the month closes.
   final int lockedCents;
 
+  /// Savings rules only: spending this month that the category's savings paid
+  /// for (after the monthly allowance ran out).
+  final int fromSavingsCents;
+
+  /// Savings rules only: the category savings balance after this month's
+  /// spending, before this month's month-end moves.
+  final int savingsCents;
+
+  /// Savings rules only: spending covered from elsewhere (the general pool or
+  /// an approved advance), so it never counted against this category.
+  final int coveredCents;
+
+  /// Savings rules only: allowance withheld this month to repay an advance.
+  final int trimmedCents;
+
   bool get overspent => overspendCents > 0;
 
   bool get locked => lockedCents > 0;
@@ -191,10 +238,15 @@ class OverbudgetState {
     required this.ownerUserId,
     required this.accruedCents,
     required this.outstandingCents,
+    this.kind = DebtKind.overbudget,
   });
 
+  /// The indebted category — or `provisions:<expenseId>` for a bill top-up.
   final String sliceId;
   final String ownerUserId;
+
+  /// An overspent category (the OVERBUDGET) or a variable bill's top-up.
+  final DebtKind kind;
 
   /// Total overflow that ever became debt on this category.
   final int accruedCents;
@@ -292,9 +344,9 @@ class RecurringExpenseState {
   }
 
   /// Whole days from [from] to the next due date (0 when due today).
-  int daysUntilDue(DateTime from) => nextDueDate(from)
-      .difference(DateTime(from.year, from.month, from.day))
-      .inDays;
+  int daysUntilDue(DateTime from) => nextDueDate(
+    from,
+  ).difference(DateTime(from.year, from.month, from.day)).inDays;
 }
 
 /// The reconciliation of an annual expense in its due month: the real amount is
@@ -408,9 +460,11 @@ class VacationCategoryState {
   final int limitCents;
   final int spentCents;
 
-  int get leftoverCents => spentCents < limitCents ? limitCents - spentCents : 0;
+  int get leftoverCents =>
+      spentCents < limitCents ? limitCents - spentCents : 0;
 
-  int get overspendCents => spentCents > limitCents ? spentCents - limitCents : 0;
+  int get overspendCents =>
+      spentCents > limitCents ? spentCents - limitCents : 0;
 
   bool get overspent => overspendCents > 0;
 }
@@ -463,15 +517,13 @@ class VacationState {
 
   /// The id of the backing fund (a questId or emergency fundId).
   String get fundSourceId => switch (fund) {
-        VacationFundQuest(:final questId) => questId,
-        VacationFundEmergency(:final fundId) => fundId,
-      };
+    VacationFundQuest(:final questId) => questId,
+    VacationFundEmergency(:final fundId) => fundId,
+  };
 
-  int get totalLimitCents =>
-      categories.fold(0, (a, c) => a + c.limitCents);
+  int get totalLimitCents => categories.fold(0, (a, c) => a + c.limitCents);
 
-  int get totalSpentCents =>
-      categories.fold(0, (a, c) => a + c.spentCents);
+  int get totalSpentCents => categories.fold(0, (a, c) => a + c.spentCents);
 
   int get totalLeftoverCents {
     final r = totalLimitCents - totalSpentCents;
@@ -531,6 +583,36 @@ class WarChestState {
 
 enum WithdrawalStatus { pending, approved, cancelled }
 
+/// A request to borrow from a category's future monthly allowances to cover a
+/// purchase now. Same approval rule as a war-chest withdrawal: another adult
+/// signs (auto-approved in a one-adult household). Once approved it covers
+/// the category in [month] and trims the next [months] allowances.
+class AdvanceState {
+  const AdvanceState({
+    required this.advanceId,
+    required this.byUserId,
+    required this.sliceId,
+    required this.amountCents,
+    required this.months,
+    required this.month,
+    required this.status,
+    this.approvedByUserId,
+    this.purchaseId,
+  });
+
+  final String advanceId;
+  final String byUserId;
+  final String sliceId;
+  final int amountCents;
+  final int months;
+
+  /// The month the advance covers (the proposal's month).
+  final Month month;
+  final WithdrawalStatus status;
+  final String? approvedByUserId;
+  final String? purchaseId;
+}
+
 /// A pool withdrawal proposal and its resolution.
 class WithdrawalProposal {
   const WithdrawalProposal({
@@ -554,7 +636,11 @@ class WithdrawalProposal {
 
 /// A display-only pet party member.
 class PetState {
-  const PetState({required this.petId, required this.name, this.customSpriteSha256});
+  const PetState({
+    required this.petId,
+    required this.name,
+    this.customSpriteSha256,
+  });
 
   final String petId;
   final String name;
@@ -764,6 +850,38 @@ class DefaultIncome {
       estimatedHighCents != null && estimatedHighCents! > amountCents;
 }
 
+/// The general-pool tax rate a household starts with when it adopts the
+/// savings rules (onboarding and the Settings adopt switch).
+const int kDefaultGeneralTithePct = 20;
+
+/// The household's savings-economy rules: active from [fromMonth] (the
+/// adoption month), with the general-pool tax rate as it stood each month.
+/// Months before adoption keep the legacy math exactly.
+class SavingsRules {
+  const SavingsRules({
+    required this.fromMonth,
+    required this.generalPctByFromMonth,
+  });
+
+  final Month fromMonth;
+
+  /// General rate keyed by the 'yyyy-MM' month it takes effect from.
+  final Map<String, int> generalPctByFromMonth;
+
+  bool appliesTo(Month m) => !m.isBefore(fromMonth);
+
+  /// The general rate in force for [m]: the entry with the latest effective
+  /// month ≤ [m] (the adoption entry's rate before any later change).
+  int generalRateFor(Month m) {
+    Month? best;
+    for (final k in generalPctByFromMonth.keys) {
+      final km = Month.parse(k);
+      if (!km.isAfter(m) && (best == null || km.isAfter(best))) best = km;
+    }
+    return generalPctByFromMonth[(best ?? fromMonth).toKey()] ?? 0;
+  }
+}
+
 /// The full derived read-model of the household.
 class HouseholdState {
   const HouseholdState({
@@ -791,6 +909,9 @@ class HouseholdState {
     required this.recurringExpenses,
     required this.variableActuals,
     required this.vacations,
+    this.savingsRules,
+    this.categorySavings = const {},
+    this.advances = const {},
   });
 
   final Settings settings;
@@ -842,6 +963,17 @@ class HouseholdState {
   /// Vacations (open and closed), keyed by `vacationId`.
   final Map<String, VacationState> vacations;
 
+  /// The savings-economy rules, or null when the household hasn't adopted them
+  /// (every month then reduces with the legacy math).
+  final SavingsRules? savingsRules;
+
+  /// Savings rules only: each personal category's savings pool right now (the
+  /// already-taxed money it holds), keyed by sliceId.
+  final Map<String, TaxedBalance> categorySavings;
+
+  /// Savings rules only: requests to borrow from future months, keyed by id.
+  final Map<String, AdvanceState> advances;
+
   /// The currently-open vacations, sorted by name — the ones quick entry offers
   /// a charge target for and the dashboard boards while a trip is under way.
   List<VacationState> get openVacations =>
@@ -872,13 +1004,23 @@ class HouseholdState {
   /// The outstanding OVERBUDGET debts owned by [userId], sorted by sliceId.
   List<OverbudgetState> outstandingOverbudgetsFor(String userId) =>
       (overbudgets.values
-          .where((d) => d.ownerUserId == userId && !d.settled)
-          .toList())
+            .where((d) => d.ownerUserId == userId && !d.settled)
+            .toList())
         ..sort((a, b) => a.sliceId.compareTo(b.sliceId));
 
   /// Every outstanding OVERBUDGET in the household, sorted by sliceId.
   List<OverbudgetState> get outstandingOverbudgets =>
-      (overbudgets.values.where((d) => !d.settled).toList())
+      (overbudgets.values
+            .where((d) => !d.settled && d.kind == DebtKind.overbudget)
+            .toList())
+        ..sort((a, b) => a.sliceId.compareTo(b.sliceId));
+
+  /// Variable-bill top-ups still owed (paid from next month's leftovers;
+  /// never shown as a monster or as overspending).
+  List<OverbudgetState> get outstandingProvisions =>
+      (overbudgets.values
+            .where((d) => !d.settled && d.kind == DebtKind.provisions)
+            .toList())
         ..sort((a, b) => a.sliceId.compareTo(b.sliceId));
 
   bool isVaultInconsistent(String userId) =>
@@ -928,9 +1070,7 @@ class HouseholdState {
   /// Resolved income for [userId] in [month]: a single-month override wins,
   /// else the latest effective default, else zero.
   int incomeFor(String userId, Month month) =>
-      incomeOverrideFor(userId, month) ??
-      defaultIncomeFor(userId, month) ??
-      0;
+      incomeOverrideFor(userId, month) ?? defaultIncomeFor(userId, month) ?? 0;
 
   /// A deterministic numeric snapshot used to assert that reduction is
   /// order-independent (out-of-order events == sorted order).

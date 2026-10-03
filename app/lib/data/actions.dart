@@ -34,21 +34,24 @@ const Object _unset = Object();
 final deviceIdProvider = Provider<String>((ref) => uuidv7());
 
 /// The write-side action surface, bound to the current device and user.
-final householdActionsProvider = Provider<HouseholdActions?>((ref) {
-  final setup = ref.watch(localSetupProvider).value;
-  if (setup == null) return null;
-  return HouseholdActions(
-    db: ref.watch(appDatabaseProvider),
-    blobs: ref.watch(blobStoreProvider),
-    deviceId: ref.watch(deviceIdProvider),
-    meUserId: setup.meUserId,
-  );
-}, dependencies: [
-  localSetupProvider,
-  appDatabaseProvider,
-  blobStoreProvider,
-  deviceIdProvider,
-]);
+final householdActionsProvider = Provider<HouseholdActions?>(
+  (ref) {
+    final setup = ref.watch(localSetupProvider).value;
+    if (setup == null) return null;
+    return HouseholdActions(
+      db: ref.watch(appDatabaseProvider),
+      blobs: ref.watch(blobStoreProvider),
+      deviceId: ref.watch(deviceIdProvider),
+      meUserId: setup.meUserId,
+    );
+  },
+  dependencies: [
+    localSetupProvider,
+    appDatabaseProvider,
+    blobStoreProvider,
+    deviceIdProvider,
+  ],
+);
 
 /// Appends the events behind the entry, detail, and OCR-confirm flows.
 class HouseholdActions {
@@ -139,8 +142,9 @@ class HouseholdActions {
     // The reducer orders by (occurredAt, eventId) and drops a ReceiptAttached
     // whose purchase does not yet exist. Guarantee the re-attach sorts strictly
     // after the corrected purchase so no receipt is ever lost on an edit.
-    final receiptAt =
-        now.isAfter(newAt) ? now : newAt.add(const Duration(milliseconds: 1));
+    final receiptAt = now.isAfter(newAt)
+        ? now
+        : newAt.add(const Duration(milliseconds: 1));
 
     final events = <Event>[
       PurchaseVoided(
@@ -161,7 +165,9 @@ class HouseholdActions {
         target: newTarget,
         amountCents: amountCents ?? old.amountCents,
         shared: newShared,
-        merchant: identical(merchant, _unset) ? old.merchant : merchant as String?,
+        merchant: identical(merchant, _unset)
+            ? old.merchant
+            : merchant as String?,
         note: identical(note, _unset) ? old.note : note as String?,
         taxDeductible: identical(taxDeductible, _unset)
             ? old.taxDeductible
@@ -357,16 +363,18 @@ class HouseholdActions {
     required int amountCents,
   }) async {
     final now = DateTime.now().toUtc();
-    await append(IncomeSet(
-      eventId: uuidv7(),
-      deviceId: deviceId,
-      userId: meUserId,
-      occurredAt: now,
-      createdAt: now,
-      forUserId: forUserId,
-      amountCents: amountCents,
-      month: month,
-    ));
+    await append(
+      IncomeSet(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        forUserId: forUserId,
+        amountCents: amountCents,
+        month: month,
+      ),
+    );
   }
 
   /// Sets a user's default monthly income, effective from [effectiveFromMonth]
@@ -380,20 +388,22 @@ class HouseholdActions {
     int? estimatedHighCents,
   }) async {
     final now = DateTime.now().toUtc();
-    await append(DefaultIncomeSet(
-      eventId: uuidv7(),
-      deviceId: deviceId,
-      userId: meUserId,
-      occurredAt: now,
-      createdAt: now,
-      forUserId: forUserId,
-      amountCents: amountCents,
-      effectiveFromMonth: effectiveFromMonth,
-      estimatedHighCents:
-          estimatedHighCents != null && estimatedHighCents > amountCents
-              ? estimatedHighCents
-              : null,
-    ));
+    await append(
+      DefaultIncomeSet(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        forUserId: forUserId,
+        amountCents: amountCents,
+        effectiveFromMonth: effectiveFromMonth,
+        estimatedHighCents:
+            estimatedHighCents != null && estimatedHighCents > amountCents
+            ? estimatedHighCents
+            : null,
+      ),
+    );
   }
 
   /// Creates or amends a recurring expense. Reuse [expenseId] to edit; pass
@@ -412,23 +422,25 @@ class HouseholdActions {
   }) async {
     final now = DateTime.now().toUtc();
     final id = expenseId ?? uuidv7();
-    await append(RecurringExpenseSet(
-      eventId: uuidv7(),
-      deviceId: deviceId,
-      userId: meUserId,
-      occurredAt: now,
-      createdAt: now,
-      expenseId: id,
-      name: name,
-      ownership: ownership,
-      kind: kind,
-      cadence: cadence,
-      amountCents: amountCents,
-      dueDay: dueDay,
-      dueMonth: dueMonth,
-      startMonth: startMonth,
-      endMonth: endMonth,
-    ));
+    await append(
+      RecurringExpenseSet(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        expenseId: id,
+        name: name,
+        ownership: ownership,
+        kind: kind,
+        cadence: cadence,
+        amountCents: amountCents,
+        dueDay: dueDay,
+        dueMonth: dueMonth,
+        startMonth: startMonth,
+        endMonth: endMonth,
+      ),
+    );
     return id;
   }
 
@@ -445,28 +457,32 @@ class HouseholdActions {
     String? mainCategoryId,
     EmergencyContribution? emergencyContribution,
     String? petId,
+    List<String> petOwnerIds = const [],
     SlicePriority priority = SlicePriority.important,
   }) async {
     final now = DateTime.now().toUtc();
     final id = sliceId ?? uuidv7();
-    await append(BudgetSliceSet(
-      eventId: uuidv7(),
-      deviceId: deviceId,
-      userId: meUserId,
-      occurredAt: now,
-      createdAt: now,
-      sliceId: id,
-      name: name,
-      ownership: ownership,
-      mainCategoryId: mainCategoryId,
-      limitCents: limitCents,
-      poolTithePct: poolTithePct,
-      defaultLeftoverPolicy: defaultLeftoverPolicy,
-      taxDeductibleByDefault: taxDeductibleByDefault,
-      emergencyContribution: emergencyContribution,
-      petId: petId,
-      priority: priority,
-    ));
+    await append(
+      BudgetSliceSet(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        sliceId: id,
+        name: name,
+        ownership: ownership,
+        mainCategoryId: mainCategoryId,
+        limitCents: limitCents,
+        poolTithePct: poolTithePct,
+        defaultLeftoverPolicy: defaultLeftoverPolicy,
+        taxDeductibleByDefault: taxDeductibleByDefault,
+        emergencyContribution: emergencyContribution,
+        petId: petId,
+        petOwnerIds: petOwnerIds,
+        priority: priority,
+      ),
+    );
     return id;
   }
 
@@ -478,17 +494,19 @@ class HouseholdActions {
     required int sortOrder,
   }) async {
     final now = DateTime.now().toUtc();
-    await append(MainCategorySet(
-      eventId: uuidv7(),
-      deviceId: deviceId,
-      userId: meUserId,
-      occurredAt: now,
-      createdAt: now,
-      id: id,
-      name: name,
-      colorArgb: colorArgb,
-      sortOrder: sortOrder,
-    ));
+    await append(
+      MainCategorySet(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        id: id,
+        name: name,
+        colorArgb: colorArgb,
+        sortOrder: sortOrder,
+      ),
+    );
     return id;
   }
 
@@ -500,16 +518,18 @@ class HouseholdActions {
   }) async {
     final now = DateTime.now().toUtc();
     final id = fundId ?? uuidv7();
-    await append(EmergencyFundSet(
-      eventId: uuidv7(),
-      deviceId: deviceId,
-      userId: meUserId,
-      occurredAt: now,
-      createdAt: now,
-      fundId: id,
-      name: name,
-      petId: petId,
-    ));
+    await append(
+      EmergencyFundSet(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        fundId: id,
+        name: name,
+        petId: petId,
+      ),
+    );
     return id;
   }
 
@@ -521,16 +541,18 @@ class HouseholdActions {
   }) async {
     final now = DateTime.now().toUtc();
     final id = petId ?? uuidv7();
-    await append(PetSet(
-      eventId: uuidv7(),
-      deviceId: deviceId,
-      userId: meUserId,
-      occurredAt: now,
-      createdAt: now,
-      petId: id,
-      name: name,
-      customSpriteSha256: customSpriteSha256,
-    ));
+    await append(
+      PetSet(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        petId: id,
+        name: name,
+        customSpriteSha256: customSpriteSha256,
+      ),
+    );
     return id;
   }
 
@@ -547,20 +569,22 @@ class HouseholdActions {
   }) async {
     final now = DateTime.now().toUtc();
     final id = memberId ?? uuidv7();
-    await append(MemberSet(
-      eventId: uuidv7(),
-      deviceId: deviceId,
-      userId: meUserId,
-      occurredAt: now,
-      createdAt: now,
-      memberId: id,
-      name: name,
-      role: role,
-      active: active,
-      customSpriteSha256: customSpriteSha256,
-      descriptionText: descriptionText,
-      fundedByUserId: role == MemberRole.pet ? fundedByUserId : null,
-    ));
+    await append(
+      MemberSet(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        memberId: id,
+        name: name,
+        role: role,
+        active: active,
+        customSpriteSha256: customSpriteSha256,
+        descriptionText: descriptionText,
+        fundedByUserId: role == MemberRole.pet ? fundedByUserId : null,
+      ),
+    );
     return id;
   }
 
@@ -571,15 +595,17 @@ class HouseholdActions {
     required Map<String, int> shares,
   }) async {
     final now = DateTime.now().toUtc();
-    await append(GroupShareSet(
-      eventId: uuidv7(),
-      deviceId: deviceId,
-      userId: meUserId,
-      occurredAt: now,
-      createdAt: now,
-      month: month,
-      shares: shares,
-    ));
+    await append(
+      GroupShareSet(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        month: month,
+        shares: shares,
+      ),
+    );
   }
 
   /// Creates or amends a savings-goal quest (last-writer-wins by [questId]).
@@ -595,35 +621,39 @@ class HouseholdActions {
   }) async {
     final now = DateTime.now().toUtc();
     final id = questId ?? uuidv7();
-    await append(QuestSet(
-      eventId: uuidv7(),
-      deviceId: deviceId,
-      userId: meUserId,
-      occurredAt: now,
-      createdAt: now,
-      questId: id,
-      name: name,
-      targetCents: targetCents,
-      ownership: ownership,
-      mainCategoryId: mainCategoryId,
-      sliceHint: sliceHint,
-      customSpriteSha256: customSpriteSha256,
-      descriptionText: descriptionText,
-    ));
+    await append(
+      QuestSet(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        questId: id,
+        name: name,
+        targetCents: targetCents,
+        ownership: ownership,
+        mainCategoryId: mainCategoryId,
+        sliceHint: sliceHint,
+        customSpriteSha256: customSpriteSha256,
+        descriptionText: descriptionText,
+      ),
+    );
     return id;
   }
 
   /// Abandons a quest, returning its balance to funders (post dissolution tithe).
   Future<void> abandonQuest(String questId) async {
     final now = DateTime.now().toUtc();
-    await append(QuestAbandoned(
-      eventId: uuidv7(),
-      deviceId: deviceId,
-      userId: meUserId,
-      occurredAt: now,
-      createdAt: now,
-      questId: questId,
-    ));
+    await append(
+      QuestAbandoned(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        questId: questId,
+      ),
+    );
   }
 
   /// Records a gift into a user's vault (untithed).
@@ -633,16 +663,18 @@ class HouseholdActions {
     String? note,
   }) async {
     final now = DateTime.now().toUtc();
-    await append(GiftReceived(
-      eventId: uuidv7(),
-      deviceId: deviceId,
-      userId: meUserId,
-      occurredAt: now,
-      createdAt: now,
-      forUserId: forUserId,
-      amountCents: amountCents,
-      note: note,
-    ));
+    await append(
+      GiftReceived(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        forUserId: forUserId,
+        amountCents: amountCents,
+        note: note,
+      ),
+    );
   }
 
   /// Moves discretionary money from a user's vault into the war chest.
@@ -651,15 +683,17 @@ class HouseholdActions {
     required int amountCents,
   }) async {
     final now = DateTime.now().toUtc();
-    await append(PoolContributionMade(
-      eventId: uuidv7(),
-      deviceId: deviceId,
-      userId: meUserId,
-      occurredAt: now,
-      createdAt: now,
-      fromUserId: fromUserId,
-      amountCents: amountCents,
-    ));
+    await append(
+      PoolContributionMade(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        fromUserId: fromUserId,
+        amountCents: amountCents,
+      ),
+    );
   }
 
   /// Proposes a war-chest withdrawal (pending the other user's signature).
@@ -670,46 +704,146 @@ class HouseholdActions {
   }) async {
     final now = DateTime.now().toUtc();
     final id = uuidv7();
-    await append(PoolWithdrawalProposed(
-      eventId: uuidv7(),
-      deviceId: deviceId,
-      userId: meUserId,
-      occurredAt: now,
-      createdAt: now,
-      proposalId: id,
-      byUserId: meUserId,
-      amountCents: amountCents,
-      purpose: purpose,
-      destination: destination,
-    ));
+    await append(
+      PoolWithdrawalProposed(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        proposalId: id,
+        byUserId: meUserId,
+        amountCents: amountCents,
+        purpose: purpose,
+        destination: destination,
+      ),
+    );
     return id;
+  }
+
+  // ---- Savings economy ------------------------------------------------------
+
+  /// Adopts the savings rules (category savings, general pool, advances) from
+  /// [fromMonth], or changes the general rate from that month on. Stored as a
+  /// setting so older app versions ignore it rather than failing to sync.
+  Future<void> adoptSavingsRules({
+    required Month fromMonth,
+    required int generalTithePct,
+  }) => changeSetting('savingsRules', {
+    'fromMonth': fromMonth.toKey(),
+    'generalTithePct': generalTithePct,
+  });
+
+  /// Covers part of [purchaseId] from the general pool or (for a quest-goal
+  /// purchase) one of this adult's category savings pools.
+  Future<void> coverShortfall({
+    required String purchaseId,
+    required CoverSource source,
+    required int amountCents,
+  }) async {
+    final now = DateTime.now().toUtc();
+    await append(
+      ShortfallCovered(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        purchaseId: purchaseId,
+        source: source,
+        amountCents: amountCents,
+      ),
+    );
+  }
+
+  /// Asks to borrow [amountCents] from [sliceId]'s next [months] allowances.
+  /// Another adult approves (auto-approved in a one-adult household).
+  Future<String> proposeAdvance({
+    required String sliceId,
+    required int amountCents,
+    required int months,
+    String? purchaseId,
+  }) async {
+    final now = DateTime.now().toUtc();
+    final id = uuidv7();
+    await append(
+      AllowanceAdvanceProposed(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        advanceId: id,
+        byUserId: meUserId,
+        sliceId: sliceId,
+        amountCents: amountCents,
+        months: months,
+        purchaseId: purchaseId,
+      ),
+    );
+    return id;
+  }
+
+  /// Signs another adult's advance request (the reducer rejects self-approval).
+  Future<void> approveAdvance(String advanceId) async {
+    final now = DateTime.now().toUtc();
+    await append(
+      AllowanceAdvanceApproved(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        advanceId: advanceId,
+        byUserId: meUserId,
+      ),
+    );
+  }
+
+  /// Withdraws a pending advance request.
+  Future<void> cancelAdvance(String advanceId) async {
+    final now = DateTime.now().toUtc();
+    await append(
+      AllowanceAdvanceCancelled(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        advanceId: advanceId,
+      ),
+    );
   }
 
   /// Records a tax refund into the war chest.
   Future<void> recordTaxRefund({required int amountCents, String? note}) async {
     final now = DateTime.now().toUtc();
-    await append(TaxRefundRecorded(
-      eventId: uuidv7(),
-      deviceId: deviceId,
-      userId: meUserId,
-      occurredAt: now,
-      createdAt: now,
-      amountCents: amountCents,
-      note: note,
-    ));
+    await append(
+      TaxRefundRecorded(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        amountCents: amountCents,
+        note: note,
+      ),
+    );
   }
 
   /// Sets the war chest's savings target.
   Future<void> setGoal(int targetCents) async {
     final now = DateTime.now().toUtc();
-    await append(GoalSet(
-      eventId: uuidv7(),
-      deviceId: deviceId,
-      userId: meUserId,
-      occurredAt: now,
-      createdAt: now,
-      targetCents: targetCents,
-    ));
+    await append(
+      GoalSet(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        targetCents: targetCents,
+      ),
+    );
   }
 
   /// Records a net-worth account balance (latest value wins).
@@ -722,17 +856,19 @@ class HouseholdActions {
   }) async {
     final now = DateTime.now().toUtc();
     final id = accountId ?? uuidv7();
-    await append(AccountBalanceRecorded(
-      eventId: uuidv7(),
-      deviceId: deviceId,
-      userId: meUserId,
-      occurredAt: occurredAt ?? now,
-      createdAt: now,
-      accountId: id,
-      accountName: accountName,
-      kind: kind,
-      balanceCents: balanceCents,
-    ));
+    await append(
+      AccountBalanceRecorded(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: occurredAt ?? now,
+        createdAt: now,
+        accountId: id,
+        accountName: accountName,
+        kind: kind,
+        balanceCents: balanceCents,
+      ),
+    );
     return id;
   }
 
@@ -750,20 +886,22 @@ class HouseholdActions {
   }) async {
     final now = DateTime.now().toUtc();
     final id = accountId ?? uuidv7();
-    await append(TrackedAccountSet(
-      eventId: uuidv7(),
-      deviceId: deviceId,
-      userId: meUserId,
-      occurredAt: now,
-      createdAt: now,
-      accountId: id,
-      name: name,
-      kind: kind,
-      aprBps: aprBps,
-      accrualCadence: accrualCadence,
-      updateCadence: updateCadence,
-      minPaymentCents: minPaymentCents,
-    ));
+    await append(
+      TrackedAccountSet(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        accountId: id,
+        name: name,
+        kind: kind,
+        aprBps: aprBps,
+        accrualCadence: accrualCadence,
+        updateCadence: updateCadence,
+        minPaymentCents: minPaymentCents,
+      ),
+    );
     return id;
   }
 
@@ -776,32 +914,36 @@ class HouseholdActions {
     DateTime? occurredAt,
   }) async {
     final now = DateTime.now().toUtc();
-    await append(AccountTransferRecorded(
-      eventId: uuidv7(),
-      deviceId: deviceId,
-      userId: meUserId,
-      occurredAt: occurredAt ?? now,
-      createdAt: now,
-      accountId: accountId,
-      amountCents: amountCents,
-      direction: direction,
-      note: note,
-    ));
+    await append(
+      AccountTransferRecorded(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: occurredAt ?? now,
+        createdAt: now,
+        accountId: accountId,
+        amountCents: amountCents,
+        direction: direction,
+        note: note,
+      ),
+    );
   }
 
   /// Changes a household setting. Known keys: `spoilsGraceDays`,
   /// `dissolutionTithePct`, `showNetWorth`.
   Future<void> changeSetting(String key, Object? value) async {
     final now = DateTime.now().toUtc();
-    await append(SettingChanged(
-      eventId: uuidv7(),
-      deviceId: deviceId,
-      userId: meUserId,
-      occurredAt: now,
-      createdAt: now,
-      key: key,
-      value: value,
-    ));
+    await append(
+      SettingChanged(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        key: key,
+        value: value,
+      ),
+    );
   }
 
   /// Opens or amends a vacation (last-writer-wins by [vacationId]). Reuse the id
@@ -816,33 +958,37 @@ class HouseholdActions {
   }) async {
     final now = DateTime.now().toUtc();
     final id = vacationId ?? uuidv7();
-    await append(VacationSet(
-      eventId: uuidv7(),
-      deviceId: deviceId,
-      userId: meUserId,
-      occurredAt: now,
-      createdAt: now,
-      vacationId: id,
-      name: name,
-      fund: fund,
-      startDate: startDate,
-      endDate: endDate,
-      categories: categories,
-    ));
+    await append(
+      VacationSet(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        vacationId: id,
+        name: name,
+        fund: fund,
+        startDate: startDate,
+        endDate: endDate,
+        categories: categories,
+      ),
+    );
     return id;
   }
 
   /// Closes a vacation, returning its unspent budget to the source fund.
   Future<void> closeVacation(String vacationId) async {
     final now = DateTime.now().toUtc();
-    await append(VacationClosed(
-      eventId: uuidv7(),
-      deviceId: deviceId,
-      userId: meUserId,
-      occurredAt: now,
-      createdAt: now,
-      vacationId: vacationId,
-    ));
+    await append(
+      VacationClosed(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        vacationId: vacationId,
+      ),
+    );
   }
 
   /// Ingests a custom sprite PNG into the blob store, returning its sha256 for

@@ -155,8 +155,8 @@ class WarChestScreen extends ConsumerWidget {
       BuildContext context, WidgetRef ref, HouseholdState state) async {
     final setup = ref.read(localSetupProvider).value;
     if (setup == null) return;
-    final names = ref.read(userNamesProvider);
-    String recipient = setup.me.userId;
+    final adults = ref.read(partyAdultsProvider);
+    String recipient = setup.meUserId;
     final amountController = TextEditingController();
     final noteController = TextEditingController();
 
@@ -182,9 +182,8 @@ class WarChestScreen extends ConsumerWidget {
                 initialValue: recipient,
                 decoration: const InputDecoration(labelText: 'Recipient'),
                 items: [
-                  for (final p in setup.profiles)
-                    DropdownMenuItem(
-                        value: p.userId, child: Text(names[p.userId] ?? p.name)),
+                  for (final a in adults)
+                    DropdownMenuItem(value: a.id, child: Text(a.name)),
                 ],
                 onChanged: (v) => setSheet(() => recipient = v ?? recipient),
               ),
@@ -448,8 +447,6 @@ class _WritSheetState extends ConsumerState<_WritSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final setup = ref.watch(localSetupProvider).value;
-    final names = ref.watch(userNamesProvider);
     return Padding(
       padding: EdgeInsets.only(
         left: AppSpacing.lg,
@@ -483,12 +480,11 @@ class _WritSheetState extends ConsumerState<_WritSheet> {
             decoration: const InputDecoration(labelText: 'Destination'),
             items: [
               const DropdownMenuItem(value: 'external', child: Text('External')),
-              if (setup != null)
-                for (final p in setup.profiles)
-                  DropdownMenuItem(
-                    value: 'vault:${p.userId}',
-                    child: Text('${names[p.userId] ?? p.name}\'s vault'),
-                  ),
+              for (final a in ref.watch(partyAdultsProvider))
+                DropdownMenuItem(
+                  value: 'vault:${a.id}',
+                  child: Text('${a.name}\'s vault'),
+                ),
             ],
             onChanged: (v) => setState(() {
               if (v == null) return;

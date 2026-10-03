@@ -17,6 +17,7 @@ import '../../ui/format.dart';
 import '../../ui/money_input.dart';
 import '../../ui/theme.dart';
 import '../household_context.dart';
+import '../shared/owner_picker.dart';
 import '../shared/month_field.dart';
 
 class RecurringScreen extends ConsumerWidget {
@@ -36,7 +37,7 @@ class RecurringScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Recurring expenses')),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _RecurringEditor.open(context),
+        onPressed: () => RecurringEditorScreen.open(context),
         icon: const Icon(Icons.add),
         label: const Text('New'),
       ),
@@ -96,7 +97,7 @@ class RecurringScreen extends ConsumerWidget {
                         ),
                     ],
                   ),
-                  onTap: () => _RecurringEditor.open(context, existing: r),
+                  onTap: () => RecurringEditorScreen.open(context, existing: r),
                 );
               },
             ),
@@ -121,27 +122,26 @@ class _Empty extends StatelessWidget {
       );
 }
 
-enum _OwnerChoice { me, partner, shared }
-
-class _RecurringEditor extends ConsumerStatefulWidget {
-  const _RecurringEditor({this.existing});
+class RecurringEditorScreen extends ConsumerStatefulWidget {
+  const RecurringEditorScreen({super.key, this.existing});
 
   final RecurringExpenseState? existing;
 
   static Future<void> open(BuildContext context,
           {RecurringExpenseState? existing}) =>
       Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => _RecurringEditor(existing: existing),
+        builder: (_) => RecurringEditorScreen(existing: existing),
       ));
 
   @override
-  ConsumerState<_RecurringEditor> createState() => _RecurringEditorState();
+  ConsumerState<RecurringEditorScreen> createState() => _RecurringEditorScreenState();
 }
 
-class _RecurringEditorState extends ConsumerState<_RecurringEditor> {
+class _RecurringEditorScreenState extends ConsumerState<RecurringEditorScreen> {
   late final TextEditingController _name;
   late final TextEditingController _amount;
-  _OwnerChoice _owner = _OwnerChoice.shared;
+  /// The owning adult, or null when shared by the household.
+  String? _ownerUserId;
   RecurringKind _kind = RecurringKind.fixed;
   RecurringCadence _cadence = RecurringCadence.monthly;
   late int _dueDay;
@@ -175,19 +175,12 @@ class _RecurringEditorState extends ConsumerState<_RecurringEditor> {
   @override
   Widget build(BuildContext context) {
     final setup = ref.watch(localSetupProvider).value;
-    final names = ref.watch(userNamesProvider);
     if (setup == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (!_ownerInit) {
       final o = widget.existing?.ownership;
-      if (o is PersonalParty) {
-        _owner = o.userId == setup.partner.userId
-            ? _OwnerChoice.partner
-            : _OwnerChoice.me;
-      } else {
-        _owner = _OwnerChoice.shared;
-      }
+      _ownerUserId = o is PersonalParty ? o.userId : null;
       _ownerInit = true;
     }
     final variable = _kind == RecurringKind.variable;
@@ -208,19 +201,11 @@ class _RecurringEditorState extends ConsumerState<_RecurringEditor> {
           const SizedBox(height: AppSpacing.lg),
           Text('Owner', style: AppText.sectionLabel(context)),
           const SizedBox(height: AppSpacing.sm),
-          SegmentedButton<_OwnerChoice>(
-            segments: [
-              ButtonSegment(
-                  value: _OwnerChoice.me,
-                  label: Text(names[setup.me.userId] ?? 'Me')),
-              ButtonSegment(
-                  value: _OwnerChoice.partner,
-                  label: Text(names[setup.partner.userId] ?? 'Partner')),
-              const ButtonSegment(
-                  value: _OwnerChoice.shared, label: Text('Shared')),
-            ],
-            selected: {_owner},
-            onSelectionChanged: (s) => setState(() => _owner = s.first),
+          OwnerPicker(
+            adults: ref.watch(partyAdultsProvider),
+            selectedUserId: _ownerUserId,
+            householdLabel: 'Shared',
+            onChanged: (id) => setState(() => _ownerUserId = id),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text('Kind', style: AppText.sectionLabel(context)),
@@ -311,7 +296,7 @@ class _RecurringEditorState extends ConsumerState<_RecurringEditor> {
           ),
           const SizedBox(height: AppSpacing.xl),
           FilledButton(
-            onPressed: () => _save(setup.me.userId, setup.partner.userId),
+            onPressed: _save,
             child: const Text('Save'),
           ),
           if (widget.existing != null) ...[
@@ -327,7 +312,7 @@ class _RecurringEditorState extends ConsumerState<_RecurringEditor> {
     );
   }
 
-  Future<void> _save(String meId, String partnerId) async {
+  Future<void> _save() async {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     final name = _name.text.trim();
@@ -342,11 +327,9 @@ class _RecurringEditorState extends ConsumerState<_RecurringEditor> {
           const SnackBar(content: Text('End month is before start month')));
       return;
     }
-    final ownership = switch (_owner) {
-      _OwnerChoice.me => PersonalParty(meId),
-      _OwnerChoice.partner => PersonalParty(partnerId),
-      _OwnerChoice.shared => const SharedParty(),
-    };
+    final owner = _ownerUserId;
+    final PartyOwnership ownership =
+        owner == null ? const SharedParty() : PersonalParty(owner);
     await ref.read(householdActionsProvider)?.setRecurringExpense(
           expenseId: widget.existing?.expenseId,
           name: name,

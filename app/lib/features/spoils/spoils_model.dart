@@ -116,7 +116,10 @@ class GroupFlow {
 
 /// A read-only line: an automatic emergency-fund contribution off the top.
 class EmergencyContribLine {
-  const EmergencyContribLine({required this.fundName, required this.amountCents});
+  const EmergencyContribLine({
+    required this.fundName,
+    required this.amountCents,
+  });
   final String fundName;
   final int amountCents;
 }
@@ -173,8 +176,9 @@ SpoilsRitual? buildSpoilsRitual(
 }) {
   final now = (asOf ?? DateTime.now()).toUtc();
   final month = Month.fromInstant(now).prev();
-  final deadline =
-      month.endInstantUtc().add(Duration(days: state.settings.spoilsGraceDays));
+  final deadline = month.endInstantUtc().add(
+    Duration(days: state.settings.spoilsGraceDays),
+  );
 
   // Past the grace window: the reducer has already applied defaults; the ritual
   // is no longer reopenable.
@@ -190,13 +194,15 @@ SpoilsRitual? buildSpoilsRitual(
     if (r.kind != RecurringKind.variable) continue;
     if (!r.activeIn(month)) continue;
     if (state.variableActualFor(r.expenseId, month) != null) continue;
-    tallies.add(VariableTally(
-      expenseId: r.expenseId,
-      name: r.name,
-      estimateCents: r.amountCents,
-      isShared: r.isShared,
-      ownerName: r.ownerUserId == null ? null : nameOf(r.ownerUserId!),
-    ));
+    tallies.add(
+      VariableTally(
+        expenseId: r.expenseId,
+        name: r.name,
+        estimateCents: r.amountCents,
+        isShared: r.isShared,
+        ownerName: r.ownerUserId == null ? null : nameOf(r.ownerUserId!),
+      ),
+    );
   }
   tallies.sort((a, b) => a.name.compareTo(b.name));
 
@@ -208,14 +214,16 @@ SpoilsRitual? buildSpoilsRitual(
     final mine =
         o is SharedParty || (o is PersonalParty && o.userId == meUserId);
     if (!mine) continue;
-    questOptions.add(QuestOption(
-      questId: q.questId,
-      name: q.name,
-      balanceCents: q.balanceCents,
-      targetCents: q.targetCents,
-      totalContributedCents: q.totalContributedCents,
-      mainCategoryId: q.mainCategoryId,
-    ));
+    questOptions.add(
+      QuestOption(
+        questId: q.questId,
+        name: q.name,
+        balanceCents: q.balanceCents,
+        targetCents: q.targetCents,
+        totalContributedCents: q.totalContributedCents,
+        mainCategoryId: q.mainCategoryId,
+      ),
+    );
   }
   questOptions.sort((a, b) => a.name.compareTo(b.name));
 
@@ -224,7 +232,9 @@ SpoilsRitual? buildSpoilsRitual(
     for (final d in state.outstandingOverbudgetsFor(meUserId))
       OverbudgetOption(
         sliceId: d.sliceId,
-        name: state.slices[d.sliceId]?.name ?? d.sliceId,
+        name: d.kind == DebtKind.provisions
+            ? '${state.recurringExpenses[d.sliceId.substring('provisions:'.length)]?.name ?? 'Bill'} top-up'
+            : state.slices[d.sliceId]?.name ?? d.sliceId,
         outstandingCents: d.outstandingCents,
         mainCategoryId: state.slices[d.sliceId]?.mainCategoryId,
       ),
@@ -241,7 +251,7 @@ SpoilsRitual? buildSpoilsRitual(
     if (cfg.emergencyFundId != null && cfg.emergencyContributionCents > 0) {
       emergencyByFund[cfg.emergencyFundId!] =
           (emergencyByFund[cfg.emergencyFundId!] ?? 0) +
-              cfg.emergencyContributionCents;
+          cfg.emergencyContributionCents;
     }
 
     if (cfg.isGroup) {
@@ -253,18 +263,20 @@ SpoilsRitual? buildSpoilsRitual(
     }
     if (cfg.ownerUserId != meUserId) continue;
     if (sm == null || sm.resolved || sm.leftoverCents <= 0) continue;
-    leftovers.add(SliceLeftover(
-      sliceId: cfg.sliceId,
-      name: cfg.name,
-      leftoverCents: sm.leftoverCents,
-      poolTithePct: cfg.poolTithePct,
-      defaultPolicy: cfg.defaultLeftoverPolicy,
-      questOptions: questOptions,
-      overbudgetOptions: overbudgetOptions,
-      priority: cfg.priority,
-      mainCategoryId: cfg.mainCategoryId,
-      petName: cfg.petId == null ? null : state.pets[cfg.petId]?.name,
-    ));
+    leftovers.add(
+      SliceLeftover(
+        sliceId: cfg.sliceId,
+        name: cfg.name,
+        leftoverCents: sm.leftoverCents,
+        poolTithePct: cfg.poolTithePct,
+        defaultPolicy: cfg.defaultLeftoverPolicy,
+        questOptions: questOptions,
+        overbudgetOptions: overbudgetOptions,
+        priority: cfg.priority,
+        mainCategoryId: cfg.mainCategoryId,
+        petName: cfg.petId == null ? null : state.pets[cfg.petId]?.name,
+      ),
+    );
   }
   leftovers.sort((a, b) => a.name.compareTo(b.name));
   groupFlows.sort((a, b) => a.name.compareTo(b.name));
@@ -319,13 +331,17 @@ class DraftAllocation {
   required String? sliceMainCategoryId,
   required String? questMainCategoryId,
 }) {
-  final matched = questMainCategoryId != null &&
-      questMainCategoryId == sliceMainCategoryId;
+  final matched =
+      questMainCategoryId != null && questMainCategoryId == sliceMainCategoryId;
   if (matched) {
     return (damageCents: amountCents, titheCents: 0, matched: true);
   }
   final t = Money.titheCents(amountCents, poolTithePct);
-  return (damageCents: t.remainderCents, titheCents: t.titheCents, matched: false);
+  return (
+    damageCents: t.remainderCents,
+    titheCents: t.titheCents,
+    matched: false,
+  );
 }
 
 /// Previews a whole-leftover OVERBUDGET payment exactly as the reducer will
@@ -341,18 +357,19 @@ class DraftAllocation {
   int toVaultCents,
   int excessTitheCents,
   bool matched,
-}) previewOverbudgetPayment(
+})
+previewOverbudgetPayment(
   int amountCents,
   int poolTithePct, {
   required int outstandingCents,
   required String? sliceMainCategoryId,
   required String? targetMainCategoryId,
 }) {
-  final matched = targetMainCategoryId != null &&
+  final matched =
+      targetMainCategoryId != null &&
       targetMainCategoryId == sliceMainCategoryId;
   if (matched) {
-    final pay =
-        amountCents < outstandingCents ? amountCents : outstandingCents;
+    final pay = amountCents < outstandingCents ? amountCents : outstandingCents;
     final t = Money.titheCents(amountCents - pay, poolTithePct);
     return (
       payCents: pay,

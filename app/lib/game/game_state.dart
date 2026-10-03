@@ -534,7 +534,7 @@ class GameState {
     required this.floorNumber,
     required this.heroName,
     required this.heroSprite,
-    required this.partnerSprite,
+    this.companionSprites = const [],
     required this.heroHpLostCents,
     required this.expeditionSuppliesCents,
     required this.monsters,
@@ -558,7 +558,10 @@ class GameState {
 
   final String heroName;
   final SpriteRef heroSprite;
-  final SpriteRef partnerSprite;
+
+  /// Every other active adult's sprite, beside the hero in the floor header.
+  /// Empty in a single-adult household.
+  final List<SpriteRef> companionSprites;
 
   /// The full party roster (adults, dependents, pets) with descriptions — the
   /// heart of the text-mode presentation. Derived from `MemberSet` state, so a

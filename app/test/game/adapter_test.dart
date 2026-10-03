@@ -444,15 +444,43 @@ void main() {
       final g = _game(events, asOf: _day(2026, 7, 5));
       expect(g.heroSprite.isCustom, isTrue);
       expect(g.heroSprite.customSpriteSha256, 'a' * 64);
-      expect(g.partnerSprite.isCustom, isFalse);
+      expect(g.companionSprites.single.isCustom, isFalse);
     });
 
     test('falls back to the default asset when no custom sprite is set', () {
       final g = _game(_twoAdults(), asOf: _day(2026, 7, 5));
       expect(g.heroSprite.isCustom, isFalse);
       expect(g.heroSprite.assetName, Sprites.heroA);
-      expect(g.partnerSprite.isCustom, isFalse);
-      expect(g.partnerSprite.assetName, Sprites.heroB);
+      expect(g.companionSprites.single.isCustom, isFalse);
+      expect(g.companionSprites.single.assetName, Sprites.heroB);
+    });
+
+    test('a single adult has no companions (never drawn twice)', () {
+      final g = _game([member(me, MemberRole.adult)], asOf: _day(2026, 7, 5));
+      expect(g.companionSprites, isEmpty);
+    });
+
+    test('every other active adult is a companion, named from the roster', () {
+      final events = [
+        ..._twoAdults(),
+        MemberSet(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: me,
+          occurredAt: _day(2026, 1, 1),
+          createdAt: _day(2026, 1, 1),
+          memberId: 'u3',
+          name: 'Casey',
+          role: MemberRole.adult,
+          customSpriteSha256: 'c' * 64,
+        ),
+      ];
+      final g = _game(events, asOf: _day(2026, 7, 5));
+      expect(g.companionSprites, hasLength(2));
+      final casey = g.companionSprites.firstWhere((s) => s.isCustom);
+      expect(casey.customSpriteSha256, 'c' * 64);
+      // userNames doesn't know u3; the roster name still labels the sprite.
+      expect(casey.label, 'Casey');
     });
   });
 
