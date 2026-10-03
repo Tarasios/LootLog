@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:lootlog/domain/event.dart';
 import 'package:lootlog/domain/ids.dart';
+import 'package:lootlog/domain/reducer.dart';
 import 'package:lootlog/domain/time.dart';
 import 'package:lootlog/domain/value_types.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -505,5 +506,39 @@ void main() {
       ),
       throwsArgumentError,
     );
+  });
+
+  group('forward compatibility', () {
+    final json = {
+      'eventId': 'e-future',
+      'deviceId': 'd',
+      'userId': 'u1',
+      'occurredAt': '2026-07-01T18:00:00.000Z',
+      'createdAt': '2026-07-01T18:00:00.000Z',
+      'type': 'SomethingFromTheFuture',
+      'payload': {
+        'answer': 42,
+        'nested': {
+          'a': [1, 2],
+        },
+      },
+    };
+
+    test('an unknown event type decodes instead of throwing', () {
+      final e = Event.fromJson(json);
+      expect(e, isA<UnknownEvent>());
+      expect(e.type, 'SomethingFromTheFuture');
+    });
+
+    test('an unknown event re-encodes identically for relaying', () {
+      expect(Event.fromJson(json).toJson(), json);
+    });
+
+    test('the reducer ignores unknown events', () {
+      final base = reduce(const []);
+      final withUnknown = reduce([Event.fromJson(json)]);
+      expect(withUnknown.vaultCents, base.vaultCents);
+      expect(withUnknown.warChest.balanceCents, base.warChest.balanceCents);
+    });
   });
 }

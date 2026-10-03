@@ -99,6 +99,8 @@ class _Builder {
   }
 
   void gather(Event e) {
+    // A newer release's event: relayed, never interpreted (not even its author).
+    if (e is UnknownEvent) return;
     _note(e.userId);
     switch (e) {
       case PurchaseAdded():
@@ -222,6 +224,8 @@ class _Builder {
         break; // domain-inert
       case GameRewardGranted():
         break; // cosmetic reward — the firewall: never touches a cent
+      case UnknownEvent():
+        break; // unreachable: returned above
     }
   }
 

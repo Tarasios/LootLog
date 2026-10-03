@@ -276,6 +276,12 @@ List<ChangeLogEntry> buildChangeLog(
           'Earned a reward',
           detail: e.rewardId,
         ),
+      // Written by a newer version of LootLog; kept and synced untouched.
+      UnknownEvent() => entry(
+          ChangeLogKind.config,
+          'Recorded a change from a newer version of LootLog',
+          detail: e.rawType,
+        ),
     });
   }
 

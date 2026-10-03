@@ -469,7 +469,18 @@ sealed class Event {
           grantedAt: DateTime.parse(p['grantedAt'] as String).toUtc(),
         );
       default:
-        throw FormatException('Unknown event type: $type');
+        // A type this version doesn't know (written by a newer release). Keep
+        // it verbatim so it is stored and relayed intact; the reducer ignores
+        // it. This is what lets new event types ship without breaking sync.
+        return UnknownEvent(
+          eventId: eventId,
+          deviceId: deviceId,
+          userId: userId,
+          occurredAt: occurredAt,
+          createdAt: createdAt,
+          rawType: type,
+          rawPayload: p,
+        );
     }
   }
 }
@@ -1504,4 +1515,28 @@ class GameRewardGranted extends Event {
         'sourceRef': sourceRef,
         'grantedAt': grantedAt.toUtc().toIso8601String(),
       };
+}
+
+/// An event of a type this version does not recognise (written by a newer
+/// release). Preserved verbatim, stored, synced and exported like any other
+/// event, and ignored by the reducer.
+class UnknownEvent extends Event {
+  const UnknownEvent({
+    required super.eventId,
+    required super.deviceId,
+    required super.userId,
+    required super.occurredAt,
+    required super.createdAt,
+    required this.rawType,
+    required this.rawPayload,
+  });
+
+  final String rawType;
+  final Map<String, dynamic> rawPayload;
+
+  @override
+  String get type => rawType;
+
+  @override
+  Map<String, dynamic> payload() => rawPayload;
 }

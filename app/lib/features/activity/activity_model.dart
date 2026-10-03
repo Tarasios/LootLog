@@ -292,6 +292,7 @@ List<ActivityItem> buildActivityFeed(
       case SettingChanged():
       case CosmeticSet():
       case GameRewardGranted():
+      case UnknownEvent():
       case VariableExpenseRecorded():
       case MainCategorySet():
       case VacationSet():
