@@ -12,6 +12,7 @@ import 'package:drift/drift.dart';
 
 import '../../domain/event.dart';
 import '../../domain/ids.dart';
+import '../../game/domain/game_event.dart';
 import '../setup/local_setup.dart';
 import 'tables.dart';
 
@@ -132,6 +133,69 @@ class EventsDao extends DatabaseAccessor<AppDatabase> with _$EventsDaoMixin {
         'userId': r.userId,
         'occurredAt': r.occurredAt.toUtc().toIso8601String(),
         'createdAt': r.createdAt.toUtc().toIso8601String(),
+        'type': r.type,
+        'payload': jsonDecode(r.payload),
+      });
+}
+
+/// Data-access object for the guild-hall game's event log. Mirrors
+/// [EventsDao]: append-only, idempotent on `eventId`, canonical
+/// `(occurredAt, eventId)` reads. Never touches the ledger's [Events].
+@DriftAccessor(tables: [GameEvents])
+class GameEventsDao extends DatabaseAccessor<AppDatabase>
+    with _$GameEventsDaoMixin {
+  GameEventsDao(super.db);
+
+  /// Appends [events]; re-appending an existing `eventId` is a no-op.
+  Future<void> appendGameEvents(Iterable<GameEvent> events) async {
+    if (events.isEmpty) {
+      return;
+    }
+    await batch((b) {
+      b.insertAll(
+        gameEvents,
+        [for (final e in events) _rowFor(e)],
+        mode: InsertMode.insertOrIgnore,
+      );
+    });
+  }
+
+  /// The whole game log in canonical order.
+  Future<List<GameEvent>> allGameEvents() async {
+    final rows = await _ordered().get();
+    return [for (final r in rows) _eventFromRow(r)];
+  }
+
+  /// Watches the whole game log in canonical order.
+  Stream<List<GameEvent>> watchAllGameEvents() => _ordered()
+      .watch()
+      .map((rows) => [for (final r in rows) _eventFromRow(r)]);
+
+  SimpleSelectStatement<$GameEventsTable, GameEventRow> _ordered() =>
+      select(gameEvents)
+        ..orderBy([
+          (t) => OrderingTerm(expression: t.occurredAt),
+          (t) => OrderingTerm(expression: t.eventId),
+        ]);
+
+  GameEventsCompanion _rowFor(GameEvent e) => GameEventsCompanion.insert(
+        eventId: e.eventId,
+        deviceId: e.deviceId,
+        actorId: e.actorId,
+        type: e.type,
+        occurredAt: e.occurredAt,
+        createdAt: e.createdAt,
+        schemaVersion: e.schemaVersion,
+        payload: jsonEncode(e.payload()),
+      );
+
+  GameEvent _eventFromRow(GameEventRow r) => GameEvent.fromJson({
+        'eventId': r.eventId,
+        'deviceId': r.deviceId,
+        'actorId': r.actorId,
+        'occurredAt': r.occurredAt.toUtc().toIso8601String(),
+        'createdAt': r.createdAt.toUtc().toIso8601String(),
+        'schemaVersion': r.schemaVersion,
         'type': r.type,
         'payload': jsonDecode(r.payload),
       });
@@ -389,14 +453,22 @@ class LocalSetupDao extends DatabaseAccessor<AppDatabase>
     Snapshots,
     LocalSetupRows,
     ExportBookmarks,
+    GameEvents,
   ],
-  daos: [EventsDao, SyncDao, HubHostDao, PairedHubDao, LocalSetupDao],
+  daos: [
+    EventsDao,
+    GameEventsDao,
+    SyncDao,
+    HubHostDao,
+    PairedHubDao,
+    LocalSetupDao,
+  ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -415,6 +487,11 @@ class AppDatabase extends _$AppDatabase {
           // device-local bookkeeping only; the event log is untouched.
           if (from < 3) {
             await m.createTable(exportBookmarks);
+          }
+          // v4 adds the guild-hall game's own event log, a separate table so
+          // the ledger's event log is untouched.
+          if (from < 4) {
+            await m.createTable(gameEvents);
           }
         },
       );

@@ -34,6 +34,32 @@ class Events extends Table {
   Set<Column<Object>> get primaryKey => {eventId};
 }
 
+/// The guild-hall game's own append-only event log, kept apart from the
+/// ledger's [Events] so game events can never be mistaken for (or reduced as)
+/// money events. Same conventions: `eventId` (UUIDv7) primary key for
+/// idempotent inserts, envelope columns, and the type-specific JSON `payload`.
+/// A row round-trips back to a `GameEvent` via `GameEvent.fromJson`.
+@DataClassName('GameEventRow')
+class GameEvents extends Table {
+  TextColumn get eventId => text()();
+  TextColumn get deviceId => text()();
+
+  /// The person who acted.
+  TextColumn get actorId => text()();
+  TextColumn get type => text()();
+  DateTimeColumn get occurredAt => dateTime()();
+  DateTimeColumn get createdAt => dateTime()();
+
+  /// The payload schema version the event was written with.
+  IntColumn get schemaVersion => integer()();
+
+  /// The type-specific payload as a JSON object string.
+  TextColumn get payload => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {eventId};
+}
+
 /// One pull cursor per paired hub. A device may pair with multiple hubs and
 /// keeps an independent `lastPulledSeq` for each, so `GET /events?after=` can
 /// resume where it left off per hub.

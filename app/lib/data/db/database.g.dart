@@ -21,6 +21,18 @@ class EventsDaoManager {
       );
 }
 
+mixin _$GameEventsDaoMixin on DatabaseAccessor<AppDatabase> {
+  $GameEventsTable get gameEvents => attachedDatabase.gameEvents;
+  GameEventsDaoManager get managers => GameEventsDaoManager(this);
+}
+
+class GameEventsDaoManager {
+  final _$GameEventsDaoMixin _db;
+  GameEventsDaoManager(this._db);
+  $$GameEventsTableTableManager get gameEvents =>
+      $$GameEventsTableTableManager(_db.attachedDatabase, _db.gameEvents);
+}
+
 mixin _$SyncDaoMixin on DatabaseAccessor<AppDatabase> {
   $EventsTable get events => attachedDatabase.events;
   $HubCursorsTable get hubCursors => attachedDatabase.hubCursors;
@@ -2996,6 +3008,534 @@ class ExportBookmarksCompanion extends UpdateCompanion<ExportBookmarkRow> {
   }
 }
 
+class $GameEventsTable extends GameEvents
+    with TableInfo<$GameEventsTable, GameEventRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $GameEventsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _eventIdMeta = const VerificationMeta(
+    'eventId',
+  );
+  @override
+  late final GeneratedColumn<String> eventId = GeneratedColumn<String>(
+    'event_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _actorIdMeta = const VerificationMeta(
+    'actorId',
+  );
+  @override
+  late final GeneratedColumn<String> actorId = GeneratedColumn<String>(
+    'actor_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _occurredAtMeta = const VerificationMeta(
+    'occurredAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> occurredAt = GeneratedColumn<DateTime>(
+    'occurred_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _schemaVersionMeta = const VerificationMeta(
+    'schemaVersion',
+  );
+  @override
+  late final GeneratedColumn<int> schemaVersion = GeneratedColumn<int>(
+    'schema_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _payloadMeta = const VerificationMeta(
+    'payload',
+  );
+  @override
+  late final GeneratedColumn<String> payload = GeneratedColumn<String>(
+    'payload',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    eventId,
+    deviceId,
+    actorId,
+    type,
+    occurredAt,
+    createdAt,
+    schemaVersion,
+    payload,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'game_events';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<GameEventRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('event_id')) {
+      context.handle(
+        _eventIdMeta,
+        eventId.isAcceptableOrUnknown(data['event_id']!, _eventIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_eventIdMeta);
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deviceIdMeta);
+    }
+    if (data.containsKey('actor_id')) {
+      context.handle(
+        _actorIdMeta,
+        actorId.isAcceptableOrUnknown(data['actor_id']!, _actorIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_actorIdMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('occurred_at')) {
+      context.handle(
+        _occurredAtMeta,
+        occurredAt.isAcceptableOrUnknown(data['occurred_at']!, _occurredAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_occurredAtMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('schema_version')) {
+      context.handle(
+        _schemaVersionMeta,
+        schemaVersion.isAcceptableOrUnknown(
+          data['schema_version']!,
+          _schemaVersionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_schemaVersionMeta);
+    }
+    if (data.containsKey('payload')) {
+      context.handle(
+        _payloadMeta,
+        payload.isAcceptableOrUnknown(data['payload']!, _payloadMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_payloadMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {eventId};
+  @override
+  GameEventRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return GameEventRow(
+      eventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}event_id'],
+      )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      actorId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}actor_id'],
+      )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      occurredAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}occurred_at'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      schemaVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}schema_version'],
+      )!,
+      payload: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload'],
+      )!,
+    );
+  }
+
+  @override
+  $GameEventsTable createAlias(String alias) {
+    return $GameEventsTable(attachedDatabase, alias);
+  }
+}
+
+class GameEventRow extends DataClass implements Insertable<GameEventRow> {
+  final String eventId;
+  final String deviceId;
+
+  /// The person who acted.
+  final String actorId;
+  final String type;
+  final DateTime occurredAt;
+  final DateTime createdAt;
+
+  /// The payload schema version the event was written with.
+  final int schemaVersion;
+
+  /// The type-specific payload as a JSON object string.
+  final String payload;
+  const GameEventRow({
+    required this.eventId,
+    required this.deviceId,
+    required this.actorId,
+    required this.type,
+    required this.occurredAt,
+    required this.createdAt,
+    required this.schemaVersion,
+    required this.payload,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['event_id'] = Variable<String>(eventId);
+    map['device_id'] = Variable<String>(deviceId);
+    map['actor_id'] = Variable<String>(actorId);
+    map['type'] = Variable<String>(type);
+    map['occurred_at'] = Variable<DateTime>(occurredAt);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['schema_version'] = Variable<int>(schemaVersion);
+    map['payload'] = Variable<String>(payload);
+    return map;
+  }
+
+  GameEventsCompanion toCompanion(bool nullToAbsent) {
+    return GameEventsCompanion(
+      eventId: Value(eventId),
+      deviceId: Value(deviceId),
+      actorId: Value(actorId),
+      type: Value(type),
+      occurredAt: Value(occurredAt),
+      createdAt: Value(createdAt),
+      schemaVersion: Value(schemaVersion),
+      payload: Value(payload),
+    );
+  }
+
+  factory GameEventRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return GameEventRow(
+      eventId: serializer.fromJson<String>(json['eventId']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      actorId: serializer.fromJson<String>(json['actorId']),
+      type: serializer.fromJson<String>(json['type']),
+      occurredAt: serializer.fromJson<DateTime>(json['occurredAt']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      schemaVersion: serializer.fromJson<int>(json['schemaVersion']),
+      payload: serializer.fromJson<String>(json['payload']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'eventId': serializer.toJson<String>(eventId),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'actorId': serializer.toJson<String>(actorId),
+      'type': serializer.toJson<String>(type),
+      'occurredAt': serializer.toJson<DateTime>(occurredAt),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'schemaVersion': serializer.toJson<int>(schemaVersion),
+      'payload': serializer.toJson<String>(payload),
+    };
+  }
+
+  GameEventRow copyWith({
+    String? eventId,
+    String? deviceId,
+    String? actorId,
+    String? type,
+    DateTime? occurredAt,
+    DateTime? createdAt,
+    int? schemaVersion,
+    String? payload,
+  }) => GameEventRow(
+    eventId: eventId ?? this.eventId,
+    deviceId: deviceId ?? this.deviceId,
+    actorId: actorId ?? this.actorId,
+    type: type ?? this.type,
+    occurredAt: occurredAt ?? this.occurredAt,
+    createdAt: createdAt ?? this.createdAt,
+    schemaVersion: schemaVersion ?? this.schemaVersion,
+    payload: payload ?? this.payload,
+  );
+  GameEventRow copyWithCompanion(GameEventsCompanion data) {
+    return GameEventRow(
+      eventId: data.eventId.present ? data.eventId.value : this.eventId,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      actorId: data.actorId.present ? data.actorId.value : this.actorId,
+      type: data.type.present ? data.type.value : this.type,
+      occurredAt: data.occurredAt.present
+          ? data.occurredAt.value
+          : this.occurredAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      schemaVersion: data.schemaVersion.present
+          ? data.schemaVersion.value
+          : this.schemaVersion,
+      payload: data.payload.present ? data.payload.value : this.payload,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GameEventRow(')
+          ..write('eventId: $eventId, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('actorId: $actorId, ')
+          ..write('type: $type, ')
+          ..write('occurredAt: $occurredAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('schemaVersion: $schemaVersion, ')
+          ..write('payload: $payload')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    eventId,
+    deviceId,
+    actorId,
+    type,
+    occurredAt,
+    createdAt,
+    schemaVersion,
+    payload,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is GameEventRow &&
+          other.eventId == this.eventId &&
+          other.deviceId == this.deviceId &&
+          other.actorId == this.actorId &&
+          other.type == this.type &&
+          other.occurredAt == this.occurredAt &&
+          other.createdAt == this.createdAt &&
+          other.schemaVersion == this.schemaVersion &&
+          other.payload == this.payload);
+}
+
+class GameEventsCompanion extends UpdateCompanion<GameEventRow> {
+  final Value<String> eventId;
+  final Value<String> deviceId;
+  final Value<String> actorId;
+  final Value<String> type;
+  final Value<DateTime> occurredAt;
+  final Value<DateTime> createdAt;
+  final Value<int> schemaVersion;
+  final Value<String> payload;
+  final Value<int> rowid;
+  const GameEventsCompanion({
+    this.eventId = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.actorId = const Value.absent(),
+    this.type = const Value.absent(),
+    this.occurredAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.schemaVersion = const Value.absent(),
+    this.payload = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  GameEventsCompanion.insert({
+    required String eventId,
+    required String deviceId,
+    required String actorId,
+    required String type,
+    required DateTime occurredAt,
+    required DateTime createdAt,
+    required int schemaVersion,
+    required String payload,
+    this.rowid = const Value.absent(),
+  }) : eventId = Value(eventId),
+       deviceId = Value(deviceId),
+       actorId = Value(actorId),
+       type = Value(type),
+       occurredAt = Value(occurredAt),
+       createdAt = Value(createdAt),
+       schemaVersion = Value(schemaVersion),
+       payload = Value(payload);
+  static Insertable<GameEventRow> custom({
+    Expression<String>? eventId,
+    Expression<String>? deviceId,
+    Expression<String>? actorId,
+    Expression<String>? type,
+    Expression<DateTime>? occurredAt,
+    Expression<DateTime>? createdAt,
+    Expression<int>? schemaVersion,
+    Expression<String>? payload,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (eventId != null) 'event_id': eventId,
+      if (deviceId != null) 'device_id': deviceId,
+      if (actorId != null) 'actor_id': actorId,
+      if (type != null) 'type': type,
+      if (occurredAt != null) 'occurred_at': occurredAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (schemaVersion != null) 'schema_version': schemaVersion,
+      if (payload != null) 'payload': payload,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  GameEventsCompanion copyWith({
+    Value<String>? eventId,
+    Value<String>? deviceId,
+    Value<String>? actorId,
+    Value<String>? type,
+    Value<DateTime>? occurredAt,
+    Value<DateTime>? createdAt,
+    Value<int>? schemaVersion,
+    Value<String>? payload,
+    Value<int>? rowid,
+  }) {
+    return GameEventsCompanion(
+      eventId: eventId ?? this.eventId,
+      deviceId: deviceId ?? this.deviceId,
+      actorId: actorId ?? this.actorId,
+      type: type ?? this.type,
+      occurredAt: occurredAt ?? this.occurredAt,
+      createdAt: createdAt ?? this.createdAt,
+      schemaVersion: schemaVersion ?? this.schemaVersion,
+      payload: payload ?? this.payload,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (eventId.present) {
+      map['event_id'] = Variable<String>(eventId.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (actorId.present) {
+      map['actor_id'] = Variable<String>(actorId.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (occurredAt.present) {
+      map['occurred_at'] = Variable<DateTime>(occurredAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (schemaVersion.present) {
+      map['schema_version'] = Variable<int>(schemaVersion.value);
+    }
+    if (payload.present) {
+      map['payload'] = Variable<String>(payload.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GameEventsCompanion(')
+          ..write('eventId: $eventId, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('actorId: $actorId, ')
+          ..write('type: $type, ')
+          ..write('occurredAt: $occurredAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('schemaVersion: $schemaVersion, ')
+          ..write('payload: $payload, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3013,7 +3553,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ExportBookmarksTable exportBookmarks = $ExportBookmarksTable(
     this,
   );
+  late final $GameEventsTable gameEvents = $GameEventsTable(this);
   late final EventsDao eventsDao = EventsDao(this as AppDatabase);
+  late final GameEventsDao gameEventsDao = GameEventsDao(this as AppDatabase);
   late final SyncDao syncDao = SyncDao(this as AppDatabase);
   late final HubHostDao hubHostDao = HubHostDao(this as AppDatabase);
   late final PairedHubDao pairedHubDao = PairedHubDao(this as AppDatabase);
@@ -3033,6 +3575,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     snapshots,
     localSetupRows,
     exportBookmarks,
+    gameEvents,
   ];
   @override
   DriftDatabaseOptions get options =>
@@ -4752,6 +5295,267 @@ typedef $$ExportBookmarksTableProcessedTableManager =
       ExportBookmarkRow,
       PrefetchHooks Function()
     >;
+typedef $$GameEventsTableCreateCompanionBuilder =
+    GameEventsCompanion Function({
+      required String eventId,
+      required String deviceId,
+      required String actorId,
+      required String type,
+      required DateTime occurredAt,
+      required DateTime createdAt,
+      required int schemaVersion,
+      required String payload,
+      Value<int> rowid,
+    });
+typedef $$GameEventsTableUpdateCompanionBuilder =
+    GameEventsCompanion Function({
+      Value<String> eventId,
+      Value<String> deviceId,
+      Value<String> actorId,
+      Value<String> type,
+      Value<DateTime> occurredAt,
+      Value<DateTime> createdAt,
+      Value<int> schemaVersion,
+      Value<String> payload,
+      Value<int> rowid,
+    });
+
+class $$GameEventsTableFilterComposer
+    extends Composer<_$AppDatabase, $GameEventsTable> {
+  $$GameEventsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get eventId => $composableBuilder(
+    column: $table.eventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get actorId => $composableBuilder(
+    column: $table.actorId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get occurredAt => $composableBuilder(
+    column: $table.occurredAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get schemaVersion => $composableBuilder(
+    column: $table.schemaVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$GameEventsTableOrderingComposer
+    extends Composer<_$AppDatabase, $GameEventsTable> {
+  $$GameEventsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get eventId => $composableBuilder(
+    column: $table.eventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get actorId => $composableBuilder(
+    column: $table.actorId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get occurredAt => $composableBuilder(
+    column: $table.occurredAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get schemaVersion => $composableBuilder(
+    column: $table.schemaVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$GameEventsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $GameEventsTable> {
+  $$GameEventsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get eventId =>
+      $composableBuilder(column: $table.eventId, builder: (column) => column);
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get actorId =>
+      $composableBuilder(column: $table.actorId, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get occurredAt => $composableBuilder(
+    column: $table.occurredAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get schemaVersion => $composableBuilder(
+    column: $table.schemaVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get payload =>
+      $composableBuilder(column: $table.payload, builder: (column) => column);
+}
+
+class $$GameEventsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $GameEventsTable,
+          GameEventRow,
+          $$GameEventsTableFilterComposer,
+          $$GameEventsTableOrderingComposer,
+          $$GameEventsTableAnnotationComposer,
+          $$GameEventsTableCreateCompanionBuilder,
+          $$GameEventsTableUpdateCompanionBuilder,
+          (
+            GameEventRow,
+            BaseReferences<_$AppDatabase, $GameEventsTable, GameEventRow>,
+          ),
+          GameEventRow,
+          PrefetchHooks Function()
+        > {
+  $$GameEventsTableTableManager(_$AppDatabase db, $GameEventsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$GameEventsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$GameEventsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$GameEventsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> eventId = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String> actorId = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<DateTime> occurredAt = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> schemaVersion = const Value.absent(),
+                Value<String> payload = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => GameEventsCompanion(
+                eventId: eventId,
+                deviceId: deviceId,
+                actorId: actorId,
+                type: type,
+                occurredAt: occurredAt,
+                createdAt: createdAt,
+                schemaVersion: schemaVersion,
+                payload: payload,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String eventId,
+                required String deviceId,
+                required String actorId,
+                required String type,
+                required DateTime occurredAt,
+                required DateTime createdAt,
+                required int schemaVersion,
+                required String payload,
+                Value<int> rowid = const Value.absent(),
+              }) => GameEventsCompanion.insert(
+                eventId: eventId,
+                deviceId: deviceId,
+                actorId: actorId,
+                type: type,
+                occurredAt: occurredAt,
+                createdAt: createdAt,
+                schemaVersion: schemaVersion,
+                payload: payload,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$GameEventsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $GameEventsTable,
+      GameEventRow,
+      $$GameEventsTableFilterComposer,
+      $$GameEventsTableOrderingComposer,
+      $$GameEventsTableAnnotationComposer,
+      $$GameEventsTableCreateCompanionBuilder,
+      $$GameEventsTableUpdateCompanionBuilder,
+      (
+        GameEventRow,
+        BaseReferences<_$AppDatabase, $GameEventsTable, GameEventRow>,
+      ),
+      GameEventRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4776,4 +5580,6 @@ class $AppDatabaseManager {
       $$LocalSetupRowsTableTableManager(_db, _db.localSetupRows);
   $$ExportBookmarksTableTableManager get exportBookmarks =>
       $$ExportBookmarksTableTableManager(_db, _db.exportBookmarks);
+  $$GameEventsTableTableManager get gameEvents =>
+      $$GameEventsTableTableManager(_db, _db.gameEvents);
 }
