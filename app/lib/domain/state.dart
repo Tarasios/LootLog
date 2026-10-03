@@ -18,12 +18,15 @@ class Settings {
   final int dissolutionTithePct;
   final bool showNetWorth;
 
-  Settings copyWith({int? spoilsGraceDays, int? dissolutionTithePct, bool? showNetWorth}) =>
-      Settings(
-        spoilsGraceDays: spoilsGraceDays ?? this.spoilsGraceDays,
-        dissolutionTithePct: dissolutionTithePct ?? this.dissolutionTithePct,
-        showNetWorth: showNetWorth ?? this.showNetWorth,
-      );
+  Settings copyWith({
+    int? spoilsGraceDays,
+    int? dissolutionTithePct,
+    bool? showNetWorth,
+  }) => Settings(
+    spoilsGraceDays: spoilsGraceDays ?? this.spoilsGraceDays,
+    dissolutionTithePct: dissolutionTithePct ?? this.dissolutionTithePct,
+    showNetWorth: showNetWorth ?? this.showNetWorth,
+  );
 }
 
 /// A **main category** — the coarse grouping every budget category belongs to.
@@ -71,14 +74,38 @@ class MainCategory {
 /// reducer always seeds these, so every household has them even with no
 /// `MainCategorySet` events on the log.
 const List<MainCategory> defaultMainCategories = [
-  MainCategory(id: 'housing', name: 'Housing', colorArgb: 0xFF4E79A7, sortOrder: 0),
-  MainCategory(id: 'food', name: 'Food', colorArgb: 0xFFF28E2B, sortOrder: 1),
-  MainCategory(id: 'transport', name: 'Transport', colorArgb: 0xFFE15759, sortOrder: 2),
-  MainCategory(id: 'health', name: 'Health', colorArgb: 0xFF76B7B2, sortOrder: 3),
   MainCategory(
-      id: 'entertainment', name: 'Entertainment', colorArgb: 0xFF59A14F, sortOrder: 4),
+    id: 'housing',
+    name: 'Housing',
+    colorArgb: 0xFF4E79A7,
+    sortOrder: 0,
+  ),
+  MainCategory(id: 'food', name: 'Food', colorArgb: 0xFFF28E2B, sortOrder: 1),
+  MainCategory(
+    id: 'transport',
+    name: 'Transport',
+    colorArgb: 0xFFE15759,
+    sortOrder: 2,
+  ),
+  MainCategory(
+    id: 'health',
+    name: 'Health',
+    colorArgb: 0xFF76B7B2,
+    sortOrder: 3,
+  ),
+  MainCategory(
+    id: 'entertainment',
+    name: 'Entertainment',
+    colorArgb: 0xFF59A14F,
+    sortOrder: 4,
+  ),
   MainCategory(id: 'pets', name: 'Pets', colorArgb: 0xFFEDC948, sortOrder: 5),
-  MainCategory(id: 'savings', name: 'Savings', colorArgb: 0xFFB07AA1, sortOrder: 6),
+  MainCategory(
+    id: 'savings',
+    name: 'Savings',
+    colorArgb: 0xFFB07AA1,
+    sortOrder: 6,
+  ),
   MainCategory(id: 'misc', name: 'Misc', colorArgb: 0xFF9C755F, sortOrder: 7),
 ];
 
@@ -292,9 +319,9 @@ class RecurringExpenseState {
   }
 
   /// Whole days from [from] to the next due date (0 when due today).
-  int daysUntilDue(DateTime from) => nextDueDate(from)
-      .difference(DateTime(from.year, from.month, from.day))
-      .inDays;
+  int daysUntilDue(DateTime from) => nextDueDate(
+    from,
+  ).difference(DateTime(from.year, from.month, from.day)).inDays;
 }
 
 /// The reconciliation of an annual expense in its due month: the real amount is
@@ -408,9 +435,11 @@ class VacationCategoryState {
   final int limitCents;
   final int spentCents;
 
-  int get leftoverCents => spentCents < limitCents ? limitCents - spentCents : 0;
+  int get leftoverCents =>
+      spentCents < limitCents ? limitCents - spentCents : 0;
 
-  int get overspendCents => spentCents > limitCents ? spentCents - limitCents : 0;
+  int get overspendCents =>
+      spentCents > limitCents ? spentCents - limitCents : 0;
 
   bool get overspent => overspendCents > 0;
 }
@@ -463,15 +492,13 @@ class VacationState {
 
   /// The id of the backing fund (a questId or emergency fundId).
   String get fundSourceId => switch (fund) {
-        VacationFundQuest(:final questId) => questId,
-        VacationFundEmergency(:final fundId) => fundId,
-      };
+    VacationFundQuest(:final questId) => questId,
+    VacationFundEmergency(:final fundId) => fundId,
+  };
 
-  int get totalLimitCents =>
-      categories.fold(0, (a, c) => a + c.limitCents);
+  int get totalLimitCents => categories.fold(0, (a, c) => a + c.limitCents);
 
-  int get totalSpentCents =>
-      categories.fold(0, (a, c) => a + c.spentCents);
+  int get totalSpentCents => categories.fold(0, (a, c) => a + c.spentCents);
 
   int get totalLeftoverCents {
     final r = totalLimitCents - totalSpentCents;
@@ -554,7 +581,11 @@ class WithdrawalProposal {
 
 /// A display-only pet party member.
 class PetState {
-  const PetState({required this.petId, required this.name, this.customSpriteSha256});
+  const PetState({
+    required this.petId,
+    required this.name,
+    this.customSpriteSha256,
+  });
 
   final String petId;
   final String name;
@@ -872,8 +903,8 @@ class HouseholdState {
   /// The outstanding OVERBUDGET debts owned by [userId], sorted by sliceId.
   List<OverbudgetState> outstandingOverbudgetsFor(String userId) =>
       (overbudgets.values
-          .where((d) => d.ownerUserId == userId && !d.settled)
-          .toList())
+            .where((d) => d.ownerUserId == userId && !d.settled)
+            .toList())
         ..sort((a, b) => a.sliceId.compareTo(b.sliceId));
 
   /// Every outstanding OVERBUDGET in the household, sorted by sliceId.
@@ -928,9 +959,7 @@ class HouseholdState {
   /// Resolved income for [userId] in [month]: a single-month override wins,
   /// else the latest effective default, else zero.
   int incomeFor(String userId, Month month) =>
-      incomeOverrideFor(userId, month) ??
-      defaultIncomeFor(userId, month) ??
-      0;
+      incomeOverrideFor(userId, month) ?? defaultIncomeFor(userId, month) ?? 0;
 
   /// A deterministic numeric snapshot used to assert that reduction is
   /// order-independent (out-of-order events == sorted order).

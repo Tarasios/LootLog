@@ -43,14 +43,14 @@ sealed class Event {
   Month get occurredMonth => Month.fromInstant(occurredAt);
 
   Map<String, dynamic> toJson() => {
-        'eventId': eventId,
-        'deviceId': deviceId,
-        'userId': userId,
-        'occurredAt': occurredAt.toUtc().toIso8601String(),
-        'createdAt': createdAt.toUtc().toIso8601String(),
-        'type': type,
-        'payload': payload(),
-      };
+    'eventId': eventId,
+    'deviceId': deviceId,
+    'userId': userId,
+    'occurredAt': occurredAt.toUtc().toIso8601String(),
+    'createdAt': createdAt.toUtc().toIso8601String(),
+    'type': type,
+    'payload': payload(),
+  };
 
   /// Reconstructs an event from its JSON envelope.
   static Event fromJson(Map<String, dynamic> json) {
@@ -110,8 +110,7 @@ sealed class Event {
                   (p['emergencyContribution'] as Map).cast(),
                 ),
           petId: p['petId'] as String?,
-          petOwnerIds:
-              (p['petOwnerIds'] as List?)?.cast<String>() ?? const [],
+          petOwnerIds: (p['petOwnerIds'] as List?)?.cast<String>() ?? const [],
           priority: SlicePriority.fromName(p['priority'] as String?),
         );
       case 'RecurringExpenseSet':
@@ -242,8 +241,9 @@ sealed class Event {
           byUserId: p['byUserId'] as String,
           amountCents: p['amountCents'] as int,
           purpose: p['purpose'] as String,
-          destination:
-              WithdrawalDestination.fromJson((p['destination'] as Map).cast()),
+          destination: WithdrawalDestination.fromJson(
+            (p['destination'] as Map).cast(),
+          ),
         );
       case 'PoolWithdrawalApproved':
         return PoolWithdrawalApproved(
@@ -468,6 +468,50 @@ sealed class Event {
           sourceRef: p['sourceRef'] as String,
           grantedAt: DateTime.parse(p['grantedAt'] as String).toUtc(),
         );
+      case 'ShortfallCovered':
+        return ShortfallCovered(
+          eventId: eventId,
+          deviceId: deviceId,
+          userId: userId,
+          occurredAt: occurredAt,
+          createdAt: createdAt,
+          purchaseId: p['purchaseId'] as String,
+          source: CoverSource.fromJson((p['source'] as Map).cast()),
+          amountCents: p['amountCents'] as int,
+        );
+      case 'AllowanceAdvanceProposed':
+        return AllowanceAdvanceProposed(
+          eventId: eventId,
+          deviceId: deviceId,
+          userId: userId,
+          occurredAt: occurredAt,
+          createdAt: createdAt,
+          advanceId: p['advanceId'] as String,
+          byUserId: p['byUserId'] as String,
+          sliceId: p['sliceId'] as String,
+          amountCents: p['amountCents'] as int,
+          months: p['months'] as int? ?? 1,
+          purchaseId: p['purchaseId'] as String?,
+        );
+      case 'AllowanceAdvanceApproved':
+        return AllowanceAdvanceApproved(
+          eventId: eventId,
+          deviceId: deviceId,
+          userId: userId,
+          occurredAt: occurredAt,
+          createdAt: createdAt,
+          advanceId: p['advanceId'] as String,
+          byUserId: p['byUserId'] as String,
+        );
+      case 'AllowanceAdvanceCancelled':
+        return AllowanceAdvanceCancelled(
+          eventId: eventId,
+          deviceId: deviceId,
+          userId: userId,
+          occurredAt: occurredAt,
+          createdAt: createdAt,
+          advanceId: p['advanceId'] as String,
+        );
       default:
         // A type this version doesn't know (written by a newer release). Keep
         // it verbatim so it is stored and relayed intact; the reducer ignores
@@ -528,14 +572,14 @@ class PurchaseAdded extends Event {
 
   @override
   Map<String, dynamic> payload() => {
-        'purchaseId': purchaseId,
-        'target': target.toJson(),
-        'amountCents': amountCents,
-        'shared': shared,
-        if (merchant != null) 'merchant': merchant,
-        if (taxDeductible != null) 'taxDeductible': taxDeductible,
-        if (note != null) 'note': note,
-      };
+    'purchaseId': purchaseId,
+    'target': target.toJson(),
+    'amountCents': amountCents,
+    'shared': shared,
+    if (merchant != null) 'merchant': merchant,
+    if (taxDeductible != null) 'taxDeductible': taxDeductible,
+    if (note != null) 'note': note,
+  };
 }
 
 class PurchaseVoided extends Event {
@@ -607,20 +651,20 @@ class BudgetSliceSet extends Event {
 
   @override
   Map<String, dynamic> payload() => {
-        'sliceId': sliceId,
-        'name': name,
-        'ownership': ownership.toJson(),
-        if (mainCategoryId != null) 'mainCategoryId': mainCategoryId,
-        'limitCents': limitCents,
-        'poolTithePct': poolTithePct,
-        'defaultLeftoverPolicy': defaultLeftoverPolicy.toJson(),
-        'taxDeductibleByDefault': taxDeductibleByDefault,
-        if (emergencyContribution != null)
-          'emergencyContribution': emergencyContribution!.toJson(),
-        if (petId != null) 'petId': petId,
-        if (petOwnerIds.isNotEmpty) 'petOwnerIds': petOwnerIds,
-        if (priority != SlicePriority.important) 'priority': priority.name,
-      };
+    'sliceId': sliceId,
+    'name': name,
+    'ownership': ownership.toJson(),
+    if (mainCategoryId != null) 'mainCategoryId': mainCategoryId,
+    'limitCents': limitCents,
+    'poolTithePct': poolTithePct,
+    'defaultLeftoverPolicy': defaultLeftoverPolicy.toJson(),
+    'taxDeductibleByDefault': taxDeductibleByDefault,
+    if (emergencyContribution != null)
+      'emergencyContribution': emergencyContribution!.toJson(),
+    if (petId != null) 'petId': petId,
+    if (petOwnerIds.isNotEmpty) 'petOwnerIds': petOwnerIds,
+    if (priority != SlicePriority.important) 'priority': priority.name,
+  };
 }
 
 /// Declares or amends a **main category** — the coarse grouping budget
@@ -650,11 +694,11 @@ class MainCategorySet extends Event {
 
   @override
   Map<String, dynamic> payload() => {
-        'id': id,
-        'name': name,
-        'colorArgb': colorArgb,
-        'sortOrder': sortOrder,
-      };
+    'id': id,
+    'name': name,
+    'colorArgb': colorArgb,
+    'sortOrder': sortOrder,
+  };
 }
 
 class RecurringExpenseSet extends Event {
@@ -675,8 +719,10 @@ class RecurringExpenseSet extends Event {
     this.dueDay = 1,
     this.dueMonth,
   }) : assert(dueDay >= 1 && dueDay <= 31, 'dueDay must be 1..31'),
-       assert(dueMonth == null || (dueMonth >= 1 && dueMonth <= 12),
-           'dueMonth must be 1..12');
+       assert(
+         dueMonth == null || (dueMonth >= 1 && dueMonth <= 12),
+         'dueMonth must be 1..12',
+       );
 
   final String expenseId;
   final String name;
@@ -702,17 +748,17 @@ class RecurringExpenseSet extends Event {
 
   @override
   Map<String, dynamic> payload() => {
-        'expenseId': expenseId,
-        'name': name,
-        'ownership': ownership.toJson(),
-        'kind': kind.name,
-        'cadence': cadence.name,
-        'amountCents': amountCents,
-        'dueDay': dueDay,
-        if (dueMonth != null) 'dueMonth': dueMonth,
-        'startMonth': startMonth.toKey(),
-        if (endMonth != null) 'endMonth': endMonth!.toKey(),
-      };
+    'expenseId': expenseId,
+    'name': name,
+    'ownership': ownership.toJson(),
+    'kind': kind.name,
+    'cadence': cadence.name,
+    'amountCents': amountCents,
+    'dueDay': dueDay,
+    if (dueMonth != null) 'dueMonth': dueMonth,
+    'startMonth': startMonth.toKey(),
+    if (endMonth != null) 'endMonth': endMonth!.toKey(),
+  };
 }
 
 class VariableExpenseRecorded extends Event {
@@ -736,10 +782,10 @@ class VariableExpenseRecorded extends Event {
 
   @override
   Map<String, dynamic> payload() => {
-        'expenseId': expenseId,
-        'month': month.toKey(),
-        'actualCents': actualCents,
-      };
+    'expenseId': expenseId,
+    'month': month.toKey(),
+    'actualCents': actualCents,
+  };
 }
 
 class IncomeSet extends Event {
@@ -763,10 +809,10 @@ class IncomeSet extends Event {
 
   @override
   Map<String, dynamic> payload() => {
-        'forUserId': forUserId,
-        'amountCents': amountCents,
-        'month': month.toKey(),
-      };
+    'forUserId': forUserId,
+    'amountCents': amountCents,
+    'month': month.toKey(),
+  };
 }
 
 /// Sets a user's **default** monthly income, effective from
@@ -803,12 +849,11 @@ class DefaultIncomeSet extends Event {
 
   @override
   Map<String, dynamic> payload() => {
-        'forUserId': forUserId,
-        'amountCents': amountCents,
-        'effectiveFromMonth': effectiveFromMonth.toKey(),
-        if (estimatedHighCents != null)
-          'estimatedHighCents': estimatedHighCents,
-      };
+    'forUserId': forUserId,
+    'amountCents': amountCents,
+    'effectiveFromMonth': effectiveFromMonth.toKey(),
+    if (estimatedHighCents != null) 'estimatedHighCents': estimatedHighCents,
+  };
 }
 
 class QuestSet extends Event {
@@ -850,15 +895,15 @@ class QuestSet extends Event {
 
   @override
   Map<String, dynamic> payload() => {
-        'questId': questId,
-        'name': name,
-        'targetCents': targetCents,
-        'ownership': ownership.toJson(),
-        if (mainCategoryId != null) 'mainCategoryId': mainCategoryId,
-        if (sliceHint != null) 'sliceHint': sliceHint,
-        if (customSpriteSha256 != null) 'customSpriteSha256': customSpriteSha256,
-        if (descriptionText != null) 'descriptionText': descriptionText,
-      };
+    'questId': questId,
+    'name': name,
+    'targetCents': targetCents,
+    'ownership': ownership.toJson(),
+    if (mainCategoryId != null) 'mainCategoryId': mainCategoryId,
+    if (sliceHint != null) 'sliceHint': sliceHint,
+    if (customSpriteSha256 != null) 'customSpriteSha256': customSpriteSha256,
+    if (descriptionText != null) 'descriptionText': descriptionText,
+  };
 }
 
 class QuestAbandoned extends Event {
@@ -903,11 +948,11 @@ class LeftoverAllocated extends Event {
 
   @override
   Map<String, dynamic> payload() => {
-        'forUserId': forUserId,
-        'month': month.toKey(),
-        'sliceId': sliceId,
-        'allocations': [for (final a in allocations) a.toJson()],
-      };
+    'forUserId': forUserId,
+    'month': month.toKey(),
+    'sliceId': sliceId,
+    'allocations': [for (final a in allocations) a.toJson()],
+  };
 }
 
 class GiftReceived extends Event {
@@ -931,10 +976,10 @@ class GiftReceived extends Event {
 
   @override
   Map<String, dynamic> payload() => {
-        'forUserId': forUserId,
-        'amountCents': amountCents,
-        if (note != null) 'note': note,
-      };
+    'forUserId': forUserId,
+    'amountCents': amountCents,
+    if (note != null) 'note': note,
+  };
 }
 
 class PoolContributionMade extends Event {
@@ -955,8 +1000,10 @@ class PoolContributionMade extends Event {
   String get type => 'PoolContributionMade';
 
   @override
-  Map<String, dynamic> payload() =>
-      {'fromUserId': fromUserId, 'amountCents': amountCents};
+  Map<String, dynamic> payload() => {
+    'fromUserId': fromUserId,
+    'amountCents': amountCents,
+  };
 }
 
 class PoolWithdrawalProposed extends Event {
@@ -984,12 +1031,12 @@ class PoolWithdrawalProposed extends Event {
 
   @override
   Map<String, dynamic> payload() => {
-        'proposalId': proposalId,
-        'byUserId': byUserId,
-        'amountCents': amountCents,
-        'purpose': purpose,
-        'destination': destination.toJson(),
-      };
+    'proposalId': proposalId,
+    'byUserId': byUserId,
+    'amountCents': amountCents,
+    'purpose': purpose,
+    'destination': destination.toJson(),
+  };
 }
 
 class PoolWithdrawalApproved extends Event {
@@ -1010,8 +1057,10 @@ class PoolWithdrawalApproved extends Event {
   String get type => 'PoolWithdrawalApproved';
 
   @override
-  Map<String, dynamic> payload() =>
-      {'proposalId': proposalId, 'byUserId': byUserId};
+  Map<String, dynamic> payload() => {
+    'proposalId': proposalId,
+    'byUserId': byUserId,
+  };
 }
 
 class PoolWithdrawalCancelled extends Event {
@@ -1051,8 +1100,10 @@ class TaxRefundRecorded extends Event {
   String get type => 'TaxRefundRecorded';
 
   @override
-  Map<String, dynamic> payload() =>
-      {'amountCents': amountCents, if (note != null) 'note': note};
+  Map<String, dynamic> payload() => {
+    'amountCents': amountCents,
+    if (note != null) 'note': note,
+  };
 }
 
 class EmergencyFundSet extends Event {
@@ -1075,8 +1126,11 @@ class EmergencyFundSet extends Event {
   String get type => 'EmergencyFundSet';
 
   @override
-  Map<String, dynamic> payload() =>
-      {'fundId': fundId, 'name': name, if (petId != null) 'petId': petId};
+  Map<String, dynamic> payload() => {
+    'fundId': fundId,
+    'name': name,
+    if (petId != null) 'petId': petId,
+  };
 }
 
 class PetSet extends Event {
@@ -1100,10 +1154,10 @@ class PetSet extends Event {
 
   @override
   Map<String, dynamic> payload() => {
-        'petId': petId,
-        'name': name,
-        if (customSpriteSha256 != null) 'customSpriteSha256': customSpriteSha256,
-      };
+    'petId': petId,
+    'name': name,
+    if (customSpriteSha256 != null) 'customSpriteSha256': customSpriteSha256,
+  };
 }
 
 /// Declares or amends a household member (last-writer-wins by [memberId]).
@@ -1143,14 +1197,14 @@ class MemberSet extends Event {
 
   @override
   Map<String, dynamic> payload() => {
-        'memberId': memberId,
-        'name': name,
-        'role': role.name,
-        'active': active,
-        if (customSpriteSha256 != null) 'customSpriteSha256': customSpriteSha256,
-        if (descriptionText != null) 'descriptionText': descriptionText,
-        if (fundedByUserId != null) 'fundedByUserId': fundedByUserId,
-      };
+    'memberId': memberId,
+    'name': name,
+    'role': role.name,
+    'active': active,
+    if (customSpriteSha256 != null) 'customSpriteSha256': customSpriteSha256,
+    if (descriptionText != null) 'descriptionText': descriptionText,
+    if (fundedByUserId != null) 'fundedByUserId': fundedByUserId,
+  };
 }
 
 /// Sets the per-adult share table for [month]: a map of adult id to permille
@@ -1175,9 +1229,9 @@ class GroupShareSet extends Event {
 
   @override
   Map<String, dynamic> payload() => {
-        'month': month.toKey(),
-        'shares': {for (final e in shares.entries) e.key: e.value},
-      };
+    'month': month.toKey(),
+    'shares': {for (final e in shares.entries) e.key: e.value},
+  };
 }
 
 /// Sets the war chest's savings target.
@@ -1223,11 +1277,11 @@ class ReceiptAttached extends Event {
 
   @override
   Map<String, dynamic> payload() => {
-        'purchaseId': purchaseId,
-        'sha256': sha256,
-        'mimeType': mimeType,
-        'sizeBytes': sizeBytes,
-      };
+    'purchaseId': purchaseId,
+    'sha256': sha256,
+    'mimeType': mimeType,
+    'sizeBytes': sizeBytes,
+  };
 }
 
 class ReceiptDetached extends Event {
@@ -1248,8 +1302,10 @@ class ReceiptDetached extends Event {
   String get type => 'ReceiptDetached';
 
   @override
-  Map<String, dynamic> payload() =>
-      {'purchaseId': purchaseId, 'sha256': sha256};
+  Map<String, dynamic> payload() => {
+    'purchaseId': purchaseId,
+    'sha256': sha256,
+  };
 }
 
 /// Declares or amends a tracked net-worth account (last-writer-wins by
@@ -1296,14 +1352,14 @@ class TrackedAccountSet extends Event {
 
   @override
   Map<String, dynamic> payload() => {
-        'accountId': accountId,
-        'name': name,
-        'kind': kind.name,
-        if (aprBps != null) 'aprBps': aprBps,
-        if (accrualCadence != null) 'accrualCadence': accrualCadence!.name,
-        if (updateCadence != null) 'updateCadence': updateCadence!.name,
-        if (minPaymentCents != null) 'minPaymentCents': minPaymentCents,
-      };
+    'accountId': accountId,
+    'name': name,
+    'kind': kind.name,
+    if (aprBps != null) 'aprBps': aprBps,
+    if (accrualCadence != null) 'accrualCadence': accrualCadence!.name,
+    if (updateCadence != null) 'updateCadence': updateCadence!.name,
+    if (minPaymentCents != null) 'minPaymentCents': minPaymentCents,
+  };
 }
 
 class AccountBalanceRecorded extends Event {
@@ -1329,11 +1385,11 @@ class AccountBalanceRecorded extends Event {
 
   @override
   Map<String, dynamic> payload() => {
-        'accountId': accountId,
-        'accountName': accountName,
-        'kind': kind.name,
-        'balanceCents': balanceCents,
-      };
+    'accountId': accountId,
+    'accountName': accountName,
+    'kind': kind.name,
+    'balanceCents': balanceCents,
+  };
 }
 
 /// Records a deposit into or withdrawal out of a tracked account. Adjusts the
@@ -1362,11 +1418,11 @@ class AccountTransferRecorded extends Event {
 
   @override
   Map<String, dynamic> payload() => {
-        'accountId': accountId,
-        'amountCents': amountCents,
-        'direction': direction.name,
-        if (note != null) 'note': note,
-      };
+    'accountId': accountId,
+    'amountCents': amountCents,
+    'direction': direction.name,
+    if (note != null) 'note': note,
+  };
 }
 
 /// Changes a household setting. Known keys: `spoilsGraceDays` (int, default 7),
@@ -1428,13 +1484,13 @@ class VacationSet extends Event {
 
   @override
   Map<String, dynamic> payload() => {
-        'vacationId': vacationId,
-        'name': name,
-        'fund': fund.toJson(),
-        'startDate': startDate.toUtc().toIso8601String(),
-        'endDate': endDate.toUtc().toIso8601String(),
-        'categories': [for (final c in categories) c.toJson()],
-      };
+    'vacationId': vacationId,
+    'name': name,
+    'fund': fund.toJson(),
+    'startDate': startDate.toUtc().toIso8601String(),
+    'endDate': endDate.toUtc().toIso8601String(),
+    'categories': [for (final c in categories) c.toJson()],
+  };
 }
 
 /// Closes a vacation: no further vacation charges are accepted and the unspent
@@ -1510,11 +1566,123 @@ class GameRewardGranted extends Event {
 
   @override
   Map<String, dynamic> payload() => {
-        'rewardId': rewardId,
-        'kind': kind.name,
-        'sourceRef': sourceRef,
-        'grantedAt': grantedAt.toUtc().toIso8601String(),
-      };
+    'rewardId': rewardId,
+    'kind': kind.name,
+    'sourceRef': sourceRef,
+    'grantedAt': grantedAt.toUtc().toIso8601String(),
+  };
+}
+
+/// Covers the gap on a purchase that exceeds what its target had available:
+/// from the purchaser's general pool, or (when buying a quest's goal) from one
+/// of their category savings pools. Ignored if the purchase is voided.
+class ShortfallCovered extends Event {
+  const ShortfallCovered({
+    required super.eventId,
+    required super.deviceId,
+    required super.userId,
+    required super.occurredAt,
+    required super.createdAt,
+    required this.purchaseId,
+    required this.source,
+    required this.amountCents,
+  });
+
+  final String purchaseId;
+  final CoverSource source;
+  final int amountCents;
+
+  @override
+  String get type => 'ShortfallCovered';
+
+  @override
+  Map<String, dynamic> payload() => {
+    'purchaseId': purchaseId,
+    'source': source.toJson(),
+    'amountCents': amountCents,
+  };
+}
+
+/// Proposes borrowing [amountCents] from a category's next [months] monthly
+/// allowances to cover a purchase now. Needs another adult's approval
+/// (auto-approved in a one-adult household), exactly like a pool withdrawal.
+class AllowanceAdvanceProposed extends Event {
+  const AllowanceAdvanceProposed({
+    required super.eventId,
+    required super.deviceId,
+    required super.userId,
+    required super.occurredAt,
+    required super.createdAt,
+    required this.advanceId,
+    required this.byUserId,
+    required this.sliceId,
+    required this.amountCents,
+    required this.months,
+    this.purchaseId,
+  });
+
+  final String advanceId;
+  final String byUserId;
+  final String sliceId;
+  final int amountCents;
+  final int months;
+  final String? purchaseId;
+
+  @override
+  String get type => 'AllowanceAdvanceProposed';
+
+  @override
+  Map<String, dynamic> payload() => {
+    'advanceId': advanceId,
+    'byUserId': byUserId,
+    'sliceId': sliceId,
+    'amountCents': amountCents,
+    'months': months,
+    if (purchaseId != null) 'purchaseId': purchaseId,
+  };
+}
+
+class AllowanceAdvanceApproved extends Event {
+  const AllowanceAdvanceApproved({
+    required super.eventId,
+    required super.deviceId,
+    required super.userId,
+    required super.occurredAt,
+    required super.createdAt,
+    required this.advanceId,
+    required this.byUserId,
+  });
+
+  final String advanceId;
+  final String byUserId;
+
+  @override
+  String get type => 'AllowanceAdvanceApproved';
+
+  @override
+  Map<String, dynamic> payload() => {
+    'advanceId': advanceId,
+    'byUserId': byUserId,
+  };
+}
+
+class AllowanceAdvanceCancelled extends Event {
+  const AllowanceAdvanceCancelled({
+    required super.eventId,
+    required super.deviceId,
+    required super.userId,
+    required super.occurredAt,
+    required super.createdAt,
+    required this.advanceId,
+  });
+
+  final String advanceId;
+
+  @override
+  String get type => 'AllowanceAdvanceCancelled';
+
+  @override
+  Map<String, dynamic> payload() => {'advanceId': advanceId};
 }
 
 /// An event of a type this version does not recognise (written by a newer

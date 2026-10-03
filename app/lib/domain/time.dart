@@ -48,7 +48,7 @@ int _nthWeekday(int year, int month, int weekday, int n) {
 /// A calendar month in the household timezone.
 class Month implements Comparable<Month> {
   const Month(this.year, this.month)
-      : assert(month >= 1 && month <= 12, 'month must be 1..12');
+    : assert(month >= 1 && month <= 12, 'month must be 1..12');
 
   /// Parses a `"yyyy-MM"` key such as `"2026-03"`.
   factory Month.parse(String key) {
@@ -78,12 +78,10 @@ class Month implements Comparable<Month> {
   String toKey() => '$year-${month.toString().padLeft(2, '0')}';
 
   /// The month that follows this one.
-  Month next() =>
-      month == 12 ? Month(year + 1, 1) : Month(year, month + 1);
+  Month next() => month == 12 ? Month(year + 1, 1) : Month(year, month + 1);
 
   /// The month that precedes this one.
-  Month prev() =>
-      month == 1 ? Month(year - 1, 12) : Month(year, month - 1);
+  Month prev() => month == 1 ? Month(year - 1, 12) : Month(year, month - 1);
 
   /// The first instant (UTC) of this month in the household timezone. Used to
   /// order month-start effects (like emergency contributions) on a timeline.

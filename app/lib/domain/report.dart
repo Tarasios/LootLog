@@ -114,18 +114,21 @@ MonthReport buildMonthReport(
     final sm = state.sliceMonth(cfg.sliceId, month);
     final budgeted = sm?.effectiveLimitCents ?? cfg.baseEffectiveLimitCents;
     final spent = sm?.spentCents ?? 0;
-    final leftover = sm?.leftoverCents ?? (budgeted > spent ? budgeted - spent : 0);
+    final leftover =
+        sm?.leftoverCents ?? (budgeted > spent ? budgeted - spent : 0);
 
-    rows.add(ReportCategoryRow(
-      categoryId: cfg.sliceId,
-      name: cfg.name,
-      mainCategoryId: cfg.mainCategoryId,
-      isGroup: cfg.isGroup,
-      ownerUserId: cfg.ownerUserId,
-      budgetedCents: budgeted,
-      spentCents: spent,
-      leftoverCents: leftover,
-    ));
+    rows.add(
+      ReportCategoryRow(
+        categoryId: cfg.sliceId,
+        name: cfg.name,
+        mainCategoryId: cfg.mainCategoryId,
+        isGroup: cfg.isGroup,
+        ownerUserId: cfg.ownerUserId,
+        budgetedCents: budgeted,
+        spentCents: spent,
+        leftoverCents: leftover,
+      ),
+    );
 
     if (spent > 0) {
       final resolved = _resolveMain(state, cfg.mainCategoryId).id;
@@ -135,16 +138,17 @@ MonthReport buildMonthReport(
 
   rows.sort((a, b) => a.name.compareTo(b.name));
 
-  final byMain = <MainCategorySpend>[
-    for (final entry in spendByMain.entries)
-      MainCategorySpend(
-        mainCategory: _resolveMainById(state, entry.key),
-        spentCents: entry.value,
-      ),
-  ]..sort((a, b) {
-      final c = a.mainCategory.sortOrder.compareTo(b.mainCategory.sortOrder);
-      return c != 0 ? c : a.name.compareTo(b.name);
-    });
+  final byMain =
+      <MainCategorySpend>[
+        for (final entry in spendByMain.entries)
+          MainCategorySpend(
+            mainCategory: _resolveMainById(state, entry.key),
+            spentCents: entry.value,
+          ),
+      ]..sort((a, b) {
+        final c = a.mainCategory.sortOrder.compareTo(b.mainCategory.sortOrder);
+        return c != 0 ? c : a.name.compareTo(b.name);
+      });
 
   return MonthReport(
     month: month,
@@ -163,5 +167,5 @@ MainCategory _resolveMain(HouseholdState state, String? id) {
 
 MainCategory _resolveMainById(HouseholdState state, String resolvedId) =>
     resolvedId.isEmpty
-        ? uncategorizedMainCategory
-        : (state.mainCategories[resolvedId] ?? uncategorizedMainCategory);
+    ? uncategorizedMainCategory
+    : (state.mainCategories[resolvedId] ?? uncategorizedMainCategory);

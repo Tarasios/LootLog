@@ -92,6 +92,12 @@ class _Builder {
 
   int? goalTarget;
 
+  // Savings economy (applied only from the adoption month).
+  final List<ShortfallCovered> covers = [];
+  final Map<String, AllowanceAdvanceProposed> advanceProposals = {};
+  final Map<String, List<AllowanceAdvanceApproved>> advanceApprovals = {};
+  final Set<String> cancelledAdvances = {};
+
   void _note(String? u) {
     if (u != null) {
       userIds.add(u);
@@ -105,10 +111,7 @@ class _Builder {
     switch (e) {
       case PurchaseAdded():
         _note(e.userId);
-        purchases.putIfAbsent(
-          e.purchaseId,
-          () => _PurchaseAcc(e),
-        );
+        purchases.putIfAbsent(e.purchaseId, () => _PurchaseAcc(e));
       case PurchaseVoided():
         final p = purchases[e.purchaseId];
         if (p != null) {
@@ -126,8 +129,8 @@ class _Builder {
         final created = existing == null
             ? e.occurredMonth
             : (existing.createdMonth.isBefore(e.occurredMonth)
-                ? existing.createdMonth
-                : e.occurredMonth);
+                  ? existing.createdMonth
+                  : e.occurredMonth);
         if (e.ownership is PersonalSlice) {
           _note((e.ownership as PersonalSlice).userId);
         }
@@ -224,6 +227,16 @@ class _Builder {
         break; // domain-inert
       case GameRewardGranted():
         break; // cosmetic reward — the firewall: never touches a cent
+      case ShortfallCovered():
+        covers.add(e);
+      case AllowanceAdvanceProposed():
+        _note(e.byUserId);
+        advanceProposals[e.advanceId] = e;
+      case AllowanceAdvanceApproved():
+        _note(e.byUserId);
+        advanceApprovals.putIfAbsent(e.advanceId, () => []).add(e);
+      case AllowanceAdvanceCancelled():
+        cancelledAdvances.add(e.advanceId);
       case UnknownEvent():
         break; // unreachable: returned above
     }
@@ -296,7 +309,11 @@ class _Builder {
   /// cadence, by completed compounding periods (no partial-period accrual).
   /// Zero when any input is missing or no full period has elapsed.
   int _accruedInterest(
-      int base, int? aprBps, AccountCadence? cadence, DateTime? since) {
+    int base,
+    int? aprBps,
+    AccountCadence? cadence,
+    DateTime? since,
+  ) {
     if (aprBps == null || aprBps == 0 || cadence == null || since == null) {
       return 0;
     }
@@ -366,8 +383,11 @@ class _Builder {
   /// Splits [amount] across [weights] with floor rounding. Any leftover cents go
   /// to [oddTo] (the purchaser) when given; otherwise they are distributed by
   /// largest remainder so the parts always sum exactly to [amount].
-  Map<String, int> _splitShares(int amount, Map<String, int> weights,
-      {String? oddTo}) {
+  Map<String, int> _splitShares(
+    int amount,
+    Map<String, int> weights, {
+    String? oddTo,
+  }) {
     final totalWeight = weights.values.fold(0, (a, b) => a + b);
     if (amount == 0 || totalWeight <= 0) {
       return {?oddTo: amount};
@@ -433,11 +453,13 @@ class _Builder {
     // touches the monthly plan (it never enters category math).
     for (final cfg in accountCfg.values) {
       if (cfg.kind == AccountKind.debt && (cfg.minPaymentCents ?? 0) > 0) {
-        derivedRecurring.add(_DerivedRecurring(
-          expenseId: 'debt:${cfg.accountId}',
-          name: '${cfg.name} — minimum payment',
-          amountCents: cfg.minPaymentCents!,
-        ));
+        derivedRecurring.add(
+          _DerivedRecurring(
+            expenseId: 'debt:${cfg.accountId}',
+            name: '${cfg.name} — minimum payment',
+            amountCents: cfg.minPaymentCents!,
+          ),
+        );
       }
     }
 
@@ -618,8 +640,9 @@ class _Builder {
         // once this month's ritual window (start + grace days) has passed, so
         // during the ritual the monster stands at full HP for leftovers to
         // attack, and afterwards the withheld funding fells it on its own.
-        final lockGate =
-            m.startInstantUtc().add(Duration(days: settings.spoilsGraceDays));
+        final lockGate = m.startInstantUtc().add(
+          Duration(days: settings.spoilsGraceDays),
+        );
         final lockActive = now.isAfter(lockGate);
         final calcs = <_SliceCalc>[];
         for (final cfg in sortedSlices) {
@@ -655,7 +678,9 @@ class _Builder {
             final owner = cfg.ownerUserId!;
             final carryIn = carryPrev[cfg.sliceId] ?? 0;
             final funding = cfg.baseEffectiveLimitCents + carryIn;
-            final outstanding = lockActive ? (debtBySlice[cfg.sliceId] ?? 0) : 0;
+            final outstanding = lockActive
+                ? (debtBySlice[cfg.sliceId] ?? 0)
+                : 0;
             final lockable = funding > 0 ? funding : 0;
             final locked = outstanding < lockable ? outstanding : lockable;
             if (locked > 0) {
@@ -666,8 +691,17 @@ class _Builder {
             final leftover = spent < eff ? eff - spent : 0;
             final overspend = spent > eff ? spent - eff : 0;
             calcs.add(
-                _SliceCalc(cfg, owner, carryIn, locked, eff, spent, leftover,
-                    overspend));
+              _SliceCalc(
+                cfg,
+                owner,
+                carryIn,
+                locked,
+                eff,
+                spent,
+                leftover,
+                overspend,
+              ),
+            );
           }
 
           // Emergency-contribution schedule (accrues off the top every active
@@ -678,7 +712,9 @@ class _Builder {
           if (cfg.emergencyFundId != null &&
               cfg.emergencyContributionCents > 0 &&
               !m.startInstantUtc().isAfter(now)) {
-            fundSchedule.putIfAbsent(cfg.emergencyFundId!, () => []).add(
+            fundSchedule
+                .putIfAbsent(cfg.emergencyFundId!, () => [])
+                .add(
                   _FundContribution(
                     m.startInstantUtc(),
                     cfg.emergencyContributionCents,
@@ -722,16 +758,16 @@ class _Builder {
         final ritualOrder = calcs.toList()
           ..sort((a, b) {
             int rank(SlicePriority p) => switch (p) {
-                  SlicePriority.fun => 0,
-                  SlicePriority.important => 1,
-                  SlicePriority.necessity => 2,
-                };
-            final c =
-                rank(a.cfg.priority).compareTo(rank(b.cfg.priority));
+              SlicePriority.fun => 0,
+              SlicePriority.important => 1,
+              SlicePriority.necessity => 2,
+            };
+            final c = rank(a.cfg.priority).compareTo(rank(b.cfg.priority));
             return c != 0 ? c : a.cfg.sliceId.compareTo(b.cfg.sliceId);
           });
-        final graceDeadline =
-            m.endInstantUtc().add(Duration(days: settings.spoilsGraceDays));
+        final graceDeadline = m.endInstantUtc().add(
+          Duration(days: settings.spoilsGraceDays),
+        );
         for (final c in ritualOrder) {
           final cfg = c.cfg;
           final alloc = allocations['${c.owner}|${cfg.sliceId}|${m.toKey()}'];
@@ -768,7 +804,8 @@ class _Builder {
 
         // Recurring-expense burden for this month.
         for (final r in recurringCfg.values) {
-          final active = !r.startMonth.isAfter(m) &&
+          final active =
+              !r.startMonth.isAfter(m) &&
               (r.endMonth == null || !m.isAfter(r.endMonth!));
           if (!active) {
             continue;
@@ -789,7 +826,7 @@ class _Builder {
               if (isDue) {
                 final real =
                     variableActuals['${r.expenseId}|${m.toKey()}'] ??
-                        r.amountCents;
+                    r.amountCents;
                 annualReconByExpense[r.expenseId] = AnnualDueReconciliation(
                   month: m,
                   dueAmountCents: real,
@@ -804,7 +841,7 @@ class _Builder {
           } else {
             amount = r.kind == RecurringKind.variable
                 ? (variableActuals['${r.expenseId}|${m.toKey()}'] ??
-                    r.amountCents)
+                      r.amountCents)
                 : r.amountCents;
           }
           final own = r.ownership;
@@ -869,8 +906,10 @@ class _Builder {
       final abandoned = abandonedQuests.contains(cfg.questId);
 
       if (abandoned && balance > 0) {
-        final tithe =
-            Money.titheCents(balance, settings.dissolutionTithePct).titheCents;
+        final tithe = Money.titheCents(
+          balance,
+          settings.dissolutionTithePct,
+        ).titheCents;
         // Attribute the dissolution tithe to the abandonment month.
         final abandonMonth = _abandonMonth(cfg.questId);
         _addChest(tithe, abandonMonth);
@@ -908,8 +947,9 @@ class _Builder {
     }
     for (final fundId in allFundIds) {
       final items = <_FundTimelineItem>[
-        ...(fundSchedule[fundId] ?? [])
-            .map((c) => _FundTimelineItem.contribution(c.instant, c.amount)),
+        ...(fundSchedule[fundId] ?? []).map(
+          (c) => _FundTimelineItem.contribution(c.instant, c.amount),
+        ),
         ...emergencyPurchases
             .where((e) => (e.target as EmergencyCharge).fundId == fundId)
             .map(_FundTimelineItem.purchase),
@@ -926,12 +966,14 @@ class _Builder {
           } else {
             final excess = purchase.amountCents - running;
             running = 0;
-            ransacks.add(RansackRecord(
-              fundId: fundId,
-              excessCents: excess,
-              purpose: purchase.note ?? purchase.merchant ?? '',
-              occurredAt: purchase.occurredAt,
-            ));
+            ransacks.add(
+              RansackRecord(
+                fundId: fundId,
+                excessCents: excess,
+                purpose: purchase.note ?? purchase.merchant ?? '',
+                occurredAt: purchase.occurredAt,
+              ),
+            );
             _addChest(-excess, purchase.occurredMonth);
           }
         }
@@ -1020,7 +1062,8 @@ class _Builder {
 
       // Transfers after the last recording adjust the base value.
       var netTransfers = 0;
-      for (final t in transfersByAccount[id] ?? const <AccountTransferRecorded>[]) {
+      for (final t
+          in transfersByAccount[id] ?? const <AccountTransferRecorded>[]) {
         if (recordedAt == null || t.occurredAt.isAfter(recordedAt)) {
           netTransfers += t.direction == TransferDirection.deposit
               ? t.amountCents
@@ -1031,8 +1074,14 @@ class _Builder {
 
       final interest = kind == AccountKind.investment
           ? 0
-          : _accruedInterest(base, cfg?.aprBps, cfg?.accrualCadence, recordedAt);
-      final stale = kind == AccountKind.investment &&
+          : _accruedInterest(
+              base,
+              cfg?.aprBps,
+              cfg?.accrualCadence,
+              recordedAt,
+            );
+      final stale =
+          kind == AccountKind.investment &&
           _isStale(cfg?.updateCadence, recordedAt);
 
       accountBalances[id] = AccountBalance(
@@ -1050,8 +1099,10 @@ class _Builder {
         stale: stale,
       );
     }
-    final netWorthTotal =
-        accountBalances.values.fold(0, (a, x) => a + x.signedCents);
+    final netWorthTotal = accountBalances.values.fold(
+      0,
+      (a, x) => a + x.signedCents,
+    );
     final netWorth = NetWorthState(
       accounts: accountBalances,
       totalCents: netWorthTotal,
@@ -1073,17 +1124,21 @@ class _Builder {
         continue;
       }
       final year = e.occurredMonth.year;
-      deductibleByYear.putIfAbsent(year, () => []).add(DeductiblePurchase(
-            purchaseId: e.purchaseId,
-            userId: e.userId,
-            sliceName: sliceCfg?.name ?? _targetLabel(target),
-            amountCents: e.amountCents,
-            shared: e.shared,
-            occurredAt: e.occurredAt,
-            receiptShas: acc.receipts.keys.toList(),
-            merchant: e.merchant,
-            note: e.note,
-          ));
+      deductibleByYear
+          .putIfAbsent(year, () => [])
+          .add(
+            DeductiblePurchase(
+              purchaseId: e.purchaseId,
+              userId: e.userId,
+              sliceName: sliceCfg?.name ?? _targetLabel(target),
+              amountCents: e.amountCents,
+              shared: e.shared,
+              occurredAt: e.occurredAt,
+              receiptShas: acc.receipts.keys.toList(),
+              merchant: e.merchant,
+              note: e.note,
+            ),
+          );
     }
 
     // War chest goal progress.
@@ -1092,11 +1147,7 @@ class _Builder {
       final target = goalTarget!;
       final remaining = warChest < target ? target - warChest : 0;
       final asOfMonth = Month.fromInstant(now);
-      final trailing = [
-        asOfMonth,
-        asOfMonth.prev(),
-        asOfMonth.prev().prev(),
-      ];
+      final trailing = [asOfMonth, asOfMonth.prev(), asOfMonth.prev().prev()];
       final sum = trailing.fold(
         0,
         (a, mm) => a + (chestMonthlyNet[mm.toKey()] ?? 0),
@@ -1146,7 +1197,9 @@ class _Builder {
     // Default incomes per user, sorted ascending by the month they take effect.
     final incomeDefaultsByUser = <String, List<DefaultIncome>>{};
     for (final d in defaultIncomeCfg.values) {
-      incomeDefaultsByUser.putIfAbsent(d.forUserId, () => []).add(
+      incomeDefaultsByUser
+          .putIfAbsent(d.forUserId, () => [])
+          .add(
             DefaultIncome(
               effectiveFromMonth: d.effectiveFromMonth,
               amountCents: d.amountCents,
@@ -1268,8 +1321,13 @@ class _Builder {
 
   /// Applies one spoils-ritual allocation line for [cfg] (owned by [owner])
   /// in month [m].
-  void _applyAllocation(SliceConfig cfg, String owner, Allocation a, Month m,
-      Map<String, int> carryThis) {
+  void _applyAllocation(
+    SliceConfig cfg,
+    String owner,
+    Allocation a,
+    Month m,
+    Map<String, int> carryThis,
+  ) {
     final dest = a.destination;
     switch (dest) {
       case CarryInSlice():
@@ -1281,7 +1339,8 @@ class _Builder {
         // to the war chest and only the remainder lands as damage. A quest
         // without a main category never matches (always tithed).
         final quest = questCfg[dest.questId];
-        final matches = quest?.mainCategoryId != null &&
+        final matches =
+            quest?.mainCategoryId != null &&
             quest!.mainCategoryId == cfg.mainCategoryId;
         final int damage;
         if (matches) {
@@ -1291,8 +1350,7 @@ class _Builder {
           _addChest(t.titheCents, m);
           damage = t.remainderCents;
         }
-        questBalance[dest.questId] =
-            (questBalance[dest.questId] ?? 0) + damage;
+        questBalance[dest.questId] = (questBalance[dest.questId] ?? 0) + damage;
         final c = questContrib.putIfAbsent(dest.questId, () => {});
         c[owner] = (c[owner] ?? 0) + damage;
       case Discretionary():
@@ -1308,7 +1366,8 @@ class _Builder {
         // pays the pool tithe, so overpaying a debt never dodges the cut a
         // plain discretionary conversion would have taken.
         final target = slices[dest.sliceId];
-        final matches = target?.mainCategoryId != null &&
+        final matches =
+            target?.mainCategoryId != null &&
             target!.mainCategoryId == cfg.mainCategoryId;
         final outstanding = debtBySlice[dest.sliceId] ?? 0;
         final int pay;
@@ -1346,7 +1405,10 @@ class _Builder {
   /// be paid; skipping it is an active choice made with an explicit
   /// allocation, never the silent default.
   List<Allocation> _defaultAllocations(
-      SliceConfig cfg, String owner, int leftover) {
+    SliceConfig cfg,
+    String owner,
+    int leftover,
+  ) {
     if (leftover <= 0) {
       return const [];
     }
@@ -1362,7 +1424,8 @@ class _Builder {
         continue;
       }
       final target = slices[sliceId];
-      final matches = target?.mainCategoryId != null &&
+      final matches =
+          target?.mainCategoryId != null &&
           target!.mainCategoryId == cfg.mainCategoryId;
       final int grossNeeded;
       if (matches || cfg.poolTithePct <= 0) {
@@ -1375,18 +1438,22 @@ class _Builder {
       }
       final amount = grossNeeded < remaining ? grossNeeded : remaining;
       if (amount > 0) {
-        lines.add(Allocation(
-          destination: OverbudgetPayment(sliceId),
-          amountCents: amount,
-        ));
+        lines.add(
+          Allocation(
+            destination: OverbudgetPayment(sliceId),
+            amountCents: amount,
+          ),
+        );
         remaining -= amount;
       }
     }
     if (remaining > 0) {
-      lines.add(Allocation(
-        destination: cfg.defaultLeftoverPolicy,
-        amountCents: remaining,
-      ));
+      lines.add(
+        Allocation(
+          destination: cfg.defaultLeftoverPolicy,
+          amountCents: remaining,
+        ),
+      );
     }
     return lines;
   }
@@ -1419,12 +1486,12 @@ class _Builder {
   }
 
   String _targetLabel(ChargeTarget t) => switch (t) {
-        SliceCharge() => t.sliceId,
-        VaultCharge() => 'vault',
-        QuestCharge() => t.questId,
-        EmergencyCharge() => t.fundId,
-        VacationCharge() => t.vacationId,
-      };
+    SliceCharge() => t.sliceId,
+    VaultCharge() => 'vault',
+    QuestCharge() => t.questId,
+    EmergencyCharge() => t.fundId,
+    VacationCharge() => t.vacationId,
+  };
 
   Month _abandonMonth(String questId) {
     // The abandonment occurredMonth was captured on the QuestAbandoned event;
@@ -1514,8 +1581,16 @@ class _Builder {
 /// One personal category's figures for one swept month, buffered between the
 /// sweep's phases (locks -> close settlement -> ritual allocations).
 class _SliceCalc {
-  _SliceCalc(this.cfg, this.owner, this.carryIn, this.locked, this.eff,
-      this.spent, this.leftover, this.overspend);
+  _SliceCalc(
+    this.cfg,
+    this.owner,
+    this.carryIn,
+    this.locked,
+    this.eff,
+    this.spent,
+    this.leftover,
+    this.overspend,
+  );
 
   final SliceConfig cfg;
   final String owner;
@@ -1564,14 +1639,14 @@ class _FundContribution {
 /// purchase before it can ransack the war chest.
 class _FundTimelineItem implements Comparable<_FundTimelineItem> {
   _FundTimelineItem.contribution(this.instant, this.amount)
-      : isContribution = true,
-        purchase = null;
+    : isContribution = true,
+      purchase = null;
 
   _FundTimelineItem.purchase(PurchaseAdded p)
-      : isContribution = false,
-        instant = p.occurredAt,
-        amount = p.amountCents,
-        purchase = p;
+    : isContribution = false,
+      instant = p.occurredAt,
+      amount = p.amountCents,
+      purchase = p;
 
   final DateTime instant;
   final int amount;
