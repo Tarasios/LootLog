@@ -22,9 +22,9 @@ import '../../data/providers.dart';
 import '../../data/sync/sync_service.dart';
 import '../../domain/state.dart';
 import '../../domain/value_types.dart';
-import '../../game/skin_prefs.dart';
 import '../../ui/theme.dart';
 import '../entry/expense_entry_view.dart' show formatMoney;
+import '../settings/play_mode_providers.dart';
 
 /// Shows the detail sheet for [purchaseId]. It tracks live state, so an edit
 /// that voids-and-re-adds swaps the sheet over to the corrected purchase.
@@ -184,7 +184,7 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
     final overridden = purchase.taxDeductible != null;
     // Tax stays unobtrusive: in the adventure skin a deductible purchase carries
     // a small scroll-seal here on the detail sheet and nowhere else.
-    final adventure = ref.watch(appSkinProvider) == AppSkin.adventure;
+    final adventure = ref.watch(isAdventureProvider);
     final scheme = Theme.of(context).colorScheme;
     return SwitchListTile(
       contentPadding: EdgeInsets.zero,

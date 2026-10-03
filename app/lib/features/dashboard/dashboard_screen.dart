@@ -20,6 +20,7 @@ import '../budget_setup/budget_setup_screen.dart';
 import '../household_context.dart';
 import '../quests/quests_screen.dart';
 import '../report/report_screen.dart';
+import '../settings/play_mode_providers.dart';
 import '../settings/visibility_prefs.dart';
 import '../spoils/spoils_screen.dart';
 import 'dashboard_model.dart';
@@ -36,7 +37,7 @@ class DashboardScreen extends ConsumerWidget {
     // The pixel presentation (tiers 1–2) is the target look — each missing
     // sprite degrades to its own labelled placeholder. The global text-mode
     // toggle drops to tier 3, the first-class text adventure.
-    if (ref.watch(appSkinProvider) == AppSkin.adventure) {
+    if (ref.watch(isAdventureProvider)) {
       return ref.watch(adventureTierProvider) == AdventureTier.text
           ? const TextAdventureScreen()
           : const PixelAdventureScreen();

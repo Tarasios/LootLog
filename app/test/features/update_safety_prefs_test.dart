@@ -12,6 +12,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/data/blobs/receipt_offload.dart';
+import 'package:lootlog/features/settings/play_mode.dart';
+import 'package:lootlog/features/settings/play_mode_providers.dart';
 import 'package:lootlog/features/settings/visibility_prefs.dart';
 import 'package:lootlog/features/tutorial/tutorial_prefs.dart';
 import 'package:lootlog/game/skin_prefs.dart';
@@ -62,18 +64,24 @@ void main() {
     });
   });
 
-  group('skin pref (app_skin.txt)', () {
-    test('missing file defaults to Adventure (game first)', () async {
-      expect(await loadAppSkin(), AppSkin.adventure);
+  group('legacy skin pref (app_skin.txt)', () {
+    // The per-device Classic/Adventure skin was replaced by the per-person
+    // play mode. A device's old choice is still honoured as the fallback
+    // until its adult picks a mode.
+    test('missing file means no legacy choice', () async {
+      expect(await loadLegacySkinMode(), isNull);
     });
 
-    test('a persisted Classic choice survives; garbage defaults to Adventure',
+    test('Classic reads as Standard, Adventure as Adventure, garbage as none',
         () async {
       write('app_skin.txt', 'classic');
-      expect(await loadAppSkin(), AppSkin.classic);
+      expect(await loadLegacySkinMode(), PlayMode.standard);
+
+      write('app_skin.txt', 'adventure');
+      expect(await loadLegacySkinMode(), PlayMode.adventure);
 
       write('app_skin.txt', 'retro-3d');
-      expect(await loadAppSkin(), AppSkin.adventure);
+      expect(await loadLegacySkinMode(), isNull);
     });
   });
 

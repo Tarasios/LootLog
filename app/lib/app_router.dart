@@ -1,7 +1,8 @@
 /// The application router. go_router owns the top-level routing: first-run
-/// setup versus the main shell. Sub-navigation between the shell's panes is
-/// local to [AppShell]; the receipt-entry and purchase-detail flows continue to
-/// use imperative navigation on top of these routes.
+/// setup versus the main shell (via the [HomeGate], which may open the guild
+/// hall first for Adventure-mode users). Sub-navigation between the shell's
+/// panes is local to [AppShell]; the receipt-entry and purchase-detail flows
+/// continue to use imperative navigation on top of these routes.
 library;
 
 import 'package:flutter/foundation.dart';
@@ -10,7 +11,7 @@ import 'package:go_router/go_router.dart';
 
 import 'data/providers.dart';
 import 'features/setup/setup_screen.dart';
-import 'features/shell/app_shell.dart';
+import 'features/shell/home_gate.dart';
 
 /// The app's [GoRouter], rebuilt-safe and refreshed whenever first-run setup
 /// completes so the redirect can send the device into the shell.
@@ -25,7 +26,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/',
-        builder: (context, state) => const AppShell(),
+        builder: (context, state) => const HomeGate(),
       ),
       GoRoute(
         path: '/setup',

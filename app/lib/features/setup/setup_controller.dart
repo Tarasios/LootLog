@@ -10,7 +10,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../domain/ids.dart';
 import '../../domain/state.dart' show MainCategory, defaultMainCategories;
-import '../../game/skin_prefs.dart';
+import '../settings/play_mode.dart';
 import 'onboarding_plan.dart';
 
 /// A live per-adult allocation summary shown on the budget step: income minus
@@ -65,7 +65,12 @@ class SetupController extends ChangeNotifier {
   Map<String, int>? shares;
 
   DraftQuest? firstQuest;
-  AppSkin mode = AppSkin.adventure;
+  /// Each adult's play mode (localId → mode); unset adults are Adventure.
+  final Map<String, PlayMode> playModes = {};
+
+  /// [localId]'s chosen play mode (Adventure unless set otherwise).
+  PlayMode modeOf(String localId) =>
+      playModes[localId] ?? PlayPrefs.defaults.mode;
 
   List<DraftMember> get adults =>
       members.where((m) => m.isAdult).toList(growable: false);
@@ -234,8 +239,8 @@ class SetupController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setMode(AppSkin m) {
-    mode = m;
+  void setModeFor(String localId, PlayMode m) {
+    playModes[localId] = m;
     notifyListeners();
   }
 
@@ -351,5 +356,6 @@ class SetupController extends ChangeNotifier {
         mainCategories: List.unmodifiable(mainCategories),
         shares: shares == null ? null : Map.unmodifiable(shares!),
         firstQuest: firstQuest,
+        playModes: {for (final a in adults) a.localId: modeOf(a.localId)},
       );
 }

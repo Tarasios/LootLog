@@ -20,9 +20,9 @@ import '../../domain/money.dart';
 import '../../domain/state.dart' show MainCategory;
 import '../../domain/time.dart';
 import '../../domain/value_types.dart';
-import '../../game/skin_prefs.dart';
 import '../../ui/format.dart';
 import '../../ui/theme.dart';
+import '../settings/play_mode.dart';
 import 'join_party_screen.dart';
 import 'onboarding_plan.dart';
 import 'setup_controller.dart';
@@ -244,7 +244,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         startMonth: Month.fromInstant(DateTime.now().toUtc()),
       );
       await db.eventsDao.appendEvents(plan.events);
-      await ref.read(appSkinProvider.notifier).select(_c.mode);
       if (mounted) await _celebrate();
       // Saving the local setup flips isSetUpProvider and the router hands off
       // to the main shell.
@@ -814,32 +813,36 @@ class _GoalStep extends StatelessWidget {
             ),
           ),
         const Divider(height: AppSpacing.xl),
-        Text('How should the app look?', style: AppText.sectionLabel(context)),
-        const SizedBox(height: AppSpacing.sm),
-        SegmentedButton<AppSkin>(
-          segments: const [
-            ButtonSegment(
-              value: AppSkin.adventure,
-              label: Text('Adventure'),
-              icon: Icon(Icons.castle_outlined),
-            ),
-            ButtonSegment(
-              value: AppSkin.classic,
-              label: Text('Classic'),
-              icon: Icon(Icons.dashboard_outlined),
-            ),
-          ],
-          selected: {c.mode},
-          onSelectionChanged: (s) => c.setMode(s.first),
-        ),
+        Text(c.adults.length > 1 ? 'Who wants to play?' : 'Play the game?',
+            style: AppText.sectionLabel(context)),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          c.mode == AppSkin.adventure
-              ? 'The dungeon-crawler skin (default). Same numbers, more fun.'
-              : 'A plain ledger view. You can switch any time in Settings.',
+          'Adventure turns the budget into a game (the default). Standard is '
+          'the plain budgeting app — their logging still helps the party. '
+          'Anyone can switch any time in Settings.',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
+        for (final adult in c.adults) ...[
+          const SizedBox(height: AppSpacing.sm),
+          if (c.adults.length > 1) Text(adult.name),
+          SegmentedButton<PlayMode>(
+            segments: const [
+              ButtonSegment(
+                value: PlayMode.adventure,
+                label: Text('Adventure'),
+                icon: Icon(Icons.castle_outlined),
+              ),
+              ButtonSegment(
+                value: PlayMode.standard,
+                label: Text('Standard'),
+                icon: Icon(Icons.dashboard_outlined),
+              ),
+            ],
+            selected: {c.modeOf(adult.localId)},
+            onSelectionChanged: (s) => c.setModeFor(adult.localId, s.first),
+          ),
+        ],
       ],
     );
   }
@@ -877,7 +880,16 @@ class _SummaryStep extends StatelessWidget {
             context,
             Icons.videogame_asset_outlined,
             'Mode',
-            c.mode == AppSkin.adventure ? 'Adventure' : 'Classic'),
+            [
+              for (final a in c.adults)
+                [
+                  if (c.adults.length > 1) '${a.name}:',
+                  if (c.modeOf(a.localId) == PlayMode.adventure)
+                    'Adventure'
+                  else
+                    'Standard',
+                ].join(' '),
+            ].join(' · ')),
         const SizedBox(height: AppSpacing.lg),
         Card(
           color: Theme.of(context).colorScheme.surfaceContainerHighest,

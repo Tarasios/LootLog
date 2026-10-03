@@ -16,6 +16,7 @@ import '../../domain/state.dart'
     show MainCategory, defaultMainCategories, kDefaultGeneralTithePct;
 import '../../domain/time.dart';
 import '../../domain/value_types.dart';
+import '../settings/play_mode.dart';
 
 /// Which party role a drafted member takes. Mirrors [MemberRole]; kept separate
 /// only so the collecting UI can order the flow (adults → dependents → pets).
@@ -187,6 +188,7 @@ class OnboardingInput {
     this.mainCategories = const [],
     this.shares,
     this.firstQuest,
+    this.playModes = const {},
   });
 
   final String timezone;
@@ -215,6 +217,10 @@ class OnboardingInput {
   final Map<String, int>? shares;
 
   final DraftQuest? firstQuest;
+
+  /// Each adult's play mode (localId → mode), recorded per person so it
+  /// follows them to every device. Adults left out get the default.
+  final Map<String, PlayMode> playModes;
 
   List<DraftMember> get adults =>
       members.where((m) => m.isAdult).toList(growable: false);
