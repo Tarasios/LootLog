@@ -221,7 +221,9 @@ class _ExpenseEntryViewState extends State<ExpenseEntryView> {
             Padding(
               padding: const EdgeInsets.only(right: AppSpacing.sm),
               child: FilterChip(
-                label: const Text('Split 50/50'),
+                label: const Text('Shared'),
+                tooltip:
+                    'Split with the other adults by the household share table',
                 avatar: const Icon(Icons.people_alt_outlined, size: 18),
                 selected: _shared,
                 onSelected: (v) => setState(() => _shared = v),

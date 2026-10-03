@@ -1,5 +1,5 @@
 /// Recurring expenses ("equipment maintenance & provisioning"): create, edit,
-/// and cancel. Shared ones split 50/50 off the top; personal ones off the top of
+/// and cancel. Shared ones split by the household share table off the top; personal ones off the top of
 /// that member's budget. Variable ones carry an estimate until an actual is
 /// recorded at month close. Cancelling sets an end month.
 library;
