@@ -886,6 +886,7 @@ class _Builder {
                   spentNet - fromAllowance - fromSavings,
                   fromSavings: fromSavings,
                   savingsAfter: pool.balanceCents,
+                  savingsPaid: pool.taxPaidCents,
                   covered: covered,
                   trimmed: trimmed,
                   newRules: true,
@@ -1012,6 +1013,7 @@ class _Builder {
             lockedCents: c.locked,
             fromSavingsCents: c.fromSavings,
             savingsCents: c.savingsAfter,
+            savingsTaxPaidCents: c.savingsPaid,
             coveredCents: c.covered,
             trimmedCents: c.trimmed,
           );
@@ -1991,6 +1993,7 @@ class _SliceCalc {
     this.overspend, {
     this.fromSavings = 0,
     this.savingsAfter = 0,
+    this.savingsPaid = 0,
     this.covered = 0,
     this.trimmed = 0,
     this.newRules = false,
@@ -2008,6 +2011,7 @@ class _SliceCalc {
   // Savings rules only.
   final int fromSavings;
   final int savingsAfter;
+  final int savingsPaid;
   final int covered;
   final int trimmed;
   final bool newRules;

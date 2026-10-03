@@ -52,8 +52,8 @@ class MembersScreen extends ConsumerWidget {
                   'party.',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             )
@@ -78,35 +78,42 @@ class MembersScreen extends ConsumerWidget {
   }
 
   static IconData _iconFor(MemberRole role) => switch (role) {
-        MemberRole.adult => Icons.person_outline,
-        MemberRole.dependent => Icons.child_care_outlined,
-        MemberRole.pet => Icons.pets_outlined,
-      };
+    MemberRole.adult => Icons.person_outline,
+    MemberRole.dependent => Icons.child_care_outlined,
+    MemberRole.pet => Icons.pets_outlined,
+  };
 
   static String _roleLabel(MemberRole role) => switch (role) {
-        MemberRole.adult => 'Adult',
-        MemberRole.dependent => 'Dependent',
-        MemberRole.pet => 'Pet',
-      };
+    MemberRole.adult => 'Adult',
+    MemberRole.dependent => 'Dependent',
+    MemberRole.pet => 'Pet',
+  };
 
   static String _subtitle(MemberState m) {
-    final sprite = m.customSpriteSha256 == null ? 'Default sprite' : 'Custom sprite';
+    final sprite = m.customSpriteSha256 == null
+        ? 'Default sprite'
+        : 'Custom sprite';
     return '${_roleLabel(m.role)} · $sprite';
   }
 
-  Future<void> _edit(BuildContext context, WidgetRef ref,
-      {MemberState? existing}) async {
+  Future<void> _edit(
+    BuildContext context,
+    WidgetRef ref, {
+    MemberState? existing,
+  }) async {
     final nameController = TextEditingController(text: existing?.name ?? '');
-    final descController =
-        TextEditingController(text: existing?.descriptionText ?? '');
+    final descController = TextEditingController(
+      text: existing?.descriptionText ?? '',
+    );
     var role = existing?.role ?? MemberRole.adult;
     var active = existing?.active ?? true;
     String? spriteSha = existing?.customSpriteSha256;
     String? fundedBy = existing?.fundedByUserId;
-    final adults = (ref.read(householdStateProvider).value?.members.values ??
-            const <MemberState>[])
-        .where((m) => m.isAdult && m.active)
-        .toList();
+    final adults =
+        (ref.read(householdStateProvider).value?.members.values ??
+                const <MemberState>[])
+            .where((m) => m.isAdult && m.active)
+            .toList();
 
     final saved = await showModalBottomSheet<bool>(
       context: context,
@@ -124,8 +131,10 @@ class MembersScreen extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(existing == null ? 'New member' : 'Edit member',
-                    style: Theme.of(sheetContext).textTheme.titleLarge),
+                Text(
+                  existing == null ? 'New member' : 'Edit member',
+                  style: Theme.of(sheetContext).textTheme.titleLarge,
+                ),
                 const SizedBox(height: AppSpacing.lg),
                 TextField(
                   controller: nameController,
@@ -163,9 +172,8 @@ class MembersScreen extends ConsumerWidget {
                       ? 'Adults carry income, a vault, and personal categories.'
                       : 'Display-only party member — no ledger of their own.',
                   style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
-                        color:
-                            Theme.of(sheetContext).colorScheme.onSurfaceVariant,
-                      ),
+                    color: Theme.of(sheetContext).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 if (role == MemberRole.pet && adults.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.md),
@@ -180,10 +188,14 @@ class MembersScreen extends ConsumerWidget {
                     ),
                     items: [
                       const DropdownMenuItem(
-                          value: null, child: Text('The group')),
+                        value: null,
+                        child: Text('The group'),
+                      ),
                       for (final a in adults)
                         DropdownMenuItem(
-                            value: a.memberId, child: Text(a.name)),
+                          value: a.memberId,
+                          child: Text(a.name),
+                        ),
                     ],
                     onChanged: (v) => setSheet(() => fundedBy = v),
                   ),
@@ -203,9 +215,9 @@ class MembersScreen extends ConsumerWidget {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.image_outlined),
-                  title: Text(spriteSha == null
-                      ? 'Default sprite'
-                      : 'Custom sprite set'),
+                  title: Text(
+                    spriteSha == null ? 'Default sprite' : 'Custom sprite set',
+                  ),
                   trailing: Wrap(
                     spacing: AppSpacing.xs,
                     children: [
@@ -218,7 +230,9 @@ class MembersScreen extends ConsumerWidget {
                       TextButton(
                         onPressed: () async {
                           final sha = await pickAndIngestSprite(
-                              ref, ScaffoldMessenger.of(sheetContext));
+                            ref,
+                            ScaffoldMessenger.of(sheetContext),
+                          );
                           if (sha != null) setSheet(() => spriteSha = sha);
                         },
                         child: const Text('Choose PNG'),
@@ -234,7 +248,9 @@ class MembersScreen extends ConsumerWidget {
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Active'),
-                    subtitle: const Text('Turn off to retire (history is kept)'),
+                    subtitle: const Text(
+                      'Turn off to retire (history is kept)',
+                    ),
                     value: active,
                     onChanged: (v) => setSheet(() => active = v),
                   ),
@@ -267,7 +283,9 @@ class MembersScreen extends ConsumerWidget {
           )) {
         return; // Nothing changed — append no event.
       }
-      await ref.read(householdActionsProvider)?.setMember(
+      await ref
+          .read(householdActionsProvider)
+          ?.setMember(
             memberId: existing?.memberId,
             name: name,
             role: role,

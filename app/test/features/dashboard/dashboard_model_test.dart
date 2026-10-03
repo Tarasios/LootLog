@@ -20,38 +20,46 @@ BudgetSliceSet _slice({
   required int limit,
   int tithePct = 0,
   LeftoverDestination policy = const Discretionary(),
-}) =>
-    BudgetSliceSet(
-      eventId: _id(),
-      deviceId: 'd',
-      userId: me,
-      occurredAt: _day(2026, 1, 1),
-      createdAt: _day(2026, 1, 1),
-      sliceId: id,
-      name: id == 'food' ? 'Food' : (id == 'gear' ? 'Gear' : id),
-      ownership: ownership,
-      limitCents: limit,
-      poolTithePct: tithePct,
-      defaultLeftoverPolicy: policy,
-      taxDeductibleByDefault: false,
-    );
+}) => BudgetSliceSet(
+  eventId: _id(),
+  deviceId: 'd',
+  userId: me,
+  occurredAt: _day(2026, 1, 1),
+  createdAt: _day(2026, 1, 1),
+  sliceId: id,
+  name: id == 'food' ? 'Food' : (id == 'gear' ? 'Gear' : id),
+  ownership: ownership,
+  limitCents: limit,
+  poolTithePct: tithePct,
+  defaultLeftoverPolicy: policy,
+  taxDeductibleByDefault: false,
+);
 
-PurchaseAdded _buy(String id, String slice, int amount, DateTime at,
-        {String by = me}) =>
-    PurchaseAdded(
-      eventId: _id(),
-      deviceId: 'd',
-      userId: by,
-      occurredAt: at,
-      createdAt: at,
-      purchaseId: id,
-      target: SliceCharge(slice),
-      amountCents: amount,
-    );
+PurchaseAdded _buy(
+  String id,
+  String slice,
+  int amount,
+  DateTime at, {
+  String by = me,
+}) => PurchaseAdded(
+  eventId: _id(),
+  deviceId: 'd',
+  userId: by,
+  occurredAt: at,
+  createdAt: at,
+  purchaseId: id,
+  target: SliceCharge(slice),
+  amountCents: amount,
+);
 
 void main() {
   final events = <Event>[
-    _slice(id: 'food', ownership: const PersonalSlice(me), limit: 40000, tithePct: 20),
+    _slice(
+      id: 'food',
+      ownership: const PersonalSlice(me),
+      limit: 40000,
+      tithePct: 20,
+    ),
     _slice(id: 'gear', ownership: const PersonalSlice(pa), limit: 30000),
     RecurringExpenseSet(
       eventId: _id(),
@@ -74,8 +82,12 @@ void main() {
   final state = reduce(events, asOf: asOf);
 
   test('spoils ritual surfaces the closed month within grace', () {
-    final ritual =
-        buildSpoilsRitual(state, meUserId: me, userNames: names, asOf: asOf);
+    final ritual = buildSpoilsRitual(
+      state,
+      meUserId: me,
+      userNames: names,
+      asOf: asOf,
+    );
     expect(ritual, isNotNull);
     expect(ritual!.month, const Month(2026, 6));
     expect(ritual.isActionable, isTrue);
@@ -94,16 +106,22 @@ void main() {
 
   test('spoils window closes after grace', () {
     final after = reduce(events, asOf: DateTime.utc(2026, 7, 20, 18));
-    final ritual = buildSpoilsRitual(after,
-        meUserId: me,
-        userNames: names,
-        asOf: DateTime.utc(2026, 7, 20, 18));
+    final ritual = buildSpoilsRitual(
+      after,
+      meUserId: me,
+      userNames: names,
+      asOf: DateTime.utc(2026, 7, 20, 18),
+    );
     expect(ritual, isNull);
   });
 
   test('dashboard model: rings, maintenance tally, projected spoils', () {
-    final model =
-        buildDashboardModel(state, meUserId: me, userNames: names, asOf: asOf);
+    final model = buildDashboardModel(
+      state,
+      meUserId: me,
+      userNames: names,
+      asOf: asOf,
+    );
 
     expect(model.currentMonth, const Month(2026, 7));
     expect(model.meName, 'Robin');
@@ -161,4 +179,53 @@ void main() {
     expect(wow.dueDay, 10);
     expect(wow.daysUntilDue, 5);
   });
+
+  test(
+    'savings rules: rings show category savings and allowance-only spend',
+    () {
+      final ev = <Event>[
+        SettingChanged(
+          eventId: _id(),
+          deviceId: 'd',
+          userId: me,
+          occurredAt: _day(2026, 1, 1),
+          createdAt: _day(2026, 1, 1),
+          key: 'savingsRules',
+          value: {'fromMonth': '2026-01', 'generalTithePct': 20},
+        ),
+        _slice(
+          id: 'gear',
+          ownership: const PersonalSlice(me),
+          limit: 5000,
+          tithePct: 10,
+        ),
+        LeftoverAllocated(
+          eventId: _id(),
+          deviceId: 'd',
+          userId: me,
+          occurredAt: _day(2026, 2, 1),
+          createdAt: _day(2026, 2, 1),
+          forUserId: me,
+          month: const Month(2026, 1),
+          sliceId: 'gear',
+          allocations: const [
+            Allocation(destination: CarryInSlice(), amountCents: 5000),
+          ],
+        ),
+        // February: 7000 spent against a 5000 allowance + 4500 savings.
+        _buy('jacket', 'gear', 7000, _day(2026, 2, 10)),
+      ];
+      final asOf = _day(2026, 2, 15);
+      final model = buildDashboardModel(
+        reduce(ev, asOf: asOf),
+        meUserId: me,
+        userNames: names,
+        asOf: asOf,
+      );
+      final ring = model.slices.firstWhere((r) => r.sliceId == 'gear');
+      expect(ring.spentCents, 5000); // the allowance is used up…
+      expect(ring.overspent, isFalse); // …savings paid the rest
+      expect(ring.savingsCents, 2500);
+    },
+  );
 }

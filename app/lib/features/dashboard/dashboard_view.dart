@@ -634,6 +634,16 @@ class _CategoryTile extends StatelessWidget {
                             ring.overspent ? FontWeight.w700 : FontWeight.w400,
                       ),
                 ),
+                if (ring.savingsCents > 0)
+                  Text(
+                    '+ ${money(ring.savingsCents)} saved',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: colors.onContainer.withValues(alpha: 0.85),
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
                 if (subtitle.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: AppSpacing.xxs),

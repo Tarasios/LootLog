@@ -19,31 +19,31 @@ var _n = 0;
 String _id() => 'e${(_n++).toString().padLeft(4, '0')}';
 
 MemberSet _member(String id, String name, MemberRole role) => MemberSet(
-      eventId: _id(),
-      deviceId: 'd',
-      userId: 'u1',
-      occurredAt: _t,
-      createdAt: _t,
-      memberId: id,
-      name: name,
-      role: role,
-    );
+  eventId: _id(),
+  deviceId: 'd',
+  userId: 'u1',
+  occurredAt: _t,
+  createdAt: _t,
+  memberId: id,
+  name: name,
+  role: role,
+);
 
 BudgetSliceSet _litter() => BudgetSliceSet(
-      eventId: _id(),
-      deviceId: 'd',
-      userId: 'u1',
-      occurredAt: _t,
-      createdAt: _t,
-      sliceId: 'litter',
-      name: 'Litter',
-      ownership: const GroupSlice(),
-      limitCents: 4000,
-      poolTithePct: 0,
-      defaultLeftoverPolicy: const Discretionary(),
-      taxDeductibleByDefault: false,
-      petOwnerIds: const ['cat1', 'cat2'],
-    );
+  eventId: _id(),
+  deviceId: 'd',
+  userId: 'u1',
+  occurredAt: _t,
+  createdAt: _t,
+  sliceId: 'litter',
+  name: 'Litter',
+  ownership: const GroupSlice(),
+  limitCents: 4000,
+  poolTithePct: 0,
+  defaultLeftoverPolicy: const Discretionary(),
+  taxDeductibleByDefault: false,
+  petOwnerIds: const ['cat1', 'cat2'],
+);
 
 void main() {
   late AppDatabase db;
@@ -63,29 +63,35 @@ void main() {
         _litter(),
       ]);
       // The legacy two-profile shape only knows about two adults.
-      await db.localSetupDao.save(LocalSetup(
-        timezone: 'America/Vancouver',
-        user1: const UserProfile(userId: 'u1', name: 'Alex'),
-        user2: const UserProfile(userId: 'u2', name: 'Blair'),
-        meUserId: 'u1',
-      ));
+      await db.localSetupDao.save(
+        LocalSetup(
+          timezone: 'America/Vancouver',
+          user1: const UserProfile(userId: 'u1', name: 'Alex'),
+          user2: const UserProfile(userId: 'u2', name: 'Blair'),
+          meUserId: 'u1',
+        ),
+      );
     });
     final state = reduce(await tester.runAsync(db.eventsDao.allEvents) ?? []);
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        appDatabaseProvider.overrideWithValue(db),
-        deviceIdProvider.overrideWithValue('test-device'),
-        blobStoreProvider.overrideWithValue(
-            BlobStore(Directory.systemTemp.createTempSync('lootlog_cat'))),
-      ],
-      child: MaterialApp(
-        home: CategoryEditorScreen(
-          existing: sliceId == null ? null : state.slices[sliceId],
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          deviceIdProvider.overrideWithValue('test-device'),
+          blobStoreProvider.overrideWithValue(
+            BlobStore(Directory.systemTemp.createTempSync('lootlog_cat')),
+          ),
+        ],
+        child: MaterialApp(
+          home: CategoryEditorScreen(
+            existing: sliceId == null ? null : state.slices[sliceId],
+          ),
         ),
       ),
-    ));
-    await tester.runAsync(() => Future<void>.delayed(
-        const Duration(milliseconds: 50)));
+    );
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
     await tester.pumpAndSettle();
   }
 
@@ -109,11 +115,15 @@ void main() {
   setUp(() => db = AppDatabase(NativeDatabase.memory()));
   tearDown(() => db.close());
 
-  testWidgets('editing a pet-owned category keeps its pet owners',
-      (tester) async {
+  testWidgets('editing a pet-owned category keeps its pet owners', (
+    tester,
+  ) async {
     await pumpEditor(tester, sliceId: 'litter');
 
-    await tester.enterText(find.widgetWithText(TextField, 'Monthly limit'), '45');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Monthly limit'),
+      '45',
+    );
     await tester.ensureVisible(find.text('Save category'));
     await save(tester);
 
@@ -123,8 +133,9 @@ void main() {
     await done(tester);
   });
 
-  testWidgets('pets can be chosen as owners of a group category',
-      (tester) async {
+  testWidgets('pets can be chosen as owners of a group category', (
+    tester,
+  ) async {
     await pumpEditor(tester, sliceId: 'litter');
 
     expect(find.widgetWithText(FilterChip, 'Miso'), findsOneWidget);
@@ -139,8 +150,9 @@ void main() {
     await done(tester);
   });
 
-  testWidgets('every active adult is offered as an owner, not just two',
-      (tester) async {
+  testWidgets('every active adult is offered as an owner, not just two', (
+    tester,
+  ) async {
     await pumpEditor(tester);
 
     expect(find.text('Alex'), findsOneWidget);
@@ -148,7 +160,10 @@ void main() {
     expect(find.text('Casey'), findsOneWidget);
 
     await tester.enterText(find.widgetWithText(TextField, 'Name'), 'Books');
-    await tester.enterText(find.widgetWithText(TextField, 'Monthly limit'), '30');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Monthly limit'),
+      '30',
+    );
     await tester.tap(find.text('Casey'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Save category'));
@@ -157,6 +172,28 @@ void main() {
     final state = reduce(await tester.runAsync(db.eventsDao.allEvents) ?? []);
     final books = state.slices.values.firstWhere((s) => s.name == 'Books');
     expect(books.ownerUserId, 'u3');
+    await done(tester);
+  });
+
+  testWidgets('with the savings rules on, the tax field reads "Carry tax"', (
+    tester,
+  ) async {
+    await tester.runAsync(
+      () => db.eventsDao.appendEvents([
+        SettingChanged(
+          eventId: 'rules',
+          deviceId: 'd',
+          userId: 'u1',
+          occurredAt: _t,
+          createdAt: _t,
+          key: 'savingsRules',
+          value: {'fromMonth': '2026-01', 'generalTithePct': 20},
+        ),
+      ]),
+    );
+    await pumpEditor(tester);
+    expect(find.widgetWithText(TextField, 'Carry tax %'), findsOneWidget);
+    expect(find.text('Shared-savings cut %'), findsNothing);
     await done(tester);
   });
 }

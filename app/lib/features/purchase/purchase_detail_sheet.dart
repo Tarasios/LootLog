@@ -81,7 +81,7 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
     final inheritedTaxDefault = _inheritedTaxDefault(state, purchase.target);
     final canShare = purchase.target is SliceCharge
         ? !(state.slices[(purchase.target as SliceCharge).sliceId]?.isGroup ??
-            false)
+              false)
         : purchase.target is VaultCharge;
 
     return Padding(
@@ -105,10 +105,11 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
                   child: Text(
                     formatMoney(purchase.amountCents),
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          decoration:
-                              purchase.voided ? TextDecoration.lineThrough : null,
-                        ),
+                      fontWeight: FontWeight.w700,
+                      decoration: purchase.voided
+                          ? TextDecoration.lineThrough
+                          : null,
+                    ),
                   ),
                 ),
                 if (purchase.voided)
@@ -124,8 +125,8 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
             Text(
               sliceName,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
             _fieldTile(
@@ -136,7 +137,8 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
               onTap: () => _editText(
                 title: 'Merchant',
                 initial: purchase.merchant,
-                onSave: (v) => _run((a) => a.amendPurchase(purchase, merchant: v)),
+                onSave: (v) =>
+                    _run((a) => a.amendPurchase(purchase, merchant: v)),
               ),
             ),
             _fieldTile(
@@ -161,7 +163,8 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 secondary: const Icon(Icons.people_alt_outlined),
-                title: const Text('Split 50/50'),
+                title: const Text('Shared with the household'),
+                subtitle: const Text('Split by the household share table'),
                 value: purchase.shared,
                 onChanged: _busy
                     ? null
@@ -207,10 +210,12 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
       value: effective,
       onChanged: _busy
           ? null
-          : (v) => _run((a) => a.amendPurchase(
+          : (v) => _run(
+              (a) => a.amendPurchase(
                 purchase,
                 taxDeductible: v == inheritedDefault ? null : v,
-              )),
+              ),
+            ),
     );
   }
 
@@ -236,8 +241,8 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
             child: Text(
               'No receipts attached',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           )
         else
@@ -255,7 +260,9 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
     final isPdf = r.mimeType == 'application/pdf';
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: Icon(isPdf ? Icons.picture_as_pdf_outlined : Icons.image_outlined),
+      leading: Icon(
+        isPdf ? Icons.picture_as_pdf_outlined : Icons.image_outlined,
+      ),
       title: Text(isPdf ? 'PDF receipt' : 'Image receipt'),
       subtitle: Text('${(r.sizeBytes / 1024).toStringAsFixed(0)} KB'),
       onTap: isPdf ? null : () => _viewImage(r.sha256),
@@ -265,9 +272,9 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
         onPressed: _busy
             ? null
             : () => _run((a) async {
-                  await a.detachReceipt(purchaseId, r.sha256);
-                  return null;
-                }),
+                await a.detachReceipt(purchaseId, r.sha256);
+                return null;
+              }),
       ),
     );
   }
@@ -280,10 +287,14 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
           await ref.read(syncServiceProvider)?.fetchBlob(sha256) ?? false;
       if (!fetched) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('This receipt lives on your hub. Connect to your '
-                'home network to view it.'),
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'This receipt lives on your hub. Connect to your '
+                'home network to view it.',
+              ),
+            ),
+          );
         }
         return;
       }
@@ -292,9 +303,8 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
     if (!mounted) return;
     await showDialog<void>(
       context: context,
-      builder: (_) => Dialog(
-        child: InteractiveViewer(child: Image.memory(bytes)),
-      ),
+      builder: (_) =>
+          Dialog(child: InteractiveViewer(child: Image.memory(bytes))),
     );
   }
 
@@ -386,7 +396,11 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
     if (picks.isEmpty) return;
     await _run((a) async {
       for (final f in picks) {
-        await a.attachReceiptBytes(purchase.purchaseId, f.bytes, isPdf: f.isPdf);
+        await a.attachReceiptBytes(
+          purchase.purchaseId,
+          f.bytes,
+          isPdf: f.isPdf,
+        );
       }
       return null;
     });

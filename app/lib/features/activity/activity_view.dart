@@ -34,8 +34,8 @@ class ActivityFeedView extends StatelessWidget {
         child: Text(
           'No activity yet.',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       );
     }
@@ -59,10 +59,7 @@ class ActivityFeedView extends StatelessWidget {
         ),
       );
     }
-    return ListView(
-      padding: padding,
-      children: children,
-    );
+    return ListView(padding: padding, children: children);
   }
 }
 
@@ -97,18 +94,15 @@ class _ActivityTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                item.title,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
+              Text(item.title, style: Theme.of(context).textTheme.bodyMedium),
               Text(
                 [
                   isoDay(item.occurredAt),
                   if (item.subtitle != null) item.subtitle,
                 ].whereType<String>().join(' · '),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
               ),
             ],
           ),
@@ -118,10 +112,10 @@ class _ActivityTile extends StatelessWidget {
           Text(
             signedMoney(amount),
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: positive ? scheme.primary : scheme.onSurface,
-                  fontWeight: FontWeight.w600,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
+              color: positive ? scheme.primary : scheme.onSurface,
+              fontWeight: FontWeight.w600,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
           ),
         ],
       ],
@@ -129,15 +123,15 @@ class _ActivityTile extends StatelessWidget {
   }
 
   static IconData _iconFor(ActivityKind kind) => switch (kind) {
-        ActivityKind.purchase => Icons.shopping_bag_outlined,
-        ActivityKind.purchaseVoided => Icons.undo,
-        ActivityKind.gift => Icons.card_giftcard,
-        ActivityKind.quest => Icons.flag_outlined,
-        ActivityKind.allocation => Icons.auto_awesome_outlined,
-        ActivityKind.withdrawal => Icons.assignment_outlined,
-        ActivityKind.contribution => Icons.account_balance_outlined,
-        ActivityKind.taxRefund => Icons.workspace_premium_outlined,
-        ActivityKind.income => Icons.inventory_2_outlined,
-        ActivityKind.config => Icons.tune,
-      };
+    ActivityKind.purchase => Icons.shopping_bag_outlined,
+    ActivityKind.purchaseVoided => Icons.undo,
+    ActivityKind.gift => Icons.card_giftcard,
+    ActivityKind.quest => Icons.flag_outlined,
+    ActivityKind.allocation => Icons.auto_awesome_outlined,
+    ActivityKind.withdrawal => Icons.assignment_outlined,
+    ActivityKind.contribution => Icons.account_balance_outlined,
+    ActivityKind.taxRefund => Icons.workspace_premium_outlined,
+    ActivityKind.income => Icons.inventory_2_outlined,
+    ActivityKind.config => Icons.tune,
+  };
 }

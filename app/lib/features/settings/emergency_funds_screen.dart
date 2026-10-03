@@ -37,8 +37,8 @@ class EmergencyFundsScreen extends ConsumerWidget {
                 child: Text(
                   'No emergency funds yet.',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             )
@@ -48,8 +48,9 @@ class EmergencyFundsScreen extends ConsumerWidget {
               separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (context, i) {
                 final f = funds[i];
-                final petName =
-                    f.petId == null ? null : state.pets[f.petId]?.name;
+                final petName = f.petId == null
+                    ? null
+                    : state.pets[f.petId]?.name;
                 return ListTile(
                   leading: const Icon(Icons.emergency_outlined),
                   title: Text(f.name),
@@ -91,8 +92,10 @@ class EmergencyFundsScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(existing == null ? 'New emergency fund' : 'Edit fund',
-                  style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                existing == null ? 'New emergency fund' : 'Edit fund',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               const SizedBox(height: AppSpacing.lg),
               TextField(
                 controller: nameController,
@@ -123,7 +126,9 @@ class EmergencyFundsScreen extends ConsumerWidget {
     );
 
     if (saved == true && nameController.text.trim().isNotEmpty) {
-      await ref.read(householdActionsProvider)?.setEmergencyFund(
+      await ref
+          .read(householdActionsProvider)
+          ?.setEmergencyFund(
             fundId: existing?.fundId,
             name: nameController.text.trim(),
             petId: petId,

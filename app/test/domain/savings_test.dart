@@ -153,6 +153,7 @@ void main() {
       final s = reduce(events, asOf: day(2026, 9, 15));
       expect(s.sliceMonth('clothes', aug)!.effectiveLimitCents, 5000);
       expect(s.sliceMonth('clothes', aug)!.savingsCents, 4500);
+      expect(s.sliceMonth('clothes', aug)!.savingsTaxPaidCents, 500);
       expect(s.categorySavings['clothes'], const TaxedBalance(4500, 500));
       expect(s.sliceMonth('clothes', sep)!.effectiveLimitCents, 5000);
       expect(s.vaultOf(u1), 4000);

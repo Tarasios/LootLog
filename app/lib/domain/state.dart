@@ -182,6 +182,7 @@ class SliceMonth {
     this.lockedCents = 0,
     this.fromSavingsCents = 0,
     this.savingsCents = 0,
+    this.savingsTaxPaidCents = 0,
     this.coveredCents = 0,
     this.trimmedCents = 0,
   });
@@ -215,6 +216,10 @@ class SliceMonth {
   /// Savings rules only: the category savings balance after this month's
   /// spending, before this month's month-end moves.
   final int savingsCents;
+
+  /// Savings rules only: the tax [savingsCents] has already paid, so moving it
+  /// at month end only charges the difference.
+  final int savingsTaxPaidCents;
 
   /// Savings rules only: spending covered from elsewhere (the general pool or
   /// an approved advance), so it never counted against this category.
