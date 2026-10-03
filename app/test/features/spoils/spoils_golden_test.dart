@@ -6,13 +6,13 @@ import 'package:flutter_test/flutter_test.dart';
 import '../dashboard/dashboard_fixtures.dart';
 
 Widget _host(Widget child) => MaterialApp(
-      theme: AppTheme.light(),
-      debugShowCheckedModeBanner: false,
-      home: Scaffold(
-        backgroundColor: AppTheme.light().colorScheme.surface,
-        body: Align(alignment: Alignment.bottomCenter, child: child),
-      ),
-    );
+  theme: AppTheme.light(),
+  debugShowCheckedModeBanner: false,
+  home: Scaffold(
+    backgroundColor: AppTheme.light().colorScheme.surface,
+    body: Align(alignment: Alignment.bottomCenter, child: child),
+  ),
+);
 
 void main() {
   testWidgets('spoils sheet golden (phone)', (tester) async {
@@ -22,10 +22,14 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     SpoilsResult? result;
-    await tester.pumpWidget(_host(SpoilsSheetView(
-      ritual: sampleSpoilsRitual(),
-      onConfirm: (r) => result = r,
-    )));
+    await tester.pumpWidget(
+      _host(
+        SpoilsSheetView(
+          ritual: sampleSpoilsRitual(),
+          onConfirm: (r) => result = r,
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
 
     await expectLater(

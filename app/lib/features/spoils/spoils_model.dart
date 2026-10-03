@@ -9,6 +9,7 @@
 library;
 
 import '../../domain/money.dart';
+import '../../domain/pools.dart';
 import '../../domain/state.dart';
 import '../../domain/time.dart';
 import '../../domain/value_types.dart';
@@ -59,11 +60,15 @@ class OverbudgetOption {
     required this.name,
     required this.outstandingCents,
     this.mainCategoryId,
+    this.provisions = false,
   });
 
   final String sliceId;
   final String name;
   final int outstandingCents;
+
+  /// A variable bill's top-up rather than an overspent category: paid untaxed.
+  final bool provisions;
 
   /// The indebted category's main category; drives category-match tithing.
   final String? mainCategoryId;
@@ -82,6 +87,8 @@ class SliceLeftover {
     this.priority = SlicePriority.important,
     this.mainCategoryId,
     this.petName,
+    this.generalRatePct,
+    this.savings = TaxedBalance.zero,
   });
 
   final String sliceId;
@@ -105,6 +112,16 @@ class SliceLeftover {
   /// This category's main category; drives category-match tithing.
   final String? mainCategoryId;
   final String? petName;
+
+  /// Non-null when the savings rules apply to this month: the general savings
+  /// tax. [poolTithePct] is then this category's carry tax.
+  final int? generalRatePct;
+
+  /// Savings rules only: what's saved in this category at month end (and the
+  /// tax it already paid) — it stays put unless the user moves it.
+  final TaxedBalance savings;
+
+  bool get savingsRules => generalRatePct != null;
 }
 
 /// A read-only line: group-slice leftover flowing to the war chest.
@@ -237,8 +254,15 @@ SpoilsRitual? buildSpoilsRitual(
             : state.slices[d.sliceId]?.name ?? d.sliceId,
         outstandingCents: d.outstandingCents,
         mainCategoryId: state.slices[d.sliceId]?.mainCategoryId,
+        provisions: d.kind == DebtKind.provisions,
       ),
   ];
+
+  // Under the savings rules the previews use the carry and general rates.
+  final rules = state.savingsRules;
+  final generalRate = rules != null && rules.appliesTo(month)
+      ? rules.generalRateFor(month)
+      : null;
 
   // Step 2: my personal slices with an unresolved leftover for that month.
   final leftovers = <SliceLeftover>[];
@@ -275,6 +299,10 @@ SpoilsRitual? buildSpoilsRitual(
         priority: cfg.priority,
         mainCategoryId: cfg.mainCategoryId,
         petName: cfg.petId == null ? null : state.pets[cfg.petId]?.name,
+        generalRatePct: generalRate,
+        savings: generalRate == null
+            ? TaxedBalance.zero
+            : TaxedBalance(sm.savingsCents, sm.savingsTaxPaidCents),
       ),
     );
   }
@@ -388,5 +416,86 @@ previewOverbudgetPayment(
     toVaultCents: damage - pay,
     excessTitheCents: 0,
     matched: false,
+  );
+}
+
+// ---- Savings rules previews -------------------------------------------------
+// The same pools.dart math the reducer uses, so a preview always matches what
+// gets appended.
+
+/// Moving [amountCents] out of [from] to a destination taxed at [ratePct]:
+/// what lands there and what goes to shared savings.
+({int keepCents, int taxCents}) previewMove(
+  TaxedBalance from,
+  int amountCents,
+  int ratePct,
+) {
+  final amount = amountCents < from.balanceCents
+      ? amountCents
+      : from.balanceCents;
+  final r = moveTaxed(from, amount, ratePct);
+  return (keepCents: r.delivered.balanceCents, taxCents: r.topUpCents);
+}
+
+/// The rate a month-end destination charges under the savings rules: saving in
+/// the category costs its carry tax; general savings, a non-matching goal and
+/// repaying another category's overspending cost the general rate; a matching
+/// goal or debt, or a bill top-up, is untaxed.
+int savingsRateFor(
+  LeftoverDestination destination, {
+  required int carryPct,
+  required int generalPct,
+  required String? sliceMainCategoryId,
+  String? destMainCategoryId,
+  bool provisions = false,
+}) {
+  final matches =
+      destMainCategoryId != null && destMainCategoryId == sliceMainCategoryId;
+  return switch (destination) {
+    CarryInSlice() => carryPct,
+    Discretionary() => generalPct,
+    QuestDestination() => matches ? 0 : generalPct,
+    OverbudgetPayment() => (matches || provisions) ? 0 : generalPct,
+  };
+}
+
+/// A whole-amount debt payment under the savings rules, exactly as the reducer
+/// applies it: the payment never takes more than the debt needs, and the
+/// excess tops up to the general rate on its way to general savings.
+({
+  int payCents,
+  int titheCents,
+  int toVaultCents,
+  int excessTitheCents,
+  bool matched,
+})
+previewSavingsOverbudget(
+  TaxedBalance from,
+  int amountCents, {
+  required int ratePct,
+  required int generalPct,
+  required int outstandingCents,
+}) {
+  final amount = amountCents < from.balanceCents
+      ? amountCents
+      : from.balanceCents;
+  final r = moveTaxed(from, amount, ratePct);
+  final got = r.delivered.balanceCents;
+  final pay = got < outstandingCents ? got : outstandingCents;
+  final excess = got - pay;
+  var toVault = 0;
+  var excessTax = 0;
+  if (excess > 0) {
+    final paid = got == 0 ? 0 : r.delivered.taxPaidCents * excess ~/ got;
+    final g = moveTaxed(TaxedBalance(excess, paid), excess, generalPct);
+    toVault = g.delivered.balanceCents;
+    excessTax = g.topUpCents;
+  }
+  return (
+    payCents: pay,
+    titheCents: r.topUpCents,
+    toVaultCents: toVault,
+    excessTitheCents: excessTax,
+    matched: ratePct == 0,
   );
 }

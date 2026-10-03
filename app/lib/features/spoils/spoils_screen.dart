@@ -31,11 +31,7 @@ Future<void> openSpoilsRitual(BuildContext context, WidgetRef ref) async {
   final actions = ref.read(householdActionsProvider);
   if (state == null || meUserId == null || actions == null) return;
 
-  final ritual = buildSpoilsRitual(
-    state,
-    meUserId: meUserId,
-    userNames: names,
-  );
+  final ritual = buildSpoilsRitual(state, meUserId: meUserId, userNames: names);
   if (ritual == null) return;
 
   final adventure = ref.read(appSkinProvider) == AppSkin.adventure;
@@ -90,8 +86,10 @@ Future<void> openSpoilsRitual(BuildContext context, WidgetRef ref) async {
             await _apply(actions, ritual, result);
             // Close the floor with the month's report — the ritual summary.
             if (navigator.mounted) {
-              await ReportScreen.open(navigator.context,
-                  initialMonth: ritual.month);
+              await ReportScreen.open(
+                navigator.context,
+                initialMonth: ritual.month,
+              );
             }
           },
         ),
@@ -132,8 +130,11 @@ class SpoilsEntryButton extends ConsumerWidget {
     final meUserId = ref.watch(meUserIdProvider);
     final names = ref.watch(userNamesProvider);
     if (state == null || meUserId == null) return const SizedBox.shrink();
-    final ritual =
-        buildSpoilsRitual(state, meUserId: meUserId, userNames: names);
+    final ritual = buildSpoilsRitual(
+      state,
+      meUserId: meUserId,
+      userNames: names,
+    );
     if (ritual == null) return const SizedBox.shrink();
     final adventure = ref.watch(appSkinProvider) == AppSkin.adventure;
     return Padding(

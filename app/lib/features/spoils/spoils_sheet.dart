@@ -10,6 +10,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../domain/money.dart';
+import '../../domain/pools.dart';
 import '../../domain/value_types.dart';
 import '../../ui/format.dart';
 import '../../ui/glossary.dart';
@@ -93,8 +94,7 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
 
   /// Chosen quest per slice when the destination is a quest.
   late final Map<String, String?> _questChoice = {
-    for (final s in widget.ritual.sliceLeftovers)
-      s.sliceId: _defaultQuest(s),
+    for (final s in widget.ritual.sliceLeftovers) s.sliceId: _defaultQuest(s),
   };
 
   /// Chosen OVERBUDGET per slice when the destination is a debt payment.
@@ -105,12 +105,18 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
           : null,
   };
 
+  /// Savings rules only: where each category's savings go at month end. Null
+  /// (the default) keeps them saved, untouched and untaxed.
+  late final Map<String, _Dest?> _savingsDest = {
+    for (final s in widget.ritual.sliceLeftovers) s.sliceId: null,
+  };
+
   static _Dest _destOf(LeftoverDestination d) => switch (d) {
-        CarryInSlice() => _Dest.carry,
-        QuestDestination() => _Dest.quest,
-        Discretionary() => _Dest.discretionary,
-        OverbudgetPayment() => _Dest.overbudget,
-      };
+    CarryInSlice() => _Dest.carry,
+    QuestDestination() => _Dest.quest,
+    Discretionary() => _Dest.discretionary,
+    OverbudgetPayment() => _Dest.overbudget,
+  };
 
   static String? _defaultQuest(SliceLeftover s) {
     final policy = s.defaultPolicy;
@@ -128,25 +134,58 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
     return s.overbudgetOptions.isNotEmpty ? s.overbudgetOptions.first : null;
   }
 
-  List<Allocation> _allocationsFor(SliceLeftover s) {
+  List<Allocation> _allocationsFor(SliceLeftover s) => [
+    ..._allowanceAllocations(s),
+    ..._savingsAllocations(s),
+  ];
+
+  /// The optional line moving a category's savings (savings rules only).
+  List<Allocation> _savingsAllocations(SliceLeftover s) {
+    final dest = _savingsDest[s.sliceId];
+    if (!s.savingsRules || dest == null || s.savings.balanceCents <= 0) {
+      return const [];
+    }
+    final quest = _questChoice[s.sliceId];
+    final debt = _chosenOverbudget(s);
+    final LeftoverDestination? target = switch (dest) {
+      _Dest.discretionary => const Discretionary(),
+      _Dest.quest => quest == null ? null : QuestDestination(quest),
+      _Dest.overbudget => debt == null ? null : OverbudgetPayment(debt.sliceId),
+      _Dest.carry => null,
+    };
+    if (target == null) return const [];
+    return [
+      Allocation(
+        destination: target,
+        amountCents: s.savings.balanceCents,
+        source: AllocationSource.savings,
+      ),
+    ];
+  }
+
+  List<Allocation> _allowanceAllocations(SliceLeftover s) {
     switch (_dest[s.sliceId]!) {
       case _Dest.carry:
         return [
           Allocation(
-              destination: const CarryInSlice(), amountCents: s.leftoverCents),
+            destination: const CarryInSlice(),
+            amountCents: s.leftoverCents,
+          ),
         ];
       case _Dest.discretionary:
         return [
           Allocation(
-              destination: const Discretionary(),
-              amountCents: s.leftoverCents),
+            destination: const Discretionary(),
+            amountCents: s.leftoverCents,
+          ),
         ];
       case _Dest.quest:
         final q = _questChoice[s.sliceId];
         return [
           Allocation(
-            destination:
-                q == null ? const Discretionary() : QuestDestination(q),
+            destination: q == null
+                ? const Discretionary()
+                : QuestDestination(q),
             amountCents: s.leftoverCents,
           ),
         ];
@@ -155,8 +194,9 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
         if (o == null) {
           return [
             Allocation(
-                destination: const Discretionary(),
-                amountCents: s.leftoverCents),
+              destination: const Discretionary(),
+              amountCents: s.leftoverCents,
+            ),
           ];
         }
         // The whole leftover goes in as one payment. The reducer tithes it
@@ -165,8 +205,9 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
         // never takes more than it needs.
         return [
           Allocation(
-              destination: OverbudgetPayment(o.sliceId),
-              amountCents: s.leftoverCents),
+            destination: OverbudgetPayment(o.sliceId),
+            amountCents: s.leftoverCents,
+          ),
         ];
     }
   }
@@ -201,7 +242,10 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
           controller: controller,
           autofocus: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(prefixText: '\$', labelText: 'Actual'),
+          decoration: const InputDecoration(
+            prefixText: '\$',
+            labelText: 'Actual',
+          ),
           onSubmitted: (_) => _submitActual(context, controller.text),
         ),
         actions: [
@@ -252,25 +296,26 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      Glossary.leftoverAllocated
-                          .label(isAdventure: widget.isAdventure),
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                      Glossary.leftoverAllocated.label(
+                        isAdventure: widget.isAdventure,
+                      ),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                     Text(
                       '${monthLabel(r.month.year, r.month.month)} · '
                       'defaults apply in ${r.daysRemaining} day'
                       '${r.daysRemaining == 1 ? '' : 's'}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
+                        color: scheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
               ),
               IconButton(
-                onPressed: widget.onDismiss ?? () => Navigator.maybePop(context),
+                onPressed:
+                    widget.onDismiss ?? () => Navigator.maybePop(context),
                 icon: const Icon(Icons.close),
                 tooltip: 'Dismiss (resume later)',
               ),
@@ -307,12 +352,13 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
                   child: Text(
                     'No personal leftovers to divide.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               for (final s in r.sliceLeftovers) _sliceTile(context, s),
-              if (r.groupFlows.isNotEmpty || r.emergencyContribs.isNotEmpty) ...[
+              if (r.groupFlows.isNotEmpty ||
+                  r.emergencyContribs.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.lg),
                 _readOnlySection(context, r),
               ],
@@ -372,10 +418,9 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
           Expanded(
             child: Text(
               text,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w700),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -402,18 +447,17 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
               children: [
                 Text(
                   t.name,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w600),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 Text(
                   changed
                       ? 'estimate ${money(t.estimateCents)}'
                       : 'estimate — tap to set the actual',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -446,10 +490,9 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
               Expanded(
                 child: Text(
                   s.name,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
               if (s.petName != null)
@@ -458,16 +501,16 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
                   child: Text(
                     s.petName!,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               Text(
                 '${money(s.leftoverCents)} left',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
+                  fontWeight: FontWeight.w700,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
             ],
           ),
@@ -480,35 +523,49 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
                   label: Text(
                     // Highlight a same-main-category source: it repays with
                     // no shared-savings cut.
-                    s.overbudgetOptions.any((o) =>
-                            o.mainCategoryId != null &&
-                            o.mainCategoryId == s.mainCategoryId)
+                    s.overbudgetOptions.any(
+                          (o) =>
+                              o.mainCategoryId != null &&
+                              o.mainCategoryId == s.mainCategoryId,
+                        )
                         ? '${Glossary.payOverbudget.label(isAdventure: widget.isAdventure)} · no cut'
-                        : Glossary.payOverbudget
-                            .label(isAdventure: widget.isAdventure),
+                        : Glossary.payOverbudget.label(
+                            isAdventure: widget.isAdventure,
+                          ),
                   ),
                   selected: dest == _Dest.overbudget,
                   onSelected: (_) =>
                       setState(() => _dest[s.sliceId] = _Dest.overbudget),
                 ),
               ChoiceChip(
-                label: const Text('Carry in category'),
+                label: Text(
+                  s.savingsRules
+                      ? (widget.isAdventure
+                            ? 'Stash in ${s.name}'
+                            : 'Save in ${s.name}')
+                      : 'Carry in category',
+                ),
                 selected: dest == _Dest.carry,
                 onSelected: (_) =>
                     setState(() => _dest[s.sliceId] = _Dest.carry),
               ),
               if (s.questOptions.isNotEmpty)
                 ChoiceChip(
-                  label: Text(Glossary.attackQuest
-                      .label(isAdventure: widget.isAdventure)),
+                  label: Text(
+                    Glossary.attackQuest.label(isAdventure: widget.isAdventure),
+                  ),
                   selected: dest == _Dest.quest,
                   onSelected: (_) =>
                       setState(() => _dest[s.sliceId] = _Dest.quest),
                 ),
               ChoiceChip(
-                label: Text(widget.isAdventure
-                    ? 'Discretionary'
-                    : 'Personal spending'),
+                label: Text(
+                  s.savingsRules
+                      ? _cap(_generalNoun)
+                      : (widget.isAdventure
+                            ? 'Discretionary'
+                            : 'Personal spending'),
+                ),
                 selected: dest == _Dest.discretionary,
                 onSelected: (_) =>
                     setState(() => _dest[s.sliceId] = _Dest.discretionary),
@@ -517,6 +574,8 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
           ),
           const SizedBox(height: AppSpacing.sm),
           _preview(context, s),
+          if (s.savingsRules && s.savings.balanceCents > 0)
+            _savingsRow(context, s),
           if (s.priority == SlicePriority.fun &&
               s.overbudgetOptions.isNotEmpty &&
               dest != _Dest.overbudget)
@@ -528,7 +587,7 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
                 widget.isAdventure
                     ? 'A fun budget — prime loot for felling the OVERBUDGET.'
                     : 'This is a fun budget — a good place to take the '
-                        'repayment from.',
+                          'repayment from.',
               ),
             ),
         ],
@@ -537,6 +596,15 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
   }
 
   Widget _preview(BuildContext context, SliceLeftover s) {
+    if (s.savingsRules) {
+      return _rulesPreview(
+        context,
+        s,
+        TaxedBalance(s.leftoverCents),
+        s.leftoverCents,
+        _dest[s.sliceId]!,
+      );
+    }
     final scheme = Theme.of(context).colorScheme;
     final dest = _dest[s.sliceId]!;
     switch (dest) {
@@ -544,7 +612,10 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
         final o = _chosenOverbudget(s);
         if (o == null) {
           return _previewText(
-              context, Icons.error_outline, 'Nothing left to repay.');
+            context,
+            Icons.error_outline,
+            'Nothing left to repay.',
+          );
         }
         final p = previewOverbudgetPayment(
           s.leftoverCents,
@@ -553,7 +624,9 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
           sliceMainCategoryId: s.mainCategoryId,
           targetMainCategoryId: o.mainCategoryId,
         );
-        final noun = widget.isAdventure ? 'the OVERBUDGET on' : 'overspending in';
+        final noun = widget.isAdventure
+            ? 'the OVERBUDGET on'
+            : 'overspending in';
         final pouch = widget.isAdventure ? 'gold pouch' : 'personal spending';
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -567,10 +640,12 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
                     for (final opt in s.overbudgetOptions)
                       ChoiceChip(
                         label: Text(
-                            '${opt.name}${opt.mainCategoryId != null && opt.mainCategoryId == s.mainCategoryId ? ' · same category' : ''}'),
+                          '${opt.name}${opt.mainCategoryId != null && opt.mainCategoryId == s.mainCategoryId ? ' · same category' : ''}',
+                        ),
                         selected: opt.sliceId == o.sliceId,
-                        onSelected: (_) => setState(() =>
-                            _overbudgetChoice[s.sliceId] = opt.sliceId),
+                        onSelected: (_) => setState(
+                          () => _overbudgetChoice[s.sliceId] = opt.sliceId,
+                        ),
                       ),
                   ],
                 ),
@@ -580,9 +655,9 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
               Icons.gavel_outlined,
               p.matched
                   ? '${money(p.payCents)} pays $noun ${o.name} at full value '
-                      '(same category, no cut).'
+                        '(same category, no cut).'
                   : '${money(p.payCents)} pays $noun ${o.name} after '
-                      '${Glossary.sharedSavingsCut(money(p.titheCents), s.poolTithePct, isAdventure: widget.isAdventure)}.',
+                        '${Glossary.sharedSavingsCut(money(p.titheCents), s.poolTithePct, isAdventure: widget.isAdventure)}.',
               color: scheme.error,
             ),
             _previewText(
@@ -590,10 +665,10 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
               Icons.flag_outlined,
               p.payCents >= o.outstandingCents
                   ? (widget.isAdventure
-                      ? 'That fells the OVERBUDGET — ${o.name} unlocks.'
-                      : 'That clears it — ${o.name} unlocks.')
+                        ? 'That fells the OVERBUDGET — ${o.name} unlocks.'
+                        : 'That clears it — ${o.name} unlocks.')
                   : '${money(o.outstandingCents - p.payCents)} would '
-                      'remain to repay.',
+                        'remain to repay.',
             ),
             if (p.toVaultCents > 0 || p.excessTitheCents > 0)
               _previewText(
@@ -659,9 +734,8 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
                       ChoiceChip(
                         label: Text(o.name),
                         selected: o.questId == qid,
-                        onSelected: (_) => setState(
-                          () => _questChoice[s.sliceId] = o.questId,
-                        ),
+                        onSelected: (_) =>
+                            setState(() => _questChoice[s.sliceId] = o.questId),
                       ),
                   ],
                 ),
@@ -694,18 +768,267 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
   ) {
     final toward = widget.isAdventure ? 'damage to' : 'toward';
     if (split.matched) {
-      final matchNote =
-          widget.isAdventure ? 'Same category — untithed.' : 'Same category — no savings cut.';
+      final matchNote = widget.isAdventure
+          ? 'Same category — untithed.'
+          : 'Same category — no savings cut.';
       return '$matchNote ${money(split.damageCents)} $toward $questName.';
     }
     final cut = Glossary.sharedSavingsCut(
-        money(split.titheCents), poolTithePct,
-        isAdventure: widget.isAdventure);
+      money(split.titheCents),
+      poolTithePct,
+      isAdventure: widget.isAdventure,
+    );
     return '${money(split.damageCents)} $toward $questName, $cut.';
   }
 
-  Widget _previewText(BuildContext context, IconData icon, String text,
-      {Color? color}) {
+  /// "$5.00 to shared savings" (or the war chest in Adventure).
+  String _taxPhrase(int cents) => widget.isAdventure
+      ? '${money(cents)} to the war chest'
+      : '${money(cents)} to shared savings';
+
+  String get _generalNoun =>
+      Glossary.generalSavings.label(isAdventure: widget.isAdventure);
+
+  /// The savings-rules preview for moving [amount] out of [from] to [dest],
+  /// computed with the reducer's own pool math. [prefix] labels a savings line.
+  Widget _rulesPreview(
+    BuildContext context,
+    SliceLeftover s,
+    TaxedBalance from,
+    int amount,
+    _Dest dest, {
+    String prefix = '',
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final general = s.generalRatePct!;
+    String withTax(String lead, int tax) =>
+        tax > 0 ? '$prefix$lead, ${_taxPhrase(tax)}.' : '$prefix$lead, no tax.';
+    switch (dest) {
+      case _Dest.carry:
+        final p = previewMove(from, amount, s.poolTithePct);
+        return _previewText(
+          context,
+          Icons.savings_outlined,
+          withTax('${money(p.keepCents)} saved in ${s.name}', p.taxCents),
+        );
+      case _Dest.discretionary:
+        final p = previewMove(from, amount, general);
+        return _previewText(
+          context,
+          Icons.account_balance_wallet_outlined,
+          withTax('${money(p.keepCents)} to $_generalNoun', p.taxCents),
+        );
+      case _Dest.quest:
+        final qid = _questChoice[s.sliceId];
+        QuestOption? q;
+        for (final o in s.questOptions) {
+          if (o.questId == qid) q = o;
+        }
+        if (q == null) {
+          return _previewText(context, Icons.flag_outlined, 'Pick a goal.');
+        }
+        final rate = savingsRateFor(
+          const QuestDestination(''),
+          carryPct: s.poolTithePct,
+          generalPct: general,
+          sliceMainCategoryId: s.mainCategoryId,
+          destMainCategoryId: q.mainCategoryId,
+        );
+        final p = previewMove(from, amount, rate);
+        final after = q.totalContributedCents + p.keepCents;
+        final pct = q.targetCents <= 0
+            ? 100
+            : ((after / q.targetCents) * 100).round().clamp(0, 100);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (prefix.isEmpty && s.questOptions.length > 1)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Wrap(
+                  spacing: AppSpacing.sm,
+                  children: [
+                    for (final o in s.questOptions)
+                      ChoiceChip(
+                        label: Text(o.name),
+                        selected: o.questId == qid,
+                        onSelected: (_) =>
+                            setState(() => _questChoice[s.sliceId] = o.questId),
+                      ),
+                  ],
+                ),
+              ),
+            _previewText(
+              context,
+              Icons.flag_outlined,
+              withTax('${money(p.keepCents)} toward ${q.name}', p.taxCents),
+              color: scheme.tertiary,
+            ),
+            _previewText(
+              context,
+              Icons.flag_outlined,
+              '${q.name}: ${money(after)} / ${money(q.targetCents)} ($pct%)'
+              '${after >= q.targetCents ? ' — complete!' : ''}.',
+            ),
+          ],
+        );
+      case _Dest.overbudget:
+        final o = _chosenOverbudget(s);
+        if (o == null) {
+          return _previewText(
+            context,
+            Icons.error_outline,
+            'Nothing left to repay.',
+          );
+        }
+        final rate = savingsRateFor(
+          OverbudgetPayment(o.sliceId),
+          carryPct: s.poolTithePct,
+          generalPct: general,
+          sliceMainCategoryId: s.mainCategoryId,
+          destMainCategoryId: o.mainCategoryId,
+          provisions: o.provisions,
+        );
+        final p = previewSavingsOverbudget(
+          from,
+          amount,
+          ratePct: rate,
+          generalPct: general,
+          outstandingCents: o.outstandingCents,
+        );
+        final toGeneral = withTax(
+          '${money(p.toVaultCents)} goes to $_generalNoun',
+          p.excessTitheCents,
+        );
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (prefix.isEmpty && s.overbudgetOptions.length > 1)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Wrap(
+                  spacing: AppSpacing.sm,
+                  children: [
+                    for (final opt in s.overbudgetOptions)
+                      ChoiceChip(
+                        label: Text(opt.name),
+                        selected: opt.sliceId == o.sliceId,
+                        onSelected: (_) => setState(
+                          () => _overbudgetChoice[s.sliceId] = opt.sliceId,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            _previewText(
+              context,
+              Icons.gavel_outlined,
+              withTax('${money(p.payCents)} repays ${o.name}', p.titheCents),
+              color: scheme.error,
+            ),
+            _previewText(
+              context,
+              Icons.flag_outlined,
+              p.payCents >= o.outstandingCents
+                  ? 'That clears it.'
+                  : '${money(o.outstandingCents - p.payCents)} would remain.',
+            ),
+            if (p.toVaultCents > 0)
+              _previewText(
+                context,
+                Icons.account_balance_wallet_outlined,
+                'It takes no more than it needs: $toGeneral',
+              ),
+          ],
+        );
+    }
+  }
+
+  /// Savings rules: the category's savings, kept by default; optionally moved
+  /// to general savings, a goal, or a repayment (paying only the difference).
+  Widget _savingsRow(BuildContext context, SliceLeftover s) {
+    final scheme = Theme.of(context).colorScheme;
+    final dest = _savingsDest[s.sliceId];
+    final noun = _cap(
+      Glossary.categorySavings.label(isAdventure: widget.isAdventure),
+    );
+    return Container(
+      margin: const EdgeInsets.only(top: AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: AppRadii.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$noun: ${money(s.savings.balanceCents)} — stays put, untaxed, '
+            'unless you move it',
+            style: Theme.of(context).textTheme.labelMedium,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Wrap(
+            spacing: AppSpacing.sm,
+            children: [
+              ChoiceChip(
+                label: const Text('Keep saved'),
+                selected: dest == null,
+                onSelected: (_) =>
+                    setState(() => _savingsDest[s.sliceId] = null),
+              ),
+              ChoiceChip(
+                label: Text('Move to $_generalNoun'),
+                selected: dest == _Dest.discretionary,
+                onSelected: (_) => setState(
+                  () => _savingsDest[s.sliceId] = _Dest.discretionary,
+                ),
+              ),
+              if (s.questOptions.isNotEmpty)
+                ChoiceChip(
+                  label: Text(
+                    Glossary.attackQuest.label(isAdventure: widget.isAdventure),
+                  ),
+                  selected: dest == _Dest.quest,
+                  onSelected: (_) =>
+                      setState(() => _savingsDest[s.sliceId] = _Dest.quest),
+                ),
+              if (s.overbudgetOptions.isNotEmpty)
+                ChoiceChip(
+                  label: Text(
+                    Glossary.payOverbudget.label(
+                      isAdventure: widget.isAdventure,
+                    ),
+                  ),
+                  selected: dest == _Dest.overbudget,
+                  onSelected: (_) => setState(
+                    () => _savingsDest[s.sliceId] = _Dest.overbudget,
+                  ),
+                ),
+            ],
+          ),
+          if (dest != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            _rulesPreview(
+              context,
+              s,
+              s.savings,
+              s.savings.balanceCents,
+              dest,
+              prefix: 'Savings: ',
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _previewText(
+    BuildContext context,
+    IconData icon,
+    String text, {
+    Color? color,
+  }) {
     final scheme = Theme.of(context).colorScheme;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -716,8 +1039,8 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
           child: Text(
             text,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: color ?? scheme.onSurfaceVariant,
-                ),
+              color: color ?? scheme.onSurfaceVariant,
+            ),
           ),
         ),
       ],
@@ -735,10 +1058,7 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Automatic',
-            style: AppText.sectionLabel(context),
-          ),
+          Text('Automatic', style: AppText.sectionLabel(context)),
           const SizedBox(height: AppSpacing.xs),
           for (final g in r.groupFlows)
             _autoLine(
@@ -769,9 +1089,9 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
           Expanded(
             child: Text(
               text,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
             ),
           ),
         ],
@@ -779,3 +1099,5 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
     );
   }
 }
+
+String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
