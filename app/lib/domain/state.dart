@@ -1006,7 +1006,17 @@ class HouseholdState {
 
   /// Every outstanding OVERBUDGET in the household, sorted by sliceId.
   List<OverbudgetState> get outstandingOverbudgets =>
-      (overbudgets.values.where((d) => !d.settled).toList())
+      (overbudgets.values
+            .where((d) => !d.settled && d.kind == DebtKind.overbudget)
+            .toList())
+        ..sort((a, b) => a.sliceId.compareTo(b.sliceId));
+
+  /// Variable-bill top-ups still owed (paid from next month's leftovers;
+  /// never shown as a monster or as overspending).
+  List<OverbudgetState> get outstandingProvisions =>
+      (overbudgets.values
+            .where((d) => !d.settled && d.kind == DebtKind.provisions)
+            .toList())
         ..sort((a, b) => a.sliceId.compareTo(b.sliceId));
 
   bool isVaultInconsistent(String userId) =>

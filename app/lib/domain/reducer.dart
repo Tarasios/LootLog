@@ -1058,6 +1058,15 @@ class _Builder {
                 ? (variableActuals['${r.expenseId}|${m.toKey()}'] ??
                       r.amountCents)
                 : r.amountCents;
+            if (rules != null &&
+                rules.appliesTo(m) &&
+                r.kind == RecurringKind.variable &&
+                !m.startInstantUtc().isAfter(now)) {
+              final actual = variableActuals['${r.expenseId}|${m.toKey()}'];
+              if (actual != null) {
+                _applyBillVariance(r, m, r.amountCents - actual);
+              }
+            }
           }
           final own = r.ownership;
           if (own is PersonalParty) {
@@ -1733,6 +1742,42 @@ class _Builder {
       );
     }
     return lines;
+  }
+
+  /// A variable bill's estimate-vs-actual difference flows through savings:
+  /// shared bills through the war chest, personal ones through the owner's
+  /// general pool; a personal over-run the pool can't cover becomes a
+  /// provisions top-up debt (never a monster, never a lock).
+  void _applyBillVariance(RecurringExpenseSet r, Month m, int diff) {
+    if (diff == 0) return;
+    final own = r.ownership;
+    if (own is! PersonalParty) {
+      _addChest(diff, m);
+      return;
+    }
+    final owner = own.userId;
+    if (diff > 0) {
+      _addVault(owner, diff);
+      availVault[owner] = (availVault[owner] ?? 0) + diff;
+      return;
+    }
+    final need = -diff;
+    final avail = availVault[owner] ?? 0;
+    final take = need < (avail > 0 ? avail : 0)
+        ? need
+        : (avail > 0 ? avail : 0);
+    if (take > 0) {
+      availVault[owner] = avail - take;
+      _addVault(owner, -take);
+    }
+    final rest = need - take;
+    if (rest > 0) {
+      final key = 'provisions:${r.expenseId}';
+      debtBySlice[key] = (debtBySlice[key] ?? 0) + rest;
+      debtAccrued[key] = (debtAccrued[key] ?? 0) + rest;
+      debtOwner[key] = owner;
+      debtKind[key] = DebtKind.provisions;
+    }
   }
 
   /// Allowance withheld from [cfg] in [m] to repay approved advances: this

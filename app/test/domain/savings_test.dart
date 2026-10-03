@@ -470,4 +470,102 @@ void main() {
       expect(s.sliceMonth('clothes', sep)!.trimmedCents, 1000);
     });
   });
+
+  group('variable bills', () {
+    RecurringExpenseSet bill(String id, PartyOwnership own, int est) =>
+        RecurringExpenseSet(
+          eventId: _id(),
+          deviceId: 'd',
+          userId: u1,
+          occurredAt: day(2026, 7, 1),
+          createdAt: day(2026, 7, 1),
+          expenseId: id,
+          name: id,
+          ownership: own,
+          kind: RecurringKind.variable,
+          cadence: RecurringCadence.monthly,
+          amountCents: est,
+          dueDay: 15,
+          startMonth: jul,
+        );
+    VariableExpenseRecorded actual(String id, Month m, int cents) =>
+        VariableExpenseRecorded(
+          eventId: _id(),
+          deviceId: 'd',
+          userId: u1,
+          occurredAt: m.endInstantUtc(),
+          createdAt: m.endInstantUtc(),
+          expenseId: id,
+          month: m,
+          actualCents: cents,
+        );
+
+    test('a shared under-run feeds the war chest; an over-run draws on it', () {
+      final under = reduce([
+        rules(jul, 20),
+        adult(u1),
+        bill('hydro', const SharedParty(), 15000),
+        actual('hydro', jul, 12000),
+      ], asOf: day(2026, 8, 10));
+      expect(under.warChest.balanceCents, 3000);
+      final over = reduce([
+        rules(jul, 20),
+        adult(u1),
+        bill('hydro', const SharedParty(), 15000),
+        actual('hydro', jul, 17000),
+      ], asOf: day(2026, 8, 10));
+      expect(over.warChest.balanceCents, -2000);
+      expect(over.overbudgets, isEmpty);
+    });
+
+    test(
+      'a personal over-run beyond the general pool becomes a provisions top-up',
+      () {
+        final s = reduce([
+          rules(jul, 20),
+          adult(u1),
+          bill('phone', const PersonalParty(u1), 5000),
+          actual('phone', jul, 8000),
+        ], asOf: day(2026, 8, 3));
+        final debt = s.overbudgets['provisions:phone']!;
+        expect(debt.kind, DebtKind.provisions);
+        expect(debt.outstandingCents, 3000);
+      },
+    );
+
+    test('a personal over-run is drawn from the general pool when it can be', () {
+      // July's fun leftover lands in general (8000) before July's bill settles.
+      final s = reduce([
+        rules(jul, 20),
+        adult(u1),
+        bill('phone', const PersonalParty(u1), 5000),
+        actual('phone', jul, 8000),
+        slice('fun', 10000, policy: const Discretionary()),
+      ], asOf: graceExpired(aug));
+      expect(s.overbudgets.containsKey('provisions:phone'), isFalse);
+      expect(s.vaultOf(u1), 8000 - 3000 + 8000);
+    });
+
+    test('next month\'s default pays the provisions top-up untaxed', () {
+      final s = reduce([
+        rules(jul, 20),
+        adult(u1),
+        bill('phone', const PersonalParty(u1), 5000),
+        actual('phone', jul, 8000),
+        slice('fun', 10000, policy: const Discretionary(), at: day(2026, 8, 1)),
+      ], asOf: graceExpired(aug));
+      expect(s.overbudgets['provisions:phone']!.outstandingCents, 0);
+      // August fun leftover 10000: 3000 pays the bill, 7000 → general at 20%.
+      expect(s.vaultOf(u1), 5600);
+    });
+
+    test('before adoption, variance changes nothing', () {
+      final s = reduce([
+        adult(u1),
+        bill('hydro', const SharedParty(), 15000),
+        actual('hydro', jul, 12000),
+      ], asOf: day(2026, 8, 10));
+      expect(s.warChest.balanceCents, 0);
+    });
+  });
 }
