@@ -46,20 +46,22 @@ GameState buildGameState(
   final now = (asOf ?? DateTime.now()).toUtc();
   final month = Month.fromInstant(now);
 
-  String? nameOf(String id) => userNames[id];
+  String? nameOf(String id) => state.members[id]?.name ?? userNames[id];
   String? petNameOf(String? id) => id == null ? null : state.pets[id]?.name;
 
   // ---- Dungeon floor number (counted from the earliest event month) -------
   final firstMonth = _earliestMonth(state) ?? month;
   final floorNumber = _monthsBetween(firstMonth, month) + 1;
 
-  // ---- Hero / partner avatars --------------------------------------------
-  final partnerId =
-      state.userIds.firstWhere((u) => u != meUserId, orElse: () => meUserId);
+  // ---- Hero & companion avatars (every other active adult) ---------------
   final heroSprite =
       _memberSprite(state, meUserId, Sprites.heroA, nameOf(meUserId) ?? 'You');
-  final partnerSprite = _memberSprite(
-      state, partnerId, Sprites.heroB, nameOf(partnerId) ?? 'Partner');
+  final companionIds = state.adultIds.where((u) => u != meUserId).toList()
+    ..sort((a, b) => (nameOf(a) ?? a).compareTo(nameOf(b) ?? b));
+  final companionSprites = [
+    for (final id in companionIds)
+      _memberSprite(state, id, Sprites.heroB, nameOf(id) ?? 'Companion'),
+  ];
 
   // ---- Monsters (personal slices) & contracts (group slices) -------------
   // Pet-linked ones are set aside to hang under their party member.
@@ -384,7 +386,7 @@ GameState buildGameState(
     floorNumber: floorNumber,
     heroName: nameOf(meUserId) ?? 'You',
     heroSprite: heroSprite,
-    partnerSprite: partnerSprite,
+    companionSprites: companionSprites,
     heroHpLostCents: heroHpLost,
     expeditionSuppliesCents: state.incomeFor(meUserId, month),
     monsters: looseMonsters,

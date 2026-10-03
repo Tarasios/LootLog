@@ -12,7 +12,7 @@ GameState _withRoster(GameState g) => GameState(
       floorNumber: g.floorNumber,
       heroName: g.heroName,
       heroSprite: g.heroSprite,
-      partnerSprite: g.partnerSprite,
+      companionSprites: g.companionSprites,
       heroHpLostCents: g.heroHpLostCents,
       expeditionSuppliesCents: g.expeditionSuppliesCents,
       monsters: g.monsters,

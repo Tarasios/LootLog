@@ -19,7 +19,7 @@ GameState sampleGameState() => GameState(
       floorNumber: 7,
       heroName: 'Robin',
       heroSprite: _asset(Sprites.heroA, 'Robin'),
-      partnerSprite: _asset(Sprites.heroB, 'Sam'),
+      companionSprites: [_asset(Sprites.heroB, 'Sam')],
       heroHpLostCents: 2000,
       expeditionSuppliesCents: 300000,
       monsters: [
@@ -188,7 +188,7 @@ GameState sampleGameStateWithRoster() {
     floorNumber: g.floorNumber,
     heroName: g.heroName,
     heroSprite: g.heroSprite,
-    partnerSprite: g.partnerSprite,
+    companionSprites: g.companionSprites,
     heroHpLostCents: g.heroHpLostCents,
     expeditionSuppliesCents: g.expeditionSuppliesCents,
     monsters: g.monsters,

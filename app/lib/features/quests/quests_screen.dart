@@ -15,6 +15,7 @@ import '../../ui/format.dart';
 import '../../ui/money_input.dart';
 import '../../ui/theme.dart';
 import '../household_context.dart';
+import '../shared/owner_picker.dart';
 import '../shared/sprite_picker.dart';
 import 'quests_model.dart';
 
@@ -346,13 +347,12 @@ class QuestEditorScreen extends ConsumerStatefulWidget {
   ConsumerState<QuestEditorScreen> createState() => _QuestEditorScreenState();
 }
 
-enum _OwnerChoice { me, partner, shared }
-
 class _QuestEditorScreenState extends ConsumerState<QuestEditorScreen> {
   late final TextEditingController _name;
   late final TextEditingController _target;
   late final TextEditingController _description;
-  _OwnerChoice _owner = _OwnerChoice.shared;
+  /// The owning adult, or null when shared by the household.
+  String? _ownerUserId;
   String? _spriteSha;
   String? _mainCategoryId;
   bool _ownerInit = false;
@@ -381,7 +381,6 @@ class _QuestEditorScreenState extends ConsumerState<QuestEditorScreen> {
   Widget build(BuildContext context) {
     final setup = ref.watch(localSetupProvider).value;
     final state = ref.watch(householdStateProvider).value;
-    final names = ref.watch(userNamesProvider);
     if (setup == null || state == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -389,11 +388,7 @@ class _QuestEditorScreenState extends ConsumerState<QuestEditorScreen> {
       ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     if (!_ownerInit) {
       final o = widget.existing?.ownership;
-      if (o is PersonalParty) {
-        _owner = o.userId == setup.partner.userId
-            ? _OwnerChoice.partner
-            : _OwnerChoice.me;
-      }
+      _ownerUserId = o is PersonalParty ? o.userId : null;
       _ownerInit = true;
     }
 
@@ -457,19 +452,11 @@ class _QuestEditorScreenState extends ConsumerState<QuestEditorScreen> {
           const SizedBox(height: AppSpacing.lg),
           Text('Owner', style: AppText.sectionLabel(context)),
           const SizedBox(height: AppSpacing.sm),
-          SegmentedButton<_OwnerChoice>(
-            segments: [
-              ButtonSegment(
-                  value: _OwnerChoice.me,
-                  label: Text(names[setup.me.userId] ?? 'Me')),
-              ButtonSegment(
-                  value: _OwnerChoice.partner,
-                  label: Text(names[setup.partner.userId] ?? 'Partner')),
-              const ButtonSegment(
-                  value: _OwnerChoice.shared, label: Text('Shared')),
-            ],
-            selected: {_owner},
-            onSelectionChanged: (s) => setState(() => _owner = s.first),
+          OwnerPicker(
+            adults: ref.watch(partyAdultsProvider),
+            selectedUserId: _ownerUserId,
+            householdLabel: 'Shared',
+            onChanged: (id) => setState(() => _ownerUserId = id),
           ),
           const SizedBox(height: AppSpacing.lg),
           ListTile(
@@ -510,7 +497,7 @@ class _QuestEditorScreenState extends ConsumerState<QuestEditorScreen> {
           ),
           const SizedBox(height: AppSpacing.xl),
           FilledButton(
-            onPressed: () => _save(setup.me.userId, setup.partner.userId),
+            onPressed: _save,
             child: const Text('Save goal'),
           ),
         ],
@@ -518,7 +505,7 @@ class _QuestEditorScreenState extends ConsumerState<QuestEditorScreen> {
     );
   }
 
-  Future<void> _save(String meId, String partnerId) async {
+  Future<void> _save() async {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     final name = _name.text.trim();
@@ -528,11 +515,9 @@ class _QuestEditorScreenState extends ConsumerState<QuestEditorScreen> {
           const SnackBar(content: Text('Enter a name and a positive target')));
       return;
     }
-    final ownership = switch (_owner) {
-      _OwnerChoice.me => PersonalParty(meId),
-      _OwnerChoice.partner => PersonalParty(partnerId),
-      _OwnerChoice.shared => const SharedParty(),
-    };
+    final owner = _ownerUserId;
+    final PartyOwnership ownership =
+        owner == null ? const SharedParty() : PersonalParty(owner);
     final description = _description.text.trim();
     await ref.read(householdActionsProvider)?.setQuest(
           questId: widget.existing?.questId,

@@ -445,6 +445,7 @@ class HouseholdActions {
     String? mainCategoryId,
     EmergencyContribution? emergencyContribution,
     String? petId,
+    List<String> petOwnerIds = const [],
     SlicePriority priority = SlicePriority.important,
   }) async {
     final now = DateTime.now().toUtc();
@@ -465,6 +466,7 @@ class HouseholdActions {
       taxDeductibleByDefault: taxDeductibleByDefault,
       emergencyContribution: emergencyContribution,
       petId: petId,
+      petOwnerIds: petOwnerIds,
       priority: priority,
     ));
     return id;

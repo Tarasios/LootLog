@@ -1,4 +1,4 @@
-/// Pure view-model for Budget setup: both members' personal slices side by side,
+/// Pure view-model for Budget setup: every adult's personal slices side by side,
 /// plus the shared group slices, for a chosen household month. Derived entirely
 /// from [HouseholdState] so the screen only lays it out and appends events.
 library;
