@@ -357,8 +357,12 @@ Future<void> main() async {
     print('\n== 5. spoils allocation converges ==');
     // Alice allocates her Alice-Fun July leftover on desktop B.
     // eff = base 25000 (limit 30000 - emergency 5000), spent 2000 -> leftover
-    // 23000. Attack Jacket 10000 (untithed) + 13000 discretionary (10% tithe ->
-    // 1300 to the chest, 11700 to Alice's vault).
+    // 23000. This ledger never adopts the savings rules, so legacy allocation
+    // applies. Attack Jacket 10000: the quest has no main category, so it
+    // never matches the source category and Alice-Fun's 10% pool tithe
+    // applies (category-match tithing) -> 1000 to the chest, 9000 damage.
+    // 13000 discretionary (10% tithe -> 1300 to the chest, 11700 to Alice's
+    // vault).
     await b.author([
       LeftoverAllocated(
         eventId: uuidv7(),
@@ -379,7 +383,7 @@ Future<void> main() async {
     await assertConverged(nodes, 'spoils allocation');
     for (final n in nodes) {
       final st = await n.reduced();
-      checkEq(st.quests[qJacket]!.balanceCents, 10000,
+      checkEq(st.quests[qJacket]!.balanceCents, 9000,
           '${n.label}: Jacket quest funded by spoils');
     }
 
