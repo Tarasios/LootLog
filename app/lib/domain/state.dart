@@ -850,6 +850,10 @@ class DefaultIncome {
       estimatedHighCents != null && estimatedHighCents! > amountCents;
 }
 
+/// The general-pool tax rate a household starts with when it adopts the
+/// savings rules (onboarding and the Settings adopt switch).
+const int kDefaultGeneralTithePct = 20;
+
 /// The household's savings-economy rules: active from [fromMonth] (the
 /// adoption month), with the general-pool tax rate as it stood each month.
 /// Months before adoption keep the legacy math exactly.

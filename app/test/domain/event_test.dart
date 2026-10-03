@@ -641,4 +641,20 @@ void main() {
       );
     });
   });
+
+  group('uuidv7 ordering', () {
+    test('ids minted in the same millisecond still sort in creation order', () {
+      const ms = 1780000000000;
+      final ids = [for (var i = 0; i < 500; i++) uuidv7(millisSinceEpoch: ms)];
+      final sorted = [...ids]..sort();
+      expect(sorted, ids);
+      expect(ids.toSet(), hasLength(ids.length));
+    });
+
+    test('a later millisecond always sorts after an earlier one', () {
+      final a = uuidv7(millisSinceEpoch: 1780000000001);
+      final b = uuidv7(millisSinceEpoch: 1780000000002);
+      expect(a.compareTo(b), lessThan(0));
+    });
+  });
 }
