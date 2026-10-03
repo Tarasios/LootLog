@@ -142,7 +142,9 @@ savings goal (e.g. "$500 jacket", "$1300 canoe", a house down payment, a
 vacation fund).
 
 - Personal quests are funded by their owner; shared quests by any adult.
-- Quests are funded **only** by spoils allocations at month close (§6).
+- Quests are funded by spoils allocations at month close (§6) and, under the
+  savings rules, by shortfall cover when buying the goal itself (§6a). There
+  is deliberately no standalone "attack now" action.
 - **Category-match tithing.** An attack funded from a category whose main
   category **matches** the quest's `mainCategoryId` is **untithed** (full
   damage). From a **non-matching** category, the source category's **pool tithe
@@ -177,10 +179,79 @@ For each **personal** category with leftover — `max(0, effectiveLimit − spen
 **Group-category leftovers** and **emergency contributions** are automatic and
 shown read-only.
 
+This section describes the legacy rules, which still apply to every month
+before a household adopts the savings rules (§6a). From the adoption month,
+§6a replaces carry and discretionary conversion.
+
 **Never blocking.** The ritual is interactive but never blocks. If the grace
 period (a setting, default 7 days after month close) passes with no allocation
 event, the reducer applies the category's configured **default policy** at read
 time. Nothing waits on the user.
+
+## 6a. The savings economy (category savings, general savings, advances)
+
+Adopted per household with a `SettingChanged` key `savingsRules`, value
+`{fromMonth: 'yyyy-MM', generalTithePct}`. Older app versions already ignore
+setting keys they don't know. The earliest `fromMonth` is the **adoption
+month**; each entry sets the general rate from its own month on, so changing the
+rate never rewrites a past month. New households adopt at onboarding (20%).
+Months before adoption reduce exactly as before, and a test asserts that a
+never-adopted ledger is unchanged.
+
+**Pools.** Each personal category has a monthly **allowance** (fresh, untaxed)
+and a persistent **category savings** pool (already-taxed money). Each adult has
+**general savings** (the vault). The war chest receives every tax. Purchases
+spend the allowance first, then the category's savings. Anything beyond both is
+overspend, settled at close by the OVERBUDGET rules (§7).
+
+**Taxed once, then only the difference.** Every pool balance tracks the tax its
+money has already paid (`domain/pools.dart`, the only place this math lives).
+A move charges the destination's rate on the money's pre-tax value, minus what
+it already paid. It never refunds, and `delivered + tax == moved` always.
+Canonical case: $50 of unspent Clothing allowance saved at a 10% carry tax
+becomes $45 of savings (paid $5). Moving that $45 to general savings at 20%
+costs only a $5 top-up, and $40 lands.
+
+**Rates.** A personal category's `poolTithePct` *is* its **carry tax** under
+these rules. General savings and a non-matching goal or debt cost the household
+**general rate**. A matching goal or debt (same main category) is untaxed, and
+so is a bill top-up.
+
+**Month end.** Unspent allowance goes to: save in the category (carry tax),
+general savings, a goal, or a debt payment. Category savings stay put by
+default. They can optionally be moved out (allocation `source: savings`),
+paying only the difference. Grace-expired defaults pay the owner's debts first
+and never touch savings. The adoption month honours the last legacy carry.
+
+**Shortfall cover** (`ShortfallCovered {purchaseId, source, amountCents}`)
+pays the gap on a purchase that exceeds what's available:
+- From **general savings** (spending, so untaxed): the covered part never
+  counts against the category.
+- When buying a **goal**, from one of the purchaser's **category savings**
+  pools, at the goal's rate minus tax already paid. This is the only mid-month
+  way to finish a goal early.
+
+Covers on a voided purchase are ignored, and covers never exceed the purchase.
+
+**Advances** (`AllowanceAdvanceProposed / Approved / Cancelled`) borrow from a
+category's next N allowances, with the same quorum as war-chest withdrawals: a
+different adult approves, self-approval is rejected, and a one-adult household
+auto-approves. Once approved, an advance covers its month and is repaid by
+trimming the following months evenly (remainder cents first). A trim larger
+than an allowance rolls on. An advance that's never approved leaves ordinary
+overspend.
+
+**Variable bills draw on savings.** For monthly variable recurring expenses,
+the recorded actual vs the estimate flows through savings:
+- **Shared bills** go through the war chest, which an over-run may take below
+  zero, as a ransack can.
+- **Personal bills** go through the owner's general savings, using only money
+  available by that month.
+
+A personal over-run the general savings can't cover becomes a **provisions**
+debt (`OverbudgetState.kind == provisions`, keyed `provisions:<expenseId>`). It
+is paid first and untaxed from next month's leftovers. It never locks a
+category and is never shown as a monster or as overspending.
 
 ## 7. Vaults, gifts, war chest, emergency funds, ransacks
 
@@ -358,6 +429,11 @@ produce identical content; any user edits inside the folder are ignored and
 overwritten.
 
 ## 13. Sync (multi-hub) and merge-import
+
+**Forward compatibility.** An event type this version doesn't know decodes as
+`UnknownEvent`. It's stored, synced and exported byte-identically and ignored by
+the reducer, so new event types never break an older device's sync. That holds
+from the release that introduced it; earlier releases throw on unknown types.
 
 No internet services. Any desktop build can host a **hub** (`package:shelf`) on
 the LAN. A device may be paired with **multiple hubs**, keeping an independent

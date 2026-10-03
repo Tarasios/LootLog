@@ -30,10 +30,16 @@ class WarChestScreen extends ConsumerWidget {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     final ledger = buildWarChestLedger(state, events, userNames: names);
-    final pending = state.withdrawals.values
-        .where((w) => w.status == WithdrawalStatus.pending)
-        .toList()
-      ..sort((a, b) => a.purpose.compareTo(b.purpose));
+    final pending =
+        state.withdrawals.values
+            .where((w) => w.status == WithdrawalStatus.pending)
+            .toList()
+          ..sort((a, b) => a.purpose.compareTo(b.purpose));
+    final advances =
+        state.advances.values
+            .where((a) => a.status == WithdrawalStatus.pending)
+            .toList()
+          ..sort((a, b) => a.advanceId.compareTo(b.advanceId));
     final chest = state.warChest;
 
     return Scaffold(
@@ -48,11 +54,12 @@ class WarChestScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('War chest',
-                      style: AppText.sectionLabel(context)),
+                  Text('War chest', style: AppText.sectionLabel(context)),
                   const SizedBox(height: AppSpacing.xs),
-                  Text(money(chest.balanceCents),
-                      style: Theme.of(context).textTheme.headlineMedium),
+                  Text(
+                    money(chest.balanceCents),
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
                   if (chest.goal != null) ...[
                     const SizedBox(height: AppSpacing.sm),
                     ClipRRect(
@@ -106,6 +113,17 @@ class WarChestScreen extends ConsumerWidget {
             for (final w in pending)
               _PendingWrit(writ: w, meUserId: meUserId, names: names),
           ],
+          if (advances.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.lg),
+            Text('Borrowing requests', style: AppText.sectionLabel(context)),
+            for (final a in advances)
+              _PendingAdvance(
+                advance: a,
+                categoryName: state.slices[a.sliceId]?.name ?? 'a budget',
+                meUserId: meUserId,
+                names: names,
+              ),
+          ],
           const SizedBox(height: AppSpacing.lg),
           Text('Ledger', style: AppText.sectionLabel(context)),
           if (ledger.isEmpty)
@@ -119,8 +137,12 @@ class WarChestScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _contribute(BuildContext context, WidgetRef ref,
-      HouseholdState state, String meUserId) async {
+  Future<void> _contribute(
+    BuildContext context,
+    WidgetRef ref,
+    HouseholdState state,
+    String meUserId,
+  ) async {
     final cap = state.vaultOf(meUserId);
     final cents = await _amountDialog(
       context,
@@ -136,14 +158,19 @@ class WarChestScreen extends ConsumerWidget {
   }
 
   Future<void> _propose(
-      BuildContext context, WidgetRef ref, HouseholdState state) async {
+    BuildContext context,
+    WidgetRef ref,
+    HouseholdState state,
+  ) async {
     final result = await showModalBottomSheet<_WritDraft>(
       context: context,
       isScrollControlled: true,
       builder: (context) => _WritSheet(chestCents: state.warChest.balanceCents),
     );
     if (result != null) {
-      await ref.read(householdActionsProvider)?.proposeWithdrawal(
+      await ref
+          .read(householdActionsProvider)
+          ?.proposeWithdrawal(
             amountCents: result.amountCents,
             purpose: result.purpose,
             destination: result.destination,
@@ -152,11 +179,14 @@ class WarChestScreen extends ConsumerWidget {
   }
 
   Future<void> _recordGift(
-      BuildContext context, WidgetRef ref, HouseholdState state) async {
+    BuildContext context,
+    WidgetRef ref,
+    HouseholdState state,
+  ) async {
     final setup = ref.read(localSetupProvider).value;
     if (setup == null) return;
-    final names = ref.read(userNamesProvider);
-    String recipient = setup.me.userId;
+    final adults = ref.read(partyAdultsProvider);
+    String recipient = setup.meUserId;
     final amountController = TextEditingController();
     final noteController = TextEditingController();
 
@@ -175,26 +205,30 @@ class WarChestScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Record a gift',
-                  style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                'Record a gift',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               const SizedBox(height: AppSpacing.lg),
               DropdownButtonFormField<String>(
                 initialValue: recipient,
                 decoration: const InputDecoration(labelText: 'Recipient'),
                 items: [
-                  for (final p in setup.profiles)
-                    DropdownMenuItem(
-                        value: p.userId, child: Text(names[p.userId] ?? p.name)),
+                  for (final a in adults)
+                    DropdownMenuItem(value: a.id, child: Text(a.name)),
                 ],
                 onChanged: (v) => setSheet(() => recipient = v ?? recipient),
               ),
               const SizedBox(height: AppSpacing.md),
               TextField(
                 controller: amountController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration:
-                    const InputDecoration(labelText: 'Amount', prefixText: r'$'),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Amount',
+                  prefixText: r'$',
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
               TextField(
@@ -215,7 +249,9 @@ class WarChestScreen extends ConsumerWidget {
     if (ok == true) {
       final cents = tryParseMoneyCents(amountController.text);
       if (cents != null && cents > 0) {
-        await ref.read(householdActionsProvider)?.recordGift(
+        await ref
+            .read(householdActionsProvider)
+            ?.recordGift(
               forUserId: recipient,
               amountCents: cents,
               note: noteController.text.trim().isEmpty
@@ -243,16 +279,21 @@ class WarChestScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Record a tax refund',
-                style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              'Record a tax refund',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: AppSpacing.lg),
             TextField(
               controller: amountController,
               autofocus: true,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration:
-                  const InputDecoration(labelText: 'Amount', prefixText: r'$'),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Amount',
+                prefixText: r'$',
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
             TextField(
@@ -271,7 +312,9 @@ class WarChestScreen extends ConsumerWidget {
     if (ok == true) {
       final cents = tryParseMoneyCents(amountController.text);
       if (cents != null && cents > 0) {
-        await ref.read(householdActionsProvider)?.recordTaxRefund(
+        await ref
+            .read(householdActionsProvider)
+            ?.recordTaxRefund(
               amountCents: cents,
               note: noteController.text.trim().isEmpty
                   ? null
@@ -344,14 +387,20 @@ class _PendingWrit extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${money(writ.amountCents)} · ${writ.purpose}',
-                style: Theme.of(context).textTheme.titleMedium),
-            Text('$dest · proposed by ${names[writ.byUserId] ?? writ.byUserId}',
-                style: Theme.of(context).textTheme.bodySmall),
+            Text(
+              '${money(writ.amountCents)} · ${writ.purpose}',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            Text(
+              '$dest · proposed by ${names[writ.byUserId] ?? writ.byUserId}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
             const SizedBox(height: AppSpacing.sm),
             if (mine)
-              Text('Awaiting the other adventurer\'s signature.',
-                  style: Theme.of(context).textTheme.bodySmall)
+              Text(
+                'Awaiting the other adventurer\'s signature.',
+                style: Theme.of(context).textTheme.bodySmall,
+              )
             else
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -371,6 +420,75 @@ class _PendingWrit extends ConsumerWidget {
                   ),
                 ],
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A pending request to borrow from a budget's future months. Another adult
+/// approves or declines; the requester can withdraw it.
+class _PendingAdvance extends ConsumerWidget {
+  const _PendingAdvance({
+    required this.advance,
+    required this.categoryName,
+    required this.meUserId,
+    required this.names,
+  });
+
+  final AdvanceState advance;
+  final String categoryName;
+  final String meUserId;
+  final Map<String, String> names;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mine = advance.byUserId == meUserId;
+    final months = advance.months;
+    final actions = ref.watch(householdActionsProvider);
+    return Card(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${money(advance.amountCents)} from $categoryName over $months '
+              'month${months == 1 ? '' : 's'}',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            Text(
+              'Asked by ${names[advance.byUserId] ?? advance.byUserId} · '
+              'repaid from the next $months month${months == 1 ? '' : 's'} '
+              'of that budget',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (mine)
+                  Expanded(
+                    child: Text(
+                      'Waiting for another adult to approve.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                TextButton(
+                  onPressed: () => actions?.cancelAdvance(advance.advanceId),
+                  child: Text(mine ? 'Withdraw' : 'Decline'),
+                ),
+                if (!mine) ...[
+                  const SizedBox(width: AppSpacing.sm),
+                  FilledButton(
+                    onPressed: () => actions?.approveAdvance(advance.advanceId),
+                    child: const Text('Approve'),
+                  ),
+                ],
+              ],
+            ),
           ],
         ),
       ),
@@ -448,8 +566,6 @@ class _WritSheetState extends ConsumerState<_WritSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final setup = ref.watch(localSetupProvider).value;
-    final names = ref.watch(userNamesProvider);
     return Padding(
       padding: EdgeInsets.only(
         left: AppSpacing.lg,
@@ -461,16 +577,22 @@ class _WritSheetState extends ConsumerState<_WritSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Propose a withdrawal',
-              style: Theme.of(context).textTheme.titleLarge),
-          Text('Chest holds ${money(widget.chestCents)}',
-              style: Theme.of(context).textTheme.bodySmall),
+          Text(
+            'Propose a withdrawal',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          Text(
+            'Chest holds ${money(widget.chestCents)}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
           const SizedBox(height: AppSpacing.lg),
           TextField(
             controller: _amount,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration:
-                const InputDecoration(labelText: 'Amount', prefixText: r'$'),
+            decoration: const InputDecoration(
+              labelText: 'Amount',
+              prefixText: r'$',
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           TextField(
@@ -482,13 +604,15 @@ class _WritSheetState extends ConsumerState<_WritSheet> {
             initialValue: _destKind,
             decoration: const InputDecoration(labelText: 'Destination'),
             items: [
-              const DropdownMenuItem(value: 'external', child: Text('External')),
-              if (setup != null)
-                for (final p in setup.profiles)
-                  DropdownMenuItem(
-                    value: 'vault:${p.userId}',
-                    child: Text('${names[p.userId] ?? p.name}\'s vault'),
-                  ),
+              const DropdownMenuItem(
+                value: 'external',
+                child: Text('External'),
+              ),
+              for (final a in ref.watch(partyAdultsProvider))
+                DropdownMenuItem(
+                  value: 'vault:${a.id}',
+                  child: Text('${a.name}\'s vault'),
+                ),
             ],
             onChanged: (v) => setState(() {
               if (v == null) return;
@@ -502,10 +626,7 @@ class _WritSheetState extends ConsumerState<_WritSheet> {
             }),
           ),
           const SizedBox(height: AppSpacing.lg),
-          FilledButton(
-            onPressed: _submit,
-            child: const Text('Propose'),
-          ),
+          FilledButton(onPressed: _submit, child: const Text('Propose')),
         ],
       ),
     );
@@ -523,10 +644,12 @@ class _WritSheetState extends ConsumerState<_WritSheet> {
     final destination = _destKind == 'vault' && _destUserId != null
         ? UserVaultDestination(_destUserId!)
         : const ExternalDestination();
-    Navigator.of(context).pop(_WritDraft(
-      amountCents: cents,
-      purpose: purpose,
-      destination: destination,
-    ));
+    Navigator.of(context).pop(
+      _WritDraft(
+        amountCents: cents,
+        purpose: purpose,
+        destination: destination,
+      ),
+    );
   }
 }

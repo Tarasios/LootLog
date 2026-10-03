@@ -95,19 +95,21 @@ class _ExpenseEntryViewState extends State<ExpenseEntryView> {
 
   void _commit(ChargeChoice choice) {
     if (_cents <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter an amount first')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Enter an amount first')));
       return;
     }
-    widget.onCommit(EntryDraft(
-      choice: choice,
-      amountCents: _cents,
-      shared: _shared && choice.supportsShared,
-      occurredAt: _occurredAt,
-      merchant: _merchant,
-      note: _note,
-    ));
+    widget.onCommit(
+      EntryDraft(
+        choice: choice,
+        amountCents: _cents,
+        shared: _shared && choice.supportsShared,
+        occurredAt: _occurredAt,
+        merchant: _merchant,
+        note: _note,
+      ),
+    );
   }
 
   Future<void> _editText({
@@ -154,13 +156,15 @@ class _ExpenseEntryViewState extends State<ExpenseEntryView> {
       helpText: 'Backdate this expense',
     );
     if (picked != null) {
-      setState(() => _occurredAt = DateTime(
-            picked.year,
-            picked.month,
-            picked.day,
-            now.hour,
-            now.minute,
-          ));
+      setState(
+        () => _occurredAt = DateTime(
+          picked.year,
+          picked.month,
+          picked.day,
+          now.hour,
+          now.minute,
+        ),
+      );
     }
   }
 
@@ -206,7 +210,7 @@ class _ExpenseEntryViewState extends State<ExpenseEntryView> {
     final dateLabel = _isToday
         ? 'Today'
         : '${_occurredAt.year}-${_occurredAt.month.toString().padLeft(2, '0')}-'
-            '${_occurredAt.day.toString().padLeft(2, '0')}';
+              '${_occurredAt.day.toString().padLeft(2, '0')}';
     return SizedBox(
       height: 44,
       child: ListView(
@@ -217,7 +221,9 @@ class _ExpenseEntryViewState extends State<ExpenseEntryView> {
             Padding(
               padding: const EdgeInsets.only(right: AppSpacing.sm),
               child: FilterChip(
-                label: const Text('Split 50/50'),
+                label: const Text('Shared'),
+                tooltip:
+                    'Split with the other adults by the household share table',
                 avatar: const Icon(Icons.people_alt_outlined, size: 18),
                 selected: _shared,
                 onSelected: (v) => setState(() => _shared = v),
@@ -280,8 +286,14 @@ class _ExpenseEntryViewState extends State<ExpenseEntryView> {
       g.kind == ChargeGroupKind.vault || g.kind == ChargeGroupKind.quest;
 
   Widget _chargeArea(BuildContext context) {
-    final primary = [for (final g in widget.groups) if (!_isAdvanced(g)) g];
-    final advanced = [for (final g in widget.groups) if (_isAdvanced(g)) g];
+    final primary = [
+      for (final g in widget.groups)
+        if (!_isAdvanced(g)) g,
+    ];
+    final advanced = [
+      for (final g in widget.groups)
+        if (_isAdvanced(g)) g,
+    ];
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
@@ -410,10 +422,10 @@ class _ChargeChip extends StatelessWidget {
                         choice.label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleSmall
-                            ?.copyWith(color: c.fg, fontWeight: FontWeight.w600),
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: c.fg,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
@@ -426,8 +438,8 @@ class _ChargeChip extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: c.fg.withValues(alpha: 0.85),
-                          ),
+                        color: c.fg.withValues(alpha: 0.85),
+                      ),
                     ),
                   ),
               ],

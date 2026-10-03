@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:lootlog/domain/event.dart';
 import 'package:lootlog/domain/ids.dart';
+import 'package:lootlog/domain/reducer.dart';
 import 'package:lootlog/domain/time.dart';
 import 'package:lootlog/domain/value_types.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -30,8 +31,12 @@ void main() {
       final id = uuidv7(millisSinceEpoch: 1000);
       expect(
         id,
-        matches(RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-'
-            r'[89ab][0-9a-f]{3}-[0-9a-f]{12}$')),
+        matches(
+          RegExp(
+            r'^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-'
+            r'[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+          ),
+        ),
       );
     });
   });
@@ -103,8 +108,10 @@ void main() {
         poolTithePct: 10,
         defaultLeftoverPolicy: const Discretionary(),
         taxDeductibleByDefault: false,
-        emergencyContribution:
-            const EmergencyContribution(fundId: 'f1', amountCents: 5000),
+        emergencyContribution: const EmergencyContribution(
+          fundId: 'f1',
+          amountCents: 5000,
+        ),
         petId: 'pet1',
       ),
       BudgetSliceSet(
@@ -431,7 +438,11 @@ void main() {
         endDate: DateTime.utc(2026, 7, 8),
         categories: const [
           VacationCategory(categoryId: 'vc1', name: 'Food', limitCents: 30000),
-          VacationCategory(categoryId: 'vc2', name: 'Lodging', limitCents: 80000),
+          VacationCategory(
+            categoryId: 'vc2',
+            name: 'Lodging',
+            limitCents: 80000,
+          ),
         ],
       ),
       VacationSet(
@@ -505,5 +516,145 @@ void main() {
       ),
       throwsArgumentError,
     );
+  });
+
+  group('forward compatibility', () {
+    final json = {
+      'eventId': 'e-future',
+      'deviceId': 'd',
+      'userId': 'u1',
+      'occurredAt': '2026-07-01T18:00:00.000Z',
+      'createdAt': '2026-07-01T18:00:00.000Z',
+      'type': 'SomethingFromTheFuture',
+      'payload': {
+        'answer': 42,
+        'nested': {
+          'a': [1, 2],
+        },
+      },
+    };
+
+    test('an unknown event type decodes instead of throwing', () {
+      final e = Event.fromJson(json);
+      expect(e, isA<UnknownEvent>());
+      expect(e.type, 'SomethingFromTheFuture');
+    });
+
+    test('an unknown event re-encodes identically for relaying', () {
+      expect(Event.fromJson(json).toJson(), json);
+    });
+
+    test('the reducer ignores unknown events', () {
+      final base = reduce(const []);
+      final withUnknown = reduce([Event.fromJson(json)]);
+      expect(withUnknown.vaultCents, base.vaultCents);
+      expect(withUnknown.warChest.balanceCents, base.warChest.balanceCents);
+    });
+  });
+
+  group('savings economy events', () {
+    final at = DateTime.utc(2026, 7, 10, 18);
+    Event roundTrip(Event e) => Event.fromJson(e.toJson());
+
+    test('an allowance allocation serialises exactly as before', () {
+      const a = Allocation(destination: CarryInSlice(), amountCents: 500);
+      expect(a.toJson(), {
+        'destination': {'kind': 'carryInSlice'},
+        'amountCents': 500,
+      });
+      expect(Allocation.fromJson(a.toJson()), a);
+    });
+
+    test('a savings allocation round-trips its source', () {
+      const a = Allocation(
+        destination: Discretionary(),
+        amountCents: 4500,
+        source: AllocationSource.savings,
+      );
+      expect(Allocation.fromJson(a.toJson()), a);
+    });
+
+    test('ShortfallCovered round-trips both sources', () {
+      for (final src in const [
+        GeneralCover(),
+        CategorySavingsCover('clothes'),
+      ]) {
+        final e = ShortfallCovered(
+          eventId: 'e1',
+          deviceId: 'd',
+          userId: 'u1',
+          occurredAt: at,
+          createdAt: at,
+          purchaseId: 'p1',
+          source: src,
+          amountCents: 5000,
+        );
+        final back = roundTrip(e) as ShortfallCovered;
+        expect(back.source, src);
+        expect(back.amountCents, 5000);
+      }
+    });
+
+    test('advance events round-trip', () {
+      final p = AllowanceAdvanceProposed(
+        eventId: 'e2',
+        deviceId: 'd',
+        userId: 'u1',
+        occurredAt: at,
+        createdAt: at,
+        advanceId: 'a1',
+        byUserId: 'u1',
+        sliceId: 'clothes',
+        amountCents: 5000,
+        months: 2,
+        purchaseId: 'p1',
+      );
+      final back = roundTrip(p) as AllowanceAdvanceProposed;
+      expect(back.months, 2);
+      expect(back.purchaseId, 'p1');
+      final ok =
+          roundTrip(
+                AllowanceAdvanceApproved(
+                  eventId: 'e3',
+                  deviceId: 'd',
+                  userId: 'u2',
+                  occurredAt: at,
+                  createdAt: at,
+                  advanceId: 'a1',
+                  byUserId: 'u2',
+                ),
+              )
+              as AllowanceAdvanceApproved;
+      expect(ok.byUserId, 'u2');
+      expect(
+        roundTrip(
+          AllowanceAdvanceCancelled(
+            eventId: 'e4',
+            deviceId: 'd',
+            userId: 'u1',
+            occurredAt: at,
+            createdAt: at,
+            advanceId: 'a1',
+          ),
+        ),
+        isA<AllowanceAdvanceCancelled>(),
+      );
+    });
+  });
+
+  group('uuidv7 ordering', () {
+    test('ids minted in the same millisecond still sort in creation order', () {
+      const ms = 1780000000000;
+      final ids = [for (var i = 0; i < 500; i++) uuidv7(millisSinceEpoch: ms)];
+      final sorted = [...ids]..sort();
+      expect(sorted, ids);
+      expect(ids.toSet(), hasLength(ids.length));
+    });
+
+    test('a later millisecond always sorts after an earlier one', () {
+      final a = uuidv7(millisSinceEpoch: 1780000000001);
+      final b = uuidv7(millisSinceEpoch: 1780000000002);
+      expect(a.compareTo(b), lessThan(0));
+    });
   });
 }

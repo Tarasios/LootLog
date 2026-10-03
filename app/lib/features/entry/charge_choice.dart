@@ -42,7 +42,11 @@ class ChargeChoice {
 
 /// A titled section of [ChargeChoice]s.
 class ChargeGroup {
-  const ChargeGroup({required this.kind, required this.label, required this.choices});
+  const ChargeGroup({
+    required this.kind,
+    required this.label,
+    required this.choices,
+  });
 
   final ChargeGroupKind kind;
   final String label;
@@ -72,21 +76,25 @@ List<ChargeGroup> buildChargeGroups(
   final group = <ChargeChoice>[];
   for (final cfg in state.slices.values) {
     if (cfg.isGroup) {
-      group.add(ChargeChoice(
-        target: SliceCharge(cfg.sliceId),
-        label: cfg.name,
-        subtitle: '${_money(remaining(cfg))} left',
-        kind: ChargeGroupKind.groupSlice,
-        supportsShared: false,
-      ));
+      group.add(
+        ChargeChoice(
+          target: SliceCharge(cfg.sliceId),
+          label: cfg.name,
+          subtitle: '${_money(remaining(cfg))} left',
+          kind: ChargeGroupKind.groupSlice,
+          supportsShared: false,
+        ),
+      );
     } else if (cfg.ownerUserId == meUserId) {
-      personal.add(ChargeChoice(
-        target: SliceCharge(cfg.sliceId),
-        label: cfg.name,
-        subtitle: '${_money(remaining(cfg))} left',
-        kind: ChargeGroupKind.personalSlice,
-        supportsShared: true,
-      ));
+      personal.add(
+        ChargeChoice(
+          target: SliceCharge(cfg.sliceId),
+          label: cfg.name,
+          subtitle: '${_money(remaining(cfg))} left',
+          kind: ChargeGroupKind.personalSlice,
+          supportsShared: true,
+        ),
+      );
     }
   }
   personal.sort((a, b) => a.label.compareTo(b.label));
@@ -96,28 +104,33 @@ List<ChargeGroup> buildChargeGroups(
   for (final q in state.quests.values) {
     if (q.completed || q.abandoned) continue;
     final owner = q.ownership;
-    final mine = owner is SharedParty ||
+    final mine =
+        owner is SharedParty ||
         (owner is PersonalParty && owner.userId == meUserId);
     if (!mine) continue;
-    quests.add(ChargeChoice(
-      target: QuestCharge(q.questId),
-      label: q.name,
-      subtitle: '${_money(q.balanceCents)} / ${_money(q.targetCents)}',
-      kind: ChargeGroupKind.quest,
-      supportsShared: false,
-    ));
+    quests.add(
+      ChargeChoice(
+        target: QuestCharge(q.questId),
+        label: q.name,
+        subtitle: '${_money(q.balanceCents)} / ${_money(q.targetCents)}',
+        kind: ChargeGroupKind.quest,
+        supportsShared: false,
+      ),
+    );
   }
   quests.sort((a, b) => a.label.compareTo(b.label));
 
   final funds = <ChargeChoice>[];
   for (final f in state.emergencyFunds.values) {
-    funds.add(ChargeChoice(
-      target: EmergencyCharge(f.fundId),
-      label: f.name,
-      subtitle: '${_money(f.balanceCents)} reserve',
-      kind: ChargeGroupKind.emergency,
-      supportsShared: false,
-    ));
+    funds.add(
+      ChargeChoice(
+        target: EmergencyCharge(f.fundId),
+        label: f.name,
+        subtitle: '${_money(f.balanceCents)} reserve',
+        kind: ChargeGroupKind.emergency,
+        supportsShared: false,
+      ),
+    );
   }
   funds.sort((a, b) => a.label.compareTo(b.label));
 
@@ -134,13 +147,15 @@ List<ChargeGroup> buildChargeGroups(
   final vacation = <ChargeChoice>[];
   for (final v in state.openVacations) {
     for (final c in v.categories) {
-      vacation.add(ChargeChoice(
-        target: VacationCharge(v.vacationId, c.categoryId),
-        label: '${v.name} · ${c.name}',
-        subtitle: '${_money(c.leftoverCents)} left',
-        kind: ChargeGroupKind.vacation,
-        supportsShared: false,
-      ));
+      vacation.add(
+        ChargeChoice(
+          target: VacationCharge(v.vacationId, c.categoryId),
+          label: '${v.name} · ${c.name}',
+          subtitle: '${_money(c.leftoverCents)} left',
+          kind: ChargeGroupKind.vacation,
+          supportsShared: false,
+        ),
+      );
     }
   }
 
@@ -157,11 +172,7 @@ List<ChargeGroup> buildChargeGroups(
         label: 'Shared budgets',
         choices: group,
       ),
-    ChargeGroup(
-      kind: ChargeGroupKind.vault,
-      label: 'Vault',
-      choices: [vault],
-    ),
+    ChargeGroup(kind: ChargeGroupKind.vault, label: 'Vault', choices: [vault]),
     if (quests.isNotEmpty)
       ChargeGroup(
         kind: ChargeGroupKind.quest,

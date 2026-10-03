@@ -1,3 +1,4 @@
+import 'package:lootlog/domain/time.dart';
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -5,6 +6,7 @@ import 'package:lootlog/data/actions.dart';
 import 'package:lootlog/data/blobs/blob_store.dart';
 import 'package:lootlog/data/db/database.dart';
 import 'package:lootlog/domain/event.dart';
+import 'package:lootlog/domain/ids.dart';
 import 'package:lootlog/domain/reducer.dart';
 import 'package:lootlog/domain/state.dart';
 import 'package:lootlog/domain/value_types.dart';
@@ -51,43 +53,45 @@ void main() {
     expect((await currentState()).purchases[id]!.shared, isFalse);
   });
 
-  test('amendPurchase voids the old purchase, edits fields, keeps receipts',
-      () async {
-    final oldId = await actions.addPurchase(
-      target: const VaultCharge(),
-      amountCents: 1000,
-      merchant: 'Old Name',
-    );
+  test(
+    'amendPurchase voids the old purchase, edits fields, keeps receipts',
+    () async {
+      final oldId = await actions.addPurchase(
+        target: const VaultCharge(),
+        amountCents: 1000,
+        merchant: 'Old Name',
+      );
 
-    // Attach a receipt reference directly (no image encoding needed here).
-    final now = DateTime.now().toUtc();
-    await db.eventsDao.appendEvents([
-      ReceiptAttached(
-        eventId: 'r1',
-        deviceId: 'dev',
-        userId: 'u1',
-        occurredAt: now,
-        createdAt: now,
-        purchaseId: oldId,
-        sha256: 'a' * 64,
-        mimeType: 'image/jpeg',
-        sizeBytes: 42,
-      ),
-    ]);
+      // Attach a receipt reference directly (no image encoding needed here).
+      final now = DateTime.now().toUtc();
+      await db.eventsDao.appendEvents([
+        ReceiptAttached(
+          eventId: 'r1',
+          deviceId: 'dev',
+          userId: 'u1',
+          occurredAt: now,
+          createdAt: now,
+          purchaseId: oldId,
+          sha256: 'a' * 64,
+          mimeType: 'image/jpeg',
+          sizeBytes: 42,
+        ),
+      ]);
 
-    final old = (await currentState()).purchases[oldId]!;
-    expect(old.receipts, hasLength(1));
+      final old = (await currentState()).purchases[oldId]!;
+      expect(old.receipts, hasLength(1));
 
-    final newId = await actions.amendPurchase(old, merchant: 'New Name');
+      final newId = await actions.amendPurchase(old, merchant: 'New Name');
 
-    final state = await currentState();
-    expect(state.purchases[oldId]!.voided, isTrue);
-    final updated = state.purchases[newId]!;
-    expect(updated.voided, isFalse);
-    expect(updated.merchant, 'New Name');
-    expect(updated.amountCents, 1000); // unchanged
-    expect(updated.receipts.map((r) => r.sha256), ['a' * 64]);
-  });
+      final state = await currentState();
+      expect(state.purchases[oldId]!.voided, isTrue);
+      final updated = state.purchases[newId]!;
+      expect(updated.voided, isFalse);
+      expect(updated.merchant, 'New Name');
+      expect(updated.amountCents, 1000); // unchanged
+      expect(updated.receipts.map((r) => r.sha256), ['a' * 64]);
+    },
+  );
 
   test('detachReceipt removes the reference from the purchase', () async {
     final id = await actions.addPurchase(
@@ -97,7 +101,7 @@ void main() {
     final now = DateTime.now().toUtc();
     await db.eventsDao.appendEvents([
       ReceiptAttached(
-        eventId: 'r1',
+        eventId: uuidv7(),
         deviceId: 'dev',
         userId: 'u1',
         occurredAt: now,
@@ -112,5 +116,72 @@ void main() {
 
     await actions.detachReceipt(id, 'b' * 64);
     expect((await currentState()).purchases[id]!.receipts, isEmpty);
+  });
+
+  test('adopting the savings rules reaches the reducer', () async {
+    final month = Month.fromInstant(DateTime.now());
+    await actions.adoptSavingsRules(fromMonth: month, generalTithePct: 25);
+    final rules = (await currentState()).savingsRules!;
+    expect(rules.fromMonth, month);
+    expect(rules.generalRateFor(month), 25);
+  });
+
+  test(
+    'an advance on an unknown category is ignored, not crashed on',
+    () async {
+      await actions.adoptSavingsRules(
+        fromMonth: Month.fromInstant(DateTime.now()),
+        generalTithePct: 20,
+      );
+      final id = await actions.proposeAdvance(
+        sliceId: 'nope',
+        amountCents: 500,
+        months: 1,
+      );
+      expect((await currentState()).advances.containsKey(id), isFalse);
+    },
+  );
+
+  test(
+    'advance proposal, approval and cancellation append their events',
+    () async {
+      final id = await actions.proposeAdvance(
+        sliceId: 's1',
+        amountCents: 500,
+        months: 2,
+        purchaseId: 'p1',
+      );
+      await actions.approveAdvance(id);
+      await actions.cancelAdvance(id);
+      final events = await db.eventsDao.allEvents();
+      final proposal = events.whereType<AllowanceAdvanceProposed>().single;
+      expect(proposal.advanceId, id);
+      expect(proposal.byUserId, 'u1');
+      expect(proposal.months, 2);
+      expect(proposal.purchaseId, 'p1');
+      expect(events.whereType<AllowanceAdvanceApproved>().single.advanceId, id);
+      expect(
+        events.whereType<AllowanceAdvanceCancelled>().single.advanceId,
+        id,
+      );
+    },
+  );
+
+  test('coverShortfall appends a ShortfallCovered event', () async {
+    final pid = await actions.addPurchase(
+      target: const VaultCharge(),
+      amountCents: 100,
+    );
+    await actions.coverShortfall(
+      purchaseId: pid,
+      source: const GeneralCover(),
+      amountCents: 50,
+    );
+    final cover = (await db.eventsDao.allEvents())
+        .whereType<ShortfallCovered>()
+        .single;
+    expect(cover.purchaseId, pid);
+    expect(cover.source, const GeneralCover());
+    expect(cover.amountCents, 50);
   });
 }

@@ -1,4 +1,4 @@
-/// Budget setup: both members' personal categories side by side, group
+/// Budget setup: every adult's personal categories side by side, group
 /// categories below, income per member, and a "copy from last month" that
 /// carries the previous month's income forward. Categories themselves persist
 /// across months, so setup edits them in place via the shared category editor.
@@ -37,7 +37,7 @@ class _BudgetSetupScreenState extends ConsumerState<BudgetSetupScreen> {
     if (setup == null || state == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    final order = setup.profiles.map((p) => p.userId).toList();
+    final order = [for (final a in ref.watch(partyAdultsProvider)) a.id];
     final model =
         buildBudgetSetupModel(state, month: _month, orderedUserIds: order);
     final wide = MediaQuery.of(context).size.width >= kWideBreakpoint;

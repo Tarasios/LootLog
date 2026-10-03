@@ -19,8 +19,11 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 Future<File> _file() async => File(
-    p.join((await getApplicationDocumentsDirectory()).path,
-        'show_household_budgets.txt'));
+  p.join(
+    (await getApplicationDocumentsDirectory()).path,
+    'show_household_budgets.txt',
+  ),
+);
 
 /// Loads the persisted choice; defaults to true (full mutual visibility).
 Future<bool> loadShowHouseholdBudgets() async {

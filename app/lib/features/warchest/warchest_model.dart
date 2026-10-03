@@ -53,14 +53,19 @@ List<ChestEntry> buildWarChestLedger(
     if (cfg == null) continue;
     for (final a in e.allocations) {
       if (a.destination is Discretionary) {
-        final tithe = Money.titheCents(a.amountCents, cfg.poolTithePct).titheCents;
+        final tithe = Money.titheCents(
+          a.amountCents,
+          cfg.poolTithePct,
+        ).titheCents;
         if (tithe > 0) {
-          entries.add(ChestEntry(
-            kind: ChestEntryKind.sliceTithe,
-            label: '${cfg.name} savings cut (${e.month.toKey()})',
-            amountCents: tithe,
-            occurredAt: e.occurredAt,
-          ));
+          entries.add(
+            ChestEntry(
+              kind: ChestEntryKind.sliceTithe,
+              label: '${cfg.name} savings cut (${e.month.toKey()})',
+              amountCents: tithe,
+              occurredAt: e.occurredAt,
+            ),
+          );
         }
       }
     }
@@ -89,15 +94,19 @@ List<ChestEntry> buildWarChestLedger(
     final q = state.quests[e.questId];
     final pre = (funded[e.questId] ?? 0) - (drawn[e.questId] ?? 0);
     if (pre <= 0) continue;
-    final tithe =
-        Money.titheCents(pre, state.settings.dissolutionTithePct).titheCents;
+    final tithe = Money.titheCents(
+      pre,
+      state.settings.dissolutionTithePct,
+    ).titheCents;
     if (tithe > 0) {
-      entries.add(ChestEntry(
-        kind: ChestEntryKind.dissolutionTithe,
-        label: '${q?.name ?? 'Goal'} cancellation fee',
-        amountCents: tithe,
-        occurredAt: e.occurredAt,
-      ));
+      entries.add(
+        ChestEntry(
+          kind: ChestEntryKind.dissolutionTithe,
+          label: '${q?.name ?? 'Goal'} cancellation fee',
+          amountCents: tithe,
+          occurredAt: e.occurredAt,
+        ),
+      );
     }
   }
 
@@ -105,56 +114,66 @@ List<ChestEntry> buildWarChestLedger(
   for (final sm in state.sliceMonths.values) {
     if (!sm.isGroup || !sm.resolved || sm.leftoverCents <= 0) continue;
     final cfg = state.slices[sm.sliceId];
-    entries.add(ChestEntry(
-      kind: ChestEntryKind.groupLeftover,
-      label: '${cfg?.name ?? 'Group'} leftover (${sm.month.toKey()})',
-      amountCents: sm.leftoverCents,
-      occurredAt: sm.month.endInstantUtc(),
-    ));
+    entries.add(
+      ChestEntry(
+        kind: ChestEntryKind.groupLeftover,
+        label: '${cfg?.name ?? 'Group'} leftover (${sm.month.toKey()})',
+        amountCents: sm.leftoverCents,
+        occurredAt: sm.month.endInstantUtc(),
+      ),
+    );
   }
 
   // Direct contributions from a vault.
   for (final e in events.whereType<PoolContributionMade>()) {
-    entries.add(ChestEntry(
-      kind: ChestEntryKind.contribution,
-      label: '${nameOf(e.fromUserId)} contribution',
-      amountCents: e.amountCents,
-      occurredAt: e.occurredAt,
-    ));
+    entries.add(
+      ChestEntry(
+        kind: ChestEntryKind.contribution,
+        label: '${nameOf(e.fromUserId)} contribution',
+        amountCents: e.amountCents,
+        occurredAt: e.occurredAt,
+      ),
+    );
   }
 
   // Tax refunds (royal rebate).
   for (final e in events.whereType<TaxRefundRecorded>()) {
-    entries.add(ChestEntry(
-      kind: ChestEntryKind.taxRefund,
-      label: e.note == null || e.note!.isEmpty
-          ? 'Tax refund'
-          : 'Tax refund — ${e.note}',
-      amountCents: e.amountCents,
-      occurredAt: e.occurredAt,
-    ));
+    entries.add(
+      ChestEntry(
+        kind: ChestEntryKind.taxRefund,
+        label: e.note == null || e.note!.isEmpty
+            ? 'Tax refund'
+            : 'Tax refund — ${e.note}',
+        amountCents: e.amountCents,
+        occurredAt: e.occurredAt,
+      ),
+    );
   }
 
   // Approved withdrawals (writs), as outflows.
   for (final w in state.withdrawals.values) {
     if (w.status != WithdrawalStatus.approved) continue;
-    entries.add(ChestEntry(
-      kind: ChestEntryKind.withdrawal,
-      label: 'Withdrawal — ${w.purpose}',
-      amountCents: -w.amountCents,
-      occurredAt: _proposalInstant(events, w.proposalId),
-    ));
+    entries.add(
+      ChestEntry(
+        kind: ChestEntryKind.withdrawal,
+        label: 'Withdrawal — ${w.purpose}',
+        amountCents: -w.amountCents,
+        occurredAt: _proposalInstant(events, w.proposalId),
+      ),
+    );
   }
 
   // Ransacks: emergency overflow drawn from the chest.
   for (final r in state.ransacks) {
     final fund = state.emergencyFunds[r.fundId];
-    entries.add(ChestEntry(
-      kind: ChestEntryKind.ransack,
-      label: 'Ransack — ${fund?.name ?? r.fundId}',
-      amountCents: -r.excessCents,
-      occurredAt: r.occurredAt,
-    ));
+    entries.add(
+      ChestEntry(
+        kind: ChestEntryKind.ransack,
+        label: 'Ransack — ${fund?.name ?? r.fundId}',
+        amountCents: -r.excessCents,
+        occurredAt: r.occurredAt,
+      ),
+    );
   }
 
   entries.sort((a, b) => b.occurredAt.compareTo(a.occurredAt));

@@ -17,16 +17,26 @@ import '../../ui/theme.dart';
 const int kMaxEntryCents = 99999999;
 
 final Map<LogicalKeyboardKey, int> _hardwareDigits = {
-  LogicalKeyboardKey.digit0: 0, LogicalKeyboardKey.numpad0: 0,
-  LogicalKeyboardKey.digit1: 1, LogicalKeyboardKey.numpad1: 1,
-  LogicalKeyboardKey.digit2: 2, LogicalKeyboardKey.numpad2: 2,
-  LogicalKeyboardKey.digit3: 3, LogicalKeyboardKey.numpad3: 3,
-  LogicalKeyboardKey.digit4: 4, LogicalKeyboardKey.numpad4: 4,
-  LogicalKeyboardKey.digit5: 5, LogicalKeyboardKey.numpad5: 5,
-  LogicalKeyboardKey.digit6: 6, LogicalKeyboardKey.numpad6: 6,
-  LogicalKeyboardKey.digit7: 7, LogicalKeyboardKey.numpad7: 7,
-  LogicalKeyboardKey.digit8: 8, LogicalKeyboardKey.numpad8: 8,
-  LogicalKeyboardKey.digit9: 9, LogicalKeyboardKey.numpad9: 9,
+  LogicalKeyboardKey.digit0: 0,
+  LogicalKeyboardKey.numpad0: 0,
+  LogicalKeyboardKey.digit1: 1,
+  LogicalKeyboardKey.numpad1: 1,
+  LogicalKeyboardKey.digit2: 2,
+  LogicalKeyboardKey.numpad2: 2,
+  LogicalKeyboardKey.digit3: 3,
+  LogicalKeyboardKey.numpad3: 3,
+  LogicalKeyboardKey.digit4: 4,
+  LogicalKeyboardKey.numpad4: 4,
+  LogicalKeyboardKey.digit5: 5,
+  LogicalKeyboardKey.numpad5: 5,
+  LogicalKeyboardKey.digit6: 6,
+  LogicalKeyboardKey.numpad6: 6,
+  LogicalKeyboardKey.digit7: 7,
+  LogicalKeyboardKey.numpad7: 7,
+  LogicalKeyboardKey.digit8: 8,
+  LogicalKeyboardKey.numpad8: 8,
+  LogicalKeyboardKey.digit9: 9,
+  LogicalKeyboardKey.numpad9: 9,
 };
 
 /// The digit (0–9) for a physical/number-row key, or null. Lets desktop users
@@ -67,11 +77,7 @@ class AmountDisplay extends StatelessWidget {
 
 /// A 3×4 numeric keypad that edits a cents value.
 class AmountKeypad extends StatelessWidget {
-  const AmountKeypad({
-    super.key,
-    required this.cents,
-    required this.onChanged,
-  });
+  const AmountKeypad({super.key, required this.cents, required this.onChanged});
 
   final int cents;
   final ValueChanged<int> onChanged;
@@ -89,15 +95,17 @@ class AmountKeypad extends StatelessWidget {
         Row(children: [digit(1), digit(2), digit(3)]),
         Row(children: [digit(4), digit(5), digit(6)]),
         Row(children: [digit(7), digit(8), digit(9)]),
-        Row(children: [
-          key('00', () => onChanged(applyDigit(applyDigit(cents, 0), 0))),
-          digit(0),
-          key(
-            '⌫',
-            () => onChanged(applyBackspace(cents)),
-            semantics: 'Backspace',
-          ),
-        ]),
+        Row(
+          children: [
+            key('00', () => onChanged(applyDigit(applyDigit(cents, 0), 0))),
+            digit(0),
+            key(
+              '⌫',
+              () => onChanged(applyBackspace(cents)),
+              semantics: 'Backspace',
+            ),
+          ],
+        ),
       ],
     );
   }

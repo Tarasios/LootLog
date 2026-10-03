@@ -89,6 +89,20 @@ root is a plain path read, exercised by the receipt-library suite).
 Rule for new prefs: parse defensively (unknown value → default), keep old
 value spellings parseable forever, and add a case to the update-safety test.
 
+### 5. Newer event types reaching older devices
+
+- **Guarantee (from the savings-economy release on):** an event type a device
+  doesn't recognise is kept verbatim as an `UnknownEvent`. It's stored,
+  relayed through hubs, exported, and ignored by the money math. A household
+  can mix app versions without any device's sync failing.
+- **Caveat:** releases *before* this one throw on unknown types, so their sync
+  stops when a newer device writes a new event type. The savings rules add
+  four such types. That's why **Settings → Rules → Category savings** tells
+  the household to update every device before adopting, and the rules stay
+  off for existing households until someone adopts them.
+- **Test:** `app/test/domain/event_test.dart` ("forward compatibility") checks
+  decoding, byte-identical re-encoding, and that the reducer ignores the event.
+
 ## Manual upgrade checklist (release APK over previous version)
 
 Run before shipping a release that touches the schema, blobs, sync, or any

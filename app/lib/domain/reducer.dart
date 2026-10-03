@@ -5,6 +5,7 @@ library;
 
 import 'event.dart';
 import 'money.dart';
+import 'pools.dart';
 import 'state.dart';
 import 'time.dart';
 import 'value_types.dart';
@@ -92,6 +93,26 @@ class _Builder {
 
   int? goalTarget;
 
+  // Savings-rule general rates keyed by the 'yyyy-MM' month they take effect.
+  final Map<String, int> savingsRuleRates = {};
+
+  SavingsRules? get savingsRules {
+    if (savingsRuleRates.isEmpty) return null;
+    final from = savingsRuleRates.keys
+        .map(Month.parse)
+        .reduce((a, b) => a.isBefore(b) ? a : b);
+    return SavingsRules(
+      fromMonth: from,
+      generalPctByFromMonth: savingsRuleRates,
+    );
+  }
+
+  // Savings economy (applied only from the adoption month).
+  final List<ShortfallCovered> covers = [];
+  final Map<String, AllowanceAdvanceProposed> advanceProposals = {};
+  final Map<String, List<AllowanceAdvanceApproved>> advanceApprovals = {};
+  final Set<String> cancelledAdvances = {};
+
   void _note(String? u) {
     if (u != null) {
       userIds.add(u);
@@ -99,14 +120,13 @@ class _Builder {
   }
 
   void gather(Event e) {
+    // A newer release's event: relayed, never interpreted (not even its author).
+    if (e is UnknownEvent) return;
     _note(e.userId);
     switch (e) {
       case PurchaseAdded():
         _note(e.userId);
-        purchases.putIfAbsent(
-          e.purchaseId,
-          () => _PurchaseAcc(e),
-        );
+        purchases.putIfAbsent(e.purchaseId, () => _PurchaseAcc(e));
       case PurchaseVoided():
         final p = purchases[e.purchaseId];
         if (p != null) {
@@ -124,8 +144,8 @@ class _Builder {
         final created = existing == null
             ? e.occurredMonth
             : (existing.createdMonth.isBefore(e.occurredMonth)
-                ? existing.createdMonth
-                : e.occurredMonth);
+                  ? existing.createdMonth
+                  : e.occurredMonth);
         if (e.ownership is PersonalSlice) {
           _note((e.ownership as PersonalSlice).userId);
         }
@@ -222,6 +242,18 @@ class _Builder {
         break; // domain-inert
       case GameRewardGranted():
         break; // cosmetic reward — the firewall: never touches a cent
+      case ShortfallCovered():
+        covers.add(e);
+      case AllowanceAdvanceProposed():
+        _note(e.byUserId);
+        advanceProposals[e.advanceId] = e;
+      case AllowanceAdvanceApproved():
+        _note(e.byUserId);
+        advanceApprovals.putIfAbsent(e.advanceId, () => []).add(e);
+      case AllowanceAdvanceCancelled():
+        cancelledAdvances.add(e.advanceId);
+      case UnknownEvent():
+        break; // unreachable: returned above
     }
   }
 
@@ -234,6 +266,18 @@ class _Builder {
         if (v is int) settings = settings.copyWith(dissolutionTithePct: v);
       case 'showNetWorth':
         if (v is bool) settings = settings.copyWith(showNetWorth: v);
+      case 'savingsRules':
+        if (v is Map) {
+          final from = v['fromMonth'];
+          final pct = v['generalTithePct'];
+          if (from is String && pct is int && pct >= 0 && pct <= 100) {
+            try {
+              savingsRuleRates[Month.parse(from).toKey()] = pct;
+            } on FormatException {
+              // Malformed month: ignore the entry.
+            }
+          }
+        }
     }
   }
 
@@ -260,6 +304,15 @@ class _Builder {
   final Map<String, int> debtBySlice = {};
   final Map<String, int> debtAccrued = {};
   final Map<String, String> debtOwner = {};
+  final Map<String, DebtKind> debtKind = {};
+
+  // Savings economy (from the adoption month): each personal category's
+  // savings pool, spending covered from elsewhere and advance repayments
+  // (both keyed "sliceId|yyyy-MM").
+  final Map<String, TaxedBalance> savings = {};
+  final Map<String, int> coverBySliceMonth = {};
+  final Map<String, int> trimBySliceMonth = {};
+  final Map<String, int> trimRoll = {};
 
   void _flow(String user, Month month, int amount) {
     final bucket = vaultFlowByMonth.putIfAbsent(month.toKey(), () => {});
@@ -292,7 +345,11 @@ class _Builder {
   /// cadence, by completed compounding periods (no partial-period accrual).
   /// Zero when any input is missing or no full period has elapsed.
   int _accruedInterest(
-      int base, int? aprBps, AccountCadence? cadence, DateTime? since) {
+    int base,
+    int? aprBps,
+    AccountCadence? cadence,
+    DateTime? since,
+  ) {
     if (aprBps == null || aprBps == 0 || cadence == null || since == null) {
       return 0;
     }
@@ -362,8 +419,11 @@ class _Builder {
   /// Splits [amount] across [weights] with floor rounding. Any leftover cents go
   /// to [oddTo] (the purchaser) when given; otherwise they are distributed by
   /// largest remainder so the parts always sum exactly to [amount].
-  Map<String, int> _splitShares(int amount, Map<String, int> weights,
-      {String? oddTo}) {
+  Map<String, int> _splitShares(
+    int amount,
+    Map<String, int> weights, {
+    String? oddTo,
+  }) {
     final totalWeight = weights.values.fold(0, (a, b) => a + b);
     if (amount == 0 || totalWeight <= 0) {
       return {?oddTo: amount};
@@ -420,6 +480,7 @@ class _Builder {
 
   HouseholdState build() {
     _applyReceipts();
+    final rules = savingsRules;
     for (final u in userIds) {
       vault.putIfAbsent(u, () => 0);
     }
@@ -429,11 +490,13 @@ class _Builder {
     // touches the monthly plan (it never enters category math).
     for (final cfg in accountCfg.values) {
       if (cfg.kind == AccountKind.debt && (cfg.minPaymentCents ?? 0) > 0) {
-        derivedRecurring.add(_DerivedRecurring(
-          expenseId: 'debt:${cfg.accountId}',
-          name: '${cfg.name} — minimum payment',
-          amountCents: cfg.minPaymentCents!,
-        ));
+        derivedRecurring.add(
+          _DerivedRecurring(
+            expenseId: 'debt:${cfg.accountId}',
+            name: '${cfg.name} — minimum payment',
+            amountCents: cfg.minPaymentCents!,
+          ),
+        );
       }
     }
 
@@ -532,6 +595,51 @@ class _Builder {
       }
     }
 
+    // Shortfall covers (savings rules only). Category-savings covers on quest
+    // purchases are applied inside the sweep; general covers resolve here.
+    final questCoversBySliceMonth = <String, List<(String, int, String)>>{};
+    final coveredSoFar = <String, int>{};
+    for (final c in covers) {
+      final acc = purchases[c.purchaseId];
+      if (acc == null || acc.voided) continue;
+      final e = acc.event;
+      if (rules == null || !rules.appliesTo(e.occurredMonth)) continue;
+      final already = coveredSoFar[c.purchaseId] ?? 0;
+      final room = e.amountCents - already;
+      final amt = c.amountCents < room ? c.amountCents : room;
+      if (amt <= 0) continue;
+      final target = e.target;
+      switch (c.source) {
+        case GeneralCover():
+          if (target is SliceCharge) {
+            coverBySliceMonth['${target.sliceId}|${e.occurredMonth.toKey()}'] =
+                (coverBySliceMonth['${target.sliceId}|${e.occurredMonth.toKey()}'] ??
+                    0) +
+                amt;
+          } else if (target is QuestCharge) {
+            questBalance[target.questId] =
+                (questBalance[target.questId] ?? 0) + amt;
+            final qc = questContrib.putIfAbsent(target.questId, () => {});
+            qc[e.userId] = (qc[e.userId] ?? 0) + amt;
+          } else {
+            continue;
+          }
+          _addVault(e.userId, -amt);
+          _flow(e.userId, e.occurredMonth, -amt);
+        case CategorySavingsCover(:final sliceId):
+          final cfg = slices[sliceId];
+          if (target is! QuestCharge ||
+              cfg == null ||
+              cfg.ownerUserId != e.userId) {
+            continue;
+          }
+          questCoversBySliceMonth
+              .putIfAbsent('$sliceId|${e.occurredMonth.toKey()}', () => [])
+              .add((target.questId, amt, e.userId));
+      }
+      coveredSoFar[c.purchaseId] = already + amt;
+    }
+
     // Withdrawals (resolved before the sweep so approved vault credits enter
     // the seizure-availability model in their approval month).
     final withdrawals = <String, WithdrawalProposal>{};
@@ -577,6 +685,57 @@ class _Builder {
       );
     }
 
+    final advanceStates = <String, AdvanceState>{};
+    for (final prop in advanceProposals.values) {
+      final cfg = slices[prop.sliceId];
+      if (rules == null ||
+          !rules.appliesTo(prop.occurredMonth) ||
+          cfg == null ||
+          cfg.isGroup) {
+        continue;
+      }
+      var status = WithdrawalStatus.pending;
+      String? approvedBy;
+      if (cancelledAdvances.contains(prop.advanceId)) {
+        status = WithdrawalStatus.cancelled;
+      } else if (_adultIds().length <= 1) {
+        status = WithdrawalStatus.approved;
+        approvedBy = prop.byUserId;
+      } else {
+        final valid = (advanceApprovals[prop.advanceId] ?? [])
+            .where((a) => a.byUserId != prop.byUserId && _isAdult(a.byUserId))
+            .toList();
+        if (valid.isNotEmpty) {
+          status = WithdrawalStatus.approved;
+          approvedBy = valid.first.byUserId;
+        }
+      }
+      if (status == WithdrawalStatus.approved) {
+        final k = '${prop.sliceId}|${prop.occurredMonth.toKey()}';
+        coverBySliceMonth[k] = (coverBySliceMonth[k] ?? 0) + prop.amountCents;
+        var tm = prop.occurredMonth;
+        for (final cents in advanceTrimSchedule(
+          prop.amountCents,
+          prop.months,
+        )) {
+          tm = tm.next();
+          final tk = '${prop.sliceId}|${tm.toKey()}';
+          trimBySliceMonth[tk] = (trimBySliceMonth[tk] ?? 0) + cents;
+        }
+      }
+      advanceStates[prop.advanceId] = AdvanceState(
+        advanceId: prop.advanceId,
+        byUserId: prop.byUserId,
+        sliceId: prop.sliceId,
+        amountCents: prop.amountCents,
+        months: prop.months,
+        month: prop.occurredMonth,
+        status: status,
+        approvedByUserId: approvedBy,
+        purchaseId: prop.purchaseId,
+      );
+    }
+
     // Month-bucket gifts and pool contributions for the availability model
     // (their actual vault application stays below, order-independent).
     for (final g in gifts) {
@@ -614,8 +773,9 @@ class _Builder {
         // once this month's ritual window (start + grace days) has passed, so
         // during the ritual the monster stands at full HP for leftovers to
         // attack, and afterwards the withheld funding fells it on its own.
-        final lockGate =
-            m.startInstantUtc().add(Duration(days: settings.spoilsGraceDays));
+        final lockGate = m.startInstantUtc().add(
+          Duration(days: settings.spoilsGraceDays),
+        );
         final lockActive = now.isAfter(lockGate);
         final calcs = <_SliceCalc>[];
         for (final cfg in sortedSlices) {
@@ -649,21 +809,90 @@ class _Builder {
             );
           } else {
             final owner = cfg.ownerUserId!;
-            final carryIn = carryPrev[cfg.sliceId] ?? 0;
-            final funding = cfg.baseEffectiveLimitCents + carryIn;
-            final outstanding = lockActive ? (debtBySlice[cfg.sliceId] ?? 0) : 0;
+            final newRules = rules != null && rules.appliesTo(m);
+            final carryIn = (!newRules || m == rules.fromMonth)
+                ? (carryPrev[cfg.sliceId] ?? 0)
+                : 0;
+            final trimmed = newRules ? _takeTrim(cfg, m, carryIn) : 0;
+            final funding = cfg.baseEffectiveLimitCents + carryIn - trimmed;
+            final outstanding = lockActive
+                ? (debtBySlice[cfg.sliceId] ?? 0)
+                : 0;
             final lockable = funding > 0 ? funding : 0;
             final locked = outstanding < lockable ? outstanding : lockable;
             if (locked > 0) {
               debtBySlice[cfg.sliceId] = outstanding - locked;
             }
             final eff = funding - locked;
-            final spent = personalSpent[spentKey] ?? 0;
-            final leftover = spent < eff ? eff - spent : 0;
-            final overspend = spent > eff ? spent - eff : 0;
-            calcs.add(
-                _SliceCalc(cfg, owner, carryIn, locked, eff, spent, leftover,
-                    overspend));
+            final rawSpent = personalSpent[spentKey] ?? 0;
+            if (!newRules) {
+              final leftover = rawSpent < eff ? eff - rawSpent : 0;
+              final overspend = rawSpent > eff ? rawSpent - eff : 0;
+              calcs.add(
+                _SliceCalc(
+                  cfg,
+                  owner,
+                  carryIn,
+                  locked,
+                  eff,
+                  rawSpent,
+                  leftover,
+                  overspend,
+                ),
+              );
+            } else {
+              final covered = coverBySliceMonth[spentKey] ?? 0;
+              final spentNet = rawSpent > covered ? rawSpent - covered : 0;
+              final fromAllowance = spentNet < eff ? spentNet : eff;
+              for (final (questId, amt, _)
+                  in questCoversBySliceMonth[spentKey] ??
+                      const <(String, int, String)>[]) {
+                final pool0 = savings[cfg.sliceId] ?? TaxedBalance.zero;
+                final x = amt < pool0.balanceCents ? amt : pool0.balanceCents;
+                if (x <= 0) continue;
+                final quest = questCfg[questId];
+                final matches =
+                    quest?.mainCategoryId != null &&
+                    quest!.mainCategoryId == cfg.mainCategoryId;
+                final r = moveTaxed(
+                  pool0,
+                  x,
+                  matches ? 0 : rules.generalRateFor(m),
+                );
+                savings[cfg.sliceId] = r.remaining;
+                _addChest(r.topUpCents, m);
+                questBalance[questId] =
+                    (questBalance[questId] ?? 0) + r.delivered.balanceCents;
+                final qc = questContrib.putIfAbsent(questId, () => {});
+                qc[owner] = (qc[owner] ?? 0) + r.delivered.balanceCents;
+              }
+
+              var pool = savings[cfg.sliceId] ?? TaxedBalance.zero;
+              final want = spentNet - fromAllowance;
+              final fromSavings = want < pool.balanceCents
+                  ? want
+                  : pool.balanceCents;
+              pool = spendFrom(pool, fromSavings);
+              savings[cfg.sliceId] = pool;
+              calcs.add(
+                _SliceCalc(
+                  cfg,
+                  owner,
+                  carryIn,
+                  locked,
+                  eff,
+                  rawSpent,
+                  eff - fromAllowance,
+                  spentNet - fromAllowance - fromSavings,
+                  fromSavings: fromSavings,
+                  savingsAfter: pool.balanceCents,
+                  savingsPaid: pool.taxPaidCents,
+                  covered: covered,
+                  trimmed: trimmed,
+                  newRules: true,
+                ),
+              );
+            }
           }
 
           // Emergency-contribution schedule (accrues off the top every active
@@ -674,7 +903,9 @@ class _Builder {
           if (cfg.emergencyFundId != null &&
               cfg.emergencyContributionCents > 0 &&
               !m.startInstantUtc().isAfter(now)) {
-            fundSchedule.putIfAbsent(cfg.emergencyFundId!, () => []).add(
+            fundSchedule
+                .putIfAbsent(cfg.emergencyFundId!, () => [])
+                .add(
                   _FundContribution(
                     m.startInstantUtc(),
                     cfg.emergencyContributionCents,
@@ -718,16 +949,16 @@ class _Builder {
         final ritualOrder = calcs.toList()
           ..sort((a, b) {
             int rank(SlicePriority p) => switch (p) {
-                  SlicePriority.fun => 0,
-                  SlicePriority.important => 1,
-                  SlicePriority.necessity => 2,
-                };
-            final c =
-                rank(a.cfg.priority).compareTo(rank(b.cfg.priority));
+              SlicePriority.fun => 0,
+              SlicePriority.important => 1,
+              SlicePriority.necessity => 2,
+            };
+            final c = rank(a.cfg.priority).compareTo(rank(b.cfg.priority));
             return c != 0 ? c : a.cfg.sliceId.compareTo(b.cfg.sliceId);
           });
-        final graceDeadline =
-            m.endInstantUtc().add(Duration(days: settings.spoilsGraceDays));
+        final graceDeadline = m.endInstantUtc().add(
+          Duration(days: settings.spoilsGraceDays),
+        );
         for (final c in ritualOrder) {
           final cfg = c.cfg;
           final alloc = allocations['${c.owner}|${cfg.sliceId}|${m.toKey()}'];
@@ -736,14 +967,35 @@ class _Builder {
           if (alloc != null) {
             effective = alloc.allocations;
           } else if (now.isAfter(graceDeadline)) {
-            effective = _defaultAllocations(cfg, c.owner, c.leftover);
+            effective = c.newRules
+                ? _savingsDefaults(
+                    cfg,
+                    c.owner,
+                    c.leftover,
+                    rules!.generalRateFor(m),
+                  )
+                : _defaultAllocations(cfg, c.owner, c.leftover);
           } else {
             effective = const [];
             resolved = false;
           }
           if (resolved) {
-            for (final a in effective) {
-              _applyAllocation(cfg, c.owner, a, m, carryThis);
+            if (c.newRules) {
+              var allowanceLeft = c.leftover;
+              for (final a in effective) {
+                allowanceLeft = _applySavingsAllocation(
+                  cfg,
+                  c.owner,
+                  a,
+                  m,
+                  rules!.generalRateFor(m),
+                  allowanceLeft,
+                );
+              }
+            } else {
+              for (final a in effective) {
+                _applyAllocation(cfg, c.owner, a, m, carryThis);
+              }
             }
           }
           sliceMonths[HouseholdState.monthKey(cfg.sliceId, m)] = SliceMonth(
@@ -759,12 +1011,18 @@ class _Builder {
             overspendCents: c.overspend,
             resolved: resolved,
             lockedCents: c.locked,
+            fromSavingsCents: c.fromSavings,
+            savingsCents: c.savingsAfter,
+            savingsTaxPaidCents: c.savingsPaid,
+            coveredCents: c.covered,
+            trimmedCents: c.trimmed,
           );
         }
 
         // Recurring-expense burden for this month.
         for (final r in recurringCfg.values) {
-          final active = !r.startMonth.isAfter(m) &&
+          final active =
+              !r.startMonth.isAfter(m) &&
               (r.endMonth == null || !m.isAfter(r.endMonth!));
           if (!active) {
             continue;
@@ -785,7 +1043,7 @@ class _Builder {
               if (isDue) {
                 final real =
                     variableActuals['${r.expenseId}|${m.toKey()}'] ??
-                        r.amountCents;
+                    r.amountCents;
                 annualReconByExpense[r.expenseId] = AnnualDueReconciliation(
                   month: m,
                   dueAmountCents: real,
@@ -800,8 +1058,17 @@ class _Builder {
           } else {
             amount = r.kind == RecurringKind.variable
                 ? (variableActuals['${r.expenseId}|${m.toKey()}'] ??
-                    r.amountCents)
+                      r.amountCents)
                 : r.amountCents;
+            if (rules != null &&
+                rules.appliesTo(m) &&
+                r.kind == RecurringKind.variable &&
+                !m.startInstantUtc().isAfter(now)) {
+              final actual = variableActuals['${r.expenseId}|${m.toKey()}'];
+              if (actual != null) {
+                _applyBillVariance(r, m, r.amountCents - actual);
+              }
+            }
           }
           final own = r.ownership;
           if (own is PersonalParty) {
@@ -865,8 +1132,10 @@ class _Builder {
       final abandoned = abandonedQuests.contains(cfg.questId);
 
       if (abandoned && balance > 0) {
-        final tithe =
-            Money.titheCents(balance, settings.dissolutionTithePct).titheCents;
+        final tithe = Money.titheCents(
+          balance,
+          settings.dissolutionTithePct,
+        ).titheCents;
         // Attribute the dissolution tithe to the abandonment month.
         final abandonMonth = _abandonMonth(cfg.questId);
         _addChest(tithe, abandonMonth);
@@ -904,8 +1173,9 @@ class _Builder {
     }
     for (final fundId in allFundIds) {
       final items = <_FundTimelineItem>[
-        ...(fundSchedule[fundId] ?? [])
-            .map((c) => _FundTimelineItem.contribution(c.instant, c.amount)),
+        ...(fundSchedule[fundId] ?? []).map(
+          (c) => _FundTimelineItem.contribution(c.instant, c.amount),
+        ),
         ...emergencyPurchases
             .where((e) => (e.target as EmergencyCharge).fundId == fundId)
             .map(_FundTimelineItem.purchase),
@@ -922,12 +1192,14 @@ class _Builder {
           } else {
             final excess = purchase.amountCents - running;
             running = 0;
-            ransacks.add(RansackRecord(
-              fundId: fundId,
-              excessCents: excess,
-              purpose: purchase.note ?? purchase.merchant ?? '',
-              occurredAt: purchase.occurredAt,
-            ));
+            ransacks.add(
+              RansackRecord(
+                fundId: fundId,
+                excessCents: excess,
+                purpose: purchase.note ?? purchase.merchant ?? '',
+                occurredAt: purchase.occurredAt,
+              ),
+            );
             _addChest(-excess, purchase.occurredMonth);
           }
         }
@@ -1016,7 +1288,8 @@ class _Builder {
 
       // Transfers after the last recording adjust the base value.
       var netTransfers = 0;
-      for (final t in transfersByAccount[id] ?? const <AccountTransferRecorded>[]) {
+      for (final t
+          in transfersByAccount[id] ?? const <AccountTransferRecorded>[]) {
         if (recordedAt == null || t.occurredAt.isAfter(recordedAt)) {
           netTransfers += t.direction == TransferDirection.deposit
               ? t.amountCents
@@ -1027,8 +1300,14 @@ class _Builder {
 
       final interest = kind == AccountKind.investment
           ? 0
-          : _accruedInterest(base, cfg?.aprBps, cfg?.accrualCadence, recordedAt);
-      final stale = kind == AccountKind.investment &&
+          : _accruedInterest(
+              base,
+              cfg?.aprBps,
+              cfg?.accrualCadence,
+              recordedAt,
+            );
+      final stale =
+          kind == AccountKind.investment &&
           _isStale(cfg?.updateCadence, recordedAt);
 
       accountBalances[id] = AccountBalance(
@@ -1046,8 +1325,10 @@ class _Builder {
         stale: stale,
       );
     }
-    final netWorthTotal =
-        accountBalances.values.fold(0, (a, x) => a + x.signedCents);
+    final netWorthTotal = accountBalances.values.fold(
+      0,
+      (a, x) => a + x.signedCents,
+    );
     final netWorth = NetWorthState(
       accounts: accountBalances,
       totalCents: netWorthTotal,
@@ -1069,17 +1350,21 @@ class _Builder {
         continue;
       }
       final year = e.occurredMonth.year;
-      deductibleByYear.putIfAbsent(year, () => []).add(DeductiblePurchase(
-            purchaseId: e.purchaseId,
-            userId: e.userId,
-            sliceName: sliceCfg?.name ?? _targetLabel(target),
-            amountCents: e.amountCents,
-            shared: e.shared,
-            occurredAt: e.occurredAt,
-            receiptShas: acc.receipts.keys.toList(),
-            merchant: e.merchant,
-            note: e.note,
-          ));
+      deductibleByYear
+          .putIfAbsent(year, () => [])
+          .add(
+            DeductiblePurchase(
+              purchaseId: e.purchaseId,
+              userId: e.userId,
+              sliceName: sliceCfg?.name ?? _targetLabel(target),
+              amountCents: e.amountCents,
+              shared: e.shared,
+              occurredAt: e.occurredAt,
+              receiptShas: acc.receipts.keys.toList(),
+              merchant: e.merchant,
+              note: e.note,
+            ),
+          );
     }
 
     // War chest goal progress.
@@ -1088,11 +1373,7 @@ class _Builder {
       final target = goalTarget!;
       final remaining = warChest < target ? target - warChest : 0;
       final asOfMonth = Month.fromInstant(now);
-      final trailing = [
-        asOfMonth,
-        asOfMonth.prev(),
-        asOfMonth.prev().prev(),
-      ];
+      final trailing = [asOfMonth, asOfMonth.prev(), asOfMonth.prev().prev()];
       final sum = trailing.fold(
         0,
         (a, mm) => a + (chestMonthlyNet[mm.toKey()] ?? 0),
@@ -1142,7 +1423,9 @@ class _Builder {
     // Default incomes per user, sorted ascending by the month they take effect.
     final incomeDefaultsByUser = <String, List<DefaultIncome>>{};
     for (final d in defaultIncomeCfg.values) {
-      incomeDefaultsByUser.putIfAbsent(d.forUserId, () => []).add(
+      incomeDefaultsByUser
+          .putIfAbsent(d.forUserId, () => [])
+          .add(
             DefaultIncome(
               effectiveFromMonth: d.effectiveFromMonth,
               amountCents: d.amountCents,
@@ -1214,6 +1497,7 @@ class _Builder {
             ownerUserId: debtOwner[sliceId]!,
             accruedCents: debtAccrued[sliceId]!,
             outstandingCents: debtBySlice[sliceId] ?? 0,
+            kind: debtKind[sliceId] ?? DebtKind.overbudget,
           ),
       },
       warChest: WarChestState(
@@ -1259,13 +1543,21 @@ class _Builder {
       },
       variableActuals: Map<String, int>.from(variableActuals),
       vacations: vacationStates,
+      savingsRules: rules,
+      categorySavings: Map.unmodifiable(savings),
+      advances: advanceStates,
     );
   }
 
   /// Applies one spoils-ritual allocation line for [cfg] (owned by [owner])
   /// in month [m].
-  void _applyAllocation(SliceConfig cfg, String owner, Allocation a, Month m,
-      Map<String, int> carryThis) {
+  void _applyAllocation(
+    SliceConfig cfg,
+    String owner,
+    Allocation a,
+    Month m,
+    Map<String, int> carryThis,
+  ) {
     final dest = a.destination;
     switch (dest) {
       case CarryInSlice():
@@ -1277,7 +1569,8 @@ class _Builder {
         // to the war chest and only the remainder lands as damage. A quest
         // without a main category never matches (always tithed).
         final quest = questCfg[dest.questId];
-        final matches = quest?.mainCategoryId != null &&
+        final matches =
+            quest?.mainCategoryId != null &&
             quest!.mainCategoryId == cfg.mainCategoryId;
         final int damage;
         if (matches) {
@@ -1287,8 +1580,7 @@ class _Builder {
           _addChest(t.titheCents, m);
           damage = t.remainderCents;
         }
-        questBalance[dest.questId] =
-            (questBalance[dest.questId] ?? 0) + damage;
+        questBalance[dest.questId] = (questBalance[dest.questId] ?? 0) + damage;
         final c = questContrib.putIfAbsent(dest.questId, () => {});
         c[owner] = (c[owner] ?? 0) + damage;
       case Discretionary():
@@ -1304,7 +1596,8 @@ class _Builder {
         // pays the pool tithe, so overpaying a debt never dodges the cut a
         // plain discretionary conversion would have taken.
         final target = slices[dest.sliceId];
-        final matches = target?.mainCategoryId != null &&
+        final matches =
+            target?.mainCategoryId != null &&
             target!.mainCategoryId == cfg.mainCategoryId;
         final outstanding = debtBySlice[dest.sliceId] ?? 0;
         final int pay;
@@ -1335,6 +1628,174 @@ class _Builder {
     }
   }
 
+  /// Applies one month-end line under the savings rules. Returns the unspent
+  /// allowance still available for later lines.
+  int _applySavingsAllocation(
+    SliceConfig cfg,
+    String owner,
+    Allocation a,
+    Month m,
+    int generalRate,
+    int allowanceLeft,
+  ) {
+    final fromSavings = a.source == AllocationSource.savings;
+    final source = fromSavings
+        ? (savings[cfg.sliceId] ?? TaxedBalance.zero)
+        : TaxedBalance(allowanceLeft);
+    final amount = a.amountCents < source.balanceCents
+        ? a.amountCents
+        : source.balanceCents;
+    if (amount <= 0) return allowanceLeft;
+
+    MoveResult move(int rate) {
+      final r = moveTaxed(source, amount, rate);
+      _addChest(r.topUpCents, m);
+      if (fromSavings) savings[cfg.sliceId] = r.remaining;
+      return r;
+    }
+
+    void toGeneral(int cents) {
+      _addVault(owner, cents);
+      availVault[owner] = (availVault[owner] ?? 0) + cents;
+    }
+
+    switch (a.destination) {
+      case CarryInSlice():
+        if (fromSavings) return allowanceLeft; // already in savings: stays
+        final r = move(cfg.poolTithePct);
+        savings[cfg.sliceId] =
+            (savings[cfg.sliceId] ?? TaxedBalance.zero) + r.delivered;
+      case Discretionary():
+        toGeneral(move(generalRate).delivered.balanceCents);
+      case QuestDestination(:final questId):
+        final quest = questCfg[questId];
+        final matches =
+            quest?.mainCategoryId != null &&
+            quest!.mainCategoryId == cfg.mainCategoryId;
+        final got = move(matches ? 0 : generalRate).delivered.balanceCents;
+        questBalance[questId] = (questBalance[questId] ?? 0) + got;
+        final c = questContrib.putIfAbsent(questId, () => {});
+        c[owner] = (c[owner] ?? 0) + got;
+      case OverbudgetPayment(:final sliceId):
+        final target = slices[sliceId];
+        final untaxed =
+            debtKind[sliceId] == DebtKind.provisions ||
+            (target?.mainCategoryId != null &&
+                target!.mainCategoryId == cfg.mainCategoryId);
+        final r = move(untaxed ? 0 : generalRate);
+        final outstanding = debtBySlice[sliceId] ?? 0;
+        final got = r.delivered.balanceCents;
+        final pay = got < outstanding ? got : outstanding;
+        if (pay > 0) debtBySlice[sliceId] = outstanding - pay;
+        final excess = got - pay;
+        if (excess > 0) {
+          // The excess keeps its share of tax paid and tops up to general.
+          final paid = got == 0 ? 0 : r.delivered.taxPaidCents * excess ~/ got;
+          final g = moveTaxed(TaxedBalance(excess, paid), excess, generalRate);
+          _addChest(g.topUpCents, m);
+          toGeneral(g.delivered.balanceCents);
+        }
+    }
+    return fromSavings ? allowanceLeft : allowanceLeft - amount;
+  }
+
+  /// Grace-expired default under the savings rules: the owner's outstanding
+  /// debts first (allowance sized so the post-tax payment covers each), then
+  /// the category's default policy. Category savings are never moved.
+  List<Allocation> _savingsDefaults(
+    SliceConfig cfg,
+    String owner,
+    int leftover,
+    int generalRate,
+  ) {
+    if (leftover <= 0) return const [];
+    final lines = <Allocation>[];
+    var remaining = leftover;
+    for (final debtId in debtBySlice.keys.toList()..sort()) {
+      if (remaining <= 0) break;
+      final outstanding = debtBySlice[debtId] ?? 0;
+      if (outstanding <= 0 || debtOwner[debtId] != owner) continue;
+      final target = slices[debtId];
+      final untaxed =
+          debtKind[debtId] == DebtKind.provisions ||
+          (target?.mainCategoryId != null &&
+              target!.mainCategoryId == cfg.mainCategoryId);
+      final gross = grossToDeliver(
+        TaxedBalance(remaining),
+        outstanding,
+        untaxed ? 0 : generalRate,
+      );
+      if (gross > 0) {
+        lines.add(
+          Allocation(
+            destination: OverbudgetPayment(debtId),
+            amountCents: gross,
+          ),
+        );
+        remaining -= gross;
+      }
+    }
+    if (remaining > 0) {
+      lines.add(
+        Allocation(
+          destination: cfg.defaultLeftoverPolicy,
+          amountCents: remaining,
+        ),
+      );
+    }
+    return lines;
+  }
+
+  /// A variable bill's estimate-vs-actual difference flows through savings:
+  /// shared bills through the war chest, personal ones through the owner's
+  /// general pool; a personal over-run the pool can't cover becomes a
+  /// provisions top-up debt (never a monster, never a lock).
+  void _applyBillVariance(RecurringExpenseSet r, Month m, int diff) {
+    if (diff == 0) return;
+    final own = r.ownership;
+    if (own is! PersonalParty) {
+      _addChest(diff, m);
+      return;
+    }
+    final owner = own.userId;
+    if (diff > 0) {
+      _addVault(owner, diff);
+      availVault[owner] = (availVault[owner] ?? 0) + diff;
+      return;
+    }
+    final need = -diff;
+    final avail = availVault[owner] ?? 0;
+    final take = need < (avail > 0 ? avail : 0)
+        ? need
+        : (avail > 0 ? avail : 0);
+    if (take > 0) {
+      availVault[owner] = avail - take;
+      _addVault(owner, -take);
+    }
+    final rest = need - take;
+    if (rest > 0) {
+      final key = 'provisions:${r.expenseId}';
+      debtBySlice[key] = (debtBySlice[key] ?? 0) + rest;
+      debtAccrued[key] = (debtAccrued[key] ?? 0) + rest;
+      debtOwner[key] = owner;
+      debtKind[key] = DebtKind.provisions;
+    }
+  }
+
+  /// Allowance withheld from [cfg] in [m] to repay approved advances: this
+  /// month's scheduled trim plus anything earlier months couldn't absorb,
+  /// capped at the month's funding (the excess rolls on).
+  int _takeTrim(SliceConfig cfg, Month m, int carryIn) {
+    final due =
+        (trimBySliceMonth['${cfg.sliceId}|${m.toKey()}'] ?? 0) +
+        (trimRoll[cfg.sliceId] ?? 0);
+    if (due <= 0) return 0;
+    final room = cfg.baseEffectiveLimitCents + carryIn;
+    final take = due < room ? due : (room > 0 ? room : 0);
+    trimRoll[cfg.sliceId] = due - take;
+    return take;
+  }
+
   /// The grace-expired default for a personal category's leftover: the
   /// owner's outstanding OVERBUDGETs are attacked first (gross amounts sized
   /// so the post-tithe damage covers each debt), and only the remainder
@@ -1342,7 +1803,10 @@ class _Builder {
   /// be paid; skipping it is an active choice made with an explicit
   /// allocation, never the silent default.
   List<Allocation> _defaultAllocations(
-      SliceConfig cfg, String owner, int leftover) {
+    SliceConfig cfg,
+    String owner,
+    int leftover,
+  ) {
     if (leftover <= 0) {
       return const [];
     }
@@ -1358,7 +1822,8 @@ class _Builder {
         continue;
       }
       final target = slices[sliceId];
-      final matches = target?.mainCategoryId != null &&
+      final matches =
+          target?.mainCategoryId != null &&
           target!.mainCategoryId == cfg.mainCategoryId;
       final int grossNeeded;
       if (matches || cfg.poolTithePct <= 0) {
@@ -1371,18 +1836,22 @@ class _Builder {
       }
       final amount = grossNeeded < remaining ? grossNeeded : remaining;
       if (amount > 0) {
-        lines.add(Allocation(
-          destination: OverbudgetPayment(sliceId),
-          amountCents: amount,
-        ));
+        lines.add(
+          Allocation(
+            destination: OverbudgetPayment(sliceId),
+            amountCents: amount,
+          ),
+        );
         remaining -= amount;
       }
     }
     if (remaining > 0) {
-      lines.add(Allocation(
-        destination: cfg.defaultLeftoverPolicy,
-        amountCents: remaining,
-      ));
+      lines.add(
+        Allocation(
+          destination: cfg.defaultLeftoverPolicy,
+          amountCents: remaining,
+        ),
+      );
     }
     return lines;
   }
@@ -1415,12 +1884,12 @@ class _Builder {
   }
 
   String _targetLabel(ChargeTarget t) => switch (t) {
-        SliceCharge() => t.sliceId,
-        VaultCharge() => 'vault',
-        QuestCharge() => t.questId,
-        EmergencyCharge() => t.fundId,
-        VacationCharge() => t.vacationId,
-      };
+    SliceCharge() => t.sliceId,
+    VaultCharge() => 'vault',
+    QuestCharge() => t.questId,
+    EmergencyCharge() => t.fundId,
+    VacationCharge() => t.vacationId,
+  };
 
   Month _abandonMonth(String questId) {
     // The abandonment occurredMonth was captured on the QuestAbandoned event;
@@ -1492,6 +1961,9 @@ class _Builder {
     for (final a in allocations.values) {
       consider(a.month);
     }
+    for (final p in advanceProposals.values) {
+      consider(p.occurredMonth);
+    }
 
     final asOfMonth = Month.fromInstant(now);
     // A surfaced debt minimum payment anchors the sweep at the current month so
@@ -1510,8 +1982,22 @@ class _Builder {
 /// One personal category's figures for one swept month, buffered between the
 /// sweep's phases (locks -> close settlement -> ritual allocations).
 class _SliceCalc {
-  _SliceCalc(this.cfg, this.owner, this.carryIn, this.locked, this.eff,
-      this.spent, this.leftover, this.overspend);
+  _SliceCalc(
+    this.cfg,
+    this.owner,
+    this.carryIn,
+    this.locked,
+    this.eff,
+    this.spent,
+    this.leftover,
+    this.overspend, {
+    this.fromSavings = 0,
+    this.savingsAfter = 0,
+    this.savingsPaid = 0,
+    this.covered = 0,
+    this.trimmed = 0,
+    this.newRules = false,
+  });
 
   final SliceConfig cfg;
   final String owner;
@@ -1521,6 +2007,14 @@ class _SliceCalc {
   final int spent;
   final int leftover;
   final int overspend;
+
+  // Savings rules only.
+  final int fromSavings;
+  final int savingsAfter;
+  final int savingsPaid;
+  final int covered;
+  final int trimmed;
+  final bool newRules;
 }
 
 /// A recurring expense derived from a tracked account (a debt's minimum
@@ -1560,14 +2054,14 @@ class _FundContribution {
 /// purchase before it can ransack the war chest.
 class _FundTimelineItem implements Comparable<_FundTimelineItem> {
   _FundTimelineItem.contribution(this.instant, this.amount)
-      : isContribution = true,
-        purchase = null;
+    : isContribution = true,
+      purchase = null;
 
   _FundTimelineItem.purchase(PurchaseAdded p)
-      : isContribution = false,
-        instant = p.occurredAt,
-        amount = p.amountCents,
-        purchase = p;
+    : isContribution = false,
+      instant = p.occurredAt,
+      amount = p.amountCents,
+      purchase = p;
 
   final DateTime instant;
   final int amount;

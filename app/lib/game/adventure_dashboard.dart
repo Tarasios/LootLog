@@ -265,13 +265,15 @@ class _FloorHeader extends StatelessWidget {
                 scale: 2,
                 animate: true,
               ),
-              const SizedBox(width: AppSpacing.xs),
-              GameSprite(
-                sprite: game.partnerSprite,
-                resolver: resolver,
-                scale: 2,
-                animate: true,
-              ),
+              for (final companion in game.companionSprites) ...[
+                const SizedBox(width: AppSpacing.xs),
+                GameSprite(
+                  sprite: companion,
+                  resolver: resolver,
+                  scale: 2,
+                  animate: true,
+                ),
+              ],
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(

@@ -189,6 +189,30 @@ List<ChangeLogEntry> buildChangeLog(
           ChangeLogKind.governance,
           'Cancelled a withdrawal',
         ),
+      ShortfallCovered() => entry(
+          ChangeLogKind.money,
+          switch (e.source) {
+            GeneralCover() =>
+              '${who(e.userId)} covered part of a purchase from general savings',
+            CategorySavingsCover() =>
+              '${who(e.userId)} put category savings toward a goal purchase',
+          },
+          amountCents: -e.amountCents,
+        ),
+      AllowanceAdvanceProposed() => entry(
+          ChangeLogKind.governance,
+          '${who(e.byUserId)} asked to borrow from future months '
+          '(${e.months} month${e.months == 1 ? '' : 's'})',
+          amountCents: -e.amountCents,
+        ),
+      AllowanceAdvanceApproved() => entry(
+          ChangeLogKind.governance,
+          '${who(e.byUserId)} approved borrowing from future months',
+        ),
+      AllowanceAdvanceCancelled() => entry(
+          ChangeLogKind.governance,
+          'Cancelled a request to borrow from future months',
+        ),
       TaxRefundRecorded() => entry(
           ChangeLogKind.money,
           'Recorded a tax refund to the war chest',
@@ -275,6 +299,12 @@ List<ChangeLogEntry> buildChangeLog(
           ChangeLogKind.cosmetic,
           'Earned a reward',
           detail: e.rewardId,
+        ),
+      // Written by a newer version of LootLog; kept and synced untouched.
+      UnknownEvent() => entry(
+          ChangeLogKind.config,
+          'Recorded a change from a newer version of LootLog',
+          detail: e.rawType,
         ),
     });
   }

@@ -86,8 +86,11 @@ class VacationCharge extends ChargeTarget {
   final String vacationId;
   final String categoryId;
   @override
-  Map<String, dynamic> toJson() =>
-      {'kind': 'vacation', 'vacationId': vacationId, 'categoryId': categoryId};
+  Map<String, dynamic> toJson() => {
+    'kind': 'vacation',
+    'vacationId': vacationId,
+    'categoryId': categoryId,
+  };
   @override
   bool operator ==(Object other) =>
       other is VacationCharge &&
@@ -155,10 +158,14 @@ class VacationCategory {
   final String name;
   final int limitCents;
 
-  Map<String, dynamic> toJson() =>
-      {'categoryId': categoryId, 'name': name, 'limitCents': limitCents};
+  Map<String, dynamic> toJson() => {
+    'categoryId': categoryId,
+    'name': name,
+    'limitCents': limitCents,
+  };
 
-  static VacationCategory fromJson(Map<String, dynamic> json) => VacationCategory(
+  static VacationCategory fromJson(Map<String, dynamic> json) =>
+      VacationCategory(
         categoryId: json['categoryId'] as String,
         name: json['name'] as String,
         limitCents: json['limitCents'] as int,
@@ -265,10 +272,10 @@ enum SlicePriority {
   fun;
 
   static SlicePriority fromName(String? name) => switch (name) {
-        'necessity' => SlicePriority.necessity,
-        'fun' => SlicePriority.fun,
-        _ => SlicePriority.important,
-      };
+    'necessity' => SlicePriority.necessity,
+    'fun' => SlicePriority.fun,
+    _ => SlicePriority.important,
+  };
 }
 
 /// A destination for month-close leftover: carry within the slice, attack a
@@ -327,32 +334,100 @@ class Discretionary extends LeftoverDestination {
   int get hashCode => 'discretionary'.hashCode;
 }
 
+/// Which pool a month-end allocation line spends: the category's unspent
+/// monthly allowance (never taxed yet) or its category savings (already taxed).
+enum AllocationSource { allowance, savings }
+
 /// A single leftover allocation line.
 class Allocation {
-  const Allocation({required this.destination, required this.amountCents});
+  const Allocation({
+    required this.destination,
+    required this.amountCents,
+    this.source = AllocationSource.allowance,
+  });
 
   final LeftoverDestination destination;
   final int amountCents;
+  final AllocationSource source;
 
-  Map<String, dynamic> toJson() =>
-      {'destination': destination.toJson(), 'amountCents': amountCents};
+  Map<String, dynamic> toJson() => {
+    'destination': destination.toJson(),
+    'amountCents': amountCents,
+    // Omitted for the default so pre-savings events stay byte-identical.
+    if (source != AllocationSource.allowance) 'source': source.name,
+  };
 
   static Allocation fromJson(Map<String, dynamic> json) => Allocation(
-        destination: LeftoverDestination.fromJson(
-          json['destination'] as Map<String, dynamic>,
-        ),
-        amountCents: json['amountCents'] as int,
-      );
+    destination: LeftoverDestination.fromJson(
+      (json['destination'] as Map).cast<String, dynamic>(),
+    ),
+    amountCents: json['amountCents'] as int,
+    source: json['source'] == null
+        ? AllocationSource.allowance
+        : AllocationSource.values.byName(json['source'] as String),
+  );
 
   @override
   bool operator ==(Object other) =>
       other is Allocation &&
       other.destination == destination &&
-      other.amountCents == amountCents;
+      other.amountCents == amountCents &&
+      other.source == source;
 
   @override
-  int get hashCode => Object.hash(destination, amountCents);
+  int get hashCode => Object.hash(destination, amountCents, source);
 }
+
+/// Where the gap on a purchase that exceeds what's available is covered from.
+sealed class CoverSource {
+  const CoverSource();
+  Map<String, dynamic> toJson();
+
+  static CoverSource fromJson(Map<String, dynamic> json) {
+    final kind = json['kind'] as String;
+    switch (kind) {
+      case 'general':
+        return const GeneralCover();
+      case 'categorySavings':
+        return CategorySavingsCover(json['sliceId'] as String);
+      default:
+        throw FormatException('Unknown cover source kind: $kind');
+    }
+  }
+}
+
+/// The purchaser's general pool (their vault). Spending, so never taxed.
+class GeneralCover extends CoverSource {
+  const GeneralCover();
+  @override
+  Map<String, dynamic> toJson() => {'kind': 'general'};
+  @override
+  bool operator ==(Object other) => other is GeneralCover;
+  @override
+  int get hashCode => 'generalCover'.hashCode;
+}
+
+/// One of the purchaser's category savings pools, moved into a quest when
+/// buying its goal (difference tax at the quest rate).
+class CategorySavingsCover extends CoverSource {
+  const CategorySavingsCover(this.sliceId);
+  final String sliceId;
+  @override
+  Map<String, dynamic> toJson() => {
+    'kind': 'categorySavings',
+    'sliceId': sliceId,
+  };
+  @override
+  bool operator ==(Object other) =>
+      other is CategorySavingsCover && other.sliceId == sliceId;
+  @override
+  int get hashCode => Object.hash('categorySavingsCover', sliceId);
+}
+
+/// What an outstanding debt is: an overspent category (the OVERBUDGET) or a
+/// variable bill that ran over what savings could cover (a provisions top-up,
+/// never shown as a monster).
+enum DebtKind { overbudget, provisions }
 
 /// Pays down the OVERBUDGET debt of an overspent category. The attack is
 /// tithed by the category-match rule (matching main category = untithed);
@@ -448,13 +523,18 @@ enum RewardKind { trophy, title, badge }
 
 /// An emergency fund contribution designated on a slice.
 class EmergencyContribution {
-  const EmergencyContribution({required this.fundId, required this.amountCents});
+  const EmergencyContribution({
+    required this.fundId,
+    required this.amountCents,
+  });
 
   final String fundId;
   final int amountCents;
 
-  Map<String, dynamic> toJson() =>
-      {'fundId': fundId, 'amountCents': amountCents};
+  Map<String, dynamic> toJson() => {
+    'fundId': fundId,
+    'amountCents': amountCents,
+  };
 
   static EmergencyContribution fromJson(Map<String, dynamic> json) =>
       EmergencyContribution(
