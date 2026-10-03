@@ -28,6 +28,7 @@ import 'emergency_funds_screen.dart';
 import 'income_screen.dart';
 import 'members_screen.dart';
 import 'recurring_screen.dart';
+import 'savings_rules_card.dart';
 import 'visibility_prefs.dart';
 
 /// Whether this build runs on a desktop OS (where the receipt library applies).
@@ -49,29 +50,53 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         children: [
           const _SectionHeader('Household'),
-          _nav(context, Icons.groups_outlined, 'Members',
-              'Adults, dependents, and pets', const MembersScreen()),
-          _nav(context, Icons.payments_outlined, 'Income',
-              'Each member\'s monthly income', const IncomeScreen()),
-          _nav(context, Icons.autorenew, 'Recurring expenses',
-              'Regular bills and subscriptions, charged off the top',
-              const RecurringScreen()),
-          _nav(context, Icons.pie_chart_outline, 'Budget categories',
-              'Limits, savings cut, and how leftovers are handled',
-              const CategoryListScreen()),
-          _nav(context, Icons.emergency_outlined, 'Emergency funds',
-              'Named rainy-day funds for unexpected costs',
-              const EmergencyFundsScreen()),
+          _nav(
+            context,
+            Icons.groups_outlined,
+            'Members',
+            'Adults, dependents, and pets',
+            const MembersScreen(),
+          ),
+          _nav(
+            context,
+            Icons.payments_outlined,
+            'Income',
+            'Each member\'s monthly income',
+            const IncomeScreen(),
+          ),
+          _nav(
+            context,
+            Icons.autorenew,
+            'Recurring expenses',
+            'Regular bills and subscriptions, charged off the top',
+            const RecurringScreen(),
+          ),
+          _nav(
+            context,
+            Icons.pie_chart_outline,
+            'Budget categories',
+            'Limits, savings cut, and how leftovers are handled',
+            const CategoryListScreen(),
+          ),
+          _nav(
+            context,
+            Icons.emergency_outlined,
+            'Emergency funds',
+            'Named rainy-day funds for unexpected costs',
+            const EmergencyFundsScreen(),
+          ),
           SwitchListTile(
             secondary: const Icon(Icons.visibility_outlined),
             title: const Text('Show other adults\' budgets'),
             subtitle: const Text(
-                'Display everyone\'s budgets and repayments on this device. '
-                'Turning this off only tidies the view here — the household '
-                'data still syncs in full and shared savings always show.'),
+              'Display everyone\'s budgets and repayments on this device. '
+              'Turning this off only tidies the view here — the household '
+              'data still syncs in full and shared savings always show.',
+            ),
             value: ref.watch(showHouseholdBudgetsProvider),
             onChanged: (v) => unawaited(
-                ref.read(showHouseholdBudgetsProvider.notifier).select(v)),
+              ref.read(showHouseholdBudgetsProvider.notifier).select(v),
+            ),
           ),
           const _SectionHeader('Appearance'),
           _SkinTile(
@@ -83,19 +108,27 @@ class SettingsScreen extends ConsumerWidget {
             SwitchListTile(
               secondary: const Icon(Icons.text_fields),
               title: const Text('Text mode'),
-              subtitle: const Text('Render the adventure as a text adventure '
-                  'instead of pixel art — works with no artwork at all'),
+              subtitle: const Text(
+                'Render the adventure as a text adventure '
+                'instead of pixel art — works with no artwork at all',
+              ),
               value: ref.watch(adventureTierProvider) == AdventureTier.text,
-              onChanged: (v) => unawaited(ref
-                  .read(adventureTierProvider.notifier)
-                  .select(v ? AdventureTier.text : AdventureTier.pixel)),
+              onChanged: (v) => unawaited(
+                ref
+                    .read(adventureTierProvider.notifier)
+                    .select(v ? AdventureTier.text : AdventureTier.pixel),
+              ),
             ),
           const _SectionHeader('Rules'),
+          const SavingsRulesCard(),
           ListTile(
             leading: const Icon(Icons.hourglass_bottom),
             title: Text(
-                Glossary.gracePeriodLabel(settings.spoilsGraceDays,
-                    isAdventure: false)),
+              Glossary.gracePeriodLabel(
+                settings.spoilsGraceDays,
+                isAdventure: false,
+              ),
+            ),
             subtitle: Text(Glossary.gracePeriod.helper),
             onTap: () => _editInt(
               context,
@@ -111,8 +144,9 @@ class SettingsScreen extends ConsumerWidget {
             leading: const Icon(Icons.percent),
             title: const Text('Savings-goal cancellation fee'),
             subtitle: Text(
-                '${settings.dissolutionTithePct}% kept for shared savings when '
-                'a goal is cancelled'),
+              '${settings.dissolutionTithePct}% kept for shared savings when '
+              'a goal is cancelled',
+            ),
             onTap: () => _editInt(
               context,
               ref,
@@ -126,13 +160,17 @@ class SettingsScreen extends ConsumerWidget {
           SwitchListTile(
             secondary: const Icon(Icons.trending_up),
             title: const Text('Show net worth'),
-            subtitle: const Text('Track savings, investments and debts on a '
-                'separate net-worth screen'),
+            subtitle: const Text(
+              'Track savings, investments and debts on a '
+              'separate net-worth screen',
+            ),
             value: settings.showNetWorth,
             onChanged: (v) {
               final actions = ref.read(householdActionsProvider);
-              unawaited(actions?.changeSetting('showNetWorth', v) ??
-                  Future<void>.value());
+              unawaited(
+                actions?.changeSetting('showNetWorth', v) ??
+                    Future<void>.value(),
+              );
             },
           ),
           const _SectionHeader('Help'),
@@ -158,11 +196,14 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: const Text('How scanned receipts are stored'),
             ),
             RadioGroup<ReceiptStorageMode>(
-              groupValue: ref.watch(receiptStorageModeProvider).value ??
+              groupValue:
+                  ref.watch(receiptStorageModeProvider).value ??
                   ReceiptStorageMode.keep,
-              onChanged: (v) => unawaited(ref
-                  .read(receiptStorageModeProvider.notifier)
-                  .set(v ?? ReceiptStorageMode.keep)),
+              onChanged: (v) => unawaited(
+                ref
+                    .read(receiptStorageModeProvider.notifier)
+                    .set(v ?? ReceiptStorageMode.keep),
+              ),
               child: const Column(
                 children: [
                   RadioListTile<ReceiptStorageMode>(
@@ -175,43 +216,67 @@ class SettingsScreen extends ConsumerWidget {
                     value: ReceiptStorageMode.offload,
                     dense: true,
                     title: Text('Free up space after syncing'),
-                    subtitle: Text('Images are removed once every paired '
-                        'desktop hub holds a copy; they stay in your budget '
-                        'and download again when viewed'),
+                    subtitle: Text(
+                      'Images are removed once every paired '
+                      'desktop hub holds a copy; they stay in your budget '
+                      'and download again when viewed',
+                    ),
                   ),
                   RadioListTile<ReceiptStorageMode>(
                     value: ReceiptStorageMode.none,
                     dense: true,
                     title: Text('Scan only, never save'),
-                    subtitle: Text('The camera fills in the amount, date, and '
-                        'store, then the image is discarded'),
+                    subtitle: Text(
+                      'The camera fills in the amount, date, and '
+                      'store, then the image is discarded',
+                    ),
                   ),
                 ],
               ),
             ),
           ],
           if (isDesktop)
-            _nav(context, Icons.folder_copy_outlined, 'Receipt library',
-                'Mirror receipts to a folder', const ReceiptLibraryScreen()),
-          _nav(context, Icons.receipt_long_outlined, 'Tax center',
-              'Deductible totals and package export', const TaxCenterScreen()),
-          _nav(context, Icons.table_view_outlined, 'Export',
-              'Spreadsheet (.xlsx) and Google Sheets sync', const ExportScreen()),
+            _nav(
+              context,
+              Icons.folder_copy_outlined,
+              'Receipt library',
+              'Mirror receipts to a folder',
+              const ReceiptLibraryScreen(),
+            ),
+          _nav(
+            context,
+            Icons.receipt_long_outlined,
+            'Tax center',
+            'Deductible totals and package export',
+            const TaxCenterScreen(),
+          ),
+          _nav(
+            context,
+            Icons.table_view_outlined,
+            'Export',
+            'Spreadsheet (.xlsx) and Google Sheets sync',
+            const ExportScreen(),
+          ),
         ],
       ),
     );
   }
 
-  Widget _nav(BuildContext context, IconData icon, String title,
-      String subtitle, Widget page) {
+  Widget _nav(
+    BuildContext context,
+    IconData icon,
+    String title,
+    String subtitle,
+    Widget page,
+  ) {
     return ListTile(
       leading: Icon(icon),
       title: Text(title),
       subtitle: Text(subtitle),
       trailing: const Icon(Icons.chevron_right),
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => page),
-      ),
+      onTap: () => Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => page)),
     );
   }
 
@@ -288,8 +353,8 @@ class _SkinTile extends StatelessWidget {
                     Text(
                       'Classic ledger or the dungeon adventure skin',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -327,7 +392,11 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.sm,
+      ),
       child: Text(label, style: AppText.sectionLabel(context)),
     );
   }

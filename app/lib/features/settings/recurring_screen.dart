@@ -67,7 +67,8 @@ class RecurringScreen extends ConsumerWidget {
                     r.name,
                     style: ended
                         ? const TextStyle(
-                            decoration: TextDecoration.lineThrough)
+                            decoration: TextDecoration.lineThrough,
+                          )
                         : null,
                   ),
                   subtitle: Text(
@@ -86,13 +87,11 @@ class RecurringScreen extends ConsumerWidget {
                       if (r.isAnnual)
                         Text(
                           '${money(r.amountCents ~/ 12)}/mo',
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelSmall
+                          style: Theme.of(context).textTheme.labelSmall
                               ?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                               ),
                         ),
                     ],
@@ -109,17 +108,17 @@ class _Empty extends StatelessWidget {
   const _Empty();
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          child: Text(
-            'No recurring expenses yet.\nAdd rent, subscriptions, utilities…',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-          ),
+    child: Padding(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: Text(
+        'No recurring expenses yet.\nAdd rent, subscriptions, utilities…',
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class RecurringEditorScreen extends ConsumerStatefulWidget {
@@ -127,19 +126,24 @@ class RecurringEditorScreen extends ConsumerStatefulWidget {
 
   final RecurringExpenseState? existing;
 
-  static Future<void> open(BuildContext context,
-          {RecurringExpenseState? existing}) =>
-      Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => RecurringEditorScreen(existing: existing),
-      ));
+  static Future<void> open(
+    BuildContext context, {
+    RecurringExpenseState? existing,
+  }) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => RecurringEditorScreen(existing: existing),
+    ),
+  );
 
   @override
-  ConsumerState<RecurringEditorScreen> createState() => _RecurringEditorScreenState();
+  ConsumerState<RecurringEditorScreen> createState() =>
+      _RecurringEditorScreenState();
 }
 
 class _RecurringEditorScreenState extends ConsumerState<RecurringEditorScreen> {
   late final TextEditingController _name;
   late final TextEditingController _amount;
+
   /// The owning adult, or null when shared by the household.
   String? _ownerUserId;
   RecurringKind _kind = RecurringKind.fixed;
@@ -155,8 +159,9 @@ class _RecurringEditorScreenState extends ConsumerState<RecurringEditorScreen> {
     super.initState();
     final e = widget.existing;
     _name = TextEditingController(text: e?.name ?? '');
-    _amount =
-        TextEditingController(text: e == null ? '' : Money(e.amountCents).format());
+    _amount = TextEditingController(
+      text: e == null ? '' : Money(e.amountCents).format(),
+    );
     _kind = e?.kind ?? RecurringKind.fixed;
     _cadence = e?.cadence ?? RecurringCadence.monthly;
     _dueDay = e?.dueDay ?? 1;
@@ -188,7 +193,9 @@ class _RecurringEditorScreenState extends ConsumerState<RecurringEditorScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.existing == null ? 'New recurring' : 'Edit recurring'),
+        title: Text(
+          widget.existing == null ? 'New recurring' : 'Edit recurring',
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -214,7 +221,9 @@ class _RecurringEditorScreenState extends ConsumerState<RecurringEditorScreen> {
             segments: const [
               ButtonSegment(value: RecurringKind.fixed, label: Text('Fixed')),
               ButtonSegment(
-                  value: RecurringKind.variable, label: Text('Variable')),
+                value: RecurringKind.variable,
+                label: Text('Variable'),
+              ),
             ],
             selected: {_kind},
             onSelectionChanged: (s) => setState(() => _kind = s.first),
@@ -225,9 +234,13 @@ class _RecurringEditorScreenState extends ConsumerState<RecurringEditorScreen> {
           SegmentedButton<RecurringCadence>(
             segments: const [
               ButtonSegment(
-                  value: RecurringCadence.monthly, label: Text('Monthly')),
+                value: RecurringCadence.monthly,
+                label: Text('Monthly'),
+              ),
               ButtonSegment(
-                  value: RecurringCadence.annual, label: Text('Annual')),
+                value: RecurringCadence.annual,
+                label: Text('Annual'),
+              ),
             ],
             selected: {_cadence},
             onSelectionChanged: (s) => setState(() => _cadence = s.first),
@@ -258,9 +271,13 @@ class _RecurringEditorScreenState extends ConsumerState<RecurringEditorScreen> {
                     decoration: const InputDecoration(labelText: 'Month'),
                     items: [
                       for (var mo = 1; mo <= 12; mo++)
-                        DropdownMenuItem(value: mo, child: Text(_monthName(mo))),
+                        DropdownMenuItem(
+                          value: mo,
+                          child: Text(_monthName(mo)),
+                        ),
                     ],
-                    onChanged: (v) => setState(() => _dueMonth = v ?? _dueMonth),
+                    onChanged: (v) =>
+                        setState(() => _dueMonth = v ?? _dueMonth),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
@@ -295,10 +312,7 @@ class _RecurringEditorScreenState extends ConsumerState<RecurringEditorScreen> {
             onClear: () => setState(() => _end = null),
           ),
           const SizedBox(height: AppSpacing.xl),
-          FilledButton(
-            onPressed: _save,
-            child: const Text('Save'),
-          ),
+          FilledButton(onPressed: _save, child: const Text('Save')),
           if (widget.existing != null) ...[
             const SizedBox(height: AppSpacing.md),
             OutlinedButton.icon(
@@ -319,18 +333,23 @@ class _RecurringEditorScreenState extends ConsumerState<RecurringEditorScreen> {
     final amount = tryParseMoneyCents(_amount.text);
     if (name.isEmpty || amount == null) {
       messenger.showSnackBar(
-          const SnackBar(content: Text('Enter a name and amount')));
+        const SnackBar(content: Text('Enter a name and amount')),
+      );
       return;
     }
     if (_end != null && _end! < _start) {
       messenger.showSnackBar(
-          const SnackBar(content: Text('End month is before start month')));
+        const SnackBar(content: Text('End month is before start month')),
+      );
       return;
     }
     final owner = _ownerUserId;
-    final PartyOwnership ownership =
-        owner == null ? const SharedParty() : PersonalParty(owner);
-    await ref.read(householdActionsProvider)?.setRecurringExpense(
+    final PartyOwnership ownership = owner == null
+        ? const SharedParty()
+        : PersonalParty(owner);
+    await ref
+        .read(householdActionsProvider)
+        ?.setRecurringExpense(
           expenseId: widget.existing?.expenseId,
           name: name,
           ownership: ownership,
@@ -350,7 +369,9 @@ class _RecurringEditorScreenState extends ConsumerState<RecurringEditorScreen> {
     final navigator = Navigator.of(context);
     // Cancel by ending it at the current month (keeps the run through this month).
     final endAt = Month.fromInstant(DateTime.now());
-    await ref.read(householdActionsProvider)?.setRecurringExpense(
+    await ref
+        .read(householdActionsProvider)
+        ?.setRecurringExpense(
           expenseId: e.expenseId,
           name: e.name,
           ownership: e.ownership,
@@ -367,17 +388,17 @@ class _RecurringEditorScreenState extends ConsumerState<RecurringEditorScreen> {
 }
 
 String _monthName(int month) => const [
-      '',
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ][month];
+  '',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+][month];

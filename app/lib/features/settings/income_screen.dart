@@ -102,7 +102,8 @@ class _UserIncomeCard extends ConsumerWidget {
             const SizedBox(height: AppSpacing.md),
             _DefaultIncomeEditor(
               key: ValueKey(
-                  'default|$userId|${defaultCents ?? -1}|${highCents ?? -1}'),
+                'default|$userId|${defaultCents ?? -1}|${highCents ?? -1}',
+              ),
               name: name,
               cents: defaultCents,
               highCents: highCents,
@@ -139,11 +140,9 @@ class _UserIncomeCard extends ConsumerWidget {
       ),
     );
     if (cents == null) return;
-    await ref.read(householdActionsProvider)?.setIncome(
-          forUserId: userId,
-          month: m,
-          amountCents: cents,
-        );
+    await ref
+        .read(householdActionsProvider)
+        ?.setIncome(forUserId: userId, month: m, amountCents: cents);
   }
 }
 
@@ -193,15 +192,16 @@ class _DefaultIncomeEditorState extends State<_DefaultIncomeEditor> {
             Expanded(
               child: TextField(
                 controller: _c,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: InputDecoration(
                   labelText: _varies
                       ? 'Monthly income — low estimate'
                       : 'Default monthly income',
                   helperText: _varies
                       ? 'Budgets plan on this, the amount a slow month still '
-                          'brings in'
+                            'brings in'
                       : 'Carries forward to every month until changed',
                   prefixText: r'$',
                 ),
@@ -211,13 +211,12 @@ class _DefaultIncomeEditorState extends State<_DefaultIncomeEditor> {
             FilledButton(
               onPressed: () {
                 final cents = tryParseMoneyCents(_c.text) ?? 0;
-                final high =
-                    _varies ? tryParseMoneyCents(_high.text) : null;
+                final high = _varies ? tryParseMoneyCents(_high.text) : null;
                 widget.onSave(cents, high);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                      content:
-                          Text('Saved ${widget.name}\'s default income')),
+                    content: Text('Saved ${widget.name}\'s default income'),
+                  ),
                 );
               },
               child: const Text('Save'),
@@ -228,19 +227,21 @@ class _DefaultIncomeEditorState extends State<_DefaultIncomeEditor> {
           contentPadding: EdgeInsets.zero,
           dense: true,
           title: const Text('Income varies month to month'),
-          subtitle: const Text('Hourly, freelance, or shifting hours: plan '
-              'at the low end and record what each month really paid'),
+          subtitle: const Text(
+            'Hourly, freelance, or shifting hours: plan '
+            'at the low end and record what each month really paid',
+          ),
           value: _varies,
           onChanged: (v) => setState(() => _varies = v),
         ),
         if (_varies)
           TextField(
             controller: _high,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: const InputDecoration(
               labelText: 'High estimate (a good month)',
-              helperText: 'Display only — anything above the low estimate '
+              helperText:
+                  'Display only — anything above the low estimate '
                   'arrives as a bonus, never as a plan',
               prefixText: r'$',
             ),
@@ -271,9 +272,7 @@ class _MonthRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Row(
         children: [
-          Expanded(
-            child: Text(monthLabel(month.year, month.month)),
-          ),
+          Expanded(child: Text(monthLabel(month.year, month.month))),
           if (isOverride)
             const _Badge(label: 'override', tone: _BadgeTone.override)
           else if (hasDefault)
@@ -326,10 +325,7 @@ class _Badge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: Theme.of(context)
-            .textTheme
-            .labelSmall
-            ?.copyWith(color: fg),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(color: fg),
       ),
     );
   }

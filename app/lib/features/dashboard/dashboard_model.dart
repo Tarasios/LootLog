@@ -55,7 +55,8 @@ class NetWorthSummary {
   /// Recorded net-worth samples over time, oldest first.
   final List<BalancePoint> series;
 
-  bool get hasAccounts => assetsCents != 0 || debtsCents != 0 || series.isNotEmpty;
+  bool get hasAccounts =>
+      assetsCents != 0 || debtsCents != 0 || series.isNotEmpty;
   bool get hasHistory => series.length >= 2;
 }
 
@@ -70,6 +71,7 @@ class SliceRing {
     required this.overspendCents,
     required this.mine,
     this.lockedCents = 0,
+    this.savingsCents = 0,
     this.ownerName,
     this.petName,
     this.mainCategoryColorArgb,
@@ -85,6 +87,11 @@ class SliceRing {
   /// Funding withheld this month to repay earlier overspending; when > 0 the
   /// category is (partly or fully) locked.
   final int lockedCents;
+
+  /// Savings rules only: what's saved inside this category right now.
+  /// [spentCents] then counts only spending against this month's allowance —
+  /// what savings, general savings or an advance paid for isn't included.
+  final int savingsCents;
 
   /// Whether a personal slice belongs to the device owner.
   final bool mine;
@@ -414,25 +421,29 @@ DashboardModel buildDashboardModel(
   final rings = <SliceRing>[];
   for (final cfg in state.slices.values) {
     if (cfg.createdMonth.isAfter(month)) continue;
-    if (!includeOtherAdults &&
-        !cfg.isGroup &&
-        cfg.ownerUserId != meUserId) {
+    if (!includeOtherAdults && !cfg.isGroup && cfg.ownerUserId != meUserId) {
       continue;
     }
     final sm = state.sliceMonth(cfg.sliceId, month);
-    rings.add(SliceRing(
-      sliceId: cfg.sliceId,
-      name: cfg.name,
-      isGroup: cfg.isGroup,
-      spentCents: sm?.spentCents ?? 0,
-      effectiveLimitCents: sm?.effectiveLimitCents ?? cfg.baseEffectiveLimitCents,
-      overspendCents: sm?.overspendCents ?? 0,
-      lockedCents: sm?.lockedCents ?? 0,
-      mine: !cfg.isGroup && cfg.ownerUserId == meUserId,
-      ownerName: cfg.isGroup ? null : nameOf(cfg.ownerUserId ?? ''),
-      petName: petName(cfg.petId),
-      mainCategoryColorArgb: mainColor(cfg.mainCategoryId),
-    ));
+    rings.add(
+      SliceRing(
+        sliceId: cfg.sliceId,
+        name: cfg.name,
+        isGroup: cfg.isGroup,
+        spentCents: sm == null
+            ? 0
+            : sm.spentCents - sm.coveredCents - sm.fromSavingsCents,
+        effectiveLimitCents:
+            sm?.effectiveLimitCents ?? cfg.baseEffectiveLimitCents,
+        overspendCents: sm?.overspendCents ?? 0,
+        lockedCents: sm?.lockedCents ?? 0,
+        savingsCents: sm?.savingsCents ?? 0,
+        mine: !cfg.isGroup && cfg.ownerUserId == meUserId,
+        ownerName: cfg.isGroup ? null : nameOf(cfg.ownerUserId ?? ''),
+        petName: petName(cfg.petId),
+        mainCategoryColorArgb: mainColor(cfg.mainCategoryId),
+      ),
+    );
   }
   rings.sort((a, b) {
     // My personal slices first, then my partner's, then group slices; name ties.
@@ -451,17 +462,20 @@ DashboardModel buildDashboardModel(
     final amount = r.kind == RecurringKind.variable
         ? (actualThis ?? r.amountCents)
         : r.amountCents;
-    final awaiting = r.kind == RecurringKind.variable &&
+    final awaiting =
+        r.kind == RecurringKind.variable &&
         activeClosed &&
         state.variableActualFor(r.expenseId, closed) == null;
-    maintenance.add(MaintenanceItem(
-      name: r.name,
-      kind: r.kind,
-      amountCents: amount,
-      isShared: r.isShared,
-      awaitingTally: awaiting,
-      ownerName: r.ownerUserId == null ? null : nameOf(r.ownerUserId!),
-    ));
+    maintenance.add(
+      MaintenanceItem(
+        name: r.name,
+        kind: r.kind,
+        amountCents: amount,
+        isShared: r.isShared,
+        awaitingTally: awaiting,
+        ownerName: r.ownerUserId == null ? null : nameOf(r.ownerUserId!),
+      ),
+    );
   }
   maintenance.sort((a, b) => a.name.compareTo(b.name));
 
@@ -471,15 +485,17 @@ DashboardModel buildDashboardModel(
   final upcoming = <UpcomingPayment>[];
   for (final r in state.recurringExpenses.values) {
     if (!r.activeIn(month)) continue;
-    upcoming.add(UpcomingPayment(
-      name: r.name,
-      amountCents: r.amountCents,
-      isAnnual: r.isAnnual,
-      isShared: r.isShared,
-      dueDay: r.dueDay,
-      dueMonth: r.dueMonth,
-      daysUntilDue: r.daysUntilDue(localNow),
-    ));
+    upcoming.add(
+      UpcomingPayment(
+        name: r.name,
+        amountCents: r.amountCents,
+        isAnnual: r.isAnnual,
+        isShared: r.isShared,
+        dueDay: r.dueDay,
+        dueMonth: r.dueMonth,
+        daysUntilDue: r.daysUntilDue(localNow),
+      ),
+    );
   }
   upcoming.sort((a, b) {
     final c = a.daysUntilDue.compareTo(b.daysUntilDue);
@@ -513,16 +529,18 @@ DashboardModel buildDashboardModel(
         if (e.value != 0)
           ContributorShare(name: nameOf(e.key) ?? 'Someone', cents: e.value),
     ]..sort((a, b) => b.cents.compareTo(a.cents));
-    quests.add(QuestCard(
-      questId: q.questId,
-      name: q.name,
-      targetCents: q.targetCents,
-      balanceCents: q.balanceCents,
-      totalContributedCents: q.totalContributedCents,
-      completed: q.completed,
-      isShared: q.ownership is SharedParty,
-      contributors: contributors,
-    ));
+    quests.add(
+      QuestCard(
+        questId: q.questId,
+        name: q.name,
+        targetCents: q.targetCents,
+        balanceCents: q.balanceCents,
+        totalContributedCents: q.totalContributedCents,
+        completed: q.completed,
+        isShared: q.ownership is SharedParty,
+        contributors: contributors,
+      ),
+    );
   }
   quests.sort((a, b) {
     // In-progress before completed; then by remaining-to-target.
@@ -543,8 +561,7 @@ DashboardModel buildDashboardModel(
       amountCents: w.amountCents,
       purpose: w.purpose,
       destinationLabel: switch (w.destination) {
-        UserVaultDestination(:final userId) =>
-          '${nameOf(userId) ?? 'a'} vault',
+        UserVaultDestination(:final userId) => '${nameOf(userId) ?? 'a'} vault',
         ExternalDestination() => 'external',
       },
       mineToApprove: mineToApprove,
@@ -623,21 +640,22 @@ DashboardModel buildDashboardModel(
   );
 
   // ---- Outstanding overspending to repay ----------------------------------
-  final overbudgets = <OverbudgetCard>[
-    for (final d in state.outstandingOverbudgets)
-      if (includeOtherAdults || d.ownerUserId == meUserId)
-        OverbudgetCard(
-        sliceId: d.sliceId,
-        categoryName: state.slices[d.sliceId]?.name ?? d.sliceId,
-        outstandingCents: d.outstandingCents,
-        accruedCents: d.accruedCents,
-        mine: d.ownerUserId == meUserId,
-        ownerName: nameOf(d.ownerUserId),
-      ),
-  ]..sort((a, b) {
-      final c = (a.mine ? 0 : 1).compareTo(b.mine ? 0 : 1);
-      return c != 0 ? c : a.categoryName.compareTo(b.categoryName);
-    });
+  final overbudgets =
+      <OverbudgetCard>[
+        for (final d in state.outstandingOverbudgets)
+          if (includeOtherAdults || d.ownerUserId == meUserId)
+            OverbudgetCard(
+              sliceId: d.sliceId,
+              categoryName: state.slices[d.sliceId]?.name ?? d.sliceId,
+              outstandingCents: d.outstandingCents,
+              accruedCents: d.accruedCents,
+              mine: d.ownerUserId == meUserId,
+              ownerName: nameOf(d.ownerUserId),
+            ),
+      ]..sort((a, b) {
+        final c = (a.mine ? 0 : 1).compareTo(b.mine ? 0 : 1);
+        return c != 0 ? c : a.categoryName.compareTo(b.categoryName);
+      });
 
   return DashboardModel(
     currentMonth: month,

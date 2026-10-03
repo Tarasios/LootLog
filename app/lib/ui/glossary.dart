@@ -188,6 +188,44 @@ abstract final class Glossary {
         'shared-savings cut first.',
   );
 
+  /// A category's own savings pool (savings rules): already-taxed money that
+  /// stays put month to month until spent or moved.
+  static const categorySavings = GlossaryTerm(
+    internal: 'categorySavings',
+    classic: 'category savings',
+    adventure: 'stash',
+    helper: 'Money saved inside a budget. It was taxed once when saved and '
+        'isn’t taxed again while it stays there; purchases use it after the '
+        'month’s allowance runs out.',
+  );
+
+  /// An adult's general savings pool under the savings rules (the vault).
+  static const generalSavings = GlossaryTerm(
+    internal: 'generalSavings',
+    classic: 'general savings',
+    adventure: 'gold pouch',
+    helper: 'Your own savings for anything. Moving money here costs the '
+        'general tax, minus whatever that money has already paid.',
+  );
+
+  /// A category's carry tax: taken once when unspent money is saved in it.
+  static const carryTax = GlossaryTerm(
+    internal: 'carryTax',
+    classic: 'carry tax',
+    adventure: 'stash toll',
+    helper: 'Taken once when unspent money is saved in this budget. Saved '
+        'money is never taxed again while it stays here.',
+  );
+
+  /// Borrowing from a category's future monthly allowances.
+  static const advance = GlossaryTerm(
+    internal: 'AllowanceAdvance',
+    classic: 'borrow from future months',
+    adventure: 'guild loan',
+    helper: 'Cover a purchase now and repay it from this budget over the next '
+        'few months. Another adult approves.',
+  );
+
   /// Every defined term, for tests and any glossary/help screen.
   static const all = <GlossaryTerm>[
     leftoverAllocated,
@@ -205,6 +243,10 @@ abstract final class Glossary {
     emergencyFund,
     overbudget,
     payOverbudget,
+    categorySavings,
+    generalSavings,
+    carryTax,
+    advance,
   ];
 
   /// Flavor words that must never appear in Classic-mode copy. The glossary is

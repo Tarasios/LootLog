@@ -17,6 +17,8 @@ import '../../data/providers.dart';
 import '../../domain/money.dart';
 import '../../domain/state.dart';
 import '../../domain/value_types.dart';
+import '../../domain/time.dart';
+import '../../ui/glossary.dart';
 import '../../ui/money_input.dart';
 import '../../ui/theme.dart';
 import '../household_context.dart';
@@ -35,13 +37,14 @@ class CategoryEditorScreen extends ConsumerStatefulWidget {
     BuildContext context, {
     SliceConfig? existing,
     SliceOwnership? defaultOwnership,
-  }) =>
-      Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => CategoryEditorScreen(
-          existing: existing,
-          defaultOwnership: defaultOwnership,
-        ),
-      ));
+  }) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => CategoryEditorScreen(
+        existing: existing,
+        defaultOwnership: defaultOwnership,
+      ),
+    ),
+  );
 
   @override
   ConsumerState<CategoryEditorScreen> createState() =>
@@ -75,7 +78,8 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
     final e = widget.existing;
     _name = TextEditingController(text: e?.name ?? '');
     _limit = TextEditingController(
-        text: e == null ? '' : Money(e.limitCents).format());
+      text: e == null ? '' : Money(e.limitCents).format(),
+    );
     _tithe = TextEditingController(text: (e?.poolTithePct ?? 0).toString());
     _emergencyAmount = TextEditingController(
       text: (e?.emergencyContributionCents ?? 0) > 0
@@ -87,7 +91,8 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
     _petId = e?.petId;
     _petOwners.addAll(e?.petOwnerIds ?? const []);
     _priority = e?.priority ?? SlicePriority.important;
-    if (e != null && e.emergencyFundId != null &&
+    if (e != null &&
+        e.emergencyFundId != null &&
         e.emergencyContributionCents > 0) {
       _emergencyOn = true;
       _emergencyFundId = e.emergencyFundId;
@@ -129,9 +134,10 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
     final adults = ref.watch(partyAdultsProvider);
     final pets = ref.watch(partyPetsProvider);
     final isGroup = _ownerUserId == null;
-    final quests = state.quests.values
-        .where((q) => !q.abandoned)
-        .toList()
+    final savingsRulesOn =
+        state.savingsRules?.appliesTo(Month.fromInstant(DateTime.now())) ??
+        false;
+    final quests = state.quests.values.where((q) => !q.abandoned).toList()
       ..sort((a, b) => a.name.compareTo(b.name));
     final funds = state.emergencyFunds.values.toList()
       ..sort((a, b) => a.name.compareTo(b.name));
@@ -156,14 +162,19 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
           DropdownButtonFormField<SlicePriority>(
             initialValue: _priority,
             decoration: const InputDecoration(
-              helperText: 'When overspending needs repaying, fun budgets are '
+              helperText:
+                  'When overspending needs repaying, fun budgets are '
                   'suggested first and necessities protected',
             ),
             items: const [
               DropdownMenuItem(
-                  value: SlicePriority.necessity, child: Text('Necessity')),
+                value: SlicePriority.necessity,
+                child: Text('Necessity'),
+              ),
               DropdownMenuItem(
-                  value: SlicePriority.important, child: Text('Important')),
+                value: SlicePriority.important,
+                child: Text('Important'),
+              ),
               DropdownMenuItem(value: SlicePriority.fun, child: Text('Fun')),
             ],
             onChanged: (v) =>
@@ -178,10 +189,7 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
               helperText: 'Groups spending on the monthly report',
             ),
             items: [
-              const DropdownMenuItem<String?>(
-                value: null,
-                child: Text('None'),
-              ),
+              const DropdownMenuItem<String?>(value: null, child: Text('None')),
               for (final m in mainCategories)
                 DropdownMenuItem<String?>(
                   value: m.id,
@@ -232,9 +240,10 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
                     FilterChip(
                       label: Text(p.name),
                       selected: _petOwners.contains(p.id),
-                      onSelected: (on) => setState(() => on
-                          ? _petOwners.add(p.id)
-                          : _petOwners.remove(p.id)),
+                      onSelected: (on) => setState(
+                        () =>
+                            on ? _petOwners.add(p.id) : _petOwners.remove(p.id),
+                      ),
                     ),
                 ],
               ),
@@ -263,16 +272,26 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
             TextField(
               controller: _tithe,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Shared-savings cut %',
-                helperText:
-                    'Part of this budget’s leftover kept for shared savings '
-                    'instead of personal spending',
-                suffixText: '%',
-              ),
+              decoration: savingsRulesOn
+                  ? InputDecoration(
+                      labelText: 'Carry tax %',
+                      helperText: Glossary.carryTax.helper,
+                      helperMaxLines: 3,
+                      suffixText: '%',
+                    )
+                  : const InputDecoration(
+                      labelText: 'Shared-savings cut %',
+                      helperText:
+                          'Part of this budget’s leftover kept for shared '
+                          'savings instead of personal spending',
+                      suffixText: '%',
+                    ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            Text('Default leftover policy', style: AppText.sectionLabel(context)),
+            Text(
+              'Default leftover policy',
+              style: AppText.sectionLabel(context),
+            ),
             const SizedBox(height: AppSpacing.sm),
             _policySelector(quests),
           ],
@@ -312,8 +331,9 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
             const SizedBox(height: AppSpacing.md),
             TextField(
               controller: _emergencyAmount,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: 'Monthly contribution',
                 prefixText: r'$',
@@ -321,10 +341,7 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
             ),
           ],
           const SizedBox(height: AppSpacing.xl),
-          FilledButton(
-            onPressed: _save,
-            child: const Text('Save category'),
-          ),
+          FilledButton(onPressed: _save, child: const Text('Save category')),
         ],
       ),
     );
@@ -351,7 +368,9 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
           items: const [
             DropdownMenuItem(value: 'carry', child: Text('Carry in category')),
             DropdownMenuItem(
-                value: 'discretionary', child: Text('Convert to discretionary')),
+              value: 'discretionary',
+              child: Text('Convert to discretionary'),
+            ),
             DropdownMenuItem(value: 'quest', child: Text('Attack a quest')),
           ],
           onChanged: (v) => setState(() {
@@ -401,14 +420,16 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
     }
     final limit = tryParseMoneyCents(_limit.text);
     if (limit == null) {
-      messenger
-          .showSnackBar(const SnackBar(content: Text('Enter a valid limit')));
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Enter a valid limit')),
+      );
       return;
     }
     final owner = _ownerUserId;
     final isGroup = owner == null;
-    final SliceOwnership ownership =
-        isGroup ? const GroupSlice() : PersonalSlice(owner);
+    final SliceOwnership ownership = isGroup
+        ? const GroupSlice()
+        : PersonalSlice(owner);
     final tithe = isGroup ? 0 : (tryParsePercent(_tithe.text) ?? 0);
     final policy = isGroup ? const Discretionary() : _policy;
 
@@ -416,12 +437,15 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
     if (_emergencyOn && _emergencyFundId != null) {
       final amount = tryParseMoneyCents(_emergencyAmount.text);
       if (amount == null || amount <= 0) {
-        messenger.showSnackBar(const SnackBar(
-            content: Text('Enter a valid emergency contribution')));
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Enter a valid emergency contribution')),
+        );
         return;
       }
-      emergency =
-          EmergencyContribution(fundId: _emergencyFundId!, amountCents: amount);
+      emergency = EmergencyContribution(
+        fundId: _emergencyFundId!,
+        amountCents: amount,
+      );
     }
 
     await actions.setSlice(
