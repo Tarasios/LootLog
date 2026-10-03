@@ -138,10 +138,14 @@ class EventsDao extends DatabaseAccessor<AppDatabase> with _$EventsDaoMixin {
       });
 }
 
+/// The [ExportBookmarks] row holding the game log's "export since last
+/// export" cursor (row 0 is the ledger's).
+const int kGameExportBookmarkId = 1;
+
 /// Data-access object for the guild-hall game's event log. Mirrors
 /// [EventsDao]: append-only, idempotent on `eventId`, canonical
 /// `(occurredAt, eventId)` reads. Never touches the ledger's [Events].
-@DriftAccessor(tables: [GameEvents])
+@DriftAccessor(tables: [GameEvents, ExportBookmarks])
 class GameEventsDao extends DatabaseAccessor<AppDatabase>
     with _$GameEventsDaoMixin {
   GameEventsDao(super.db);
@@ -171,6 +175,56 @@ class GameEventsDao extends DatabaseAccessor<AppDatabase>
       .watch()
       .map((rows) => [for (final r in rows) _eventFromRow(r)]);
 
+  /// The subset of [ids] already in the game log (merge-import preview).
+  Future<Set<String>> existingGameEventIds(Iterable<String> ids) async {
+    final wanted = ids.toSet().toList();
+    if (wanted.isEmpty) {
+      return <String>{};
+    }
+    final query = selectOnly(gameEvents)
+      ..addColumns([gameEvents.eventId])
+      ..where(gameEvents.eventId.isIn(wanted));
+    final rows = await query.get();
+    return {for (final r in rows) r.read(gameEvents.eventId)!};
+  }
+
+  /// The highest game-event `rowid` stored (0 if the log is empty); the
+  /// "export since last export" cursor, as [EventsDao.maxEventRowid].
+  Future<int> maxGameEventRowid() async {
+    final row = await customSelect(
+      'SELECT COALESCE(MAX(_rowid_), 0) AS m '
+      'FROM ${gameEvents.actualTableName}',
+      readsFrom: {gameEvents},
+    ).getSingle();
+    return row.read<int>('m');
+  }
+
+  /// The game events inserted after [afterRowid], in canonical order.
+  Future<List<GameEvent>> gameEventsAfterRowid(int afterRowid) async {
+    final rows = await customSelect(
+      'SELECT * FROM ${gameEvents.actualTableName} WHERE _rowid_ > ?1 '
+      'ORDER BY occurred_at, event_id',
+      variables: [Variable.withInt(afterRowid)],
+      readsFrom: {gameEvents},
+    ).get();
+    return [for (final r in rows) _eventFromRow(gameEvents.map(r.data))];
+  }
+
+  /// The game log's export cursor (0 if never exported).
+  Future<int> lastGameExportRowid() async {
+    final row = await (select(exportBookmarks)
+          ..where((t) => t.id.equals(kGameExportBookmarkId)))
+        .getSingleOrNull();
+    return row?.lastExportedRowid ?? 0;
+  }
+
+  /// Advances the game log's export cursor to [rowid].
+  Future<void> setLastGameExportRowid(int rowid) async {
+    await into(exportBookmarks).insertOnConflictUpdate(
+      ExportBookmarkRow(id: kGameExportBookmarkId, lastExportedRowid: rowid),
+    );
+  }
+
   SimpleSelectStatement<$GameEventsTable, GameEventRow> _ordered() =>
       select(gameEvents)
         ..orderBy([
@@ -199,6 +253,127 @@ class GameEventsDao extends DatabaseAccessor<AppDatabase>
         'type': r.type,
         'payload': jsonDecode(r.payload),
       });
+}
+
+/// A page of hosted game events plus the `seq` cursor to resume from.
+class HostedGamePage {
+  const HostedGamePage({required this.events, required this.cursor});
+
+  final List<GameEvent> events;
+  final int cursor;
+}
+
+/// Sync bookkeeping for the game log, both sides, mirroring [SyncDao] (client:
+/// per-hub pull cursors and push log) and [HubHostDao] (hub: the per-hub
+/// arrival-ordered `seq`). Kept in tables of their own so the ledger's sync
+/// state is untouched and a hub that predates game sync is unaffected.
+@DriftAccessor(
+  tables: [GameEvents, HostedGameEventSeq, GameHubCursors, GameHubPushLog],
+)
+class GameSyncDao extends DatabaseAccessor<AppDatabase>
+    with _$GameSyncDaoMixin {
+  GameSyncDao(super.db);
+
+  // ---- client ---------------------------------------------------------------
+
+  /// The last game `seq` pulled from [hubId] (0 if never pulled).
+  Future<int> pullCursor(String hubId) async {
+    final row = await (select(gameHubCursors)
+          ..where((t) => t.hubId.equals(hubId)))
+        .getSingleOrNull();
+    return row?.lastPulledSeq ?? 0;
+  }
+
+  /// Records that [hubId]'s game log has been pulled up to [seq].
+  Future<void> setPullCursor(String hubId, int seq) async {
+    await into(gameHubCursors).insertOnConflictUpdate(
+      GameHubCursorRow(hubId: hubId, lastPulledSeq: seq),
+    );
+  }
+
+  /// The game events not yet pushed to [hubId], in canonical order.
+  Future<List<GameEvent>> unpushedForHub(String hubId) async {
+    final pushed = selectOnly(gameHubPushLog)
+      ..addColumns([gameHubPushLog.eventId])
+      ..where(gameHubPushLog.hubId.equals(hubId));
+    final query = select(gameEvents)
+      ..where((t) => t.eventId.isNotInQuery(pushed))
+      ..orderBy([
+        (t) => OrderingTerm(expression: t.occurredAt),
+        (t) => OrderingTerm(expression: t.eventId),
+      ]);
+    final rows = await query.get();
+    return [for (final r in rows) db.gameEventsDao._eventFromRow(r)];
+  }
+
+  /// Marks [eventIds] as pushed to [hubId]. Idempotent.
+  Future<void> markPushed(String hubId, Iterable<String> eventIds) async {
+    await batch((b) {
+      b.insertAll(
+        gameHubPushLog,
+        [
+          for (final id in eventIds)
+            GameHubPushLogCompanion.insert(hubId: hubId, eventId: id),
+        ],
+        mode: InsertMode.insertOrIgnore,
+      );
+    });
+  }
+
+  // ---- hub ------------------------------------------------------------------
+
+  /// Gives a `seq` to every hosted game event lacking one (in eventId order)
+  /// and returns the high-water mark. Assigned seqs never change.
+  Future<int> assignHostedSeqs() async {
+    final assigned = selectOnly(hostedGameEventSeq)
+      ..addColumns([hostedGameEventSeq.eventId]);
+    final query = select(gameEvents)
+      ..where((t) => t.eventId.isNotInQuery(assigned))
+      ..orderBy([(t) => OrderingTerm(expression: t.eventId)]);
+    final pending = await query.get();
+    if (pending.isNotEmpty) {
+      await batch((b) {
+        b.insertAll(
+          hostedGameEventSeq,
+          [
+            for (final r in pending)
+              HostedGameEventSeqCompanion.insert(eventId: r.eventId),
+          ],
+          mode: InsertMode.insertOrIgnore,
+        );
+      });
+    }
+    return maxHostedSeq();
+  }
+
+  /// The highest game `seq` this hub has assigned (0 if none).
+  Future<int> maxHostedSeq() async {
+    final expr = hostedGameEventSeq.seq.max();
+    final q = selectOnly(hostedGameEventSeq)..addColumns([expr]);
+    final row = await q.getSingleOrNull();
+    return row?.read(expr) ?? 0;
+  }
+
+  /// Up to [limit] hosted game events with `seq > after`, in `seq` order.
+  Future<HostedGamePage> hostedAfter(int after, {int limit = 500}) async {
+    final rows = await (select(gameEvents).join([
+      innerJoin(
+        hostedGameEventSeq,
+        hostedGameEventSeq.eventId.equalsExp(gameEvents.eventId),
+      ),
+    ])
+          ..where(hostedGameEventSeq.seq.isBiggerThanValue(after))
+          ..orderBy([OrderingTerm(expression: hostedGameEventSeq.seq)])
+          ..limit(limit))
+        .get();
+    return HostedGamePage(
+      events: [
+        for (final r in rows)
+          db.gameEventsDao._eventFromRow(r.readTable(gameEvents)),
+      ],
+      cursor: rows.isEmpty ? after : rows.last.read(hostedGameEventSeq.seq)!,
+    );
+  }
 }
 
 /// Data-access object for multi-hub sync bookkeeping: per-hub pull cursors and
@@ -454,10 +629,14 @@ class LocalSetupDao extends DatabaseAccessor<AppDatabase>
     LocalSetupRows,
     ExportBookmarks,
     GameEvents,
+    HostedGameEventSeq,
+    GameHubCursors,
+    GameHubPushLog,
   ],
   daos: [
     EventsDao,
     GameEventsDao,
+    GameSyncDao,
     SyncDao,
     HubHostDao,
     PairedHubDao,
@@ -488,10 +667,14 @@ class AppDatabase extends _$AppDatabase {
           if (from < 3) {
             await m.createTable(exportBookmarks);
           }
-          // v4 adds the guild-hall game's own event log, a separate table so
-          // the ledger's event log is untouched.
+          // v4 adds the guild-hall game's own event log and its sync
+          // bookkeeping, in separate tables so the ledger's event log and
+          // sync state are untouched.
           if (from < 4) {
             await m.createTable(gameEvents);
+            await m.createTable(hostedGameEventSeq);
+            await m.createTable(gameHubCursors);
+            await m.createTable(gameHubPushLog);
           }
         },
       );

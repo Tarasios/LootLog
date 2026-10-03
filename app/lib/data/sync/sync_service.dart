@@ -52,12 +52,21 @@ class PreparedImport {
   final MergePreview preview;
 }
 
-/// The bytes and event count of an "export since last export" archive.
+/// The bytes and event counts of an "export since last export" archive.
 class IncrementalExport {
-  const IncrementalExport({required this.bytes, required this.eventCount});
+  const IncrementalExport({
+    required this.bytes,
+    required this.eventCount,
+    this.gameEventCount = 0,
+  });
 
   final Uint8List bytes;
+
+  /// Ledger events in the archive.
   final int eventCount;
+
+  /// Guild-hall game events in the archive.
+  final int gameEventCount;
 }
 
 /// Owns hub hosting and periodic client sync for the running app.
@@ -179,15 +188,18 @@ class SyncService {
     return ok;
   }
 
-  /// The offline fallback: exports the whole event log plus its receipt blobs as
-  /// `.dbevents.zip` bytes, ready to write to a chosen file. Advances the
-  /// "export since last export" cursor so a following incremental export starts
-  /// from here.
+  /// The offline fallback: exports the whole event log plus its receipt blobs
+  /// (and the game log) as `.dbevents.zip` bytes, ready to write to a chosen
+  /// file. Advances the "export since last export" cursors so a following
+  /// incremental export starts from here.
   Future<Uint8List> exportArchive() async {
     final maxRowid = await db.eventsDao.maxEventRowid();
+    final maxGameRowid = await db.gameEventsDao.maxGameEventRowid();
     final events = await db.eventsDao.allEvents();
-    final bytes = await exportEventsZip(events, blobs);
+    final gameEvents = await db.gameEventsDao.allGameEvents();
+    final bytes = await exportEventsZip(events, blobs, gameEvents: gameEvents);
     await db.eventsDao.setLastExportRowid(maxRowid);
+    await db.gameEventsDao.setLastGameExportRowid(maxGameRowid);
     return bytes;
   }
 
@@ -198,12 +210,20 @@ class SyncService {
     final cursor = await db.eventsDao.lastExportRowid();
     final maxRowid = await db.eventsDao.maxEventRowid();
     final events = await db.eventsDao.eventsAfterRowid(cursor);
-    if (events.isEmpty) {
+    final gameCursor = await db.gameEventsDao.lastGameExportRowid();
+    final maxGameRowid = await db.gameEventsDao.maxGameEventRowid();
+    final gameEvents = await db.gameEventsDao.gameEventsAfterRowid(gameCursor);
+    if (events.isEmpty && gameEvents.isEmpty) {
       return null;
     }
-    final bytes = await exportEventsZip(events, blobs);
+    final bytes = await exportEventsZip(events, blobs, gameEvents: gameEvents);
     await db.eventsDao.setLastExportRowid(maxRowid);
-    return IncrementalExport(bytes: bytes, eventCount: events.length);
+    await db.gameEventsDao.setLastGameExportRowid(maxGameRowid);
+    return IncrementalExport(
+      bytes: bytes,
+      eventCount: events.length,
+      gameEventCount: gameEvents.length,
+    );
   }
 
   /// Parses and verifies a `.dbevents.zip` WITHOUT applying it, paired with a
@@ -228,11 +248,15 @@ class SyncService {
     for (final sha in imported.blobs.keys) {
       if (await blobs.exists(sha)) existingShas.add(sha);
     }
+    final existingGameIds = await db.gameEventsDao
+        .existingGameEventIds(imported.gameEvents.map((e) => e.eventId));
     final preview = computeMergePreview(
       incomingEvents: imported.events,
       existingEventIds: existingIds,
       incomingBlobShas: imported.blobs.keys,
       existingBlobShas: existingShas,
+      incomingGameEvents: imported.gameEvents,
+      existingGameEventIds: existingGameIds,
     );
     return PreparedImport(archive: imported, preview: preview);
   }
@@ -243,6 +267,7 @@ class SyncService {
   Future<MergePreview> applyImport(PreparedImport prepared) async {
     await saveImportedBlobs(prepared.archive, blobs);
     await db.eventsDao.appendEvents(prepared.archive.events);
+    await db.gameEventsDao.appendGameEvents(prepared.archive.gameEvents);
     return prepared.preview;
   }
 

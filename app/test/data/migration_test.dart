@@ -33,7 +33,12 @@ List<String> _tablesAddedAfter(int version) => [
         'paired_hubs',
       ],
       if (version < 3) 'export_bookmarks',
-      if (version < 4) 'game_events',
+      if (version < 4) ...[
+        'game_events',
+        'hosted_game_event_seq',
+        'game_hub_cursors',
+        'game_hub_push_log',
+      ],
     ];
 
 Event _member(String id, String name) => MemberSet(

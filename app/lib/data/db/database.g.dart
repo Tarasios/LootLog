@@ -23,6 +23,7 @@ class EventsDaoManager {
 
 mixin _$GameEventsDaoMixin on DatabaseAccessor<AppDatabase> {
   $GameEventsTable get gameEvents => attachedDatabase.gameEvents;
+  $ExportBookmarksTable get exportBookmarks => attachedDatabase.exportBookmarks;
   GameEventsDaoManager get managers => GameEventsDaoManager(this);
 }
 
@@ -31,6 +32,42 @@ class GameEventsDaoManager {
   GameEventsDaoManager(this._db);
   $$GameEventsTableTableManager get gameEvents =>
       $$GameEventsTableTableManager(_db.attachedDatabase, _db.gameEvents);
+  $$ExportBookmarksTableTableManager get exportBookmarks =>
+      $$ExportBookmarksTableTableManager(
+        _db.attachedDatabase,
+        _db.exportBookmarks,
+      );
+}
+
+mixin _$GameSyncDaoMixin on DatabaseAccessor<AppDatabase> {
+  $GameEventsTable get gameEvents => attachedDatabase.gameEvents;
+  $HostedGameEventSeqTable get hostedGameEventSeq =>
+      attachedDatabase.hostedGameEventSeq;
+  $GameHubCursorsTable get gameHubCursors => attachedDatabase.gameHubCursors;
+  $GameHubPushLogTable get gameHubPushLog => attachedDatabase.gameHubPushLog;
+  GameSyncDaoManager get managers => GameSyncDaoManager(this);
+}
+
+class GameSyncDaoManager {
+  final _$GameSyncDaoMixin _db;
+  GameSyncDaoManager(this._db);
+  $$GameEventsTableTableManager get gameEvents =>
+      $$GameEventsTableTableManager(_db.attachedDatabase, _db.gameEvents);
+  $$HostedGameEventSeqTableTableManager get hostedGameEventSeq =>
+      $$HostedGameEventSeqTableTableManager(
+        _db.attachedDatabase,
+        _db.hostedGameEventSeq,
+      );
+  $$GameHubCursorsTableTableManager get gameHubCursors =>
+      $$GameHubCursorsTableTableManager(
+        _db.attachedDatabase,
+        _db.gameHubCursors,
+      );
+  $$GameHubPushLogTableTableManager get gameHubPushLog =>
+      $$GameHubPushLogTableTableManager(
+        _db.attachedDatabase,
+        _db.gameHubPushLog,
+      );
 }
 
 mixin _$SyncDaoMixin on DatabaseAccessor<AppDatabase> {
@@ -2882,10 +2919,12 @@ class $ExportBookmarksTable extends ExportBookmarks
 
 class ExportBookmarkRow extends DataClass
     implements Insertable<ExportBookmarkRow> {
-  /// Singleton row; always 0.
+  /// Which log the bookmark is for: 0 = the ledger's events, 1 = the game
+  /// log's (see `kGameExportBookmarkId`). One row per log.
   final int id;
 
-  /// The highest event rowid folded into the last export (0 = never exported).
+  /// The highest rowid of that log folded into the last export (0 = never
+  /// exported).
   final int lastExportedRowid;
   const ExportBookmarkRow({required this.id, required this.lastExportedRowid});
   @override
@@ -3536,6 +3575,649 @@ class GameEventsCompanion extends UpdateCompanion<GameEventRow> {
   }
 }
 
+class $HostedGameEventSeqTable extends HostedGameEventSeq
+    with TableInfo<$HostedGameEventSeqTable, HostedGameEventRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $HostedGameEventSeqTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _seqMeta = const VerificationMeta('seq');
+  @override
+  late final GeneratedColumn<int> seq = GeneratedColumn<int>(
+    'seq',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _eventIdMeta = const VerificationMeta(
+    'eventId',
+  );
+  @override
+  late final GeneratedColumn<String> eventId = GeneratedColumn<String>(
+    'event_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [seq, eventId];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'hosted_game_event_seq';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<HostedGameEventRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('seq')) {
+      context.handle(
+        _seqMeta,
+        seq.isAcceptableOrUnknown(data['seq']!, _seqMeta),
+      );
+    }
+    if (data.containsKey('event_id')) {
+      context.handle(
+        _eventIdMeta,
+        eventId.isAcceptableOrUnknown(data['event_id']!, _eventIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_eventIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {seq};
+  @override
+  HostedGameEventRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return HostedGameEventRow(
+      seq: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}seq'],
+      )!,
+      eventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}event_id'],
+      )!,
+    );
+  }
+
+  @override
+  $HostedGameEventSeqTable createAlias(String alias) {
+    return $HostedGameEventSeqTable(attachedDatabase, alias);
+  }
+}
+
+class HostedGameEventRow extends DataClass
+    implements Insertable<HostedGameEventRow> {
+  final int seq;
+  final String eventId;
+  const HostedGameEventRow({required this.seq, required this.eventId});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['seq'] = Variable<int>(seq);
+    map['event_id'] = Variable<String>(eventId);
+    return map;
+  }
+
+  HostedGameEventSeqCompanion toCompanion(bool nullToAbsent) {
+    return HostedGameEventSeqCompanion(
+      seq: Value(seq),
+      eventId: Value(eventId),
+    );
+  }
+
+  factory HostedGameEventRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return HostedGameEventRow(
+      seq: serializer.fromJson<int>(json['seq']),
+      eventId: serializer.fromJson<String>(json['eventId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'seq': serializer.toJson<int>(seq),
+      'eventId': serializer.toJson<String>(eventId),
+    };
+  }
+
+  HostedGameEventRow copyWith({int? seq, String? eventId}) =>
+      HostedGameEventRow(
+        seq: seq ?? this.seq,
+        eventId: eventId ?? this.eventId,
+      );
+  HostedGameEventRow copyWithCompanion(HostedGameEventSeqCompanion data) {
+    return HostedGameEventRow(
+      seq: data.seq.present ? data.seq.value : this.seq,
+      eventId: data.eventId.present ? data.eventId.value : this.eventId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('HostedGameEventRow(')
+          ..write('seq: $seq, ')
+          ..write('eventId: $eventId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(seq, eventId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is HostedGameEventRow &&
+          other.seq == this.seq &&
+          other.eventId == this.eventId);
+}
+
+class HostedGameEventSeqCompanion extends UpdateCompanion<HostedGameEventRow> {
+  final Value<int> seq;
+  final Value<String> eventId;
+  const HostedGameEventSeqCompanion({
+    this.seq = const Value.absent(),
+    this.eventId = const Value.absent(),
+  });
+  HostedGameEventSeqCompanion.insert({
+    this.seq = const Value.absent(),
+    required String eventId,
+  }) : eventId = Value(eventId);
+  static Insertable<HostedGameEventRow> custom({
+    Expression<int>? seq,
+    Expression<String>? eventId,
+  }) {
+    return RawValuesInsertable({
+      if (seq != null) 'seq': seq,
+      if (eventId != null) 'event_id': eventId,
+    });
+  }
+
+  HostedGameEventSeqCompanion copyWith({
+    Value<int>? seq,
+    Value<String>? eventId,
+  }) {
+    return HostedGameEventSeqCompanion(
+      seq: seq ?? this.seq,
+      eventId: eventId ?? this.eventId,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (seq.present) {
+      map['seq'] = Variable<int>(seq.value);
+    }
+    if (eventId.present) {
+      map['event_id'] = Variable<String>(eventId.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('HostedGameEventSeqCompanion(')
+          ..write('seq: $seq, ')
+          ..write('eventId: $eventId')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $GameHubCursorsTable extends GameHubCursors
+    with TableInfo<$GameHubCursorsTable, GameHubCursorRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $GameHubCursorsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _hubIdMeta = const VerificationMeta('hubId');
+  @override
+  late final GeneratedColumn<String> hubId = GeneratedColumn<String>(
+    'hub_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastPulledSeqMeta = const VerificationMeta(
+    'lastPulledSeq',
+  );
+  @override
+  late final GeneratedColumn<int> lastPulledSeq = GeneratedColumn<int>(
+    'last_pulled_seq',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [hubId, lastPulledSeq];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'game_hub_cursors';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<GameHubCursorRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('hub_id')) {
+      context.handle(
+        _hubIdMeta,
+        hubId.isAcceptableOrUnknown(data['hub_id']!, _hubIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_hubIdMeta);
+    }
+    if (data.containsKey('last_pulled_seq')) {
+      context.handle(
+        _lastPulledSeqMeta,
+        lastPulledSeq.isAcceptableOrUnknown(
+          data['last_pulled_seq']!,
+          _lastPulledSeqMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {hubId};
+  @override
+  GameHubCursorRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return GameHubCursorRow(
+      hubId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}hub_id'],
+      )!,
+      lastPulledSeq: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_pulled_seq'],
+      )!,
+    );
+  }
+
+  @override
+  $GameHubCursorsTable createAlias(String alias) {
+    return $GameHubCursorsTable(attachedDatabase, alias);
+  }
+}
+
+class GameHubCursorRow extends DataClass
+    implements Insertable<GameHubCursorRow> {
+  final String hubId;
+  final int lastPulledSeq;
+  const GameHubCursorRow({required this.hubId, required this.lastPulledSeq});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['hub_id'] = Variable<String>(hubId);
+    map['last_pulled_seq'] = Variable<int>(lastPulledSeq);
+    return map;
+  }
+
+  GameHubCursorsCompanion toCompanion(bool nullToAbsent) {
+    return GameHubCursorsCompanion(
+      hubId: Value(hubId),
+      lastPulledSeq: Value(lastPulledSeq),
+    );
+  }
+
+  factory GameHubCursorRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return GameHubCursorRow(
+      hubId: serializer.fromJson<String>(json['hubId']),
+      lastPulledSeq: serializer.fromJson<int>(json['lastPulledSeq']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'hubId': serializer.toJson<String>(hubId),
+      'lastPulledSeq': serializer.toJson<int>(lastPulledSeq),
+    };
+  }
+
+  GameHubCursorRow copyWith({String? hubId, int? lastPulledSeq}) =>
+      GameHubCursorRow(
+        hubId: hubId ?? this.hubId,
+        lastPulledSeq: lastPulledSeq ?? this.lastPulledSeq,
+      );
+  GameHubCursorRow copyWithCompanion(GameHubCursorsCompanion data) {
+    return GameHubCursorRow(
+      hubId: data.hubId.present ? data.hubId.value : this.hubId,
+      lastPulledSeq: data.lastPulledSeq.present
+          ? data.lastPulledSeq.value
+          : this.lastPulledSeq,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GameHubCursorRow(')
+          ..write('hubId: $hubId, ')
+          ..write('lastPulledSeq: $lastPulledSeq')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(hubId, lastPulledSeq);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is GameHubCursorRow &&
+          other.hubId == this.hubId &&
+          other.lastPulledSeq == this.lastPulledSeq);
+}
+
+class GameHubCursorsCompanion extends UpdateCompanion<GameHubCursorRow> {
+  final Value<String> hubId;
+  final Value<int> lastPulledSeq;
+  final Value<int> rowid;
+  const GameHubCursorsCompanion({
+    this.hubId = const Value.absent(),
+    this.lastPulledSeq = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  GameHubCursorsCompanion.insert({
+    required String hubId,
+    this.lastPulledSeq = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : hubId = Value(hubId);
+  static Insertable<GameHubCursorRow> custom({
+    Expression<String>? hubId,
+    Expression<int>? lastPulledSeq,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (hubId != null) 'hub_id': hubId,
+      if (lastPulledSeq != null) 'last_pulled_seq': lastPulledSeq,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  GameHubCursorsCompanion copyWith({
+    Value<String>? hubId,
+    Value<int>? lastPulledSeq,
+    Value<int>? rowid,
+  }) {
+    return GameHubCursorsCompanion(
+      hubId: hubId ?? this.hubId,
+      lastPulledSeq: lastPulledSeq ?? this.lastPulledSeq,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (hubId.present) {
+      map['hub_id'] = Variable<String>(hubId.value);
+    }
+    if (lastPulledSeq.present) {
+      map['last_pulled_seq'] = Variable<int>(lastPulledSeq.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GameHubCursorsCompanion(')
+          ..write('hubId: $hubId, ')
+          ..write('lastPulledSeq: $lastPulledSeq, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $GameHubPushLogTable extends GameHubPushLog
+    with TableInfo<$GameHubPushLogTable, GameHubPushRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $GameHubPushLogTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _hubIdMeta = const VerificationMeta('hubId');
+  @override
+  late final GeneratedColumn<String> hubId = GeneratedColumn<String>(
+    'hub_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _eventIdMeta = const VerificationMeta(
+    'eventId',
+  );
+  @override
+  late final GeneratedColumn<String> eventId = GeneratedColumn<String>(
+    'event_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [hubId, eventId];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'game_hub_push_log';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<GameHubPushRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('hub_id')) {
+      context.handle(
+        _hubIdMeta,
+        hubId.isAcceptableOrUnknown(data['hub_id']!, _hubIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_hubIdMeta);
+    }
+    if (data.containsKey('event_id')) {
+      context.handle(
+        _eventIdMeta,
+        eventId.isAcceptableOrUnknown(data['event_id']!, _eventIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_eventIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {hubId, eventId};
+  @override
+  GameHubPushRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return GameHubPushRow(
+      hubId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}hub_id'],
+      )!,
+      eventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}event_id'],
+      )!,
+    );
+  }
+
+  @override
+  $GameHubPushLogTable createAlias(String alias) {
+    return $GameHubPushLogTable(attachedDatabase, alias);
+  }
+}
+
+class GameHubPushRow extends DataClass implements Insertable<GameHubPushRow> {
+  final String hubId;
+  final String eventId;
+  const GameHubPushRow({required this.hubId, required this.eventId});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['hub_id'] = Variable<String>(hubId);
+    map['event_id'] = Variable<String>(eventId);
+    return map;
+  }
+
+  GameHubPushLogCompanion toCompanion(bool nullToAbsent) {
+    return GameHubPushLogCompanion(
+      hubId: Value(hubId),
+      eventId: Value(eventId),
+    );
+  }
+
+  factory GameHubPushRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return GameHubPushRow(
+      hubId: serializer.fromJson<String>(json['hubId']),
+      eventId: serializer.fromJson<String>(json['eventId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'hubId': serializer.toJson<String>(hubId),
+      'eventId': serializer.toJson<String>(eventId),
+    };
+  }
+
+  GameHubPushRow copyWith({String? hubId, String? eventId}) => GameHubPushRow(
+    hubId: hubId ?? this.hubId,
+    eventId: eventId ?? this.eventId,
+  );
+  GameHubPushRow copyWithCompanion(GameHubPushLogCompanion data) {
+    return GameHubPushRow(
+      hubId: data.hubId.present ? data.hubId.value : this.hubId,
+      eventId: data.eventId.present ? data.eventId.value : this.eventId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GameHubPushRow(')
+          ..write('hubId: $hubId, ')
+          ..write('eventId: $eventId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(hubId, eventId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is GameHubPushRow &&
+          other.hubId == this.hubId &&
+          other.eventId == this.eventId);
+}
+
+class GameHubPushLogCompanion extends UpdateCompanion<GameHubPushRow> {
+  final Value<String> hubId;
+  final Value<String> eventId;
+  final Value<int> rowid;
+  const GameHubPushLogCompanion({
+    this.hubId = const Value.absent(),
+    this.eventId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  GameHubPushLogCompanion.insert({
+    required String hubId,
+    required String eventId,
+    this.rowid = const Value.absent(),
+  }) : hubId = Value(hubId),
+       eventId = Value(eventId);
+  static Insertable<GameHubPushRow> custom({
+    Expression<String>? hubId,
+    Expression<String>? eventId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (hubId != null) 'hub_id': hubId,
+      if (eventId != null) 'event_id': eventId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  GameHubPushLogCompanion copyWith({
+    Value<String>? hubId,
+    Value<String>? eventId,
+    Value<int>? rowid,
+  }) {
+    return GameHubPushLogCompanion(
+      hubId: hubId ?? this.hubId,
+      eventId: eventId ?? this.eventId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (hubId.present) {
+      map['hub_id'] = Variable<String>(hubId.value);
+    }
+    if (eventId.present) {
+      map['event_id'] = Variable<String>(eventId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GameHubPushLogCompanion(')
+          ..write('hubId: $hubId, ')
+          ..write('eventId: $eventId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3554,8 +4236,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final $GameEventsTable gameEvents = $GameEventsTable(this);
+  late final $HostedGameEventSeqTable hostedGameEventSeq =
+      $HostedGameEventSeqTable(this);
+  late final $GameHubCursorsTable gameHubCursors = $GameHubCursorsTable(this);
+  late final $GameHubPushLogTable gameHubPushLog = $GameHubPushLogTable(this);
   late final EventsDao eventsDao = EventsDao(this as AppDatabase);
   late final GameEventsDao gameEventsDao = GameEventsDao(this as AppDatabase);
+  late final GameSyncDao gameSyncDao = GameSyncDao(this as AppDatabase);
   late final SyncDao syncDao = SyncDao(this as AppDatabase);
   late final HubHostDao hubHostDao = HubHostDao(this as AppDatabase);
   late final PairedHubDao pairedHubDao = PairedHubDao(this as AppDatabase);
@@ -3576,6 +4263,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     localSetupRows,
     exportBookmarks,
     gameEvents,
+    hostedGameEventSeq,
+    gameHubCursors,
+    gameHubPushLog,
   ];
   @override
   DriftDatabaseOptions get options =>
@@ -5556,6 +6246,449 @@ typedef $$GameEventsTableProcessedTableManager =
       GameEventRow,
       PrefetchHooks Function()
     >;
+typedef $$HostedGameEventSeqTableCreateCompanionBuilder =
+    HostedGameEventSeqCompanion Function({
+      Value<int> seq,
+      required String eventId,
+    });
+typedef $$HostedGameEventSeqTableUpdateCompanionBuilder =
+    HostedGameEventSeqCompanion Function({
+      Value<int> seq,
+      Value<String> eventId,
+    });
+
+class $$HostedGameEventSeqTableFilterComposer
+    extends Composer<_$AppDatabase, $HostedGameEventSeqTable> {
+  $$HostedGameEventSeqTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get seq => $composableBuilder(
+    column: $table.seq,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get eventId => $composableBuilder(
+    column: $table.eventId,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$HostedGameEventSeqTableOrderingComposer
+    extends Composer<_$AppDatabase, $HostedGameEventSeqTable> {
+  $$HostedGameEventSeqTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get seq => $composableBuilder(
+    column: $table.seq,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get eventId => $composableBuilder(
+    column: $table.eventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$HostedGameEventSeqTableAnnotationComposer
+    extends Composer<_$AppDatabase, $HostedGameEventSeqTable> {
+  $$HostedGameEventSeqTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get seq =>
+      $composableBuilder(column: $table.seq, builder: (column) => column);
+
+  GeneratedColumn<String> get eventId =>
+      $composableBuilder(column: $table.eventId, builder: (column) => column);
+}
+
+class $$HostedGameEventSeqTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $HostedGameEventSeqTable,
+          HostedGameEventRow,
+          $$HostedGameEventSeqTableFilterComposer,
+          $$HostedGameEventSeqTableOrderingComposer,
+          $$HostedGameEventSeqTableAnnotationComposer,
+          $$HostedGameEventSeqTableCreateCompanionBuilder,
+          $$HostedGameEventSeqTableUpdateCompanionBuilder,
+          (
+            HostedGameEventRow,
+            BaseReferences<
+              _$AppDatabase,
+              $HostedGameEventSeqTable,
+              HostedGameEventRow
+            >,
+          ),
+          HostedGameEventRow,
+          PrefetchHooks Function()
+        > {
+  $$HostedGameEventSeqTableTableManager(
+    _$AppDatabase db,
+    $HostedGameEventSeqTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$HostedGameEventSeqTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$HostedGameEventSeqTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$HostedGameEventSeqTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> seq = const Value.absent(),
+                Value<String> eventId = const Value.absent(),
+              }) => HostedGameEventSeqCompanion(seq: seq, eventId: eventId),
+          createCompanionCallback:
+              ({
+                Value<int> seq = const Value.absent(),
+                required String eventId,
+              }) => HostedGameEventSeqCompanion.insert(
+                seq: seq,
+                eventId: eventId,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$HostedGameEventSeqTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $HostedGameEventSeqTable,
+      HostedGameEventRow,
+      $$HostedGameEventSeqTableFilterComposer,
+      $$HostedGameEventSeqTableOrderingComposer,
+      $$HostedGameEventSeqTableAnnotationComposer,
+      $$HostedGameEventSeqTableCreateCompanionBuilder,
+      $$HostedGameEventSeqTableUpdateCompanionBuilder,
+      (
+        HostedGameEventRow,
+        BaseReferences<
+          _$AppDatabase,
+          $HostedGameEventSeqTable,
+          HostedGameEventRow
+        >,
+      ),
+      HostedGameEventRow,
+      PrefetchHooks Function()
+    >;
+typedef $$GameHubCursorsTableCreateCompanionBuilder =
+    GameHubCursorsCompanion Function({
+      required String hubId,
+      Value<int> lastPulledSeq,
+      Value<int> rowid,
+    });
+typedef $$GameHubCursorsTableUpdateCompanionBuilder =
+    GameHubCursorsCompanion Function({
+      Value<String> hubId,
+      Value<int> lastPulledSeq,
+      Value<int> rowid,
+    });
+
+class $$GameHubCursorsTableFilterComposer
+    extends Composer<_$AppDatabase, $GameHubCursorsTable> {
+  $$GameHubCursorsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get hubId => $composableBuilder(
+    column: $table.hubId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastPulledSeq => $composableBuilder(
+    column: $table.lastPulledSeq,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$GameHubCursorsTableOrderingComposer
+    extends Composer<_$AppDatabase, $GameHubCursorsTable> {
+  $$GameHubCursorsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get hubId => $composableBuilder(
+    column: $table.hubId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastPulledSeq => $composableBuilder(
+    column: $table.lastPulledSeq,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$GameHubCursorsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $GameHubCursorsTable> {
+  $$GameHubCursorsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get hubId =>
+      $composableBuilder(column: $table.hubId, builder: (column) => column);
+
+  GeneratedColumn<int> get lastPulledSeq => $composableBuilder(
+    column: $table.lastPulledSeq,
+    builder: (column) => column,
+  );
+}
+
+class $$GameHubCursorsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $GameHubCursorsTable,
+          GameHubCursorRow,
+          $$GameHubCursorsTableFilterComposer,
+          $$GameHubCursorsTableOrderingComposer,
+          $$GameHubCursorsTableAnnotationComposer,
+          $$GameHubCursorsTableCreateCompanionBuilder,
+          $$GameHubCursorsTableUpdateCompanionBuilder,
+          (
+            GameHubCursorRow,
+            BaseReferences<
+              _$AppDatabase,
+              $GameHubCursorsTable,
+              GameHubCursorRow
+            >,
+          ),
+          GameHubCursorRow,
+          PrefetchHooks Function()
+        > {
+  $$GameHubCursorsTableTableManager(
+    _$AppDatabase db,
+    $GameHubCursorsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$GameHubCursorsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$GameHubCursorsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$GameHubCursorsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> hubId = const Value.absent(),
+                Value<int> lastPulledSeq = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => GameHubCursorsCompanion(
+                hubId: hubId,
+                lastPulledSeq: lastPulledSeq,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String hubId,
+                Value<int> lastPulledSeq = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => GameHubCursorsCompanion.insert(
+                hubId: hubId,
+                lastPulledSeq: lastPulledSeq,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$GameHubCursorsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $GameHubCursorsTable,
+      GameHubCursorRow,
+      $$GameHubCursorsTableFilterComposer,
+      $$GameHubCursorsTableOrderingComposer,
+      $$GameHubCursorsTableAnnotationComposer,
+      $$GameHubCursorsTableCreateCompanionBuilder,
+      $$GameHubCursorsTableUpdateCompanionBuilder,
+      (
+        GameHubCursorRow,
+        BaseReferences<_$AppDatabase, $GameHubCursorsTable, GameHubCursorRow>,
+      ),
+      GameHubCursorRow,
+      PrefetchHooks Function()
+    >;
+typedef $$GameHubPushLogTableCreateCompanionBuilder =
+    GameHubPushLogCompanion Function({
+      required String hubId,
+      required String eventId,
+      Value<int> rowid,
+    });
+typedef $$GameHubPushLogTableUpdateCompanionBuilder =
+    GameHubPushLogCompanion Function({
+      Value<String> hubId,
+      Value<String> eventId,
+      Value<int> rowid,
+    });
+
+class $$GameHubPushLogTableFilterComposer
+    extends Composer<_$AppDatabase, $GameHubPushLogTable> {
+  $$GameHubPushLogTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get hubId => $composableBuilder(
+    column: $table.hubId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get eventId => $composableBuilder(
+    column: $table.eventId,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$GameHubPushLogTableOrderingComposer
+    extends Composer<_$AppDatabase, $GameHubPushLogTable> {
+  $$GameHubPushLogTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get hubId => $composableBuilder(
+    column: $table.hubId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get eventId => $composableBuilder(
+    column: $table.eventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$GameHubPushLogTableAnnotationComposer
+    extends Composer<_$AppDatabase, $GameHubPushLogTable> {
+  $$GameHubPushLogTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get hubId =>
+      $composableBuilder(column: $table.hubId, builder: (column) => column);
+
+  GeneratedColumn<String> get eventId =>
+      $composableBuilder(column: $table.eventId, builder: (column) => column);
+}
+
+class $$GameHubPushLogTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $GameHubPushLogTable,
+          GameHubPushRow,
+          $$GameHubPushLogTableFilterComposer,
+          $$GameHubPushLogTableOrderingComposer,
+          $$GameHubPushLogTableAnnotationComposer,
+          $$GameHubPushLogTableCreateCompanionBuilder,
+          $$GameHubPushLogTableUpdateCompanionBuilder,
+          (
+            GameHubPushRow,
+            BaseReferences<_$AppDatabase, $GameHubPushLogTable, GameHubPushRow>,
+          ),
+          GameHubPushRow,
+          PrefetchHooks Function()
+        > {
+  $$GameHubPushLogTableTableManager(
+    _$AppDatabase db,
+    $GameHubPushLogTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$GameHubPushLogTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$GameHubPushLogTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$GameHubPushLogTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> hubId = const Value.absent(),
+                Value<String> eventId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => GameHubPushLogCompanion(
+                hubId: hubId,
+                eventId: eventId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String hubId,
+                required String eventId,
+                Value<int> rowid = const Value.absent(),
+              }) => GameHubPushLogCompanion.insert(
+                hubId: hubId,
+                eventId: eventId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$GameHubPushLogTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $GameHubPushLogTable,
+      GameHubPushRow,
+      $$GameHubPushLogTableFilterComposer,
+      $$GameHubPushLogTableOrderingComposer,
+      $$GameHubPushLogTableAnnotationComposer,
+      $$GameHubPushLogTableCreateCompanionBuilder,
+      $$GameHubPushLogTableUpdateCompanionBuilder,
+      (
+        GameHubPushRow,
+        BaseReferences<_$AppDatabase, $GameHubPushLogTable, GameHubPushRow>,
+      ),
+      GameHubPushRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5582,4 +6715,10 @@ class $AppDatabaseManager {
       $$ExportBookmarksTableTableManager(_db, _db.exportBookmarks);
   $$GameEventsTableTableManager get gameEvents =>
       $$GameEventsTableTableManager(_db, _db.gameEvents);
+  $$HostedGameEventSeqTableTableManager get hostedGameEventSeq =>
+      $$HostedGameEventSeqTableTableManager(_db, _db.hostedGameEventSeq);
+  $$GameHubCursorsTableTableManager get gameHubCursors =>
+      $$GameHubCursorsTableTableManager(_db, _db.gameHubCursors);
+  $$GameHubPushLogTableTableManager get gameHubPushLog =>
+      $$GameHubPushLogTableTableManager(_db, _db.gameHubPushLog);
 }

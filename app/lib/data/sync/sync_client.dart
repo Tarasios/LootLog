@@ -3,7 +3,11 @@
 /// A device may be paired with several hubs and keeps an independent pull cursor
 /// per hub (see [SyncDao]). Each cycle, for every reachable paired hub, the
 /// client pushes its un-pushed events and referenced blobs, then pulls new
-/// events and any blobs they reference. Everything is idempotent — events by
+/// events and any blobs they reference, then does the same for the guild-hall
+/// game log over the hub's `/game-events` endpoints (its own cursors and push
+/// log). A hub that predates game sync answers those with 404: the cycle
+/// still succeeds, and the game events stay queued until the hub is updated.
+/// Everything is idempotent — events by
 /// `eventId`, blobs by content hash — so partial cycles, retries, and
 /// multi-hub overlap all converge with no conflict logic.
 ///
@@ -29,6 +33,9 @@ class HubSyncResult {
     required this.pulled,
     required this.blobsPushed,
     required this.blobsPulled,
+    this.gamePushed = 0,
+    this.gamePulled = 0,
+    this.gameSupported = true,
     this.error,
   });
 
@@ -36,13 +43,23 @@ class HubSyncResult {
       : pushed = 0,
         pulled = 0,
         blobsPushed = 0,
-        blobsPulled = 0;
+        blobsPulled = 0,
+        gamePushed = 0,
+        gamePulled = 0,
+        gameSupported = true;
 
   final String hubId;
   final int pushed;
   final int pulled;
   final int blobsPushed;
   final int blobsPulled;
+
+  /// Game events pushed to / pulled from this hub.
+  final int gamePushed;
+  final int gamePulled;
+
+  /// False when the hub predates game sync (its `/game-events` is a 404).
+  final bool gameSupported;
   final String? error;
 
   bool get ok => error == null;
@@ -125,12 +142,16 @@ class SyncClient {
       final blobsPushed = await _pushBlobs(hub);
       final pulled = await _pullEvents(hub);
       final blobsPulled = await _pullBlobs(hub);
+      final game = await _syncGame(hub);
       return HubSyncResult(
         hubId: hub.hubId,
         pushed: pushed,
         pulled: pulled,
         blobsPushed: blobsPushed,
         blobsPulled: blobsPulled,
+        gamePushed: game.pushed,
+        gamePulled: game.pulled,
+        gameSupported: game.supported,
       );
     } on Object catch (e) {
       // Silent-but-visible: surface the failure without throwing.
@@ -223,6 +244,59 @@ class SyncClient {
       count++;
     }
     return count;
+  }
+
+  // ---- game log -------------------------------------------------------------
+
+  /// Pushes then pulls the game log. A 404 on either call means the hub
+  /// predates game sync: nothing is marked pushed, so the events go out once
+  /// the hub is updated.
+  Future<({int pushed, int pulled, bool supported})> _syncGame(
+    PairedHubRow hub,
+  ) async {
+    const unsupported = (pushed: 0, pulled: 0, supported: false);
+    final unpushed = await db.gameSyncDao.unpushedForHub(hub.hubId);
+    if (unpushed.isNotEmpty) {
+      final res = await _send(
+        'POST',
+        _uri(hub.baseUrl, 'game-events'),
+        token: hub.deviceToken,
+        body: {'events': [for (final e in unpushed) e.toJson()]},
+      );
+      if (res.status == 404) return unsupported;
+      if (res.status != 200) {
+        throw SyncException('push game events failed (${res.status})');
+      }
+      await db.gameSyncDao
+          .markPushed(hub.hubId, [for (final e in unpushed) e.eventId]);
+    }
+
+    var cursor = await db.gameSyncDao.pullCursor(hub.hubId);
+    var pulled = 0;
+    while (true) {
+      final res = await _send(
+        'GET',
+        _uri(hub.baseUrl, 'game-events', {'after': '$cursor', 'limit': '500'}),
+        token: hub.deviceToken,
+      );
+      if (res.status == 404) return unsupported;
+      if (res.status != 200) {
+        throw SyncException('pull game events failed (${res.status})');
+      }
+      final page = GameEventPage.fromJson(
+        (jsonDecode(res.text) as Map).cast<String, dynamic>(),
+      );
+      if (page.events.isNotEmpty) {
+        await db.gameEventsDao.appendGameEvents(page.events);
+        await db.gameSyncDao
+            .markPushed(hub.hubId, [for (final e in page.events) e.eventId]);
+        pulled += page.events.length;
+      }
+      await db.gameSyncDao.setPullCursor(hub.hubId, page.cursor);
+      cursor = page.cursor;
+      if (page.events.length < 500) break;
+    }
+    return (pushed: unpushed.length, pulled: pulled, supported: true);
   }
 
   // ---- offload support ------------------------------------------------------
