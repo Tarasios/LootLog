@@ -344,6 +344,12 @@ current month, keeping this month's charge).
   emergency spending out). Create a fund here *before* wiring a category's
   emergency contribution to it.
 - **Manage → Settings → Pets**: add pets to display as party members.
+- **Manage → Settings → Rules → Category savings**: turns on the savings rules
+  (new households start with them on). Unspent money can be **saved in its
+  budget**, taxed once at that budget's **carry tax**, or moved to **general
+  savings** at the household's general rate (default 20%). Money that has
+  already been taxed only ever pays the difference when it moves again. Your
+  past months don't change. **Update LootLog on every device first.**
 - **Manage → Settings → Rules**: the **Spoils grace period** (days after month
   close before defaults auto-apply, default 7), the **Dissolution tithe** (% taken
   when a quest is abandoned, default 10), and a **Show net worth** switch that
@@ -376,10 +382,22 @@ Tap the **New** button (the ➕ floating button; on desktop you can also press t
    - **Quests** — active savings goals you can spend toward.
    - **Emergency funds** — reserve caches.
 
-**About the shared flag:** "Split 50/50" only applies to **personal categories
-and the Vault**. Group categories are *always* shared, so no toggle is shown for
-them. When you split a personal-category or vault purchase, your partner's half
-is taken from their vault at read time (odd penny goes to the buyer).
+**About the shared flag:** "Shared" only applies to **personal categories and
+the Vault**. Group categories are *always* shared, so no toggle is shown for
+them. When you share a personal-category or vault purchase, each other adult's
+part (by the household share table) is taken from their own spending money
+(odd penny goes to the buyer).
+
+**When a purchase is bigger than what's left** (with category savings turned
+on), LootLog saves it and then asks how to cover the gap:
+- **from your general savings** (picked for you when it's enough)
+- **by borrowing from the next few months of that budget** (another adult
+  approves)
+- when it's a savings goal you're buying, **from one of your category
+  savings**, with any tax shown first
+- or **leave it**, and it's settled at month end as usual.
+
+Everyday purchases that fit never see this.
 
 ### Receipts and on-device OCR
 
@@ -435,6 +453,15 @@ The sheet has up to two steps:
      tithe — the preview shows which). Pick which quest if you have more than one.
    - **Discretionary** — moves it to your vault, minus that category's pool tithe
      (the preview shows the split, e.g. "$45 to vault, $5 tithe to war chest").
+
+**With category savings turned on**, the choices read **Save in <budget>**
+(taxed once at its carry tax), **General savings**, a savings goal, or repaying
+overspending. Every option shows what you keep and what goes to shared savings
+before you confirm. Each budget's existing savings appear in their own row and
+**stay put, untaxed** unless you choose to move them. Moving them only costs the
+difference between the tax they already paid and the new rate. Variable bills
+that came in under their estimate add the difference to savings. Ones that ran
+over take it from savings, never from your budgets.
 
 Below the choices, an **Automatic** section shows what happens on its own and
 needs no decision: group-category leftovers flowing to the war chest, and
