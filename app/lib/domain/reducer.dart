@@ -5,6 +5,7 @@ library;
 
 import 'event.dart';
 import 'money.dart';
+import 'pools.dart';
 import 'state.dart';
 import 'time.dart';
 import 'value_types.dart';
@@ -303,6 +304,14 @@ class _Builder {
   final Map<String, int> debtBySlice = {};
   final Map<String, int> debtAccrued = {};
   final Map<String, String> debtOwner = {};
+  final Map<String, DebtKind> debtKind = {};
+
+  // Savings economy (from the adoption month): each personal category's
+  // savings pool, spending covered from elsewhere and advance repayments
+  // (both keyed "sliceId|yyyy-MM").
+  final Map<String, TaxedBalance> savings = {};
+  final Map<String, int> coverBySliceMonth = {};
+  final Map<String, int> trimBySliceMonth = {};
 
   void _flow(String user, Month month, int amount) {
     final bucket = vaultFlowByMonth.putIfAbsent(month.toKey(), () => {});
@@ -470,6 +479,7 @@ class _Builder {
 
   HouseholdState build() {
     _applyReceipts();
+    final rules = savingsRules;
     for (final u in userIds) {
       vault.putIfAbsent(u, () => 0);
     }
@@ -702,8 +712,12 @@ class _Builder {
             );
           } else {
             final owner = cfg.ownerUserId!;
-            final carryIn = carryPrev[cfg.sliceId] ?? 0;
-            final funding = cfg.baseEffectiveLimitCents + carryIn;
+            final newRules = rules != null && rules.appliesTo(m);
+            final carryIn = (!newRules || m == rules.fromMonth)
+                ? (carryPrev[cfg.sliceId] ?? 0)
+                : 0;
+            final trimmed = newRules ? _takeTrim(cfg, m, carryIn) : 0;
+            final funding = cfg.baseEffectiveLimitCents + carryIn - trimmed;
             final outstanding = lockActive
                 ? (debtBySlice[cfg.sliceId] ?? 0)
                 : 0;
@@ -713,21 +727,51 @@ class _Builder {
               debtBySlice[cfg.sliceId] = outstanding - locked;
             }
             final eff = funding - locked;
-            final spent = personalSpent[spentKey] ?? 0;
-            final leftover = spent < eff ? eff - spent : 0;
-            final overspend = spent > eff ? spent - eff : 0;
-            calcs.add(
-              _SliceCalc(
-                cfg,
-                owner,
-                carryIn,
-                locked,
-                eff,
-                spent,
-                leftover,
-                overspend,
-              ),
-            );
+            final rawSpent = personalSpent[spentKey] ?? 0;
+            if (!newRules) {
+              final leftover = rawSpent < eff ? eff - rawSpent : 0;
+              final overspend = rawSpent > eff ? rawSpent - eff : 0;
+              calcs.add(
+                _SliceCalc(
+                  cfg,
+                  owner,
+                  carryIn,
+                  locked,
+                  eff,
+                  rawSpent,
+                  leftover,
+                  overspend,
+                ),
+              );
+            } else {
+              final covered = coverBySliceMonth[spentKey] ?? 0;
+              final spentNet = rawSpent > covered ? rawSpent - covered : 0;
+              final fromAllowance = spentNet < eff ? spentNet : eff;
+              var pool = savings[cfg.sliceId] ?? TaxedBalance.zero;
+              final want = spentNet - fromAllowance;
+              final fromSavings = want < pool.balanceCents
+                  ? want
+                  : pool.balanceCents;
+              pool = spendFrom(pool, fromSavings);
+              savings[cfg.sliceId] = pool;
+              calcs.add(
+                _SliceCalc(
+                  cfg,
+                  owner,
+                  carryIn,
+                  locked,
+                  eff,
+                  rawSpent,
+                  eff - fromAllowance,
+                  spentNet - fromAllowance - fromSavings,
+                  fromSavings: fromSavings,
+                  savingsAfter: pool.balanceCents,
+                  covered: covered,
+                  trimmed: trimmed,
+                  newRules: true,
+                ),
+              );
+            }
           }
 
           // Emergency-contribution schedule (accrues off the top every active
@@ -802,14 +846,35 @@ class _Builder {
           if (alloc != null) {
             effective = alloc.allocations;
           } else if (now.isAfter(graceDeadline)) {
-            effective = _defaultAllocations(cfg, c.owner, c.leftover);
+            effective = c.newRules
+                ? _savingsDefaults(
+                    cfg,
+                    c.owner,
+                    c.leftover,
+                    rules!.generalRateFor(m),
+                  )
+                : _defaultAllocations(cfg, c.owner, c.leftover);
           } else {
             effective = const [];
             resolved = false;
           }
           if (resolved) {
-            for (final a in effective) {
-              _applyAllocation(cfg, c.owner, a, m, carryThis);
+            if (c.newRules) {
+              var allowanceLeft = c.leftover;
+              for (final a in effective) {
+                allowanceLeft = _applySavingsAllocation(
+                  cfg,
+                  c.owner,
+                  a,
+                  m,
+                  rules!.generalRateFor(m),
+                  allowanceLeft,
+                );
+              }
+            } else {
+              for (final a in effective) {
+                _applyAllocation(cfg, c.owner, a, m, carryThis);
+              }
             }
           }
           sliceMonths[HouseholdState.monthKey(cfg.sliceId, m)] = SliceMonth(
@@ -825,6 +890,10 @@ class _Builder {
             overspendCents: c.overspend,
             resolved: resolved,
             lockedCents: c.locked,
+            fromSavingsCents: c.fromSavings,
+            savingsCents: c.savingsAfter,
+            coveredCents: c.covered,
+            trimmedCents: c.trimmed,
           );
         }
 
@@ -1297,6 +1366,7 @@ class _Builder {
             ownerUserId: debtOwner[sliceId]!,
             accruedCents: debtAccrued[sliceId]!,
             outstandingCents: debtBySlice[sliceId] ?? 0,
+            kind: debtKind[sliceId] ?? DebtKind.overbudget,
           ),
       },
       warChest: WarChestState(
@@ -1342,7 +1412,8 @@ class _Builder {
       },
       variableActuals: Map<String, int>.from(variableActuals),
       vacations: vacationStates,
-      savingsRules: savingsRules,
+      savingsRules: rules,
+      categorySavings: Map.unmodifiable(savings),
     );
   }
 
@@ -1424,6 +1495,128 @@ class _Builder {
         }
     }
   }
+
+  /// Applies one month-end line under the savings rules. Returns the unspent
+  /// allowance still available for later lines.
+  int _applySavingsAllocation(
+    SliceConfig cfg,
+    String owner,
+    Allocation a,
+    Month m,
+    int generalRate,
+    int allowanceLeft,
+  ) {
+    final fromSavings = a.source == AllocationSource.savings;
+    final source = fromSavings
+        ? (savings[cfg.sliceId] ?? TaxedBalance.zero)
+        : TaxedBalance(allowanceLeft);
+    final amount = a.amountCents < source.balanceCents
+        ? a.amountCents
+        : source.balanceCents;
+    if (amount <= 0) return allowanceLeft;
+
+    MoveResult move(int rate) {
+      final r = moveTaxed(source, amount, rate);
+      _addChest(r.topUpCents, m);
+      if (fromSavings) savings[cfg.sliceId] = r.remaining;
+      return r;
+    }
+
+    void toGeneral(int cents) {
+      _addVault(owner, cents);
+      availVault[owner] = (availVault[owner] ?? 0) + cents;
+    }
+
+    switch (a.destination) {
+      case CarryInSlice():
+        if (fromSavings) return allowanceLeft; // already in savings: stays
+        final r = move(cfg.poolTithePct);
+        savings[cfg.sliceId] =
+            (savings[cfg.sliceId] ?? TaxedBalance.zero) + r.delivered;
+      case Discretionary():
+        toGeneral(move(generalRate).delivered.balanceCents);
+      case QuestDestination(:final questId):
+        final quest = questCfg[questId];
+        final matches =
+            quest?.mainCategoryId != null &&
+            quest!.mainCategoryId == cfg.mainCategoryId;
+        final got = move(matches ? 0 : generalRate).delivered.balanceCents;
+        questBalance[questId] = (questBalance[questId] ?? 0) + got;
+        final c = questContrib.putIfAbsent(questId, () => {});
+        c[owner] = (c[owner] ?? 0) + got;
+      case OverbudgetPayment(:final sliceId):
+        final target = slices[sliceId];
+        final untaxed =
+            debtKind[sliceId] == DebtKind.provisions ||
+            (target?.mainCategoryId != null &&
+                target!.mainCategoryId == cfg.mainCategoryId);
+        final r = move(untaxed ? 0 : generalRate);
+        final outstanding = debtBySlice[sliceId] ?? 0;
+        final got = r.delivered.balanceCents;
+        final pay = got < outstanding ? got : outstanding;
+        if (pay > 0) debtBySlice[sliceId] = outstanding - pay;
+        final excess = got - pay;
+        if (excess > 0) {
+          // The excess keeps its share of tax paid and tops up to general.
+          final paid = got == 0 ? 0 : r.delivered.taxPaidCents * excess ~/ got;
+          final g = moveTaxed(TaxedBalance(excess, paid), excess, generalRate);
+          _addChest(g.topUpCents, m);
+          toGeneral(g.delivered.balanceCents);
+        }
+    }
+    return fromSavings ? allowanceLeft : allowanceLeft - amount;
+  }
+
+  /// Grace-expired default under the savings rules: the owner's outstanding
+  /// debts first (allowance sized so the post-tax payment covers each), then
+  /// the category's default policy. Category savings are never moved.
+  List<Allocation> _savingsDefaults(
+    SliceConfig cfg,
+    String owner,
+    int leftover,
+    int generalRate,
+  ) {
+    if (leftover <= 0) return const [];
+    final lines = <Allocation>[];
+    var remaining = leftover;
+    for (final debtId in debtBySlice.keys.toList()..sort()) {
+      if (remaining <= 0) break;
+      final outstanding = debtBySlice[debtId] ?? 0;
+      if (outstanding <= 0 || debtOwner[debtId] != owner) continue;
+      final target = slices[debtId];
+      final untaxed =
+          debtKind[debtId] == DebtKind.provisions ||
+          (target?.mainCategoryId != null &&
+              target!.mainCategoryId == cfg.mainCategoryId);
+      final gross = grossToDeliver(
+        TaxedBalance(remaining),
+        outstanding,
+        untaxed ? 0 : generalRate,
+      );
+      if (gross > 0) {
+        lines.add(
+          Allocation(
+            destination: OverbudgetPayment(debtId),
+            amountCents: gross,
+          ),
+        );
+        remaining -= gross;
+      }
+    }
+    if (remaining > 0) {
+      lines.add(
+        Allocation(
+          destination: cfg.defaultLeftoverPolicy,
+          amountCents: remaining,
+        ),
+      );
+    }
+    return lines;
+  }
+
+  /// Allowance withheld from [cfg] in [m] to repay approved advances. Filled
+  /// in with advances; until then nothing is ever trimmed.
+  int _takeTrim(SliceConfig cfg, Month m, int carryIn) => 0;
 
   /// The grace-expired default for a personal category's leftover: the
   /// owner's outstanding OVERBUDGETs are attacked first (gross amounts sized
@@ -1616,8 +1809,13 @@ class _SliceCalc {
     this.eff,
     this.spent,
     this.leftover,
-    this.overspend,
-  );
+    this.overspend, {
+    this.fromSavings = 0,
+    this.savingsAfter = 0,
+    this.covered = 0,
+    this.trimmed = 0,
+    this.newRules = false,
+  });
 
   final SliceConfig cfg;
   final String owner;
@@ -1627,6 +1825,13 @@ class _SliceCalc {
   final int spent;
   final int leftover;
   final int overspend;
+
+  // Savings rules only.
+  final int fromSavings;
+  final int savingsAfter;
+  final int covered;
+  final int trimmed;
+  final bool newRules;
 }
 
 /// A recurring expense derived from a tracked account (a debt's minimum

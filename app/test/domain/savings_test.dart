@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/domain/event.dart';
+import 'package:lootlog/domain/pools.dart';
 import 'package:lootlog/domain/reducer.dart';
 import 'package:lootlog/domain/time.dart';
 import 'package:lootlog/domain/value_types.dart';
@@ -135,6 +136,144 @@ void main() {
         value: 'nonsense',
       );
       expect(reduce([bad]).savingsRules, isNull);
+    });
+  });
+
+  group('category savings', () {
+    test('the canonical July→September example', () {
+      final events = [
+        rules(jul, 20),
+        slice('clothes', 5000, carryPct: 10),
+        // July: nothing spent; carry all $50 at 10%.
+        allocate('clothes', jul, [line(const CarryInSlice(), 5000)]),
+        // August: nothing spent; savings stay, fresh $50 to general at 20%.
+        allocate('clothes', aug, [line(const Discretionary(), 5000)]),
+      ];
+      final s = reduce(events, asOf: day(2026, 9, 15));
+      expect(s.sliceMonth('clothes', aug)!.effectiveLimitCents, 5000);
+      expect(s.sliceMonth('clothes', aug)!.savingsCents, 4500);
+      expect(s.categorySavings['clothes'], const TaxedBalance(4500, 500));
+      expect(s.sliceMonth('clothes', sep)!.effectiveLimitCents, 5000);
+      expect(s.vaultOf(u1), 4000);
+      expect(s.warChest.balanceCents, 500 + 1000);
+    });
+
+    test('spending uses the allowance first, then savings', () {
+      final events = [
+        rules(jul, 20),
+        slice('clothes', 5000, carryPct: 10),
+        allocate('clothes', jul, [line(const CarryInSlice(), 5000)]),
+        buy('jacket', const SliceCharge('clothes'), 7000, day(2026, 8, 10)),
+      ];
+      final sm = reduce(
+        events,
+        asOf: day(2026, 8, 20),
+      ).sliceMonth('clothes', aug)!;
+      expect(sm.fromSavingsCents, 2000);
+      expect(sm.savingsCents, 2500);
+      expect(sm.overspendCents, 0);
+      expect(sm.leftoverCents, 0);
+    });
+
+    test(
+      'spending beyond allowance and savings is overspend (seized at close)',
+      () {
+        final events = [
+          rules(jul, 20),
+          slice('clothes', 5000, carryPct: 10),
+          buy('jacket', const SliceCharge('clothes'), 6000, day(2026, 7, 10)),
+        ];
+        final s = reduce(events, asOf: justClosed(jul));
+        expect(s.sliceMonth('clothes', jul)!.overspendCents, 1000);
+        expect(s.overbudgets['clothes']!.outstandingCents, 1000);
+      },
+    );
+
+    test('moving already-taxed savings out pays only the difference', () {
+      final events = [
+        rules(jul, 20),
+        slice('clothes', 5000, carryPct: 10),
+        allocate('clothes', jul, [line(const CarryInSlice(), 5000)]),
+        allocate('clothes', aug, [
+          line(const CarryInSlice(), 5000),
+          line(const Discretionary(), 4500, AllocationSource.savings),
+        ]),
+      ];
+      final s = reduce(events, asOf: day(2026, 9, 15));
+      expect(s.vaultOf(u1), 4000); // $45 paid $5; top-up $5 to reach 20%.
+      expect(s.categorySavings['clothes'], const TaxedBalance(4500, 500));
+    });
+
+    test(
+      'a matching quest attack is untaxed; a non-matching one pays general',
+      () {
+        QuestSet quest(String id, String? cat) => QuestSet(
+          eventId: _id(),
+          deviceId: 'd',
+          userId: u1,
+          occurredAt: day(2026, 7, 1),
+          createdAt: day(2026, 7, 1),
+          questId: id,
+          name: id,
+          targetCents: 100000,
+          ownership: const PersonalParty(u1),
+          mainCategoryId: cat,
+        );
+        final events = [
+          rules(jul, 20),
+          slice('fun', 10000, carryPct: 10, mainCat: 'entertainment'),
+          quest('console', 'entertainment'),
+          quest('canoe', 'misc'),
+          allocate('fun', jul, [
+            line(const QuestDestination('console'), 5000),
+            line(const QuestDestination('canoe'), 5000),
+          ]),
+        ];
+        final s = reduce(events, asOf: day(2026, 8, 15));
+        expect(s.quests['console']!.balanceCents, 5000);
+        expect(s.quests['canoe']!.balanceCents, 4000);
+      },
+    );
+
+    test('defaults after grace never touch savings', () {
+      final events = [
+        rules(jul, 20),
+        slice('clothes', 5000, carryPct: 10, policy: const Discretionary()),
+        allocate('clothes', jul, [line(const CarryInSlice(), 5000)]),
+      ];
+      final s = reduce(events, asOf: graceExpired(aug));
+      expect(s.categorySavings['clothes']!.balanceCents, 4500);
+      expect(s.vaultOf(u1), 4000); // August's $50 by default policy at 20%.
+    });
+
+    test('the adoption month honours the last legacy carry', () {
+      final events = [
+        rules(aug, 20),
+        slice('clothes', 5000),
+        allocate('clothes', jul, [line(const CarryInSlice(), 5000)]), // legacy
+      ];
+      final s = reduce(events, asOf: day(2026, 8, 15));
+      expect(s.sliceMonth('clothes', jul)!.carryOutCents, 5000);
+      expect(s.sliceMonth('clothes', aug)!.effectiveLimitCents, 10000);
+    });
+
+    test('months before adoption reduce exactly as without the rules', () {
+      final base = [
+        slice('clothes', 5000, carryPct: 10, policy: const Discretionary()),
+        buy('b', const SliceCharge('clothes'), 1234, day(2026, 7, 9)),
+        allocate('clothes', jul, [line(const Discretionary(), 3766)]),
+      ];
+      final legacy = reduce(base, asOf: day(2026, 8, 15));
+      final adoptedLater = reduce([
+        ...base,
+        rules(sep, 20),
+      ], asOf: day(2026, 8, 15));
+      expect(adoptedLater.vaultOf(u1), legacy.vaultOf(u1));
+      expect(adoptedLater.warChest.balanceCents, legacy.warChest.balanceCents);
+      expect(
+        adoptedLater.sliceMonth('clothes', jul)!.leftoverCents,
+        legacy.sliceMonth('clothes', jul)!.leftoverCents,
+      );
     });
   });
 }

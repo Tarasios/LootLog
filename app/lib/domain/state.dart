@@ -3,6 +3,7 @@
 /// event log every time. Pure Dart, zero Flutter imports.
 library;
 
+import 'pools.dart';
 import 'time.dart';
 import 'value_types.dart';
 
@@ -179,6 +180,10 @@ class SliceMonth {
     required this.overspendCents,
     required this.resolved,
     this.lockedCents = 0,
+    this.fromSavingsCents = 0,
+    this.savingsCents = 0,
+    this.coveredCents = 0,
+    this.trimmedCents = 0,
   });
 
   final String sliceId;
@@ -203,6 +208,21 @@ class SliceMonth {
   /// whole limit is eaten). Recognised as debt payment once the month closes.
   final int lockedCents;
 
+  /// Savings rules only: spending this month that the category's savings paid
+  /// for (after the monthly allowance ran out).
+  final int fromSavingsCents;
+
+  /// Savings rules only: the category savings balance after this month's
+  /// spending, before this month's month-end moves.
+  final int savingsCents;
+
+  /// Savings rules only: spending covered from elsewhere (the general pool or
+  /// an approved advance), so it never counted against this category.
+  final int coveredCents;
+
+  /// Savings rules only: allowance withheld this month to repay an advance.
+  final int trimmedCents;
+
   bool get overspent => overspendCents > 0;
 
   bool get locked => lockedCents > 0;
@@ -218,10 +238,15 @@ class OverbudgetState {
     required this.ownerUserId,
     required this.accruedCents,
     required this.outstandingCents,
+    this.kind = DebtKind.overbudget,
   });
 
+  /// The indebted category — or `provisions:<expenseId>` for a bill top-up.
   final String sliceId;
   final String ownerUserId;
+
+  /// An overspent category (the OVERBUDGET) or a variable bill's top-up.
+  final DebtKind kind;
 
   /// Total overflow that ever became debt on this category.
   final int accruedCents;
@@ -851,6 +876,7 @@ class HouseholdState {
     required this.variableActuals,
     required this.vacations,
     this.savingsRules,
+    this.categorySavings = const {},
   });
 
   final Settings settings;
@@ -905,6 +931,10 @@ class HouseholdState {
   /// The savings-economy rules, or null when the household hasn't adopted them
   /// (every month then reduces with the legacy math).
   final SavingsRules? savingsRules;
+
+  /// Savings rules only: each personal category's savings pool right now (the
+  /// already-taxed money it holds), keyed by sliceId.
+  final Map<String, TaxedBalance> categorySavings;
 
   /// The currently-open vacations, sorted by name — the ones quick entry offers
   /// a charge target for and the dashboard boards while a trip is under way.
