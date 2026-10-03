@@ -276,4 +276,114 @@ void main() {
       );
     });
   });
+
+  group('shortfall covers', () {
+    ShortfallCovered cover(
+      String purchaseId,
+      CoverSource src,
+      int amt,
+      DateTime at,
+    ) => ShortfallCovered(
+      eventId: _id(),
+      deviceId: 'd',
+      userId: u1,
+      occurredAt: at,
+      createdAt: at,
+      purchaseId: purchaseId,
+      source: src,
+      amountCents: amt,
+    );
+    GiftReceived gift(int amt) => GiftReceived(
+      eventId: _id(),
+      deviceId: 'd',
+      userId: u1,
+      occurredAt: day(2026, 7, 1),
+      createdAt: day(2026, 7, 1),
+      forUserId: u1,
+      amountCents: amt,
+    );
+
+    test('the general pool covers a category purchase, so no overspend', () {
+      final events = [
+        rules(jul, 20),
+        gift(10000),
+        slice('clothes', 25000),
+        buy('jacket', const SliceCharge('clothes'), 30000, day(2026, 7, 10)),
+        cover('jacket', const GeneralCover(), 5000, day(2026, 7, 10)),
+      ];
+      final s = reduce(events, asOf: justClosed(jul));
+      expect(s.sliceMonth('clothes', jul)!.overspendCents, 0);
+      expect(s.sliceMonth('clothes', jul)!.coveredCents, 5000);
+      expect(s.vaultOf(u1), 5000);
+      expect(s.overbudgets, isEmpty);
+    });
+
+    test('a voided purchase voids its cover', () {
+      final events = [
+        rules(jul, 20),
+        gift(10000),
+        slice('clothes', 25000),
+        buy('jacket', const SliceCharge('clothes'), 30000, day(2026, 7, 10)),
+        cover('jacket', const GeneralCover(), 5000, day(2026, 7, 10)),
+        PurchaseVoided(
+          eventId: _id(),
+          deviceId: 'd',
+          userId: u1,
+          occurredAt: day(2026, 7, 11),
+          createdAt: day(2026, 7, 11),
+          purchaseId: 'jacket',
+        ),
+      ];
+      expect(reduce(events, asOf: justClosed(jul)).vaultOf(u1), 10000);
+    });
+
+    test(
+      'buying a quest goal early with category savings pays the difference',
+      () {
+        final events = [
+          rules(jul, 20),
+          slice('fun', 10000, carryPct: 10, mainCat: 'entertainment'),
+          QuestSet(
+            eventId: _id(),
+            deviceId: 'd',
+            userId: u1,
+            occurredAt: day(2026, 7, 1),
+            createdAt: day(2026, 7, 1),
+            questId: 'canoe',
+            name: 'Canoe',
+            targetCents: 13000,
+            ownership: const PersonalParty(u1),
+            mainCategoryId: 'misc',
+          ),
+          allocate('fun', jul, [
+            line(const QuestDestination('canoe'), 5000), // → 4000 (20%)
+            line(const CarryInSlice(), 5000), // savings 4500 paid 500
+          ]),
+          buy('canoeBuy', const QuestCharge('canoe'), 13000, day(2026, 8, 5)),
+          // Short $90: move all $45 of savings (top-up $5 → $40 lands).
+          cover(
+            'canoeBuy',
+            const CategorySavingsCover('fun'),
+            4500,
+            day(2026, 8, 5),
+          ),
+        ];
+        final s = reduce(events, asOf: day(2026, 8, 20));
+        expect(s.categorySavings['fun']!.balanceCents, 0);
+        expect(s.quests['canoe']!.contributions[u1], 8000);
+      },
+    );
+
+    test('covers on one purchase never exceed its amount', () {
+      final events = [
+        rules(jul, 20),
+        gift(100000),
+        slice('clothes', 25000),
+        buy('jacket', const SliceCharge('clothes'), 30000, day(2026, 7, 10)),
+        cover('jacket', const GeneralCover(), 20000, day(2026, 7, 10)),
+        cover('jacket', const GeneralCover(), 20000, day(2026, 7, 10)),
+      ];
+      expect(reduce(events, asOf: justClosed(jul)).vaultOf(u1), 100000 - 30000);
+    });
+  });
 }

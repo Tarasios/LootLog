@@ -594,6 +594,51 @@ class _Builder {
       }
     }
 
+    // Shortfall covers (savings rules only). Category-savings covers on quest
+    // purchases are applied inside the sweep; general covers resolve here.
+    final questCoversBySliceMonth = <String, List<(String, int, String)>>{};
+    final coveredSoFar = <String, int>{};
+    for (final c in covers) {
+      final acc = purchases[c.purchaseId];
+      if (acc == null || acc.voided) continue;
+      final e = acc.event;
+      if (rules == null || !rules.appliesTo(e.occurredMonth)) continue;
+      final already = coveredSoFar[c.purchaseId] ?? 0;
+      final room = e.amountCents - already;
+      final amt = c.amountCents < room ? c.amountCents : room;
+      if (amt <= 0) continue;
+      final target = e.target;
+      switch (c.source) {
+        case GeneralCover():
+          if (target is SliceCharge) {
+            coverBySliceMonth['${target.sliceId}|${e.occurredMonth.toKey()}'] =
+                (coverBySliceMonth['${target.sliceId}|${e.occurredMonth.toKey()}'] ??
+                    0) +
+                amt;
+          } else if (target is QuestCharge) {
+            questBalance[target.questId] =
+                (questBalance[target.questId] ?? 0) + amt;
+            final qc = questContrib.putIfAbsent(target.questId, () => {});
+            qc[e.userId] = (qc[e.userId] ?? 0) + amt;
+          } else {
+            continue;
+          }
+          _addVault(e.userId, -amt);
+          _flow(e.userId, e.occurredMonth, -amt);
+        case CategorySavingsCover(:final sliceId):
+          final cfg = slices[sliceId];
+          if (target is! QuestCharge ||
+              cfg == null ||
+              cfg.ownerUserId != e.userId) {
+            continue;
+          }
+          questCoversBySliceMonth
+              .putIfAbsent('$sliceId|${e.occurredMonth.toKey()}', () => [])
+              .add((target.questId, amt, e.userId));
+      }
+      coveredSoFar[c.purchaseId] = already + amt;
+    }
+
     // Withdrawals (resolved before the sweep so approved vault credits enter
     // the seizure-availability model in their approval month).
     final withdrawals = <String, WithdrawalProposal>{};
@@ -747,6 +792,29 @@ class _Builder {
               final covered = coverBySliceMonth[spentKey] ?? 0;
               final spentNet = rawSpent > covered ? rawSpent - covered : 0;
               final fromAllowance = spentNet < eff ? spentNet : eff;
+              for (final (questId, amt, _)
+                  in questCoversBySliceMonth[spentKey] ??
+                      const <(String, int, String)>[]) {
+                final pool0 = savings[cfg.sliceId] ?? TaxedBalance.zero;
+                final x = amt < pool0.balanceCents ? amt : pool0.balanceCents;
+                if (x <= 0) continue;
+                final quest = questCfg[questId];
+                final matches =
+                    quest?.mainCategoryId != null &&
+                    quest!.mainCategoryId == cfg.mainCategoryId;
+                final r = moveTaxed(
+                  pool0,
+                  x,
+                  matches ? 0 : rules.generalRateFor(m),
+                );
+                savings[cfg.sliceId] = r.remaining;
+                _addChest(r.topUpCents, m);
+                questBalance[questId] =
+                    (questBalance[questId] ?? 0) + r.delivered.balanceCents;
+                final qc = questContrib.putIfAbsent(questId, () => {});
+                qc[owner] = (qc[owner] ?? 0) + r.delivered.balanceCents;
+              }
+
               var pool = savings[cfg.sliceId] ?? TaxedBalance.zero;
               final want = spentNet - fromAllowance;
               final fromSavings = want < pool.balanceCents
