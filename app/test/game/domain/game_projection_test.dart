@@ -316,6 +316,43 @@ void main() {
       expect(s.person(robin).freezeTokens, 0);
       expect(codes(s), [GameWarningCode.tokensClamped]);
     });
+
+    test('a second freeze for the same day (another device) spends nothing', () {
+      final s = projectGameState([
+        granted('t0', when: at(0), tokens: 2),
+        claimed('t1', 'reward-t0', when: at(1)),
+        granted('d0', when: onDay(0), reasonCode: GameReasonCodes.dailyLog),
+        freezeUsed('f1', GameDay.fromInstant(onDay(1)), when: onDay(2)),
+        freezeUsed('f2', GameDay.fromInstant(onDay(1)), when: onDay(2)),
+      ]);
+      expect(s.person(robin).freezeTokens, 1);
+      expect(s.warnings, isEmpty);
+    });
+
+    test('a freeze for a day already logged spends nothing', () {
+      final s = projectGameState([
+        granted('t0', when: at(0), tokens: 1),
+        claimed('t1', 'reward-t0', when: at(1)),
+        granted('d1', when: onDay(1), reasonCode: GameReasonCodes.dailyLog),
+        freezeUsed('f1', GameDay.fromInstant(onDay(1)), when: onDay(2)),
+      ]);
+      expect(s.person(robin).freezeTokens, 1);
+      expect(s.person(robin).streak.frozenDays, isEmpty);
+    });
+
+    test('logged and frozen days are told apart', () {
+      final s = projectGameState([
+        granted('t0', when: at(0), tokens: 1),
+        claimed('t1', 'reward-t0', when: at(1)),
+        granted('d0', when: onDay(0), reasonCode: GameReasonCodes.dailyLog),
+        freezeUsed('f1', GameDay.fromInstant(onDay(1)), when: onDay(2)),
+        granted('d2', when: onDay(2), reasonCode: GameReasonCodes.noSpendCheckIn),
+      ]);
+      final streak = s.person(robin).streak;
+      expect(streak.frozenDays, {GameDay.fromInstant(onDay(1))});
+      expect(streak.loggedDays,
+          {GameDay.fromInstant(onDay(0)), GameDay.fromInstant(onDay(2))});
+    });
   });
 
   group('ritual', () {

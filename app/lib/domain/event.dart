@@ -77,6 +77,7 @@ sealed class Event {
           merchant: p['merchant'] as String?,
           taxDeductible: p['taxDeductible'] as bool?,
           note: p['note'] as String?,
+          amendsPurchaseId: p['amendsPurchaseId'] as String?,
         );
       case 'PurchaseVoided':
         return PurchaseVoided(
@@ -512,6 +513,23 @@ sealed class Event {
           createdAt: createdAt,
           advanceId: p['advanceId'] as String,
         );
+      case 'NoSpendCheckIn':
+        return NoSpendCheckedIn(
+          eventId: eventId,
+          deviceId: deviceId,
+          userId: userId,
+          occurredAt: occurredAt,
+          createdAt: createdAt,
+        );
+      case 'ReconcileCompleted':
+        return ReconcileCompleted(
+          eventId: eventId,
+          deviceId: deviceId,
+          userId: userId,
+          occurredAt: occurredAt,
+          createdAt: createdAt,
+          weekStart: CalendarDay.parse(p['weekStart'] as String),
+        );
       default:
         // A type this version doesn't know (written by a newer release). Keep
         // it verbatim so it is stored and relayed intact; the reducer ignores
@@ -546,6 +564,7 @@ class PurchaseAdded extends Event {
     this.merchant,
     this.taxDeductible,
     this.note,
+    this.amendsPurchaseId,
   }) {
     if (shared &&
         (target is QuestCharge ||
@@ -567,6 +586,11 @@ class PurchaseAdded extends Event {
   final bool? taxDeductible;
   final String? note;
 
+  /// Set when this purchase is the corrected copy written by an edit (the
+  /// purchase it replaces is voided alongside). Money-inert: the reducer reads
+  /// nothing from it. It lets readers tell an edit from a newly logged purchase.
+  final String? amendsPurchaseId;
+
   @override
   String get type => 'PurchaseAdded';
 
@@ -579,6 +603,7 @@ class PurchaseAdded extends Event {
     if (merchant != null) 'merchant': merchant,
     if (taxDeductible != null) 'taxDeductible': taxDeductible,
     if (note != null) 'note': note,
+    if (amendsPurchaseId != null) 'amendsPurchaseId': amendsPurchaseId,
   };
 }
 
@@ -1683,6 +1708,48 @@ class AllowanceAdvanceCancelled extends Event {
 
   @override
   Map<String, dynamic> payload() => {'advanceId': advanceId};
+}
+
+/// "Nothing spent today": the author's daily check-in on a day with no
+/// purchases. Money-inert (the reducer ignores it); it exists so an honest
+/// zero-spend day counts as showing up. The day is the household-timezone date
+/// of [createdAt].
+class NoSpendCheckedIn extends Event {
+  const NoSpendCheckedIn({
+    required super.eventId,
+    required super.deviceId,
+    required super.userId,
+    required super.occurredAt,
+    required super.createdAt,
+  });
+
+  @override
+  String get type => 'NoSpendCheckIn';
+
+  @override
+  Map<String, dynamic> payload() => const {};
+}
+
+/// The author finished reconciling the Monday-to-Sunday week starting
+/// [weekStart] (checked the week's purchases against what really happened).
+/// Money-inert: corrections themselves are ordinary purchase events.
+class ReconcileCompleted extends Event {
+  const ReconcileCompleted({
+    required super.eventId,
+    required super.deviceId,
+    required super.userId,
+    required super.occurredAt,
+    required super.createdAt,
+    required this.weekStart,
+  });
+
+  final CalendarDay weekStart;
+
+  @override
+  String get type => 'ReconcileCompleted';
+
+  @override
+  Map<String, dynamic> payload() => {'weekStart': weekStart.toKey()};
 }
 
 /// An event of a type this version does not recognise (written by a newer
