@@ -242,6 +242,9 @@ class _Builder {
         break; // domain-inert
       case GameRewardGranted():
         break; // cosmetic reward — the firewall: never touches a cent
+      case NoSpendCheckedIn():
+      case ReconcileCompleted():
+        break; // habit markers — money-inert
       case ShortfallCovered():
         covers.add(e);
       case AllowanceAdvanceProposed():

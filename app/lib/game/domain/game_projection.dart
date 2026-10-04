@@ -217,9 +217,17 @@ void _apply(_Tx tx, GameEvent event) {
       tx.credit(actor, e.contents);
 
     case StreakFreezeUsed e:
-      // The day is covered even if the tokens ran short: streaks forgive.
       final p = tx.person(actor);
-      tx.put(p.copyWith(streak: _cover(p.streak, e.date)));
+      // Already covered (logged, or frozen by another device): nothing to
+      // spend a token on.
+      if (p.streak.coveredDays.contains(e.date)) return;
+      // The day is covered even if the tokens ran short: streaks forgive.
+      tx.put(p.copyWith(
+        streak: StreakState(
+          _with(p.streak.coveredDays, e.date),
+          _with(p.streak.frozenDays, e.date),
+        ),
+      ));
       tx.adjustTokens(actor, -1);
 
     case RitualStepCompleted e:
@@ -352,8 +360,9 @@ class _Tx {
       );
 }
 
-StreakState _cover(StreakState s, GameDay day) =>
-    s.coveredDays.contains(day) ? s : StreakState(_with(s.coveredDays, day));
+StreakState _cover(StreakState s, GameDay day) => s.coveredDays.contains(day)
+    ? s
+    : StreakState(_with(s.coveredDays, day), s.frozenDays);
 
 Map<K, V> _put<K, V>(Map<K, V> m, K key, V value) =>
     Map.unmodifiable({...m, key: value});

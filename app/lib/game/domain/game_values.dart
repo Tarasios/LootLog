@@ -147,55 +147,6 @@ enum ChestType { wood, iron, gold, party, spoils }
 /// The month-end spoils ritual steps that precede the seasonal boss fight.
 enum RitualStep { reconcile, review, plan, contribute }
 
-/// A calendar day in the household timezone, keyed `yyyy-MM-dd`.
-class GameDay implements Comparable<GameDay> {
-  const GameDay(this.year, this.month, this.day);
-
-  /// The household-local day containing [instant].
-  factory GameDay.fromInstant(DateTime instant) {
-    final u = instant.toUtc();
-    final local = u.add(vancouverUtcOffset(u));
-    return GameDay(local.year, local.month, local.day);
-  }
-
-  factory GameDay.parse(String key) {
-    final parts = key.split('-');
-    if (parts.length != 3) {
-      throw FormatException('Invalid day key: $key');
-    }
-    return GameDay(
-        int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
-  }
-
-  final int year;
-  final int month;
-  final int day;
-
-  // UTC midnight keeps day arithmetic free of DST shifts.
-  DateTime get _utc => DateTime.utc(year, month, day);
-
-  GameDay next() => _fromUtc(_utc.add(const Duration(days: 1)));
-
-  GameDay previous() => _fromUtc(_utc.subtract(const Duration(days: 1)));
-
-  static GameDay _fromUtc(DateTime d) => GameDay(d.year, d.month, d.day);
-
-  String toKey() => '${year.toString().padLeft(4, '0')}-'
-      '${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
-
-  @override
-  int compareTo(GameDay other) => _utc.compareTo(other._utc);
-
-  @override
-  bool operator ==(Object other) =>
-      other is GameDay &&
-      other.year == year &&
-      other.month == month &&
-      other.day == day;
-
-  @override
-  int get hashCode => Object.hash(year, month, day);
-
-  @override
-  String toString() => 'GameDay(${toKey()})';
-}
+/// A calendar day in the household timezone, keyed `yyyy-MM-dd`. The same
+/// type the ledger uses for its daily habit events.
+typedef GameDay = CalendarDay;
