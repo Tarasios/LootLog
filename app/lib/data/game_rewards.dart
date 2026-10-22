@@ -100,6 +100,7 @@ class GameRewardRunner {
       clock,
       party: partyOf(household, ledger),
       stamp: GameEventStamp(deviceId: deviceId),
+      household: household,
     );
     if (out.isEmpty) return 0;
     await db.gameEventsDao.appendGameEvents(out);
