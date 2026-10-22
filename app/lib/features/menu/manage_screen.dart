@@ -36,9 +36,9 @@ class ManageScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(householdStateProvider).value;
     final showNetWorth = state?.netWorth.show ?? false;
-    final funds = Glossary.funds.label(
-      isAdventure: ref.watch(isAdventureProvider),
-    );
+    final adventure = ref.watch(isAdventureProvider);
+    final funds = Glossary.funds.label(isAdventure: adventure);
+    final chest = Glossary.warChest.label(isAdventure: adventure);
     return Scaffold(
       appBar: AppBar(title: const Text('Manage')),
       body: ListView(
@@ -106,10 +106,10 @@ class ManageScreen extends ConsumerWidget {
           ),
           _Entry(
             icon: Icons.account_balance_outlined,
-            title: 'War chest',
+            title: chest[0].toUpperCase() + chest.substring(1),
             subtitle:
-                '$funds tab — shared savings, withdrawals, gifts, '
-                'refunds and borrowing requests',
+                '$funds tab — withdrawals, gifts, refunds and borrowing '
+                'requests',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const WarChestScreen()),
             ),
@@ -133,7 +133,7 @@ class ManageScreen extends ConsumerWidget {
           _Entry(
             icon: Icons.cottage_outlined,
             title: 'Homestead',
-            subtitle: '$funds tab — the war chest building up, stage by stage',
+            subtitle: '$funds tab — $chest building up, stage by stage',
             onTap: () => HomesteadScreen.open(context),
           ),
           _Entry(

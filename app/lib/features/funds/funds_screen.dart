@@ -86,7 +86,7 @@ class FundsScreen extends ConsumerWidget {
         ],
         _HubCard(
           icon: Icons.account_balance_outlined,
-          title: 'War chest',
+          title: _cap(Glossary.warChest.label(isAdventure: adventure)),
           trailing: money(chest.balanceCents),
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute<void>(builder: (_) => const WarChestScreen()),
@@ -194,7 +194,7 @@ class FundsScreen extends ConsumerWidget {
           children: [
             Text(
               homestead == null
-                  ? 'Watch the war chest build up, stage by stage.'
+                  ? 'Watch shared savings build up, stage by stage.'
                   : 'Stage ${homestead.stageNumber} of '
                         '${homestead.totalStages} · '
                         '${homestead.currentStage.name}',

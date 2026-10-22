@@ -12,12 +12,16 @@ import '../../data/providers.dart';
 import '../../domain/state.dart';
 import '../../domain/value_types.dart';
 import '../../ui/format.dart';
+import '../../ui/glossary.dart';
 import '../../ui/money_input.dart';
 import '../../ui/theme.dart';
 import '../household_context.dart';
+import '../settings/play_mode_providers.dart';
 import 'advance_model.dart';
 import 'pending_advance_tile.dart';
 import 'warchest_model.dart';
+
+String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
 class WarChestScreen extends ConsumerWidget {
   const WarChestScreen({super.key});
@@ -31,7 +35,15 @@ class WarChestScreen extends ConsumerWidget {
     if (state == null || meUserId == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    final ledger = buildWarChestLedger(state, events, userNames: names);
+    // Classic speaks plain language; Adventure keeps the war-chest flavor.
+    final adventure = ref.watch(isAdventureProvider);
+    final title = _cap(Glossary.warChest.label(isAdventure: adventure));
+    final ledger = buildWarChestLedger(
+      state,
+      events,
+      userNames: names,
+      isAdventure: adventure,
+    );
     final pending =
         state.withdrawals.values
             .where((w) => w.status == WithdrawalStatus.pending)
@@ -43,7 +55,7 @@ class WarChestScreen extends ConsumerWidget {
     final chest = state.warChest;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('War chest')),
+      appBar: AppBar(title: Text(title)),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
@@ -54,7 +66,7 @@ class WarChestScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('War chest', style: AppText.sectionLabel(context)),
+                  Text(title, style: AppText.sectionLabel(context)),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     money(chest.balanceCents),
@@ -93,7 +105,9 @@ class WarChestScreen extends ConsumerWidget {
               FilledButton.tonalIcon(
                 onPressed: () => _propose(context, ref, state),
                 icon: const Icon(Icons.request_quote_outlined, size: 18),
-                label: const Text('Propose writ'),
+                label: Text(
+                  adventure ? 'Propose writ' : 'Request withdrawal',
+                ),
               ),
               FilledButton.tonalIcon(
                 onPressed: () => _recordGift(context, ref, state),
@@ -109,9 +123,17 @@ class WarChestScreen extends ConsumerWidget {
           ),
           if (pending.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.lg),
-            Text('Pending writs', style: AppText.sectionLabel(context)),
+            Text(
+              adventure ? 'Pending writs' : 'Pending withdrawals',
+              style: AppText.sectionLabel(context),
+            ),
             for (final w in pending)
-              _PendingWrit(writ: w, meUserId: meUserId, names: names),
+              _PendingWrit(
+                writ: w,
+                meUserId: meUserId,
+                names: names,
+                adventure: adventure,
+              ),
           ],
           if (advances.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.lg),
@@ -365,11 +387,13 @@ class _PendingWrit extends ConsumerWidget {
     required this.writ,
     required this.meUserId,
     required this.names,
+    required this.adventure,
   });
 
   final WithdrawalProposal writ;
   final String meUserId;
   final Map<String, String> names;
+  final bool adventure;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -397,7 +421,9 @@ class _PendingWrit extends ConsumerWidget {
             const SizedBox(height: AppSpacing.sm),
             if (mine)
               Text(
-                'Awaiting the other adventurer\'s signature.',
+                adventure
+                    ? 'Awaiting the other adventurer\'s signature.'
+                    : 'Waiting for another adult to approve.',
                 style: Theme.of(context).textTheme.bodySmall,
               )
             else
@@ -415,7 +441,7 @@ class _PendingWrit extends ConsumerWidget {
                     onPressed: () => ref
                         .read(householdActionsProvider)
                         ?.approveWithdrawal(writ.proposalId),
-                    child: const Text('Sign'),
+                    child: Text(adventure ? 'Sign' : 'Approve'),
                   ),
                 ],
               ),

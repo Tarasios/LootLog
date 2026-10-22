@@ -22,6 +22,7 @@ import '../../ui/glossary.dart';
 import '../../ui/money_input.dart';
 import '../../ui/theme.dart';
 import '../household_context.dart';
+import '../settings/play_mode_providers.dart';
 import '../shared/owner_picker.dart';
 
 class CategoryEditorScreen extends ConsumerStatefulWidget {
@@ -224,7 +225,8 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
               padding: const EdgeInsets.only(top: AppSpacing.sm),
               child: Text(
                 'Group categories are funded by everyone’s shares off the top; '
-                'leftover flows automatically to the war chest.',
+                'leftover flows automatically to '
+                '${Glossary.warChest.label(isAdventure: ref.watch(isAdventureProvider))}.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
@@ -360,18 +362,25 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
       };
     }
 
+    final adventure = ref.watch(isAdventureProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         DropdownButtonFormField<String>(
           initialValue: token(),
-          items: const [
-            DropdownMenuItem(value: 'carry', child: Text('Carry in category')),
-            DropdownMenuItem(
+          items: [
+            const DropdownMenuItem(
+              value: 'carry',
+              child: Text('Carry in category'),
+            ),
+            const DropdownMenuItem(
               value: 'discretionary',
               child: Text('Convert to discretionary'),
             ),
-            DropdownMenuItem(value: 'quest', child: Text('Attack a quest')),
+            DropdownMenuItem(
+              value: 'quest',
+              child: Text(Glossary.attackQuest.label(isAdventure: adventure)),
+            ),
           ],
           onChanged: (v) => setState(() {
             switch (v) {
@@ -392,7 +401,9 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
             padding: const EdgeInsets.only(top: AppSpacing.md),
             child: DropdownButtonFormField<String>(
               initialValue: _policyQuestId ?? quests.first.questId,
-              decoration: const InputDecoration(labelText: 'Quest'),
+              decoration: InputDecoration(
+                labelText: adventure ? 'Quest' : 'Savings goal',
+              ),
               items: [
                 for (final q in quests)
                   DropdownMenuItem(value: q.questId, child: Text(q.name)),

@@ -142,7 +142,7 @@ void main() {
     await openFunds(tester, nav);
     // The hub lists the war chest, emergency funds (with balances) and
     // vacations.
-    expect(find.text('War chest'), findsOneWidget);
+    expect(find.text('Shared savings'), findsOneWidget);
     expect(find.text('Emergency funds'), findsOneWidget);
     expect(find.text('Vet bills'), findsOneWidget);
     expect(find.text('Vacations'), findsOneWidget);
@@ -157,7 +157,7 @@ void main() {
     expect(find.byType(VacationScreen), findsOneWidget);
     await backTo(tester);
 
-    await tester.tap(find.text('War chest'));
+    await tester.tap(find.text('Shared savings'));
     await settle(tester);
     expect(find.byType(WarChestScreen), findsOneWidget);
     await backTo(tester);

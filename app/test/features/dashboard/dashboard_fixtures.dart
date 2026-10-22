@@ -311,7 +311,7 @@ List<ActivityItem> sampleActivity() => [
         eventId: 'a1',
         kind: ActivityKind.withdrawal,
         userId: 'pa',
-        title: 'Sam proposed a war-chest writ',
+        title: 'Sam proposed a shared-savings withdrawal',
         subtitle: 'New tent',
         amountCents: -20000,
         occurredAt: DateTime.utc(2026, 7, 3, 9),

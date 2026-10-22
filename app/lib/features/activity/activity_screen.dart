@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
 import '../household_context.dart';
+import '../settings/play_mode_providers.dart';
 import 'activity_model.dart';
 import 'activity_view.dart';
 
@@ -28,6 +29,7 @@ class ActivityScreen extends ConsumerWidget {
       events,
       userNames: names,
       meUserId: meUserId,
+      isAdventure: ref.watch(isAdventureProvider),
     );
     return ActivityFeedView(items: items);
   }

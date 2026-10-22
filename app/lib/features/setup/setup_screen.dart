@@ -21,6 +21,7 @@ import '../../domain/state.dart' show MainCategory;
 import '../../domain/time.dart';
 import '../../domain/value_types.dart';
 import '../../ui/format.dart';
+import '../../ui/glossary.dart';
 import '../../ui/theme.dart';
 import '../settings/play_mode.dart';
 import 'join_party_screen.dart';
@@ -747,7 +748,8 @@ class _BudgetStep extends StatelessWidget {
       leading: dense ? null : const Icon(Icons.pie_chart_outline),
       title: Text(cat.name),
       subtitle: Text(cat.tithePct > 0
-          ? '${money(cat.limitCents)} · ${cat.tithePct}% tithe'
+          ? '${money(cat.limitCents)} · ${cat.tithePct}% '
+              '${Glossary.carryTax.classic}'
           : money(cat.limitCents)),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1519,12 +1521,9 @@ Future<DraftCategory?> showCategoryEditor(
                 TextField(
                   controller: titheCtrl,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Tithe % (0–100)',
-                    helperText:
-                        'When month-end leftover from this category converts '
-                        'to your own pocket money, this share goes to the '
-                        'household war chest instead. 0 keeps it all.',
+                  decoration: InputDecoration(
+                    labelText: 'Carry tax % (0–100)',
+                    helperText: '${Glossary.carryTax.helper} 0 keeps it all.',
                     helperMaxLines: 3,
                   ),
                 ),

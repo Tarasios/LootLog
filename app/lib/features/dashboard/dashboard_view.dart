@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 
 import '../../ui/category_palette.dart';
 import '../../ui/format.dart';
+import '../../ui/glossary.dart';
 import '../../ui/theme.dart';
 import '../../ui/widgets/app_card.dart';
 import '../../ui/widgets/progress_ring.dart';
@@ -186,6 +187,13 @@ class DashboardView extends StatelessWidget {
       ),
     ]);
   }
+}
+
+/// A glossary term's plain (Classic) label, capitalized for a heading. The
+/// dashboard is the Classic surface; Adventure renders its own dashboard.
+String _plain(GlossaryTerm term) {
+  final s = term.classic;
+  return s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 }
 
 /// Inserts a uniform vertical gap between a list of stacked cards.
@@ -1102,7 +1110,7 @@ class _WarChestCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AppSectionHeader(
-            title: 'War chest',
+            title: _plain(Glossary.warChest),
             icon: Icons.account_balance,
             iconColor: scheme.primary,
             trailing: Text(
@@ -1183,8 +1191,8 @@ class _WithdrawalTile extends StatelessWidget {
               Expanded(
                 child: Text(
                   needsMe
-                      ? 'Writ awaiting your signature'
-                      : 'Writ awaiting the other signature',
+                      ? 'Withdrawal awaiting your approval'
+                      : 'Withdrawal awaiting another adult’s approval',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: needsMe
@@ -1237,7 +1245,7 @@ class _WithdrawalTile extends StatelessWidget {
                     style: FilledButton.styleFrom(
                       minimumSize: const Size(72, 40),
                     ),
-                    child: const Text('Sign'),
+                    child: const Text('Approve'),
                   ),
                 ],
               ),
@@ -1272,7 +1280,7 @@ class _RansackTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'The war chest was ransacked',
+                  '${_plain(Glossary.ransack)} from shared savings',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: scheme.onErrorContainer,
@@ -1602,8 +1610,8 @@ class _EmergencyFundsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AppSectionHeader(
-            title: 'Reserve caches',
+          AppSectionHeader(
+            title: '${_plain(Glossary.emergencyFund)}s',
             icon: Icons.shield_outlined,
           ),
           Wrap(

@@ -9,6 +9,7 @@ import '../../domain/event.dart';
 import '../../domain/state.dart';
 import '../../domain/value_types.dart';
 import '../../ui/format.dart';
+import '../../ui/glossary.dart';
 import '../shared/classify_member_set.dart';
 
 /// The visual family of an activity line, used only to pick an icon/tint.
@@ -59,8 +60,11 @@ List<ActivityItem> buildActivityFeed(
   required Map<String, String> userNames,
   required String meUserId,
   int limit = 40,
+  bool isAdventure = false,
 }) {
   String who(String id) => userNames[id] ?? 'Someone';
+  // Classic speaks plain budgeting English; Adventure keeps the flavor words.
+  final withdrawal = Glossary.withdrawal.label(isAdventure: isAdventure);
 
   String sliceName(String id) => state.slices[id]?.name ?? 'a budget';
   String questName(String id) => state.quests[id]?.name ?? 'a quest';
@@ -202,7 +206,9 @@ List<ActivityItem> buildActivityFeed(
           eventId: e.eventId,
           kind: ActivityKind.withdrawal,
           userId: e.userId,
-          title: '${who(e.byUserId)} proposed a war-chest writ',
+          title: isAdventure
+              ? '${who(e.byUserId)} proposed a war-chest writ'
+              : '${who(e.byUserId)} proposed a $withdrawal',
           subtitle: e.purpose,
           amountCents: -e.amountCents,
           occurredAt: e.occurredAt,
@@ -213,7 +219,9 @@ List<ActivityItem> buildActivityFeed(
           eventId: e.eventId,
           kind: ActivityKind.withdrawal,
           userId: e.userId,
-          title: '${who(e.byUserId)} signed a writ',
+          title: isAdventure
+              ? '${who(e.byUserId)} signed a writ'
+              : '${who(e.byUserId)} approved a $withdrawal',
           occurredAt: e.occurredAt,
           isMine: e.byUserId == meUserId,
         );
@@ -222,7 +230,7 @@ List<ActivityItem> buildActivityFeed(
           eventId: e.eventId,
           kind: ActivityKind.withdrawal,
           userId: e.userId,
-          title: '${who(e.userId)} cancelled a writ',
+          title: '${who(e.userId)} cancelled a $withdrawal',
           occurredAt: e.occurredAt,
           isMine: mine,
         );
@@ -231,7 +239,9 @@ List<ActivityItem> buildActivityFeed(
           eventId: e.eventId,
           kind: ActivityKind.contribution,
           userId: e.userId,
-          title: '${who(e.fromUserId)} fed the war chest',
+          title: isAdventure
+              ? '${who(e.fromUserId)} fed the war chest'
+              : '${who(e.fromUserId)} added to shared savings',
           amountCents: e.amountCents,
           occurredAt: e.occurredAt,
           isMine: e.fromUserId == meUserId,
@@ -241,7 +251,9 @@ List<ActivityItem> buildActivityFeed(
           eventId: e.eventId,
           kind: ActivityKind.taxRefund,
           userId: e.userId,
-          title: 'A royal rebate reached the war chest',
+          title: isAdventure
+              ? 'A royal rebate reached the war chest'
+              : 'A tax refund went to shared savings',
           subtitle: e.note,
           amountCents: e.amountCents,
           occurredAt: e.occurredAt,
