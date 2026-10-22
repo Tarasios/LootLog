@@ -8,17 +8,41 @@
 library;
 
 import '../domain/time.dart';
+import 'assets/asset_key.dart';
+import 'assets/text_sprite.dart';
 
-/// The sprite a widget should try to draw. Either a named sprite-sheet strip
-/// from `assets/game/` (with a parsed frame count) or a single-frame custom
-/// blob referenced by its content-addressed sha256. The [label] is what the
-/// grey placeholder shows when the art is missing.
+/// The sprite a widget should try to draw. One of:
+///
+/// * [SpriteRef.key] — an asset key (`building.lumberyard.t2.idle`), the
+///   preferred form: it resolves through the asset registry and, with no art
+///   (or in the text tier), renders as the key's text/ASCII card. It may carry
+///   a custom blob that wins over the registered art.
+/// * [SpriteRef.asset] — a legacy named sprite-sheet strip from `assets/game/`
+///   (with a parsed frame count); falls back to a grey labelled placeholder.
+/// * [SpriteRef.custom] — a single-frame custom blob referenced by its
+///   content-addressed sha256.
+///
+/// The [label] is the human name a fallback shows.
+// The private label field is set from a public `label:` parameter.
+// ignore_for_file: prefer_initializing_formals
 class SpriteRef {
-  const SpriteRef.asset(this.assetName, {required this.label})
-      : customSpriteSha256 = null;
+  const SpriteRef.asset(this.assetName, {required String label})
+      : customSpriteSha256 = null,
+        assetKey = null,
+        _label = label;
 
-  const SpriteRef.custom(this.customSpriteSha256, {required this.label})
-      : assetName = null;
+  const SpriteRef.custom(this.customSpriteSha256, {required String label})
+      : assetName = null,
+        assetKey = null,
+        _label = label;
+
+  /// A keyed sprite. [label] defaults to the key's text-mode title
+  /// (`chest.gold.closed.idle` -> `Gold Chest`). A [customSpriteSha256] blob,
+  /// when present and decodable, is drawn instead of the registered art.
+  const SpriteRef.key(AssetKey this.assetKey,
+      {String? label, this.customSpriteSha256})
+      : assetName = null,
+        _label = label;
 
   /// A named strip in `assets/game/`, e.g. `monster_idle_4f.png`.
   final String? assetName;
@@ -26,8 +50,18 @@ class SpriteRef {
   /// A single-frame custom sprite blob (quest / pet / avatar), or null.
   final String? customSpriteSha256;
 
-  /// Human-readable fallback shown on the placeholder.
-  final String label;
+  /// The asset key for a [SpriteRef.key] sprite, else null.
+  final AssetKey? assetKey;
+
+  final String? _label;
+
+  /// Human-readable name shown by the fallbacks.
+  String get label {
+    final l = _label;
+    if (l != null) return l;
+    final key = assetKey;
+    return key == null ? '?' : textSpriteFor(key).title;
+  }
 
   bool get isCustom => customSpriteSha256 != null;
 
@@ -36,10 +70,12 @@ class SpriteRef {
       other is SpriteRef &&
       other.assetName == assetName &&
       other.customSpriteSha256 == customSpriteSha256 &&
+      other.assetKey == assetKey &&
       other.label == label;
 
   @override
-  int get hashCode => Object.hash(assetName, customSpriteSha256, label);
+  int get hashCode =>
+      Object.hash(assetName, customSpriteSha256, assetKey, label);
 }
 
 /// A generic depletable bar (monster HP, quest HP, goal progress).
