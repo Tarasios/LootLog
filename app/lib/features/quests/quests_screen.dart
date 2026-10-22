@@ -15,6 +15,7 @@ import '../../ui/format.dart';
 import '../../ui/money_input.dart';
 import '../../ui/theme.dart';
 import '../household_context.dart';
+import '../rewards/trophy_hall_screen.dart';
 import '../shared/owner_picker.dart';
 import '../shared/sprite_picker.dart';
 import 'quests_model.dart';
@@ -38,7 +39,17 @@ class QuestsScreen extends ConsumerWidget {
       });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Savings goals')),
+      appBar: AppBar(
+        title: const Text('Savings goals'),
+        actions: [
+          // Completed goals become trophies; the hall is one tap from here.
+          IconButton(
+            tooltip: 'Trophy hall',
+            icon: const Icon(Icons.emoji_events_outlined),
+            onPressed: () => TrophyHallScreen.open(context),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => QuestEditorScreen.open(context),
         icon: const Icon(Icons.add),

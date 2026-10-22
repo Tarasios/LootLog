@@ -226,6 +226,24 @@ abstract final class Glossary {
         'few months. Another adult approves.',
   );
 
+  /// The navigation hub for the household's pooled money: shared savings,
+  /// emergency funds and vacations.
+  static const funds = GlossaryTerm(
+    internal: 'fundsHub',
+    classic: 'Funds',
+    adventure: 'Treasury',
+    helper: 'Shared savings, emergency funds and vacations in one place.',
+  );
+
+  /// A trip sub-budget drawn from a savings goal or emergency fund.
+  static const vacation = GlossaryTerm(
+    internal: 'vacation',
+    classic: 'vacation',
+    adventure: 'expedition',
+    helper: 'A self-contained trip budget drawn from a savings goal or '
+        'emergency fund. Your monthly budgets stay untouched.',
+  );
+
   /// Every defined term, for tests and any glossary/help screen.
   static const all = <GlossaryTerm>[
     leftoverAllocated,
@@ -247,6 +265,8 @@ abstract final class Glossary {
     generalSavings,
     carryTax,
     advance,
+    funds,
+    vacation,
   ];
 
   /// Flavor words that must never appear in Classic-mode copy. The glossary is

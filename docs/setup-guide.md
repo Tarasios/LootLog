@@ -339,8 +339,8 @@ current month, keeping this month's charge).
 
 ### Emergency funds, pets, and household rules
 
-- **Manage → Settings → Emergency funds** → **New**: name a reserve cache and
-  optionally link a pet. Its balance is derived automatically (contributions in,
+- **Funds → Emergency funds** (also under **Manage → Settings → Emergency
+  funds**) → **New**: name a reserve cache and optionally link a pet. Its balance is derived automatically (contributions in,
   emergency spending out). Create a fund here *before* wiring a category's
   emergency contribution to it.
 - **Manage → Settings → Pets**: add pets to display as party members.
@@ -360,6 +360,28 @@ current month, keeping this month's charge).
 ---
 
 ## 5. Daily use: entering expenses and receipts
+
+### Getting around
+
+The navigation bar (along the bottom on a phone, down the left side on a
+desktop) holds everything you use week to week:
+
+- **Dashboard** — this month at a glance. Anything waiting on you shows up here
+  first: overspending to repay, the month wrap-up, **borrowing requests** to
+  approve, and an open vacation.
+- **Ledger** — every purchase.
+- **Goals** — savings goals; the trophy button at the top opens the
+  **Trophy hall**.
+- **Funds** (Adventure: **Treasury**) — the **War chest** (shared savings,
+  withdrawals and borrowing requests), **Emergency funds**, **Vacations** (an
+  open trip is shown first) and the **Homestead**.
+- **Activity** on a phone; on a desktop the activity feed is always open on the
+  right and the bar has **Trophies** instead.
+
+**Manage** (the ☰ menu icon in the top-right) holds setup and housekeeping:
+Budget setup, Net worth (when turned on), Sync & hubs, the Budget change log
+and Settings. It also lists the places above, for anyone who looks there
+first.
 
 ### Quick entry
 
@@ -392,7 +414,8 @@ part (by the household share table) is taken from their own spending money
 on), LootLog saves it and then asks how to cover the gap:
 - **from your general savings** (picked for you when it's enough)
 - **by borrowing from the next few months of that budget** (another adult
-  approves)
+  approves — the request appears on their **Dashboard** and under **Funds → War
+  chest**)
 - when it's a savings goal you're buying, **from one of your category
   savings**, with any tax shown first
 - or **leave it**, and it's settled at month end as usual.

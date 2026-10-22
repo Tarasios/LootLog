@@ -1,8 +1,12 @@
 /// The responsive app shell. On a narrow (Android) window it is a single pane
-/// with bottom navigation across Dashboard / Ledger / Activity. On a wide
-/// (desktop) window it becomes a navigation rail plus a two-pane layout: the
-/// selected pane (slices or ledger) on the left and the activity feed always
-/// visible on the right.
+/// with bottom navigation across Dashboard / Ledger / Goals / Funds / Activity.
+/// On a wide (desktop) window it becomes a navigation rail (Dashboard / Ledger
+/// / Goals / Funds / Trophies) plus a two-pane layout: the selected pane on
+/// the left and the activity feed always visible on the right.
+///
+/// Funds (Adventure: Treasury) is the hub for the war chest, emergency funds,
+/// vacations and the homestead, so none of them hide behind Manage; the
+/// trophy hall is also one tap from the Goals pane on every width.
 ///
 /// The quick-entry FAB and receipt scan live here so every pane shares them.
 library;
@@ -17,28 +21,49 @@ import '../../data/export/budget_workbook.dart';
 import '../../data/providers.dart';
 import '../../data/sheets/sheets_provider.dart';
 import '../../data/sync/sync_service.dart';
+import '../../ui/glossary.dart';
 import '../../ui/theme.dart';
 import '../activity/activity_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../entry/expense_entry_screen.dart';
+import '../funds/funds_screen.dart';
 import '../ledger/ledger_screen.dart';
-import '../homestead/homestead_screen.dart';
 import '../menu/manage_screen.dart';
 import '../ocr/ocr_confirm_screen.dart';
 import '../quests/quests_screen.dart';
 import '../rewards/trophy_hall_screen.dart';
+import '../settings/play_mode_providers.dart';
 import '../spoils/spoils_screen.dart';
-import '../warchest/warchest_screen.dart';
 import '../sync/sync_status.dart';
 import '../tutorial/tutorial.dart';
 
 /// The width at or above which the shell switches to the rail + two-pane layout.
 const double kWideBreakpoint = 840;
 
-/// The main panes reachable from navigation. Goals, the war chest, the trophy
-/// hall and the homestead are first-class destinations (not buried in Manage);
-/// the narrow layout surfaces Goals directly and keeps the rest one tap away.
-enum ShellPane { dashboard, ledger, goals, warchest, trophies, homestead, activity }
+/// The main panes reachable from navigation. Goals and Funds (the hub for the
+/// war chest, emergency funds, vacations and the homestead) are first-class
+/// on every width; the trophy hall has its own rail slot on desktop and sits
+/// one tap from Goals on phones.
+enum ShellPane { dashboard, ledger, goals, funds, trophies, activity }
+
+/// The bottom-bar panes on a phone. The dashboard folds a short activity feed
+/// in, but the full feed keeps its own tab.
+const kNarrowPanes = [
+  ShellPane.dashboard,
+  ShellPane.ledger,
+  ShellPane.goals,
+  ShellPane.funds,
+  ShellPane.activity,
+];
+
+/// The rail panes on desktop; activity is pinned in its own right-hand pane.
+const kWidePanes = [
+  ShellPane.dashboard,
+  ShellPane.ledger,
+  ShellPane.goals,
+  ShellPane.funds,
+  ShellPane.trophies,
+];
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({
@@ -70,26 +95,27 @@ class _AppShellState extends ConsumerState<AppShell> {
         return const LedgerScreen();
       case ShellPane.goals:
         return const QuestsScreen();
-      case ShellPane.warchest:
-        return const WarChestScreen();
+      case ShellPane.funds:
+        return const FundsScreen();
       case ShellPane.trophies:
         return const TrophyHallScreen();
-      case ShellPane.homestead:
-        return const HomesteadScreen();
       case ShellPane.activity:
         return const ActivityScreen();
     }
   }
 
-  String get _title => switch (_pane) {
-        ShellPane.dashboard => 'LootLog',
-        ShellPane.ledger => 'Ledger',
-        ShellPane.goals => 'Savings goals',
-        ShellPane.warchest => 'War chest',
-        ShellPane.trophies => 'Trophy hall',
-        ShellPane.homestead => 'Homestead',
-        ShellPane.activity => 'Activity',
-      };
+  /// "Funds" in Standard, "Treasury" in Adventure (from the glossary).
+  String _fundsLabel(bool adventure) =>
+      Glossary.funds.label(isAdventure: adventure);
+
+  String _title(bool adventure) => switch (_pane) {
+    ShellPane.dashboard => 'LootLog',
+    ShellPane.ledger => 'Ledger',
+    ShellPane.goals => 'Savings goals',
+    ShellPane.funds => _fundsLabel(adventure),
+    ShellPane.trophies => 'Trophy hall',
+    ShellPane.activity => 'Activity',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -101,6 +127,7 @@ class _AppShellState extends ConsumerState<AppShell> {
         unawaited(_pushSheetsAfterSync());
       }
     });
+    final adventure = ref.watch(isAdventureProvider);
     final wide = MediaQuery.of(context).size.width >= kWideBreakpoint;
     return TutorialGate(
       child: CallbackShortcuts(
@@ -110,35 +137,28 @@ class _AppShellState extends ConsumerState<AppShell> {
         },
         child: Focus(
           autofocus: true,
-          child: wide ? _buildWide(context) : _buildNarrow(context),
+          child: wide
+              ? _buildWide(context, adventure)
+              : _buildNarrow(context, adventure),
         ),
       ),
     );
   }
 
   // ---- Narrow: bottom navigation, single pane ---------------------------
-  Widget _buildNarrow(BuildContext context) {
+  Widget _buildNarrow(BuildContext context, bool adventure) {
     // On phones the dashboard folds the activity feed into itself. The bottom
-    // bar carries the four everyday panes; war chest / trophies / homestead
-    // stay one tap away in Manage.
-    const tabs = [
-      ShellPane.dashboard,
-      ShellPane.ledger,
-      ShellPane.goals,
-      ShellPane.activity,
-    ];
+    // bar carries five panes; Funds opens the war chest, emergency funds,
+    // vacations and homestead, and Goals links the trophy hall.
+    const tabs = kNarrowPanes;
     final index = tabs.contains(_pane) ? tabs.indexOf(_pane) : 0;
     return Scaffold(
       appBar: AppBar(
-        title: Text(_title),
+        title: Text(_title(adventure)),
         actions: [
           ..._hallAction(),
           const SpoilsEntryButton(),
-          IconButton(
-            tooltip: 'Manage',
-            icon: const Icon(Icons.menu),
-            onPressed: () => ManageScreen.open(context),
-          ),
+          _manageAction(context),
         ],
       ),
       body: _paneBody(_pane, showActivity: true),
@@ -146,23 +166,28 @@ class _AppShellState extends ConsumerState<AppShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i) => _select(tabs[i]),
-        destinations: const [
-          NavigationDestination(
+        destinations: [
+          const NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
             selectedIcon: Icon(Icons.dashboard),
             label: 'Dashboard',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.receipt_long_outlined),
             selectedIcon: Icon(Icons.receipt_long),
             label: 'Ledger',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.flag_outlined),
             selectedIcon: Icon(Icons.flag),
             label: 'Goals',
           ),
           NavigationDestination(
+            icon: const Icon(Icons.account_balance_outlined),
+            selectedIcon: const Icon(Icons.account_balance),
+            label: _fundsLabel(adventure),
+          ),
+          const NavigationDestination(
             icon: Icon(Icons.forum_outlined),
             selectedIcon: Icon(Icons.forum),
             label: 'Activity',
@@ -172,31 +197,19 @@ class _AppShellState extends ConsumerState<AppShell> {
     );
   }
 
-  // ---- Wide: navigation rail, two panes (slices | activity) -------------
-  Widget _buildWide(BuildContext context) {
+  // ---- Wide: navigation rail, two panes (pane | activity) ---------------
+  Widget _buildWide(BuildContext context, bool adventure) {
     // The rail switches the left pane; activity is pinned on the right.
-    const leftPanes = [
-      ShellPane.dashboard,
-      ShellPane.ledger,
-      ShellPane.goals,
-      ShellPane.warchest,
-      ShellPane.trophies,
-      ShellPane.homestead,
-    ];
-    final railIndex =
-        leftPanes.contains(_pane) ? leftPanes.indexOf(_pane) : 0;
+    const leftPanes = kWidePanes;
+    final railIndex = leftPanes.contains(_pane) ? leftPanes.indexOf(_pane) : 0;
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: Text(_title),
+        title: Text(_title(adventure)),
         actions: [
           ..._hallAction(),
           const SpoilsEntryButton(),
-          IconButton(
-            tooltip: 'Manage',
-            icon: const Icon(Icons.menu),
-            onPressed: () => ManageScreen.open(context),
-          ),
+          _manageAction(context),
         ],
       ),
       floatingActionButton: _fab(context),
@@ -206,36 +219,31 @@ class _AppShellState extends ConsumerState<AppShell> {
             selectedIndex: railIndex,
             onDestinationSelected: (i) => _select(leftPanes[i]),
             labelType: NavigationRailLabelType.all,
-            destinations: const [
-              NavigationRailDestination(
+            destinations: [
+              const NavigationRailDestination(
                 icon: Icon(Icons.dashboard_outlined),
                 selectedIcon: Icon(Icons.dashboard),
                 label: Text('Dashboard'),
               ),
-              NavigationRailDestination(
+              const NavigationRailDestination(
                 icon: Icon(Icons.receipt_long_outlined),
                 selectedIcon: Icon(Icons.receipt_long),
                 label: Text('Ledger'),
               ),
-              NavigationRailDestination(
+              const NavigationRailDestination(
                 icon: Icon(Icons.flag_outlined),
                 selectedIcon: Icon(Icons.flag),
                 label: Text('Goals'),
               ),
               NavigationRailDestination(
-                icon: Icon(Icons.account_balance_outlined),
-                selectedIcon: Icon(Icons.account_balance),
-                label: Text('War chest'),
+                icon: const Icon(Icons.account_balance_outlined),
+                selectedIcon: const Icon(Icons.account_balance),
+                label: Text(_fundsLabel(adventure)),
               ),
-              NavigationRailDestination(
+              const NavigationRailDestination(
                 icon: Icon(Icons.emoji_events_outlined),
                 selectedIcon: Icon(Icons.emoji_events),
                 label: Text('Trophies'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.cottage_outlined),
-                selectedIcon: Icon(Icons.cottage),
-                label: Text('Homestead'),
               ),
             ],
           ),
@@ -248,24 +256,28 @@ class _AppShellState extends ConsumerState<AppShell> {
             ),
           ),
           Container(width: 1, color: scheme.outlineVariant),
-          const SizedBox(
-            width: 360,
-            child: ActivityScreen(),
-          ),
+          const SizedBox(width: 360, child: ActivityScreen()),
         ],
       ),
     );
   }
 
+  /// The Manage menu: setup, sync, the change log and settings.
+  Widget _manageAction(BuildContext context) => IconButton(
+    tooltip: 'Manage',
+    icon: const Icon(Icons.menu),
+    onPressed: () => ManageScreen.open(context),
+  );
+
   /// The guild-hall entry point, present only in Adventure mode.
   List<Widget> _hallAction() => [
-        if (widget.onOpenHall != null)
-          IconButton(
-            tooltip: 'Guild hall',
-            icon: const Icon(Icons.castle_outlined),
-            onPressed: widget.onOpenHall,
-          ),
-      ];
+    if (widget.onOpenHall != null)
+      IconButton(
+        tooltip: 'Guild hall',
+        icon: const Icon(Icons.castle_outlined),
+        onPressed: widget.onOpenHall,
+      ),
+  ];
 
   /// Builds the current workbook and hands it to the isolated Sheets gate,
   /// which only pushes when the user has enabled "also push after each sync".
@@ -279,7 +291,9 @@ class _AppShellState extends ConsumerState<AppShell> {
       state,
       userNames: {for (final m in state.members.values) m.memberId: m.name},
     );
-    await ref.read(sheetsSyncServiceProvider).maybePushAfterSync(
+    await ref
+        .read(sheetsSyncServiceProvider)
+        .maybePushAfterSync(
           workbook,
           settings: settings,
           credentials: await store.loadCredentials(),
