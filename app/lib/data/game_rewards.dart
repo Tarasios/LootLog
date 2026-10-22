@@ -1,6 +1,6 @@
-/// Runs the guild hall's reward engine against the stored log and records
-/// what it grants. Called after every local ledger write and after every sync
-/// merge (pull, hub push, file import).
+/// Runs the guild hall's reward engine (and party-membership sync) against
+/// the stored log and records what they grant. Called after every local
+/// ledger write and after every sync merge (pull, hub push, file import).
 ///
 /// The engine is idempotent, so running too often is harmless and a missed run
 /// heals on the next one. It only ever appends to the game log, never the
@@ -13,6 +13,7 @@ import '../domain/state.dart';
 import '../features/settings/play_mode.dart';
 import '../game/domain/clock.dart';
 import '../game/domain/game_projection.dart';
+import '../game/domain/party_sync.dart';
 import '../game/domain/rewards/reward_engine.dart';
 import 'db/database.dart';
 
@@ -94,14 +95,22 @@ class GameRewardRunner {
   Future<int> _runOnce() async {
     final ledger = await db.eventsDao.allEvents();
     final household = reduce(ledger, asOf: clock.now());
-    final out = engine.evaluate(
-      ledger,
-      projectGameState(await db.gameEventsDao.allGameEvents()),
-      clock,
-      party: partyOf(household, ledger),
-      stamp: GameEventStamp(deviceId: deviceId),
-      household: household,
-    );
+    final game = projectGameState(await db.gameEventsDao.allGameEvents());
+    final party = partyOf(household, ledger);
+    final stamp = GameEventStamp(deviceId: deviceId);
+    final out = [
+      ...engine.evaluate(
+        ledger,
+        game,
+        clock,
+        party: party,
+        stamp: stamp,
+        household: household,
+      ),
+      // A play-mode switch (or one arriving by sync) moves the person into
+      // or out of the party. Idempotent; game log only.
+      ...partyMembershipEvents(game, party, clock, stamp),
+    ];
     if (out.isEmpty) return 0;
     await db.gameEventsDao.appendGameEvents(out);
     return out.length;
