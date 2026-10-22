@@ -15,6 +15,8 @@ import '../../ui/format.dart';
 import '../../ui/money_input.dart';
 import '../../ui/theme.dart';
 import '../household_context.dart';
+import 'advance_model.dart';
+import 'pending_advance_tile.dart';
 import 'warchest_model.dart';
 
 class WarChestScreen extends ConsumerWidget {
@@ -36,10 +38,8 @@ class WarChestScreen extends ConsumerWidget {
             .toList()
           ..sort((a, b) => a.purpose.compareTo(b.purpose));
     final advances =
-        state.advances.values
-            .where((a) => a.status == WithdrawalStatus.pending)
-            .toList()
-          ..sort((a, b) => a.advanceId.compareTo(b.advanceId));
+        buildPendingAdvances(state, meUserId: meUserId, userNames: names);
+    final actions = ref.watch(householdActionsProvider);
     final chest = state.warChest;
 
     return Scaffold(
@@ -117,11 +117,10 @@ class WarChestScreen extends ConsumerWidget {
             const SizedBox(height: AppSpacing.lg),
             Text('Borrowing requests', style: AppText.sectionLabel(context)),
             for (final a in advances)
-              _PendingAdvance(
+              PendingAdvanceTile(
                 advance: a,
-                categoryName: state.slices[a.sliceId]?.name ?? 'a budget',
-                meUserId: meUserId,
-                names: names,
+                onApprove: (id) => actions?.approveAdvance(id),
+                onCancel: (id) => actions?.cancelAdvance(id),
               ),
           ],
           const SizedBox(height: AppSpacing.lg),
@@ -420,75 +419,6 @@ class _PendingWrit extends ConsumerWidget {
                   ),
                 ],
               ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A pending request to borrow from a budget's future months. Another adult
-/// approves or declines; the requester can withdraw it.
-class _PendingAdvance extends ConsumerWidget {
-  const _PendingAdvance({
-    required this.advance,
-    required this.categoryName,
-    required this.meUserId,
-    required this.names,
-  });
-
-  final AdvanceState advance;
-  final String categoryName;
-  final String meUserId;
-  final Map<String, String> names;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final mine = advance.byUserId == meUserId;
-    final months = advance.months;
-    final actions = ref.watch(householdActionsProvider);
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${money(advance.amountCents)} from $categoryName over $months '
-              'month${months == 1 ? '' : 's'}',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            Text(
-              'Asked by ${names[advance.byUserId] ?? advance.byUserId} · '
-              'repaid from the next $months month${months == 1 ? '' : 's'} '
-              'of that budget',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (mine)
-                  Expanded(
-                    child: Text(
-                      'Waiting for another adult to approve.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                TextButton(
-                  onPressed: () => actions?.cancelAdvance(advance.advanceId),
-                  child: Text(mine ? 'Withdraw' : 'Decline'),
-                ),
-                if (!mine) ...[
-                  const SizedBox(width: AppSpacing.sm),
-                  FilledButton(
-                    onPressed: () => actions?.approveAdvance(advance.advanceId),
-                    child: const Text('Approve'),
-                  ),
-                ],
-              ],
-            ),
           ],
         ),
       ),

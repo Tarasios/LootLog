@@ -27,6 +27,8 @@ class TextAdventureCallbacks {
     this.onSwitchToPixels,
     this.onSignWrit,
     this.onDeclineWrit,
+    this.onSealLoan,
+    this.onCancelLoan,
   });
 
   /// "Strike a monster" — log a purchase (the two-tap quick entry).
@@ -44,6 +46,12 @@ class TextAdventureCallbacks {
 
   final void Function(String proposalId)? onSignWrit;
   final void Function(String proposalId)? onDeclineWrit;
+
+  /// Seals (approves) another adventurer's guild loan.
+  final void Function(String advanceId)? onSealLoan;
+
+  /// Refuses another adventurer's guild loan, or withdraws my own.
+  final void Function(String advanceId)? onCancelLoan;
 }
 
 class TextAdventureView extends StatelessWidget {
@@ -96,6 +104,7 @@ class TextAdventureView extends StatelessWidget {
                     if (game.warChest.writsForMe.isNotEmpty ||
                         game.warChest.writsForOther.isNotEmpty)
                       _writs(context),
+                    if (game.warChest.loans.isNotEmpty) _loans(context),
                     if (game.provisioning.isNotEmpty) _provisioning(context),
                     _logPanel(context),
                   ],
@@ -572,6 +581,60 @@ class TextAdventureView extends StatelessWidget {
               'Your writ for ${money(w.amountCents)} (${w.purpose}) awaits '
               'another adventurer\'s signature.',
               style: monoStyle(context, color: scheme.onSurfaceVariant),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _loans(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    String floors(int n) => n == 1 ? 'the next floor' : 'the next $n floors';
+    return TextPanel(
+      title: 'Guild Loans Awaiting a Seal',
+      icon: Icons.handshake_outlined,
+      accent: scheme.secondary,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final l in game.warChest.loans)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l.needsMySeal
+                        ? '${l.byName} asks a guild loan of '
+                            '${money(l.amountCents)} against the '
+                            '${l.monsterName} monster, repaid over '
+                            '${floors(l.months)}.'
+                        : 'Your guild loan of ${money(l.amountCents)} '
+                            '(${l.monsterName}, over ${floors(l.months)}) '
+                            "awaits another adventurer's seal.",
+                    style: l.needsMySeal
+                        ? monoStyle(context)
+                        : monoStyle(context, color: scheme.onSurfaceVariant),
+                  ),
+                  Row(
+                    children: [
+                      if (l.needsMySeal)
+                        TextButton.icon(
+                          onPressed: () =>
+                              callbacks.onSealLoan?.call(l.advanceId),
+                          icon: const Icon(Icons.check, size: 16),
+                          label: const Text('Seal'),
+                        ),
+                      TextButton.icon(
+                        onPressed: () =>
+                            callbacks.onCancelLoan?.call(l.advanceId),
+                        icon: const Icon(Icons.close, size: 16),
+                        label: Text(l.needsMySeal ? 'Refuse' : 'Withdraw'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
         ],
       ),

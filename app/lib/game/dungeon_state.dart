@@ -336,6 +336,31 @@ class Writ {
   final bool needsMySignature;
 }
 
+/// A pending guild loan: a request to borrow from a monster's (budget
+/// category's) next few monthly allowances, sealed by another adventurer.
+class GuildLoan {
+  const GuildLoan({
+    required this.advanceId,
+    required this.byName,
+    required this.monsterName,
+    required this.amountCents,
+    required this.months,
+    required this.needsMySeal,
+  });
+
+  final String advanceId;
+  final String byName;
+  final String monsterName;
+  final int amountCents;
+
+  /// How many coming floors repay it.
+  final int months;
+
+  /// True when another adventurer asked and it awaits my seal; false for my
+  /// own request (the reducer rejects sealing your own loan).
+  final bool needsMySeal;
+}
+
 /// A "the war chest was ransacked" banner.
 class RansackBanner {
   const RansackBanner({
@@ -359,6 +384,7 @@ class WarChest {
     required this.writsForMe,
     required this.writsForOther,
     required this.ransacks,
+    this.loans = const [],
     this.targetCents,
     this.pctComplete,
     this.estMonthsRemaining,
@@ -371,6 +397,9 @@ class WarChest {
   final List<Writ> writsForMe;
   final List<Writ> writsForOther;
   final List<RansackBanner> ransacks;
+
+  /// Pending guild loans (allowance advances), those awaiting my seal first.
+  final List<GuildLoan> loans;
 
   bool get hasGoal => targetCents != null;
 

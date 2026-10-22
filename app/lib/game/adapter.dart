@@ -346,6 +346,21 @@ DungeonState buildDungeonState(
         occurredAt: r.occurredAt,
       ),
   ]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+  final loans = <GuildLoan>[
+    for (final a in state.advances.values)
+      if (a.status == WithdrawalStatus.pending)
+        GuildLoan(
+          advanceId: a.advanceId,
+          byName: nameOf(a.byUserId) ?? 'Someone',
+          monsterName: state.slices[a.sliceId]?.name ?? 'a monster',
+          amountCents: a.amountCents,
+          months: a.months,
+          needsMySeal: a.byUserId != meUserId,
+        ),
+  ]..sort((a, b) {
+      final c = (a.needsMySeal ? 0 : 1).compareTo(b.needsMySeal ? 0 : 1);
+      return c != 0 ? c : a.advanceId.compareTo(b.advanceId);
+    });
   final goal = state.warChest.goal;
   final warChest = WarChest(
     balanceCents: state.warChest.balanceCents,
@@ -355,6 +370,7 @@ DungeonState buildDungeonState(
     writsForMe: writsForMe,
     writsForOther: writsForOther,
     ransacks: ransacks,
+    loans: loans,
   );
 
   // ---- Expeditions abroad (open vacation side-floors) --------------------

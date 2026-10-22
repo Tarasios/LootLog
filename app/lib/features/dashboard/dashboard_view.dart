@@ -21,6 +21,7 @@ import '../activity/activity_view.dart';
 import '../networth/networth_model.dart';
 import '../spoils/spoils_model.dart';
 import '../sync/sync_status.dart';
+import '../warchest/pending_advance_tile.dart';
 import 'dashboard_model.dart';
 
 /// At or above this width the dashboard becomes a two-column grid.
@@ -35,6 +36,9 @@ class DashboardCallbacks {
     this.onCancelWithdrawal,
     this.onGetStarted,
     this.onNewGoal,
+    this.onApproveAdvance,
+    this.onCancelAdvance,
+    this.onOpenVacations,
   });
 
   final VoidCallback? onOpenSpoils;
@@ -49,6 +53,13 @@ class DashboardCallbacks {
 
   /// Opens the new savings-goal editor. Null in goldens (button hidden).
   final VoidCallback? onNewGoal;
+
+  /// Approves / declines-or-withdraws a pending borrowing request.
+  final void Function(String advanceId)? onApproveAdvance;
+  final void Function(String advanceId)? onCancelAdvance;
+
+  /// Opens the vacations screen from an open-trip card.
+  final VoidCallback? onOpenVacations;
 }
 
 class DashboardView extends StatelessWidget {
@@ -105,6 +116,10 @@ class DashboardView extends StatelessWidget {
           _OverbudgetBanner(card: d, onOpen: callbacks.onOpenSpoils),
         if (model.spoils != null)
           _SpoilsBanner(ritual: model.spoils!, onOpen: callbacks.onOpenSpoils),
+        if (model.advances.isNotEmpty)
+          _AdvancesCard(advances: model.advances, callbacks: callbacks),
+        for (final v in model.vacations)
+          _VacationCard(vacation: v, onOpen: callbacks.onOpenVacations),
       ];
 
   /// The primary column: what you spend and what's coming.
@@ -448,6 +463,107 @@ class _SpoilsBanner extends StatelessWidget {
             ),
           ),
           Icon(Icons.chevron_right, color: scheme.onTertiaryContainer),
+        ],
+      ),
+    );
+  }
+}
+
+/// Pending requests to borrow from a budget's future months. Surfaced here so
+/// the adult who has to approve sees them without hunting through the war
+/// chest; the requester sees theirs waiting, with a way to withdraw it.
+class _AdvancesCard extends StatelessWidget {
+  const _AdvancesCard({required this.advances, required this.callbacks});
+
+  final List<PendingAdvance> advances;
+  final DashboardCallbacks callbacks;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final forMe = advances.where((a) => a.canApprove).length;
+    return AppCard(
+      color: forMe > 0 ? scheme.primaryContainer : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppSectionHeader(
+            title: 'Borrowing requests',
+            icon: Icons.handshake_outlined,
+            iconColor: forMe > 0 ? scheme.onPrimaryContainer : null,
+          ),
+          if (forMe > 0)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: Text(
+                forMe == 1
+                    ? 'One request is waiting for your approval.'
+                    : '$forMe requests are waiting for your approval.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: scheme.onPrimaryContainer,
+                    ),
+              ),
+            ),
+          for (final a in advances)
+            PendingAdvanceTile(
+              advance: a,
+              onApprove: callbacks.onApproveAdvance,
+              onCancel: callbacks.onCancelAdvance,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// An open vacation: what's spent of the trip budget and the daily allowance
+/// left. Tapping opens the vacations screen.
+class _VacationCard extends StatelessWidget {
+  const _VacationCard({required this.vacation, this.onOpen});
+
+  final OpenVacationCard vacation;
+  final VoidCallback? onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final over = vacation.warnings.isNotEmpty;
+    return AppCard(
+      onTap: onOpen,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppSectionHeader(
+            title: 'On vacation · ${vacation.name}',
+            icon: Icons.beach_access_outlined,
+            iconColor: scheme.tertiary,
+            trailing: onOpen == null
+                ? null
+                : Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
+          ),
+          _ProportionBar(
+            fraction: vacation.fraction,
+            fill: over ? scheme.error : scheme.tertiary,
+            track: scheme.surfaceContainerHighest,
+            height: 8,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '${money(vacation.spentCents)} of ${money(vacation.budgetCents)} '
+            'spent · ${vacation.allowanceLabel}',
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+          for (final w in vacation.warnings)
+            Text(
+              w,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.error,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
         ],
       ),
     );
