@@ -20,7 +20,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Welcome to LootLog'), findsOneWidget);
-    expect(find.text('Start a new party'), findsOneWidget);
-    expect(find.text('Join an existing party'), findsOneWidget);
+    expect(find.text('Start a new household'), findsOneWidget);
+    expect(find.text('Join an existing household'), findsOneWidget);
   });
 }

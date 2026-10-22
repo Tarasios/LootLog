@@ -23,6 +23,14 @@ import 'warchest_model.dart';
 
 String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
+/// This device's name for an adult's own pool: "general savings" (Classic on
+/// the savings rules), "personal spending" (Classic before them) or "gold
+/// pouch" (Adventure).
+String _vaultWord(WidgetRef ref) => Glossary.vaultLabel(
+      isAdventure: ref.read(isAdventureProvider),
+      savingsRules: ref.read(householdStateProvider).value?.savingsRules != null,
+    );
+
 class WarChestScreen extends ConsumerWidget {
   const WarChestScreen({super.key});
 
@@ -167,8 +175,8 @@ class WarChestScreen extends ConsumerWidget {
     final cap = state.vaultOf(meUserId);
     final cents = await _amountDialog(
       context,
-      title: 'Contribute from your vault',
-      helper: 'Capped at your vault: ${money(cap)}',
+      title: 'Contribute from your ${_vaultWord(ref)}',
+      helper: 'Capped at your ${_vaultWord(ref)}: ${money(cap)}',
       max: cap,
     );
     if (cents != null && cents > 0) {
@@ -324,7 +332,9 @@ class WarChestScreen extends ConsumerWidget {
             const SizedBox(height: AppSpacing.lg),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Add to war chest'),
+              child: Text(
+                'Add to ${Glossary.warChest.label(isAdventure: ref.read(isAdventureProvider))}',
+              ),
             ),
           ],
         ),
@@ -400,7 +410,7 @@ class _PendingWrit extends ConsumerWidget {
     final mine = writ.byUserId == meUserId;
     final dest = switch (writ.destination) {
       UserVaultDestination(:final userId) =>
-        'to ${names[userId] ?? userId}\'s vault',
+        'to ${names[userId] ?? userId}\'s ${_vaultWord(ref)}',
       ExternalDestination() => 'external',
     };
     return Card(
@@ -567,7 +577,7 @@ class _WritSheetState extends ConsumerState<_WritSheet> {
               for (final a in ref.watch(partyAdultsProvider))
                 DropdownMenuItem(
                   value: 'vault:${a.id}',
-                  child: Text('${a.name}\'s vault'),
+                  child: Text('${a.name}\'s ${_vaultWord(ref)}'),
                 ),
             ],
             onChanged: (v) => setState(() {

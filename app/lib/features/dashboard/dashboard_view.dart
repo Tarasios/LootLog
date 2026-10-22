@@ -133,7 +133,14 @@ class DashboardView extends StatelessWidget {
   /// The secondary column: goals, pouches, and reserves.
   List<Widget> _secondary(BuildContext context) => [
         _QuestsCard(quests: model.quests, onNewGoal: callbacks.onNewGoal),
-        _VaultCard(vault: model.vault, meName: model.meName),
+        _VaultCard(
+          vault: model.vault,
+          meName: model.meName,
+          label: Glossary.vaultLabel(
+            isAdventure: false,
+            savingsRules: model.savingsRules,
+          ),
+        ),
         _WarChestCard(card: model.warChest, callbacks: callbacks),
         if (model.netWorth.show) _NetWorthCard(summary: model.netWorth),
         if (model.maintenance.isNotEmpty) _MaintenanceCard(items: model.maintenance),
@@ -407,7 +414,7 @@ class _GetStartedCard extends StatelessWidget {
           Text(
             'Start by carving your monthly budget into categories — one each for '
             'the household’s adults, plus shared ones like groceries. Everything '
-            'else (quests, the war chest, receipts) builds from there.',
+            'else (savings goals, shared savings, receipts) builds from there.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: scheme.onPrimaryContainer,
                 ),
@@ -790,10 +797,17 @@ class _CategoryTile extends StatelessWidget {
 }
 
 class _VaultCard extends StatelessWidget {
-  const _VaultCard({required this.vault, required this.meName});
+  const _VaultCard({
+    required this.vault,
+    required this.meName,
+    required this.label,
+  });
 
   final VaultCard vault;
   final String meName;
+
+  /// The plain name for this adult's own pool ("general savings").
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -807,12 +821,14 @@ class _VaultCard extends StatelessWidget {
             children: [
               Icon(Icons.savings_outlined, color: scheme.onSecondaryContainer),
               const SizedBox(width: AppSpacing.sm),
-              Text(
-                '$meName’s vault',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: scheme.onSecondaryContainer,
-                      fontWeight: FontWeight.w700,
-                    ),
+              Expanded(
+                child: Text(
+                  '$meName’s $label',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: scheme.onSecondaryContainer,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
               ),
             ],
           ),
@@ -841,7 +857,7 @@ class _VaultCard extends StatelessWidget {
               padding: const EdgeInsets.only(top: AppSpacing.sm),
               child: Text(
                 'Projected leftover this month: '
-                '${signedMoney(vault.projectedVaultCents)} to personal spending '
+                '${signedMoney(vault.projectedVaultCents)} to $label '
                 '(${money(vault.projectedLeftoverCents)} leftover at current spend)',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: scheme.onSecondaryContainer,
@@ -1525,8 +1541,8 @@ class _MaintenanceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AppSectionHeader(
-            title: 'Equipment maintenance',
+          AppSectionHeader(
+            title: _plain(Glossary.recurring),
             icon: Icons.build_outlined,
           ),
           for (final m in items)

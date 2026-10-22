@@ -24,7 +24,9 @@ import '../../game/text_mode/text_widgets.dart';
 import '../../ui/format.dart';
 import '../../ui/money_input.dart';
 import '../../ui/theme.dart';
+import '../../ui/glossary.dart';
 import '../shared/sprite_picker.dart';
+import '../settings/play_mode_providers.dart';
 
 class HomesteadScreen extends ConsumerWidget {
   const HomesteadScreen({super.key});
@@ -58,7 +60,15 @@ class HomesteadScreen extends ConsumerWidget {
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               padding: const EdgeInsets.all(AppSpacing.md),
-              children: [_HomesteadPanel(view: view), _StagesPanel(view: view)],
+              children: [
+                _HomesteadPanel(
+                  view: view,
+                  chestLabel: Glossary.warChest.label(
+                    isAdventure: ref.watch(isAdventureProvider),
+                  ),
+                ),
+                _StagesPanel(view: view),
+              ],
             ),
     );
   }
@@ -112,9 +122,12 @@ class HomesteadScreen extends ConsumerWidget {
 }
 
 class _HomesteadPanel extends StatelessWidget {
-  const _HomesteadPanel({required this.view});
+  const _HomesteadPanel({required this.view, required this.chestLabel});
 
   final HomesteadView view;
+
+  /// "shared savings" (Classic) or "war chest" (Adventure).
+  final String chestLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -134,7 +147,7 @@ class _HomesteadPanel extends StatelessWidget {
           Text(view.currentStage.name,
               style: monoStyle(context, weight: FontWeight.w800)),
           const SizedBox(height: AppSpacing.xs),
-          Text('War chest: ${money(view.balanceCents)}',
+          Text('${Glossary.cap(chestLabel)}: ${money(view.balanceCents)}',
               style: monoStyle(context, color: scheme.onSurfaceVariant)),
           const SizedBox(height: AppSpacing.sm),
           Text(
@@ -425,7 +438,9 @@ class _HomesteadStagesEditorState extends ConsumerState<HomesteadStagesEditor> {
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
           Text(
-            'Stages are display thresholds for the war-chest picture — '
+            'Stages are display thresholds for the '
+            '${Glossary.warChest.label(isAdventure: ref.watch(isAdventureProvider))} '
+            'picture — '
             'change them freely, no money moves.',
             style: Theme.of(context)
                 .textTheme
@@ -493,7 +508,8 @@ class _HomesteadStagesEditorState extends ConsumerState<HomesteadStagesEditor> {
                 prefixText: r'$ ',
                 helperText: i == 0
                     ? 'The first stage always starts at \$0.'
-                    : 'War-chest balance that unlocks this stage.',
+                    : '${Glossary.cap(Glossary.warChest.label(isAdventure: ref.watch(isAdventureProvider)))} '
+                        'balance that unlocks this stage.',
               ),
             ),
             const SizedBox(height: AppSpacing.xs),

@@ -10,6 +10,7 @@ import '../../domain/money.dart';
 import '../../domain/state.dart';
 import '../../domain/time.dart';
 import '../../domain/value_types.dart';
+import '../../ui/glossary.dart';
 
 /// The visually distinct kinds of charge destination.
 enum ChargeGroupKind {
@@ -60,6 +61,7 @@ String _money(int cents) => '\$${Money(cents).format()}';
 List<ChargeGroup> buildChargeGroups(
   HouseholdState state,
   String meUserId, {
+  bool isAdventure = false,
   DateTime? asOf,
 }) {
   final month = Month.fromInstant(asOf ?? DateTime.now());
@@ -134,10 +136,16 @@ List<ChargeGroup> buildChargeGroups(
   }
   funds.sort((a, b) => a.label.compareTo(b.label));
 
+  final vaultTitle = Glossary.cap(
+    Glossary.vaultLabel(
+      isAdventure: isAdventure,
+      savingsRules: state.savingsRules != null,
+    ),
+  );
   final vault = ChargeChoice(
     target: const VaultCharge(),
-    label: 'Vault',
-    subtitle: '${_money(state.vaultOf(meUserId))} discretionary',
+    label: vaultTitle,
+    subtitle: '${_money(state.vaultOf(meUserId))} available',
     kind: ChargeGroupKind.vault,
     supportsShared: true,
   );
@@ -172,11 +180,15 @@ List<ChargeGroup> buildChargeGroups(
         label: 'Shared budgets',
         choices: group,
       ),
-    ChargeGroup(kind: ChargeGroupKind.vault, label: 'Vault', choices: [vault]),
+    ChargeGroup(
+      kind: ChargeGroupKind.vault,
+      label: vaultTitle,
+      choices: [vault],
+    ),
     if (quests.isNotEmpty)
       ChargeGroup(
         kind: ChargeGroupKind.quest,
-        label: 'Quests',
+        label: isAdventure ? 'Quests' : 'Savings goals',
         choices: quests,
       ),
     if (funds.isNotEmpty)

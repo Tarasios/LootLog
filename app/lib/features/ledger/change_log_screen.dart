@@ -11,6 +11,7 @@ import '../../data/providers.dart';
 import '../../ui/format.dart';
 import '../../ui/theme.dart';
 import '../household_context.dart';
+import '../settings/play_mode_providers.dart';
 import 'change_log_model.dart';
 
 class ChangeLogScreen extends ConsumerWidget {
@@ -35,7 +36,12 @@ class ChangeLogScreen extends ConsumerWidget {
           if (state == null) {
             return const Center(child: CircularProgressIndicator());
           }
-          final entries = buildChangeLog(state, events, userNames: names);
+          final entries = buildChangeLog(
+            state,
+            events,
+            userNames: names,
+            isAdventure: ref.watch(isAdventureProvider),
+          );
           return ListView.separated(
             padding: const EdgeInsets.only(bottom: AppSpacing.xl),
             itemCount: entries.length + 1,

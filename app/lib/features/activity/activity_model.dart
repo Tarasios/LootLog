@@ -65,16 +65,23 @@ List<ActivityItem> buildActivityFeed(
   String who(String id) => userNames[id] ?? 'Someone';
   // Classic speaks plain budgeting English; Adventure keeps the flavor words.
   final withdrawal = Glossary.withdrawal.label(isAdventure: isAdventure);
+  final vaultWord = Glossary.vaultLabel(
+    isAdventure: isAdventure,
+    savingsRules: state.savingsRules != null,
+  );
+  final goalWord = Glossary.quest.label(isAdventure: isAdventure);
+  final party = Glossary.household.label(isAdventure: isAdventure);
+  final supplies = Glossary.income.label(isAdventure: isAdventure);
 
   String sliceName(String id) => state.slices[id]?.name ?? 'a budget';
-  String questName(String id) => state.quests[id]?.name ?? 'a quest';
+  String questName(String id) => state.quests[id]?.name ?? 'a $goalWord';
   String fundName(String id) => state.emergencyFunds[id]?.name ?? 'a fund';
 
   String vacationName(String id) => state.vacations[id]?.name ?? 'a vacation';
 
   String targetLabel(ChargeTarget t) => switch (t) {
     SliceCharge(:final sliceId) => sliceName(sliceId),
-    VaultCharge() => 'their vault',
+    VaultCharge() => 'their $vaultWord',
     QuestCharge(:final questId) => questName(questId),
     EmergencyCharge(:final fundId) => fundName(fundId),
     VacationCharge(:final vacationId) => vacationName(vacationId),
@@ -127,7 +134,7 @@ List<ActivityItem> buildActivityFeed(
           eventId: e.eventId,
           kind: ActivityKind.quest,
           userId: e.userId,
-          title: '${who(e.userId)} set the quest "${e.name}"',
+          title: '${who(e.userId)} set the $goalWord "${e.name}"',
           subtitle: 'target ${money(e.targetCents)}',
           occurredAt: e.occurredAt,
           isMine: mine,
@@ -264,7 +271,7 @@ List<ActivityItem> buildActivityFeed(
           eventId: e.eventId,
           kind: ActivityKind.income,
           userId: e.userId,
-          title: 'Expedition supplies logged for ${who(e.forUserId)}',
+          title: '${Glossary.cap(supplies)} logged for ${who(e.forUserId)}',
           subtitle: monthLabel(e.month.year, e.month.month),
           amountCents: e.amountCents,
           occurredAt: e.occurredAt,
@@ -275,7 +282,7 @@ List<ActivityItem> buildActivityFeed(
           eventId: e.eventId,
           kind: ActivityKind.income,
           userId: e.userId,
-          title: 'Standing expedition supplies set for ${who(e.forUserId)}',
+          title: 'Standing $supplies set for ${who(e.forUserId)}',
           subtitle:
               'from ${monthLabel(e.effectiveFromMonth.year, e.effectiveFromMonth.month)}',
           amountCents: e.amountCents,
@@ -305,7 +312,8 @@ List<ActivityItem> buildActivityFeed(
           eventId: e.eventId,
           kind: ActivityKind.config,
           userId: e.userId,
-          title: '${who(e.userId)} opened the "${e.name}" reserve',
+          title: '${who(e.userId)} opened the "${e.name}" '
+              '${Glossary.emergencyFund.label(isAdventure: isAdventure)}',
           occurredAt: e.occurredAt,
           isMine: mine,
         );
@@ -314,7 +322,7 @@ List<ActivityItem> buildActivityFeed(
           eventId: e.eventId,
           kind: ActivityKind.config,
           userId: e.userId,
-          title: '${who(e.userId)} added ${e.name} to the party',
+          title: '${who(e.userId)} added ${e.name} to the $party',
           occurredAt: e.occurredAt,
           isMine: mine,
         );
@@ -323,9 +331,9 @@ List<ActivityItem> buildActivityFeed(
         lastMemberSet[e.memberId] = e;
         final title = switch (classifyMemberSet(e, prev)) {
           MemberSetChange.retired =>
-            '${who(e.userId)} retired ${e.name} from the party',
+            '${who(e.userId)} retired ${e.name} from the $party',
           MemberSetChange.added =>
-            '${who(e.userId)} added ${e.name} to the party',
+            '${who(e.userId)} added ${e.name} to the $party',
           MemberSetChange.portraitOnly =>
             "${who(e.userId)} updated ${e.name}'s portrait",
           MemberSetChange.updated => '${who(e.userId)} updated ${e.name}',

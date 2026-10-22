@@ -32,13 +32,13 @@ import 'setup_controller.dart';
 enum _Step { party, income, accounts, expenses, budget, goal, summary }
 
 const _stepTitles = <_Step, String>{
-  _Step.party: 'Your party',
-  _Step.income: 'Expedition supplies',
-  _Step.accounts: 'Treasury',
-  _Step.expenses: 'Standing obligations',
-  _Step.budget: 'Dividing the coin',
-  _Step.goal: 'First quest',
-  _Step.summary: 'Ready to delve',
+  _Step.party: 'Your household',
+  _Step.income: 'Income',
+  _Step.accounts: 'Accounts',
+  _Step.expenses: 'Recurring bills',
+  _Step.budget: 'Budgets',
+  _Step.goal: 'First savings goal',
+  _Step.summary: 'Ready to go',
 };
 
 class SetupScreen extends ConsumerStatefulWidget {
@@ -168,7 +168,11 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                       : isSummary
                           ? _finish
                           : _next,
-                  child: Text(isSummary ? 'Begin the adventure' : 'Next'),
+                  child: Text(
+                    isSummary
+                        ? (_meAdventure ? 'Begin the adventure' : 'Finish setup')
+                        : 'Next',
+                  ),
                 ),
               ),
             ],
@@ -201,9 +205,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                       style: text.headlineSmall, textAlign: TextAlign.center),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
-                    'Assemble your party and delve a budget together. '
-                    'First: are you joining a party that already exists on '
-                    'another device?',
+                    'Set up your household’s budget together. '
+                    'First: are you joining a household that already exists '
+                    'on another device?',
                     style: text.bodyMedium,
                     textAlign: TextAlign.center,
                   ),
@@ -211,13 +215,13 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                   FilledButton.icon(
                     onPressed: () => JoinPartyScreen.open(context),
                     icon: const Icon(Icons.qr_code_scanner),
-                    label: const Text('Join an existing party'),
+                    label: const Text('Join an existing household'),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   OutlinedButton.icon(
                     onPressed: () => setState(() => _index = 0),
                     icon: const Icon(Icons.group_add_outlined),
-                    label: const Text('Start a new party'),
+                    label: const Text('Start a new household'),
                   ),
                 ],
               ),
@@ -258,22 +262,31 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     }
   }
 
+  /// Whether this device's adult picked Adventure. The wizard is worded
+  /// neutrally until a mode is chosen; the finish speaks that mode.
+  bool get _meAdventure =>
+      // No adult yet reads as the default mode (Adventure).
+      _c.modeOf(_c.meLocalId ?? '') == PlayMode.adventure;
+
   Future<void> _celebrate() async {
+    final adventure = _meAdventure;
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         icon: const Icon(Icons.celebration, size: 48),
-        title: const Text('Your party is ready!'),
-        content: const Text(
+        title: Text(
+          adventure ? 'Your party is ready!' : 'Your household is ready!',
+        ),
+        content: Text(
           'Every choice you made is now permanently logged and can always be '
-          'changed later from Settings. Log a purchase to earn your first '
-          'streak — the adventure begins now.',
+          'changed later from Settings. Log a purchase to start your first '
+          'streak${adventure ? ' — the adventure begins now' : ''}.',
         ),
         actions: [
           FilledButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Enter the dungeon'),
+            child: Text(adventure ? 'Enter the dungeon' : 'Get started'),
           ),
         ],
       ),
@@ -297,8 +310,8 @@ class _PartyStep extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
         const _StepIntro(
-          'Add the adventurers, dependents, and pets in your household. '
-          'Adults carry income and a budget; everyone else joins the party. '
+          'Add the adults, dependents, and pets in your household. '
+          'Adults carry income and a budget; everyone else is shown with them. '
           'A description feeds the text-mode adventure.',
         ),
         for (final role in DraftRole.values) ...[
@@ -502,8 +515,9 @@ class _ExpensesStep extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
         const _StepIntro(
-          'Recurring bills that come off the top before you divide the coin. '
-          'Group bills split by the party; personal ones sit on one adult.',
+          'Recurring bills that come off the top before budgets are funded. '
+          'Group bills split across the household; personal ones sit on one '
+          'adult.',
         ),
         for (var i = 0; i < c.fixedExpenses.length; i++)
           _expenseTile(context, i),
@@ -789,7 +803,7 @@ class _GoalStep extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
         const _StepIntro(
-          'Pick a first savings goal — your first quest boss. Optional, but '
+          'Pick a first savings goal. Optional, but '
           'goals are what make the whole thing sing. Fund it at month close.',
         ),
         if (q == null)
@@ -820,7 +834,7 @@ class _GoalStep extends StatelessWidget {
         const SizedBox(height: AppSpacing.xs),
         Text(
           'Adventure turns the budget into a game (the default). Standard is '
-          'the plain budgeting app — their logging still helps the party. '
+          'the plain budgeting app — their logging still helps the household. '
           'Anyone can switch any time in Settings.',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant),
@@ -863,7 +877,7 @@ class _SummaryStep extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
-        Text('Your party is ready to delve',
+        Text('Your household is ready',
             style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: AppSpacing.md),
         _summaryRow(context, Icons.groups_outlined, 'Members',
@@ -1375,7 +1389,7 @@ Future<DraftFixedExpense?> showExpenseEditor(
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Group expense'),
-                subtitle: const Text('Split by the party; off = one adult'),
+                subtitle: const Text('Split across the household; off = one adult'),
                 value: shared,
                 onChanged: (v) => setSheet(() => shared = v),
               ),
@@ -1604,7 +1618,7 @@ Future<void> showMainCategoriesEditor(BuildContext context, SetupController c) {
                   style: Theme.of(sheetCtx).textTheme.titleLarge),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'The big buckets your reports and quests group by. Rename '
+                'The big buckets your reports and savings goals group by. Rename '
                 'any of them, or add your own.',
                 style: Theme.of(sheetCtx).textTheme.bodySmall?.copyWith(
                     color: Theme.of(sheetCtx).colorScheme.onSurfaceVariant),

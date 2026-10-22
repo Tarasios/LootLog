@@ -42,12 +42,12 @@ List<ChargeGroup> sampleChargeGroups() => const [
       ),
       ChargeGroup(
         kind: ChargeGroupKind.vault,
-        label: 'Vault',
+        label: 'General savings',
         choices: [
           ChargeChoice(
             target: VaultCharge(),
-            label: 'Vault',
-            subtitle: '\$88.50 discretionary',
+            label: 'General savings',
+            subtitle: '\$88.50 available',
             kind: ChargeGroupKind.vault,
             supportsShared: true,
           ),
@@ -55,7 +55,7 @@ List<ChargeGroup> sampleChargeGroups() => const [
       ),
       ChargeGroup(
         kind: ChargeGroupKind.quest,
-        label: 'Quests',
+        label: 'Savings goals',
         choices: [
           ChargeChoice(
             target: QuestCharge('q-canoe'),

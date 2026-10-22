@@ -11,6 +11,7 @@ import '../../domain/money.dart';
 import '../../domain/state.dart';
 import '../../domain/time.dart';
 import '../../domain/value_types.dart';
+import '../../ui/glossary.dart';
 import '../networth/networth_model.dart';
 import '../spoils/spoils_model.dart';
 import '../vacation/vacation_dashboard.dart';
@@ -404,6 +405,7 @@ class DashboardModel {
     this.overbudgets = const [],
     this.advances = const [],
     this.vacations = const [],
+    this.savingsRules = true,
     required this.spoils,
   });
 
@@ -436,6 +438,10 @@ class DashboardModel {
   /// Trips currently open, by name.
   final List<OpenVacationCard> vacations;
 
+  /// Whether the household is on the savings rules — Classic then calls each
+  /// adult's own pool "general savings" rather than "personal spending".
+  final bool savingsRules;
+
   /// The reopenable month-close ritual, when one is pending; null otherwise.
   final SpoilsRitual? spoils;
 }
@@ -452,6 +458,7 @@ DashboardModel buildDashboardModel(
   final now = (asOf ?? DateTime.now()).toUtc();
   final month = Month.fromInstant(now);
   final closed = month.prev();
+  final savingsRules = state.savingsRules != null;
   String? nameOf(String id) => userNames[id];
   String? petName(String? id) => id == null ? null : state.pets[id]?.name;
   int? mainColor(String? id) =>
@@ -603,7 +610,8 @@ DashboardModel buildDashboardModel(
       amountCents: w.amountCents,
       purpose: w.purpose,
       destinationLabel: switch (w.destination) {
-        UserVaultDestination(:final userId) => '${nameOf(userId) ?? 'a'} vault',
+        UserVaultDestination(:final userId) =>
+          '${nameOf(userId) ?? 'someone'}’s ${Glossary.vaultLabel(isAdventure: false, savingsRules: savingsRules)}',
         ExternalDestination() => 'external',
       },
       mineToApprove: mineToApprove,
@@ -718,6 +726,7 @@ DashboardModel buildDashboardModel(
       meUserId: meUserId,
       userNames: userNames,
     ),
+    savingsRules: savingsRules,
     vacations: [
       for (final v in state.openVacations)
         OpenVacationCard(

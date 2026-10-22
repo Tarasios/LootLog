@@ -708,7 +708,7 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
           return _previewText(
             context,
             Icons.flag_outlined,
-            'Pick a quest to attack.',
+            widget.isAdventure ? 'Pick a quest to attack.' : 'Pick a savings goal.',
           );
         }
         final split = previewQuestAttack(

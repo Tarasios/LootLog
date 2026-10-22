@@ -244,6 +244,32 @@ abstract final class Glossary {
         'emergency fund. Your monthly budgets stay untouched.',
   );
 
+  /// Recurring expenses, shown at the start of each month.
+  static const recurring = GlossaryTerm(
+    internal: 'RecurringExpenseSet',
+    classic: 'recurring bills',
+    adventure: 'equipment maintenance',
+    helper: 'Bills that repeat every month or year, taken off the top before '
+        'budgets are funded.',
+  );
+
+  /// A member's monthly income.
+  static const income = GlossaryTerm(
+    internal: 'IncomeSet',
+    classic: 'income',
+    adventure: 'expedition supplies',
+    helper: 'What each adult brings in per month. Variable earners plan at '
+        'the low end.',
+  );
+
+  /// The household as a group of members.
+  static const household = GlossaryTerm(
+    internal: 'household',
+    classic: 'household',
+    adventure: 'party',
+    helper: 'Everyone sharing the budget: adults, dependents and pets.',
+  );
+
   /// Every defined term, for tests and any glossary/help screen.
   static const all = <GlossaryTerm>[
     leftoverAllocated,
@@ -267,6 +293,9 @@ abstract final class Glossary {
     advance,
     funds,
     vacation,
+    recurring,
+    income,
+    household,
   ];
 
   /// Flavor words that must never appear in Classic-mode copy. The glossary is
@@ -279,6 +308,21 @@ abstract final class Glossary {
     'dissolution',
     'grace period',
   ];
+
+  /// The name for an adult's own pool (the internal vault). Adventure calls
+  /// it the gold pouch; Classic calls it general savings once the household
+  /// is on the savings rules, and personal spending before that.
+  static String vaultLabel({
+    required bool isAdventure,
+    bool savingsRules = true,
+  }) =>
+      isAdventure
+          ? vault.adventure
+          : (savingsRules ? generalSavings.classic : vault.classic);
+
+  /// [s] with its first letter upper-cased, for headings and buttons.
+  static String cap(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
   /// The grace-period label, which reads more naturally with the day count
   /// inlined: Classic "Auto-divide leftovers after 7 days"; Adventure

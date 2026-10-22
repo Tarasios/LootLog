@@ -315,7 +315,10 @@ class _ExpenseEntryViewState extends State<ExpenseEntryView> {
               child: TextButton.icon(
                 onPressed: () => setState(() => _showMore = true),
                 icon: const Icon(Icons.unfold_more),
-                label: const Text('More targets (vault, quests)'),
+                label: Text(
+                  'More targets '
+                  '(${advanced.map((g) => g.label.toLowerCase()).join(', ')})',
+                ),
               ),
             ),
           if (_showMore)

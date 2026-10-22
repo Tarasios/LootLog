@@ -119,40 +119,40 @@ phone and open it to install (you'll need "install unknown apps" enabled). See
 
 Launch the app on the desktop. Because nothing is set up yet, it opens on the
 **Welcome to LootLog** screen, which asks one question first: are you *joining*
-a party that already exists on another device, or *starting a new one*?
+a household that already exists on another device, or *starting a new one*?
 
-- **Join an existing party** — for a second device (a phone, or the other
+- **Join an existing household** — for a second device (a phone, or the other
   desktop) joining a household that's already set up elsewhere. This pairs to a
-  hub and pulls the party down; it's covered in
+  hub and pulls the household down; it's covered in
   [step 3b](#3b-join-the-party-from-a-phone-or-second-desktop).
-- **Start a new party** — the first device. Tap this to build your household.
+- **Start a new household** — the first device. Tap this to build your household.
 
-Tapping **Start a new party** opens a short wizard framed as assembling your
-adventuring party. Each step has a **Back**/**Next** bar, and **everything you
+Tapping **Start a new household** opens a short wizard. Each step has a **Back**/**Next** bar, and **everything you
 enter here can be changed later from Settings** — so don't overthink it.
 
-1. **Your party.** Add the people (and pets) in your household. **Adults** carry
-   income and a budget; **dependents** and **pets** ride along as party members
-   with no money of their own. For each, give a **Name** and, optionally, a
+1. **Your household.** Add the people (and pets) in your household. **Adults**
+   carry income and a budget; **dependents** and **pets** are shown alongside
+   them with no money of their own. For each, give a **Name** and, optionally, a
    **character description** (it feeds the text-mode adventure) and a custom
    **sprite** PNG. If you add more than one adult, pick **which adult is this
    device** at the bottom.
-2. **Expedition supplies.** Set each adult's usual **monthly income**. It carries
+2. **Income.** Set each adult's usual **monthly income**. It carries
    forward every month until you change it; `0` is fine.
-3. **Treasury.** *Optional.* Add **tracked accounts** — savings, investments,
+3. **Accounts.** *Optional.* Add **tracked accounts** — savings, investments,
    debts — for the net-worth screen. These never touch your budget.
-4. **Standing obligations.** Add **recurring bills** (rent, subscriptions,
-   utilities) that come off the top before the huntable budget — **group**
-   (split by the party) or **personal** (one adult), **monthly** or **annual**.
-5. **Dividing the coin.** Create your **budget categories**. Fund **group**
+4. **Recurring bills.** Add **recurring bills** (rent, subscriptions,
+   utilities) that come off the top before budgets are funded — **group**
+   (split across the household) or **personal** (one adult), **monthly** or **annual**.
+5. **Budgets.** Create your **budget categories**. Fund **group**
    categories first; if you have two or more adults you'll also set the **share
    split** that funds them. Then give each adult **personal** categories until
    their "left" counter reaches zero.
-6. **First quest.** *Optional.* Pick a first **savings goal** (a quest boss to
-   hunt), and choose whether the app looks **Adventure** (the default dungeon
-   skin) or **Classic** (a plain ledger). You can switch modes any time.
-7. **Ready to delve.** Review the summary and tap **Begin the adventure**. A
-   short celebration confirms your party is ready, and the app opens on the
+6. **First savings goal.** *Optional.* Pick a first **savings goal**, and
+   choose each adult's mode: **Adventure** (the default dungeon game) or
+   **Standard** (the plain budgeting app). You can switch modes any time.
+7. **Ready to go.** Review the summary and tap **Begin the adventure**
+   (**Finish setup** if you chose Standard). A short celebration confirms your
+   household is ready, and the app opens on the
    dashboard.
 
 Completing the wizard *is* creating the household — everything you entered is
@@ -165,8 +165,9 @@ household-name step.
 > (and therefore which month a late-night expense lands in) will follow Vancouver
 > time. *(Not built yet: a timezone picker.)*
 
-> **One party, shared across devices.** You only run **Start a new party** on the
-> *first* device. Every other device uses **Join an existing party**
+> **One household, shared across devices.** You only run **Start a new
+> household** on the *first* device. Every other device uses **Join an existing
+> household**
 > ([step 3b](#3b-join-the-party-from-a-phone-or-second-desktop)) to pair to the
 > hub, pull the same event history, and claim which adult it is — so all devices
 > show the same members and the same numbers. (If two devices genuinely can't
@@ -201,7 +202,7 @@ so it stays the same each time you start the hub; you don't get a new code every
 time. Tap **Stop hub** only when you want to take the hub offline.
 
 > **⚠️ No QR-code pairing yet.** The design docs describe scanning a QR code to
-> pair, and the **Join an existing party** button wears a QR icon — but there is
+> pair, and the **Join an existing household** button wears a QR icon — but there is
 > no scanner yet. Both hosting and joining are done by **typing** the address and
 > secret (use the desktop's copy buttons). *(Not built yet: QR display on the hub
 > and a QR scanner on the joining device.)*
@@ -213,7 +214,7 @@ build its own. Make sure the desktop's hub from [3a](#3a-start-the-hub-on-the-de
 is running and both devices are on the **same Wi-Fi**, then on the new device:
 
 1. Install and launch LootLog. On the **Welcome to LootLog** screen, tap
-   **Join an existing party** (not "Start a new party").
+   **Join an existing household** (not "Start a new household").
 2. Fill in:
    - **This device's name** — e.g. "Robin's phone" (so you can recognise it in
      the hub's device list).
@@ -261,7 +262,7 @@ where sync stands, without ever popping up a dialog:
 ## 4. Set up your budget
 
 You already sketched your budget in the first-run wizard
-([step 2](#2-first-run-create-the-household), "Dividing the coin"). This section
+([step 2](#2-first-run-create-the-household), "Budgets"). This section
 is for **changing it later** — a new category, a different limit, next month's
 income. Open **Manage → Budget setup**; it shows each adult's categories with
 group budgets below, for the month shown at the top (use the ‹ › arrows to change
@@ -400,8 +401,9 @@ Tap the **New** button (the ➕ floating button; on desktop you can also press t
    are grouped:
    - **My budgets** — your personal categories (each shows "$X left").
    - **Shared budgets** — group categories.
-   - **Vault** — your discretionary pocket money.
-   - **Quests** — active savings goals you can spend toward.
+   - **General savings** (Adventure: **Gold pouch**) — your own money.
+   - **Savings goals** (Adventure: **Quests**) — active goals you can spend
+     toward.
    - **Emergency funds** — reserve caches.
 
 **About the shared flag:** "Shared" only applies to **personal categories and
@@ -671,14 +673,14 @@ DUOBUDGET — QUICK REFERENCE
 GETTING STARTED
   • Install: download your platform's build from GitHub Releases.
   • Desktop that stays on = the hub. Set it up first.
-  • First run → "Start a new party" → walk the wizard
+  • First run → "Start a new household" → walk the wizard
     (party → income → accounts → bills → budget → goal → begin).
   • Everything is editable later in Settings.
 
 PAIR A PHONE (both devices on the SAME Wi-Fi)
   Desktop:  Manage(☰) → Sync & hubs → Start hub
             → note the Address (http://…:8787) + Pairing secret
-  Phone:    first run → "Join an existing party"
+  Phone:    first run → "Join an existing household"
             → device name + Address + Pairing secret → Pair & sync
             → tap which adult you are
   (No QR code yet — type them in. Secret stays the same each time.)
