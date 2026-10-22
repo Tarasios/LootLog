@@ -23,6 +23,9 @@ DateTime _at(int m, int d) => DateTime.utc(2026, m, d, 18);
 /// Early October: September and August are closed; July is out of reach.
 final DateTime _now = _at(10, 5);
 
+/// When the household, its categories and quests were set up.
+final DateTime _setup = DateTime.utc(2025, 1, 1, 18);
+
 const _sep = Month(2026, 9);
 const _aug = Month(2026, 8);
 const _jul = Month(2026, 7);
@@ -36,8 +39,8 @@ class _Ledger {
         eventId: _id(),
         deviceId: 'd',
         userId: id,
-        occurredAt: _at(1, 1),
-        createdAt: _at(1, 1),
+        occurredAt: _setup,
+        createdAt: _setup,
         memberId: id,
         name: id,
         role: MemberRole.adult,
@@ -49,8 +52,8 @@ class _Ledger {
         eventId: _id(),
         deviceId: 'd',
         userId: owner ?? _ada,
-        occurredAt: _at(1, 1),
-        createdAt: _at(1, 1),
+        occurredAt: _setup,
+        createdAt: _setup,
         sliceId: id,
         name: id,
         ownership:
@@ -68,8 +71,8 @@ class _Ledger {
         eventId: _id(),
         deviceId: 'd',
         userId: _ada,
-        occurredAt: _at(1, 1),
-        createdAt: _at(1, 1),
+        occurredAt: _setup,
+        createdAt: _setup,
         questId: id,
         name: id,
         targetCents: target,
@@ -304,6 +307,57 @@ void main() {
       ]);
     });
 
+    test('an old ledger with a quest at 80% from a year ago grants nothing',
+        () {
+      final l = _Ledger()
+        ..adult(_ada)
+        ..category('food', owner: _ada, limit: 10000, main: 'food')
+        ..quest('canoe', 10000,
+            ownership: const PersonalParty(_ada), main: 'food');
+      l.events.add(LeftoverAllocated(
+        eventId: 'old-alloc',
+        deviceId: 'd',
+        userId: _ada,
+        occurredAt: DateTime.utc(2025, 10, 2, 18),
+        createdAt: DateTime.utc(2025, 10, 2, 18),
+        forUserId: _ada,
+        month: const Month(2025, 9),
+        sliceId: 'food',
+        allocations: [_toQuest('canoe', 8000)],
+      ));
+      expect(reduce(l.events, asOf: _now).quests['canoe']!.totalContributedCents,
+          8000);
+      final d = _Device();
+      expect(_rewardIds(d.run(l.events)), isEmpty);
+      // Skipped milestones are never granted later either.
+      expect(_rewardIds(d.run(l.events, now: _at(11, 5))), isEmpty);
+    });
+
+    test('a quest crossing 50% this month pays that one milestone, once', () {
+      final l = _Ledger()
+        ..adult(_ada)
+        ..category('food', owner: _ada, limit: 10000, main: 'food')
+        ..quest('canoe', 10000,
+            ownership: const PersonalParty(_ada), main: 'food');
+      l.events.add(LeftoverAllocated(
+        eventId: 'old-alloc',
+        deviceId: 'd',
+        userId: _ada,
+        occurredAt: DateTime.utc(2025, 10, 2, 18),
+        createdAt: DateTime.utc(2025, 10, 2, 18),
+        forUserId: _ada,
+        month: const Month(2025, 9),
+        sliceId: 'food',
+        allocations: [_toQuest('canoe', 4000)],
+      ));
+      // Allocated this month (October), for September: 40% -> 55%.
+      l.allocate(_ada, 'food', _sep, [_toQuest('canoe', 1500)]);
+      final d = _Device();
+      expect(_rewardIds(d.run(l.events)),
+          ['${GameReasonCodes.vaultQuest}:$_ada:canoe:50']);
+      expect(d.run(l.events), isEmpty);
+    });
+
     test('a shared quest rewards each Adventure adult who funded it', () {
       final l = _Ledger()
         ..adult(_ada)
@@ -348,6 +402,22 @@ void main() {
           ['${GameReasonCodes.vaultSavingsStreak}:$_ada:2026-07:3']);
       expect(out.whereType<RewardGranted>().single.gems,
           Balance.savingsStreakGems[3]);
+      expect(d.run(l.events), isEmpty);
+    });
+
+    test('a long-running streak pays only the marks reached within the '
+        'lookback', () {
+      final l = _Ledger()..adult(_ada);
+      // October 2025 .. September 2026: the 12th month is September.
+      var m = const Month(2025, 10);
+      for (var i = 0; i < 12; i++, m = m.next()) {
+        l.allocate(_ada, 'food', m, [
+          const Allocation(destination: _carry, amountCents: 100),
+        ], at: m.next().startInstantUtc().add(const Duration(days: 1, hours: 18)));
+      }
+      final d = _Device();
+      expect(_rewardIds(d.run(l.events)),
+          ['${GameReasonCodes.vaultSavingsStreak}:$_ada:2025-10:12']);
       expect(d.run(l.events), isEmpty);
     });
 

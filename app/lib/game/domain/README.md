@@ -62,6 +62,10 @@ Nothing here may write ledger events except through the existing ledger API.
   default `MonthEndRewards`: the gold chest (a personal category at or under
   its limit in a closed, well-logged month — a bonus only) and Vault
   milestones (quest goal shares, consecutive saving months — never amounts).
+  Everything is bounded by `Balance.monthEndLookbackMonths`: a milestone is
+  paid only when crossed inside that window (quest progress before it is
+  reduced from the ledger as of the window's first month boundary), so the
+  first run over an old ledger pays nothing for its history.
   Reads the reducer's `HouseholdState`; never writes the ledger.
 
 The app-side wiring (store, `gameStateProvider`, `GameCommandsService`) is in
