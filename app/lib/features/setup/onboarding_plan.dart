@@ -81,14 +81,17 @@ class DraftAccount {
   final int? minPaymentCents;
 }
 
-/// One fixed recurring expense drafted during onboarding. Group ones split by
-/// shares off the top; personal ones come off one adult's budget.
+/// One recurring bill drafted during onboarding. Group ones split by shares off
+/// the top; personal ones come off one adult's budget. (The name predates
+/// variable bills: a draft may be [RecurringKind.fixed] or
+/// [RecurringKind.variable].)
 class DraftFixedExpense {
   const DraftFixedExpense({
     required this.name,
     required this.shared,
     required this.amountCents,
     this.ownerLocalId,
+    this.kind = RecurringKind.fixed,
     this.cadence = RecurringCadence.monthly,
     this.dueDay = 1,
     this.dueMonth,
@@ -101,6 +104,12 @@ class DraftFixedExpense {
 
   /// The owning adult's [DraftMember.localId] when not [shared].
   final String? ownerLocalId;
+
+  /// Fixed (the same every time) or variable (an estimate; the actual is
+  /// recorded at month close and the difference flows through savings).
+  final RecurringKind kind;
+
+  /// The amount — for a variable bill, the estimate used for planning.
   final int amountCents;
   final RecurringCadence cadence;
   final int dueDay;
@@ -368,7 +377,8 @@ OnboardingPlan buildOnboardingEvents(
     );
   }
 
-  // 4. Fixed expenses: group first, then per-adult (RecurringExpenseSet).
+  // 4. Recurring bills (fixed or variable): group first, then per-adult
+  // (RecurringExpenseSet).
   final orderedExpenses = [
     ...input.fixedExpenses.where((e) => e.shared),
     ...input.fixedExpenses.where((e) => !e.shared),
@@ -388,7 +398,7 @@ OnboardingPlan buildOnboardingEvents(
           expenseId: nextId(),
           name: e.name,
           ownership: ownership,
-          kind: RecurringKind.fixed,
+          kind: e.kind,
           cadence: e.cadence,
           amountCents: e.amountCents,
           dueDay: e.dueDay,

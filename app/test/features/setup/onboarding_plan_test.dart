@@ -256,6 +256,72 @@ void main() {
       expect(expenses.every((e) => e.kind == RecurringKind.fixed), isTrue);
     });
 
+    test('a bill drafted without a kind stays fixed', () {
+      const draft = DraftFixedExpense(
+        name: 'Rent',
+        shared: true,
+        amountCents: 200000,
+      );
+      expect(draft.kind, RecurringKind.fixed);
+    });
+
+    test('variable bills emit RecurringExpenseSet with kind variable', () {
+      final plan = _plan(
+        const OnboardingInput(
+          members: [
+            DraftMember(localId: 'a1', role: DraftRole.adult, name: 'Ada'),
+            DraftMember(localId: 'a2', role: DraftRole.adult, name: 'Ben'),
+          ],
+          meLocalId: 'a1',
+          fixedExpenses: [
+            DraftFixedExpense(
+              name: 'Phone',
+              shared: false,
+              ownerLocalId: 'a2',
+              amountCents: 6500,
+              kind: RecurringKind.variable,
+            ),
+            DraftFixedExpense(
+              name: 'Hydro',
+              shared: true,
+              amountCents: 12000,
+              kind: RecurringKind.variable,
+            ),
+            DraftFixedExpense(name: 'Rent', shared: true, amountCents: 200000),
+          ],
+        ),
+      );
+
+      final byName = {
+        for (final e in plan.events.whereType<RecurringExpenseSet>()) e.name: e,
+      };
+      expect(byName['Hydro']!.kind, RecurringKind.variable);
+      expect(byName['Hydro']!.ownership, const SharedParty());
+      // The estimate is the planning amount.
+      expect(byName['Hydro']!.amountCents, 12000);
+      expect(byName['Phone']!.kind, RecurringKind.variable);
+      expect(byName['Phone']!.ownership, const PersonalParty('a2'));
+      expect(byName['Rent']!.kind, RecurringKind.fixed);
+
+      // The reducer sees them as variable bills awaiting an actual, and the
+      // household is on the savings rules that absorb the difference.
+      final state = reduce(plan.events);
+      final kinds = {
+        for (final r in state.recurringExpenses.values) r.name: r.kind,
+      };
+      expect(kinds, {
+        'Hydro': RecurringKind.variable,
+        'Phone': RecurringKind.variable,
+        'Rent': RecurringKind.fixed,
+      });
+      expect(
+        plan.events.whereType<SettingChanged>().any(
+          (s) => s.key == 'savingsRules',
+        ),
+        isTrue,
+      );
+    });
+
     test(
       'budget: group categories precede personal and carry main category',
       () {
