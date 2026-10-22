@@ -49,6 +49,20 @@ class MaterialBundle {
 
   bool get isEmpty => _amounts.isEmpty;
 
+  /// The sum of both bundles, kind by kind.
+  MaterialBundle operator +(MaterialBundle other) => MaterialBundle({
+        for (final k in MaterialKind.values) k: this[k] + other[k],
+      });
+
+  /// Every amount multiplied by [factor].
+  MaterialBundle scaled(int factor) => MaterialBundle({
+        for (final e in _amounts.entries) e.key: e.value * factor,
+      });
+
+  /// Whether this bundle holds at least [cost] of every kind.
+  bool covers(MaterialBundle cost) =>
+      cost.amounts.entries.every((e) => this[e.key] >= e.value);
+
   Map<String, int> toJson() => {
         for (final e in _amounts.entries) e.key.name: e.value,
       };
@@ -87,6 +101,8 @@ class Loot {
   final int gems;
   final MaterialBundle materials;
   final int tokens;
+
+  bool get isEmpty => gems == 0 && materials.isEmpty && tokens == 0;
 
   Map<String, dynamic> toJson() => {
         'gems': gems,

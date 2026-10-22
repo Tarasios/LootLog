@@ -63,6 +63,10 @@ enum GameWarningCode {
 
   /// Left a party the person is not in; ignored.
   notInParty,
+
+  /// A credit would have pushed a material past the Storehouse capacity; the
+  /// excess was dropped (typically two devices collecting at once).
+  materialsCapped,
 }
 
 /// One recorded inconsistency, tied to the event that caused it.
@@ -106,6 +110,13 @@ class BuildingState {
 
   /// When the current construction or upgrade finishes.
   final DateTime completesAt;
+
+  /// Whether the current construction or upgrade has finished by [at].
+  bool isCompleteAt(DateTime at) => !at.isBefore(completesAt);
+
+  /// The tier in service at [at]: the previous tier while an upgrade is
+  /// under way (0 while first being built).
+  int tierAt(DateTime at) => isCompleteAt(at) ? tier : tier - 1;
 
   @override
   bool operator ==(Object other) =>
@@ -152,6 +163,23 @@ class HallState {
 
   /// The last collection instant per building id.
   final Map<String, DateTime> lastCollectedAt;
+
+  /// The plot holding a building of [type] (lowest index), or null.
+  PlotState? plotOf(BuildingType type) {
+    final indices = plots.keys.toList()..sort();
+    for (final i in indices) {
+      if (plots[i]!.building?.type == type) return plots[i];
+    }
+    return null;
+  }
+
+  /// The tier of [type] in service at [at] (0 when the hall has none).
+  int completedTier(BuildingType type, DateTime at) =>
+      plotOf(type)?.building?.tierAt(at) ?? 0;
+
+  /// How much of each (capped) material the shared pool may hold at [at].
+  int storageCapacityAt(DateTime at) => Balance.storehouseCapacityByTier[
+      completedTier(BuildingType.storehouse, at)];
 
   HallState copyWith({
     Map<int, PlotState>? plots,
