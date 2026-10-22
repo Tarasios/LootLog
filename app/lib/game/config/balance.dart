@@ -360,13 +360,15 @@ abstract final class Balance {
   static const int ritualOpenMonths = 2;
 
   /// One boss per season; HP grows by [bossHpPerMonthInSeason] each month
-  /// into the season. Tuned so a hero with no gear who logged most days wins
-  /// about half the time, and a geared hero almost always.
+  /// into the season. Tuned so a hero with no gear who logged every day of
+  /// the month wins a little under half the time, each gear tier tilts it
+  /// further, and a well-geared hero always wins. Losing costs nothing: the
+  /// spoils chest comes either way.
   static const Map<Season, BossSpec> bosses = {
-    Season.winter: BossSpec(key: 'frostWyrm', baseHp: 130),
-    Season.spring: BossSpec(key: 'thawHydra', baseHp: 110),
-    Season.summer: BossSpec(key: 'sunDrake', baseHp: 120),
-    Season.autumn: BossSpec(key: 'harvestLich', baseHp: 125),
+    Season.winter: BossSpec(key: 'frostWyrm', baseHp: 150),
+    Season.spring: BossSpec(key: 'thawHydra', baseHp: 130),
+    Season.summer: BossSpec(key: 'sunDrake', baseHp: 140),
+    Season.autumn: BossSpec(key: 'harvestLich', baseHp: 145),
   };
   static const int bossHpPerMonthInSeason = 10;
 
@@ -377,7 +379,7 @@ abstract final class Balance {
   /// completely the month was logged (up to [bossLoggingBonusMax] for every
   /// day) + a random 0..[bossAttackVariance].
   static const int heroBaseAttack = 12;
-  static const int heroAttackPerGearTier = 3;
+  static const int heroAttackPerGearTier = 1;
   static const int bossLoggingBonusMax = 8;
   static const int bossAttackVariance = 8;
 

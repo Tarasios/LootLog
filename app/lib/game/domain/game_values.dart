@@ -160,6 +160,9 @@ enum ExpeditionRegion {
 /// Chest kinds (see the glossary for what earns each).
 enum ChestType { wood, iron, gold, party, spoils }
 
+/// The id of the household's one adventuring party (`PartyJoined.partyId`).
+const String kHouseholdPartyId = 'household';
+
 /// The month-end spoils ritual steps that precede the seasonal boss fight.
 enum RitualStep { reconcile, review, plan, contribute }
 

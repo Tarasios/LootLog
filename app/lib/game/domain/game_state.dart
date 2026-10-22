@@ -228,6 +228,10 @@ class HeroState {
   final Map<String, String> cosmetics;
   final Map<String, GearPiece> gear;
 
+  /// The hero's power: the sum of every worn gear tier. Improves expedition
+  /// loot and boss-fight damage.
+  int get power => gear.values.fold(0, (sum, g) => sum + g.tier);
+
   @override
   bool operator ==(Object other) =>
       other is HeroState &&

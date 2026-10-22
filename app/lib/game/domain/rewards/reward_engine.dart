@@ -20,13 +20,15 @@
 library;
 
 import '../../../domain/event.dart';
-import '../../../domain/ids.dart';
 import '../../config/balance.dart';
 import '../clock.dart';
 import '../game_event.dart';
+import '../game_event_stamp.dart';
 import '../game_state.dart';
 import '../game_values.dart';
 import '../reason_codes.dart';
+
+export '../game_event_stamp.dart';
 
 /// One adult in the household and the mode they play in.
 class PartyAdult {
@@ -53,15 +55,6 @@ class Party {
   }
 
   Iterable<PartyAdult> get adventurers => adults.where((a) => a.inAdventure);
-}
-
-/// How the engine stamps the events it writes: this device, and fresh event
-/// ids (UUIDv7 in the app, so events written together keep their order).
-class GameEventStamp {
-  const GameEventStamp({required this.deviceId, this.newEventId = uuidv7});
-
-  final String deviceId;
-  final String Function() newEventId;
 }
 
 /// The month-end rewards (the spoils ritual's chest and boss fight). Not built
