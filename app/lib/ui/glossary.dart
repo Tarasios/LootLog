@@ -226,6 +226,25 @@ abstract final class Glossary {
         'few months. Another adult approves.',
   );
 
+  /// A recurring bill that costs the same every time it comes due.
+  static const fixedBill = GlossaryTerm(
+    internal: 'RecurringKind.fixed',
+    classic: 'Same every time',
+    adventure: 'Steady upkeep',
+    helper: 'This bill costs the same amount every time it comes due.',
+  );
+
+  /// A recurring bill whose amount changes (utilities, a phone plan): planned
+  /// on an estimate, settled with the real amount at month end.
+  static const variableBill = GlossaryTerm(
+    internal: 'RecurringKind.variable',
+    classic: 'Varies (estimate)',
+    adventure: 'Shifting upkeep',
+    helper: 'Enter your best guess. The estimate is used until you enter the '
+        'real amount at month end; if the bill comes in lower, the difference '
+        'goes to savings, and if it comes in higher, it comes from savings.',
+  );
+
   /// Every defined term, for tests and any glossary/help screen.
   static const all = <GlossaryTerm>[
     leftoverAllocated,
@@ -247,6 +266,8 @@ abstract final class Glossary {
     generalSavings,
     carryTax,
     advance,
+    fixedBill,
+    variableBill,
   ];
 
   /// Flavor words that must never appear in Classic-mode copy. The glossary is

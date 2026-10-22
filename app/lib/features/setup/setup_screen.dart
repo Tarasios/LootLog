@@ -21,6 +21,7 @@ import '../../domain/state.dart' show MainCategory;
 import '../../domain/time.dart';
 import '../../domain/value_types.dart';
 import '../../ui/format.dart';
+import '../../ui/glossary.dart';
 import '../../ui/theme.dart';
 import '../settings/play_mode.dart';
 import 'join_party_screen.dart';
@@ -502,7 +503,9 @@ class _ExpensesStep extends StatelessWidget {
       children: [
         const _StepIntro(
           'Recurring bills that come off the top before you divide the coin. '
-          'Group bills split by the party; personal ones sit on one adult.',
+          'Group bills split by the party; personal ones sit on one adult. '
+          'Bills that change month to month (like utilities) can use an '
+          'estimate — you enter the real amount at month end.',
         ),
         for (var i = 0; i < c.fixedExpenses.length; i++)
           _expenseTile(context, i),
@@ -515,7 +518,7 @@ class _ExpensesStep extends StatelessWidget {
               if (e != null) c.addFixedExpense(e);
             },
             icon: const Icon(Icons.add),
-            label: const Text('Add fixed expense'),
+            label: const Text('Add bill'),
           ),
         ),
       ],
@@ -530,7 +533,8 @@ class _ExpensesStep extends StatelessWidget {
       leading: const Icon(Icons.autorenew),
       title: Text(e.name),
       subtitle: Text(
-        '$owner · ${money(e.amountCents)} · '
+        '$owner · ${money(e.amountCents)}'
+        '${e.kind == RecurringKind.variable ? ' est.' : ''} · '
         '${e.cadence == RecurringCadence.annual ? 'annual' : 'monthly'}',
       ),
       trailing: Row(
@@ -1324,8 +1328,12 @@ Future<DraftFixedExpense?> showExpenseEditor(
   var shared = existing?.shared ?? true;
   String? owner = existing?.ownerLocalId ??
       (c.adults.isNotEmpty ? c.adults.first.localId : null);
+  var kind = existing?.kind ?? RecurringKind.fixed;
   var cadence = existing?.cadence ?? RecurringCadence.monthly;
   var dueMonth = existing?.dueMonth ?? 1;
+  // Labels follow this device's adult's chosen mode (Adventure by default).
+  final me = c.meLocalId;
+  final adventure = me == null || c.modeOf(me) == PlayMode.adventure;
 
   int centsOf() {
     final t = amountCtrl.text.trim();
@@ -1353,7 +1361,7 @@ Future<DraftFixedExpense?> showExpenseEditor(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(existing == null ? 'New fixed expense' : 'Edit fixed expense',
+              Text(existing == null ? 'New bill' : 'Edit bill',
                   style: Theme.of(sheetCtx).textTheme.titleLarge),
               const SizedBox(height: AppSpacing.md),
               TextField(
@@ -1362,12 +1370,39 @@ Future<DraftFixedExpense?> showExpenseEditor(
                 decoration: const InputDecoration(labelText: 'Name'),
               ),
               const SizedBox(height: AppSpacing.sm),
+              SegmentedButton<RecurringKind>(
+                segments: [
+                  ButtonSegment(
+                    value: RecurringKind.fixed,
+                    label: Text(
+                        Glossary.fixedBill.label(isAdventure: adventure)),
+                  ),
+                  ButtonSegment(
+                    value: RecurringKind.variable,
+                    label: Text(
+                        Glossary.variableBill.label(isAdventure: adventure)),
+                  ),
+                ],
+                selected: {kind},
+                onSelectionChanged: (s) => setSheet(() => kind = s.first),
+              ),
+              if (kind == RecurringKind.variable) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  Glossary.variableBill.helper,
+                  style: Theme.of(sheetCtx).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(sheetCtx).colorScheme.onSurfaceVariant),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.sm),
               TextField(
                 controller: amountCtrl,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                    labelText: 'Amount', prefixText: '\$'),
+                decoration: InputDecoration(
+                    labelText:
+                        kind == RecurringKind.variable ? 'Estimate' : 'Amount',
+                    prefixText: '\$'),
               ),
               const SizedBox(height: AppSpacing.md),
               SwitchListTile(
@@ -1429,13 +1464,14 @@ Future<DraftFixedExpense?> showExpenseEditor(
                     shared: shared,
                     ownerLocalId: shared ? null : owner,
                     amountCents: centsOf(),
+                    kind: kind,
                     cadence: cadence,
                     dueDay: day,
                     dueMonth:
                         cadence == RecurringCadence.annual ? dueMonth : null,
                   ));
                 },
-                child: Text(existing == null ? 'Add expense' : 'Save'),
+                child: Text(existing == null ? 'Add bill' : 'Save'),
               ),
             ],
           ),

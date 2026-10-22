@@ -144,6 +144,11 @@ enter here can be changed later from Settings** — so don't overthink it.
 4. **Standing obligations.** Add **recurring bills** (rent, subscriptions,
    utilities) that come off the top before the huntable budget — **group**
    (split by the party) or **personal** (one adult), **monthly** or **annual**.
+   Each bill is either **Same every time** or **Varies (estimate)** (in
+   Adventure: *Steady upkeep* / *Shifting upkeep*). For a bill that varies, like
+   hydro or a phone plan, enter your best guess: the estimate is used until you
+   enter the real amount at month end, and the difference goes to savings when
+   the bill comes in lower or comes from savings when it comes in higher.
 5. **Dividing the coin.** Create your **budget categories**. Fund **group**
    categories first; if you have two or more adults you'll also set the **share
    split** that funds them. Then give each adult **personal** categories until
