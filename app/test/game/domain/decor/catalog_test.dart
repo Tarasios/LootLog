@@ -62,4 +62,89 @@ void main() {
     expect(partial.itemFor('bad_asset'), isNull);
     expect(partial.itemFor('missing'), isNull);
   });
+
+  group('malformed entries are skipped, never thrown', () {
+    Map<String, dynamic> entryWith(Map<String, dynamic> overrides) => {
+          'id': 'lamp',
+          'name': 'Lamp',
+          'kind': 'furniture',
+          'rarity': 'common',
+          'price': 5,
+          'asset': 'furniture.lamp.default.idle',
+          ...overrides,
+        };
+
+    Map<String, dynamic> entryWithout(String key) => Map<String, dynamic>.of(entryWith({}))..remove(key);
+
+    DecorCatalog catalogWith(Map<String, dynamic> entry) => DecorCatalog.fromJson({
+          'items': [entry],
+        });
+
+    test('a string price is skipped', () {
+      expect(catalogWith(entryWith({'price': '12'})).itemFor('lamp'), isNull);
+    });
+
+    test('a fractional price is skipped', () {
+      expect(catalogWith(entryWith({'price': 12.5})).itemFor('lamp'), isNull);
+    });
+
+    test('a zero or negative price is skipped', () {
+      for (final price in [0, -3]) {
+        expect(catalogWith(entryWith({'price': price})).itemFor('lamp'), isNull, reason: 'price $price');
+      }
+    });
+
+    test('a footprint that is not one or two positive ints is skipped', () {
+      final badFootprints = <Object>[
+        [0, 1],
+        [-1, 1],
+        ['a', 1],
+        [1, 2, 3],
+        [],
+        'big',
+      ];
+      for (final footprint in badFootprints) {
+        expect(catalogWith(entryWith({'footprint': footprint})).itemFor('lamp'), isNull, reason: 'footprint $footprint');
+      }
+    });
+
+    test('an absent footprint defaults to one by one', () {
+      final lamp = catalogWith(entryWithout('footprint')).itemFor('lamp')!;
+      expect(lamp.footprintColumns, 1);
+      expect(lamp.footprintRows, 1);
+    });
+
+    test('a missing or non-string id is skipped', () {
+      expect(catalogWith(entryWithout('id')).items, isEmpty);
+      expect(catalogWith(entryWith({'id': 7})).items, isEmpty);
+    });
+
+    test('a non-map entry is skipped and the rest of the shop survives', () {
+      final mixed = DecorCatalog.fromJson({
+        'items': ['oops', 42, null, entryWith({'id': 'good'})],
+      });
+      expect(mixed.items.map((item) => item.id), ['good']);
+    });
+
+    test('a non-list items or starterSet is treated as empty', () {
+      final malformed = DecorCatalog.fromJson({'items': 'nope', 'starterSet': {'a': 1}});
+      expect(malformed.items, isEmpty);
+      expect(malformed.starterSet, isEmpty);
+    });
+
+    test('a non-string starter id is ignored', () {
+      final catalog = DecorCatalog.fromJson({
+        'items': [entryWith({})],
+        'starterSet': ['lamp', 7],
+      });
+      expect(catalog.starterSet.map((item) => item.id), ['lamp']);
+    });
+
+    test('an empty trophy or statue quest id is not an item', () {
+      expect(questIdOfTrophy('trophy:'), isNull);
+      expect(questIdOfTrophy('statue:'), isNull);
+      expect(catalog.itemFor('trophy:'), isNull);
+      expect(catalog.itemFor('statue:'), isNull);
+    });
+  });
 }
