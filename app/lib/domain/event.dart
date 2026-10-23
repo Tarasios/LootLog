@@ -60,7 +60,7 @@ sealed class Event {
     final userId = json['userId'] as String;
     final occurredAt = DateTime.parse(json['occurredAt'] as String).toUtc();
     final createdAt = DateTime.parse(json['createdAt'] as String).toUtc();
-    final p = (json['payload'] as Map).cast<String, dynamic>();
+    final payload = (json['payload'] as Map).cast<String, dynamic>();
 
     switch (type) {
       case 'PurchaseAdded':
@@ -70,14 +70,14 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          purchaseId: p['purchaseId'] as String,
-          target: ChargeTarget.fromJson((p['target'] as Map).cast()),
-          amountCents: p['amountCents'] as int,
-          shared: p['shared'] as bool? ?? false,
-          merchant: p['merchant'] as String?,
-          taxDeductible: p['taxDeductible'] as bool?,
-          note: p['note'] as String?,
-          amendsPurchaseId: p['amendsPurchaseId'] as String?,
+          purchaseId: payload['purchaseId'] as String,
+          target: ChargeTarget.fromJson((payload['target'] as Map).cast()),
+          amountCents: payload['amountCents'] as int,
+          shared: payload['shared'] as bool? ?? false,
+          merchant: payload['merchant'] as String?,
+          taxDeductible: payload['taxDeductible'] as bool?,
+          note: payload['note'] as String?,
+          amendsPurchaseId: payload['amendsPurchaseId'] as String?,
         );
       case 'PurchaseVoided':
         return PurchaseVoided(
@@ -86,7 +86,7 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          purchaseId: p['purchaseId'] as String,
+          purchaseId: payload['purchaseId'] as String,
         );
       case 'BudgetSliceSet':
         return BudgetSliceSet(
@@ -95,24 +95,27 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          sliceId: p['sliceId'] as String,
-          name: p['name'] as String,
-          ownership: SliceOwnership.fromJson((p['ownership'] as Map).cast()),
-          mainCategoryId: p['mainCategoryId'] as String?,
-          limitCents: p['limitCents'] as int,
-          poolTithePct: p['poolTithePct'] as int,
-          defaultLeftoverPolicy: LeftoverDestination.fromJson(
-            (p['defaultLeftoverPolicy'] as Map).cast(),
+          sliceId: payload['sliceId'] as String,
+          name: payload['name'] as String,
+          ownership: SliceOwnership.fromJson(
+            (payload['ownership'] as Map).cast(),
           ),
-          taxDeductibleByDefault: p['taxDeductibleByDefault'] as bool,
-          emergencyContribution: p['emergencyContribution'] == null
+          mainCategoryId: payload['mainCategoryId'] as String?,
+          limitCents: payload['limitCents'] as int,
+          poolTithePct: payload['poolTithePct'] as int,
+          defaultLeftoverPolicy: LeftoverDestination.fromJson(
+            (payload['defaultLeftoverPolicy'] as Map).cast(),
+          ),
+          taxDeductibleByDefault: payload['taxDeductibleByDefault'] as bool,
+          emergencyContribution: payload['emergencyContribution'] == null
               ? null
               : EmergencyContribution.fromJson(
-                  (p['emergencyContribution'] as Map).cast(),
+                  (payload['emergencyContribution'] as Map).cast(),
                 ),
-          petId: p['petId'] as String?,
-          petOwnerIds: (p['petOwnerIds'] as List?)?.cast<String>() ?? const [],
-          priority: SlicePriority.fromName(p['priority'] as String?),
+          petId: payload['petId'] as String?,
+          petOwnerIds:
+              (payload['petOwnerIds'] as List?)?.cast<String>() ?? const [],
+          priority: SlicePriority.fromName(payload['priority'] as String?),
         );
       case 'RecurringExpenseSet':
         return RecurringExpenseSet(
@@ -121,20 +124,22 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          expenseId: p['expenseId'] as String,
-          name: p['name'] as String,
-          ownership: PartyOwnership.fromJson((p['ownership'] as Map).cast()),
-          kind: RecurringKind.values.byName(p['kind'] as String),
-          cadence: p['cadence'] == null
+          expenseId: payload['expenseId'] as String,
+          name: payload['name'] as String,
+          ownership: PartyOwnership.fromJson(
+            (payload['ownership'] as Map).cast(),
+          ),
+          kind: RecurringKind.values.byName(payload['kind'] as String),
+          cadence: payload['cadence'] == null
               ? RecurringCadence.monthly
-              : RecurringCadence.values.byName(p['cadence'] as String),
-          amountCents: p['amountCents'] as int,
-          dueDay: p['dueDay'] as int? ?? 1,
-          dueMonth: p['dueMonth'] as int?,
-          startMonth: Month.parse(p['startMonth'] as String),
-          endMonth: p['endMonth'] == null
+              : RecurringCadence.values.byName(payload['cadence'] as String),
+          amountCents: payload['amountCents'] as int,
+          dueDay: payload['dueDay'] as int? ?? 1,
+          dueMonth: payload['dueMonth'] as int?,
+          startMonth: Month.parse(payload['startMonth'] as String),
+          endMonth: payload['endMonth'] == null
               ? null
-              : Month.parse(p['endMonth'] as String),
+              : Month.parse(payload['endMonth'] as String),
         );
       case 'VariableExpenseRecorded':
         return VariableExpenseRecorded(
@@ -143,9 +148,9 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          expenseId: p['expenseId'] as String,
-          month: Month.parse(p['month'] as String),
-          actualCents: p['actualCents'] as int,
+          expenseId: payload['expenseId'] as String,
+          month: Month.parse(payload['month'] as String),
+          actualCents: payload['actualCents'] as int,
         );
       case 'IncomeSet':
         return IncomeSet(
@@ -154,9 +159,9 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          forUserId: p['forUserId'] as String,
-          amountCents: p['amountCents'] as int,
-          month: Month.parse(p['month'] as String),
+          forUserId: payload['forUserId'] as String,
+          amountCents: payload['amountCents'] as int,
+          month: Month.parse(payload['month'] as String),
         );
       case 'DefaultIncomeSet':
         return DefaultIncomeSet(
@@ -165,10 +170,12 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          forUserId: p['forUserId'] as String,
-          amountCents: p['amountCents'] as int,
-          effectiveFromMonth: Month.parse(p['effectiveFromMonth'] as String),
-          estimatedHighCents: p['estimatedHighCents'] as int?,
+          forUserId: payload['forUserId'] as String,
+          amountCents: payload['amountCents'] as int,
+          effectiveFromMonth: Month.parse(
+            payload['effectiveFromMonth'] as String,
+          ),
+          estimatedHighCents: payload['estimatedHighCents'] as int?,
         );
       case 'QuestSet':
         return QuestSet(
@@ -177,14 +184,16 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          questId: p['questId'] as String,
-          name: p['name'] as String,
-          targetCents: p['targetCents'] as int,
-          ownership: PartyOwnership.fromJson((p['ownership'] as Map).cast()),
-          mainCategoryId: p['mainCategoryId'] as String?,
-          sliceHint: p['sliceHint'] as String?,
-          customSpriteSha256: p['customSpriteSha256'] as String?,
-          descriptionText: p['descriptionText'] as String?,
+          questId: payload['questId'] as String,
+          name: payload['name'] as String,
+          targetCents: payload['targetCents'] as int,
+          ownership: PartyOwnership.fromJson(
+            (payload['ownership'] as Map).cast(),
+          ),
+          mainCategoryId: payload['mainCategoryId'] as String?,
+          sliceHint: payload['sliceHint'] as String?,
+          customSpriteSha256: payload['customSpriteSha256'] as String?,
+          descriptionText: payload['descriptionText'] as String?,
         );
       case 'QuestAbandoned':
         return QuestAbandoned(
@@ -193,7 +202,7 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          questId: p['questId'] as String,
+          questId: payload['questId'] as String,
         );
       case 'LeftoverAllocated':
         return LeftoverAllocated(
@@ -202,12 +211,12 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          forUserId: p['forUserId'] as String,
-          month: Month.parse(p['month'] as String),
-          sliceId: p['sliceId'] as String,
+          forUserId: payload['forUserId'] as String,
+          month: Month.parse(payload['month'] as String),
+          sliceId: payload['sliceId'] as String,
           allocations: [
-            for (final a in p['allocations'] as List)
-              Allocation.fromJson((a as Map).cast()),
+            for (final allocation in payload['allocations'] as List)
+              Allocation.fromJson((allocation as Map).cast()),
           ],
         );
       case 'GiftReceived':
@@ -217,9 +226,9 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          forUserId: p['forUserId'] as String,
-          amountCents: p['amountCents'] as int,
-          note: p['note'] as String?,
+          forUserId: payload['forUserId'] as String,
+          amountCents: payload['amountCents'] as int,
+          note: payload['note'] as String?,
         );
       case 'PoolContributionMade':
         return PoolContributionMade(
@@ -228,8 +237,8 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          fromUserId: p['fromUserId'] as String,
-          amountCents: p['amountCents'] as int,
+          fromUserId: payload['fromUserId'] as String,
+          amountCents: payload['amountCents'] as int,
         );
       case 'PoolWithdrawalProposed':
         return PoolWithdrawalProposed(
@@ -238,12 +247,12 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          proposalId: p['proposalId'] as String,
-          byUserId: p['byUserId'] as String,
-          amountCents: p['amountCents'] as int,
-          purpose: p['purpose'] as String,
+          proposalId: payload['proposalId'] as String,
+          byUserId: payload['byUserId'] as String,
+          amountCents: payload['amountCents'] as int,
+          purpose: payload['purpose'] as String,
           destination: WithdrawalDestination.fromJson(
-            (p['destination'] as Map).cast(),
+            (payload['destination'] as Map).cast(),
           ),
         );
       case 'PoolWithdrawalApproved':
@@ -253,8 +262,8 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          proposalId: p['proposalId'] as String,
-          byUserId: p['byUserId'] as String,
+          proposalId: payload['proposalId'] as String,
+          byUserId: payload['byUserId'] as String,
         );
       case 'PoolWithdrawalCancelled':
         return PoolWithdrawalCancelled(
@@ -263,7 +272,7 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          proposalId: p['proposalId'] as String,
+          proposalId: payload['proposalId'] as String,
         );
       case 'TaxRefundRecorded':
         return TaxRefundRecorded(
@@ -272,8 +281,8 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          amountCents: p['amountCents'] as int,
-          note: p['note'] as String?,
+          amountCents: payload['amountCents'] as int,
+          note: payload['note'] as String?,
         );
       case 'EmergencyFundSet':
         return EmergencyFundSet(
@@ -282,9 +291,9 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          fundId: p['fundId'] as String,
-          name: p['name'] as String,
-          petId: p['petId'] as String?,
+          fundId: payload['fundId'] as String,
+          name: payload['name'] as String,
+          petId: payload['petId'] as String?,
         );
       case 'PetSet':
         return PetSet(
@@ -293,9 +302,9 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          petId: p['petId'] as String,
-          name: p['name'] as String,
-          customSpriteSha256: p['customSpriteSha256'] as String?,
+          petId: payload['petId'] as String,
+          name: payload['name'] as String,
+          customSpriteSha256: payload['customSpriteSha256'] as String?,
         );
       case 'MainCategorySet':
         return MainCategorySet(
@@ -304,10 +313,10 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          id: p['id'] as String,
-          name: p['name'] as String,
-          colorArgb: p['colorArgb'] as int,
-          sortOrder: p['sortOrder'] as int,
+          id: payload['id'] as String,
+          name: payload['name'] as String,
+          colorArgb: payload['colorArgb'] as int,
+          sortOrder: payload['sortOrder'] as int,
         );
       case 'MemberSet':
         return MemberSet(
@@ -316,13 +325,13 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          memberId: p['memberId'] as String,
-          name: p['name'] as String,
-          role: MemberRole.values.byName(p['role'] as String),
-          active: p['active'] as bool? ?? true,
-          customSpriteSha256: p['customSpriteSha256'] as String?,
-          descriptionText: p['descriptionText'] as String?,
-          fundedByUserId: p['fundedByUserId'] as String?,
+          memberId: payload['memberId'] as String,
+          name: payload['name'] as String,
+          role: MemberRole.values.byName(payload['role'] as String),
+          active: payload['active'] as bool? ?? true,
+          customSpriteSha256: payload['customSpriteSha256'] as String?,
+          descriptionText: payload['descriptionText'] as String?,
+          fundedByUserId: payload['fundedByUserId'] as String?,
         );
       case 'GroupShareSet':
         return GroupShareSet(
@@ -331,10 +340,10 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          month: Month.parse(p['month'] as String),
+          month: Month.parse(payload['month'] as String),
           shares: {
-            for (final e in (p['shares'] as Map).entries)
-              e.key as String: e.value as int,
+            for (final entry in (payload['shares'] as Map).entries)
+              entry.key as String: entry.value as int,
           },
         );
       case 'GoalSet':
@@ -344,7 +353,7 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          targetCents: p['targetCents'] as int,
+          targetCents: payload['targetCents'] as int,
         );
       case 'ReceiptAttached':
         return ReceiptAttached(
@@ -353,10 +362,10 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          purchaseId: p['purchaseId'] as String,
-          sha256: p['sha256'] as String,
-          mimeType: p['mimeType'] as String,
-          sizeBytes: p['sizeBytes'] as int,
+          purchaseId: payload['purchaseId'] as String,
+          sha256: payload['sha256'] as String,
+          mimeType: payload['mimeType'] as String,
+          sizeBytes: payload['sizeBytes'] as int,
         );
       case 'ReceiptDetached':
         return ReceiptDetached(
@@ -365,8 +374,8 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          purchaseId: p['purchaseId'] as String,
-          sha256: p['sha256'] as String,
+          purchaseId: payload['purchaseId'] as String,
+          sha256: payload['sha256'] as String,
         );
       case 'TrackedAccountSet':
         return TrackedAccountSet(
@@ -375,17 +384,21 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          accountId: p['accountId'] as String,
-          name: p['name'] as String,
-          kind: AccountKind.values.byName(p['kind'] as String),
-          aprBps: p['aprBps'] as int?,
-          accrualCadence: p['accrualCadence'] == null
+          accountId: payload['accountId'] as String,
+          name: payload['name'] as String,
+          kind: AccountKind.values.byName(payload['kind'] as String),
+          aprBps: payload['aprBps'] as int?,
+          accrualCadence: payload['accrualCadence'] == null
               ? null
-              : AccountCadence.values.byName(p['accrualCadence'] as String),
-          updateCadence: p['updateCadence'] == null
+              : AccountCadence.values.byName(
+                  payload['accrualCadence'] as String,
+                ),
+          updateCadence: payload['updateCadence'] == null
               ? null
-              : AccountCadence.values.byName(p['updateCadence'] as String),
-          minPaymentCents: p['minPaymentCents'] as int?,
+              : AccountCadence.values.byName(
+                  payload['updateCadence'] as String,
+                ),
+          minPaymentCents: payload['minPaymentCents'] as int?,
         );
       case 'AccountBalanceRecorded':
         return AccountBalanceRecorded(
@@ -394,10 +407,10 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          accountId: p['accountId'] as String,
-          accountName: p['accountName'] as String,
-          kind: AccountKind.values.byName(p['kind'] as String),
-          balanceCents: p['balanceCents'] as int,
+          accountId: payload['accountId'] as String,
+          accountName: payload['accountName'] as String,
+          kind: AccountKind.values.byName(payload['kind'] as String),
+          balanceCents: payload['balanceCents'] as int,
         );
       case 'AccountTransferRecorded':
         return AccountTransferRecorded(
@@ -406,10 +419,12 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          accountId: p['accountId'] as String,
-          amountCents: p['amountCents'] as int,
-          direction: TransferDirection.values.byName(p['direction'] as String),
-          note: p['note'] as String?,
+          accountId: payload['accountId'] as String,
+          amountCents: payload['amountCents'] as int,
+          direction: TransferDirection.values.byName(
+            payload['direction'] as String,
+          ),
+          note: payload['note'] as String?,
         );
       case 'SettingChanged':
         return SettingChanged(
@@ -418,8 +433,8 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          key: p['key'] as String,
-          value: p['value'],
+          key: payload['key'] as String,
+          value: payload['value'],
         );
       case 'VacationSet':
         return VacationSet(
@@ -428,14 +443,14 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          vacationId: p['vacationId'] as String,
-          name: p['name'] as String,
-          fund: VacationFund.fromJson((p['fund'] as Map).cast()),
-          startDate: DateTime.parse(p['startDate'] as String).toUtc(),
-          endDate: DateTime.parse(p['endDate'] as String).toUtc(),
+          vacationId: payload['vacationId'] as String,
+          name: payload['name'] as String,
+          fund: VacationFund.fromJson((payload['fund'] as Map).cast()),
+          startDate: DateTime.parse(payload['startDate'] as String).toUtc(),
+          endDate: DateTime.parse(payload['endDate'] as String).toUtc(),
           categories: [
-            for (final c in p['categories'] as List)
-              VacationCategory.fromJson((c as Map).cast()),
+            for (final category in payload['categories'] as List)
+              VacationCategory.fromJson((category as Map).cast()),
           ],
         );
       case 'VacationClosed':
@@ -445,7 +460,7 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          vacationId: p['vacationId'] as String,
+          vacationId: payload['vacationId'] as String,
         );
       case 'CosmeticSet':
         return CosmeticSet(
@@ -454,8 +469,8 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          key: p['key'] as String,
-          value: p['value'],
+          key: payload['key'] as String,
+          value: payload['value'],
         );
       case 'GameRewardGranted':
         return GameRewardGranted(
@@ -464,10 +479,10 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          rewardId: p['rewardId'] as String,
-          kind: RewardKind.values.byName(p['kind'] as String),
-          sourceRef: p['sourceRef'] as String,
-          grantedAt: DateTime.parse(p['grantedAt'] as String).toUtc(),
+          rewardId: payload['rewardId'] as String,
+          kind: RewardKind.values.byName(payload['kind'] as String),
+          sourceRef: payload['sourceRef'] as String,
+          grantedAt: DateTime.parse(payload['grantedAt'] as String).toUtc(),
         );
       case 'ShortfallCovered':
         return ShortfallCovered(
@@ -476,9 +491,9 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          purchaseId: p['purchaseId'] as String,
-          source: CoverSource.fromJson((p['source'] as Map).cast()),
-          amountCents: p['amountCents'] as int,
+          purchaseId: payload['purchaseId'] as String,
+          source: CoverSource.fromJson((payload['source'] as Map).cast()),
+          amountCents: payload['amountCents'] as int,
         );
       case 'AllowanceAdvanceProposed':
         return AllowanceAdvanceProposed(
@@ -487,12 +502,12 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          advanceId: p['advanceId'] as String,
-          byUserId: p['byUserId'] as String,
-          sliceId: p['sliceId'] as String,
-          amountCents: p['amountCents'] as int,
-          months: p['months'] as int? ?? 1,
-          purchaseId: p['purchaseId'] as String?,
+          advanceId: payload['advanceId'] as String,
+          byUserId: payload['byUserId'] as String,
+          sliceId: payload['sliceId'] as String,
+          amountCents: payload['amountCents'] as int,
+          months: payload['months'] as int? ?? 1,
+          purchaseId: payload['purchaseId'] as String?,
         );
       case 'AllowanceAdvanceApproved':
         return AllowanceAdvanceApproved(
@@ -501,8 +516,8 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          advanceId: p['advanceId'] as String,
-          byUserId: p['byUserId'] as String,
+          advanceId: payload['advanceId'] as String,
+          byUserId: payload['byUserId'] as String,
         );
       case 'AllowanceAdvanceCancelled':
         return AllowanceAdvanceCancelled(
@@ -511,7 +526,7 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          advanceId: p['advanceId'] as String,
+          advanceId: payload['advanceId'] as String,
         );
       case 'NoSpendCheckIn':
         return NoSpendCheckedIn(
@@ -528,7 +543,7 @@ sealed class Event {
           userId: userId,
           occurredAt: occurredAt,
           createdAt: createdAt,
-          weekStart: CalendarDay.parse(p['weekStart'] as String),
+          weekStart: CalendarDay.parse(payload['weekStart'] as String),
         );
       default:
         // A type this version doesn't know (written by a newer release). Keep
@@ -541,7 +556,7 @@ sealed class Event {
           occurredAt: occurredAt,
           createdAt: createdAt,
           rawType: type,
-          rawPayload: p,
+          rawPayload: payload,
         );
     }
   }
@@ -976,7 +991,7 @@ class LeftoverAllocated extends Event {
     'forUserId': forUserId,
     'month': month.toKey(),
     'sliceId': sliceId,
-    'allocations': [for (final a in allocations) a.toJson()],
+    'allocations': [for (final allocation in allocations) allocation.toJson()],
   };
 }
 
@@ -1255,7 +1270,7 @@ class GroupShareSet extends Event {
   @override
   Map<String, dynamic> payload() => {
     'month': month.toKey(),
-    'shares': {for (final e in shares.entries) e.key: e.value},
+    'shares': {for (final entry in shares.entries) entry.key: entry.value},
   };
 }
 
@@ -1514,7 +1529,7 @@ class VacationSet extends Event {
     'fund': fund.toJson(),
     'startDate': startDate.toUtc().toIso8601String(),
     'endDate': endDate.toUtc().toIso8601String(),
-    'categories': [for (final c in categories) c.toJson()],
+    'categories': [for (final category in categories) category.toJson()],
   };
 }
 

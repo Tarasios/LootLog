@@ -21,30 +21,31 @@ int _seq = 0;
 /// increments, rolling into the next millisecond if it would overflow. So two
 /// events written back to back always sort in the order they were created.
 String uuidv7({int? millisSinceEpoch}) {
-  var ts = millisSinceEpoch ?? DateTime.now().toUtc().millisecondsSinceEpoch;
+  var timestampMillis =
+      millisSinceEpoch ?? DateTime.now().toUtc().millisecondsSinceEpoch;
   // The live clock never steps behind the last id (a counter rollover, or the
   // wall clock nudged backwards); an explicit timestamp is taken as given.
-  final behind = millisSinceEpoch == null && ts < _lastTs;
-  if (ts == _lastTs || behind) {
-    ts = _lastTs;
+  final behind = millisSinceEpoch == null && timestampMillis < _lastTs;
+  if (timestampMillis == _lastTs || behind) {
+    timestampMillis = _lastTs;
     _seq++;
     if (_seq > 0xfff) {
-      ts++;
+      timestampMillis++;
       _seq = _rng.nextInt(0x800);
     }
   } else {
     _seq = _rng.nextInt(0x800);
   }
-  _lastTs = ts;
+  _lastTs = timestampMillis;
   final bytes = Uint8ListLike(16);
 
   // 48-bit timestamp, big-endian.
-  bytes[0] = (ts >> 40) & 0xff;
-  bytes[1] = (ts >> 32) & 0xff;
-  bytes[2] = (ts >> 24) & 0xff;
-  bytes[3] = (ts >> 16) & 0xff;
-  bytes[4] = (ts >> 8) & 0xff;
-  bytes[5] = ts & 0xff;
+  bytes[0] = (timestampMillis >> 40) & 0xff;
+  bytes[1] = (timestampMillis >> 32) & 0xff;
+  bytes[2] = (timestampMillis >> 24) & 0xff;
+  bytes[3] = (timestampMillis >> 16) & 0xff;
+  bytes[4] = (timestampMillis >> 8) & 0xff;
+  bytes[5] = timestampMillis & 0xff;
 
   // Random for the rest.
   for (var i = 6; i < 16; i++) {
@@ -58,7 +59,7 @@ String uuidv7({int? millisSinceEpoch}) {
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
 
   final hex = [
-    for (final b in bytes.values) b.toRadixString(16).padLeft(2, '0'),
+    for (final byte in bytes.values) byte.toRadixString(16).padLeft(2, '0'),
   ];
   return '${hex.sublist(0, 4).join()}-${hex.sublist(4, 6).join()}-'
       '${hex.sublist(6, 8).join()}-${hex.sublist(8, 10).join()}-'

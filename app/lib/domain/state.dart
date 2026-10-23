@@ -328,22 +328,26 @@ class RecurringExpenseState {
   /// The next due date at or after [from], in the household-local calendar,
   /// clamped to each month's length (so a `dueDay` of 31 lands on the last day).
   DateTime nextDueDate(DateTime from) {
-    final f = DateTime(from.year, from.month, from.day);
-    int lastDay(int y, int m) => DateTime(y, m + 1, 0).day;
-    DateTime forMonth(int y, int m) =>
-        DateTime(y, m, dueDay > lastDay(y, m) ? lastDay(y, m) : dueDay);
+    final fromDay = DateTime(from.year, from.month, from.day);
+    int lastDay(int year, int monthNumber) =>
+        DateTime(year, monthNumber + 1, 0).day;
+    DateTime forMonth(int year, int monthNumber) => DateTime(
+      year,
+      monthNumber,
+      dueDay > lastDay(year, monthNumber) ? lastDay(year, monthNumber) : dueDay,
+    );
     if (isAnnual && dueMonth != null) {
-      var candidate = forMonth(f.year, dueMonth!);
-      if (candidate.isBefore(f)) {
-        candidate = forMonth(f.year + 1, dueMonth!);
+      var candidate = forMonth(fromDay.year, dueMonth!);
+      if (candidate.isBefore(fromDay)) {
+        candidate = forMonth(fromDay.year + 1, dueMonth!);
       }
       return candidate;
     }
-    var candidate = forMonth(f.year, f.month);
-    if (candidate.isBefore(f)) {
-      final ny = f.month == 12 ? f.year + 1 : f.year;
-      final nm = f.month == 12 ? 1 : f.month + 1;
-      candidate = forMonth(ny, nm);
+    var candidate = forMonth(fromDay.year, fromDay.month);
+    if (candidate.isBefore(fromDay)) {
+      final nextYear = fromDay.month == 12 ? fromDay.year + 1 : fromDay.year;
+      final nextMonthNumber = fromDay.month == 12 ? 1 : fromDay.month + 1;
+      candidate = forMonth(nextYear, nextMonthNumber);
     }
     return candidate;
   }
@@ -417,7 +421,7 @@ class QuestState {
   final String? descriptionText;
 
   int get totalContributedCents =>
-      contributions.values.fold(0, (a, b) => a + b);
+      contributions.values.fold(0, (sum, cents) => sum + cents);
 }
 
 /// Derived state of a named emergency fund.
@@ -526,18 +530,20 @@ class VacationState {
     VacationFundEmergency(:final fundId) => fundId,
   };
 
-  int get totalLimitCents => categories.fold(0, (a, c) => a + c.limitCents);
+  int get totalLimitCents =>
+      categories.fold(0, (sum, category) => sum + category.limitCents);
 
-  int get totalSpentCents => categories.fold(0, (a, c) => a + c.spentCents);
+  int get totalSpentCents =>
+      categories.fold(0, (sum, category) => sum + category.spentCents);
 
   int get totalLeftoverCents {
-    final r = totalLimitCents - totalSpentCents;
-    return r > 0 ? r : 0;
+    final leftover = totalLimitCents - totalSpentCents;
+    return leftover > 0 ? leftover : 0;
   }
 
   int get totalOverspendCents {
-    final r = totalSpentCents - totalLimitCents;
-    return r > 0 ? r : 0;
+    final overspend = totalSpentCents - totalLimitCents;
+    return overspend > 0 ? overspend : 0;
   }
 
   bool get overspent => totalOverspendCents > 0;
@@ -794,18 +800,18 @@ class NetWorthState {
 
   /// Sum of non-debt current values.
   int get assetsCents => accounts.values
-      .where((a) => !a.isDebt)
-      .fold(0, (s, a) => s + a.currentValueCents);
+      .where((account) => !account.isDebt)
+      .fold(0, (sum, account) => sum + account.currentValueCents);
 
   /// Sum of debt current values (a positive magnitude of what is owed).
   int get debtsCents => accounts.values
-      .where((a) => a.isDebt)
-      .fold(0, (s, a) => s + a.currentValueCents);
+      .where((account) => account.isDebt)
+      .fold(0, (sum, account) => sum + account.currentValueCents);
 
   /// Investments past their update cadence, needing a refresh nudge.
   List<AccountBalance> get staleAccounts =>
-      accounts.values.where((a) => a.stale).toList()
-        ..sort((a, b) => a.name.compareTo(b.name));
+      accounts.values.where((account) => account.stale).toList()
+        ..sort((first, second) => first.name.compareTo(second.name));
 }
 
 /// A tax-deductible purchase, for the per-year deductible list.
@@ -873,15 +879,18 @@ class SavingsRules {
   /// General rate keyed by the 'yyyy-MM' month it takes effect from.
   final Map<String, int> generalPctByFromMonth;
 
-  bool appliesTo(Month m) => !m.isBefore(fromMonth);
+  bool appliesTo(Month month) => !month.isBefore(fromMonth);
 
-  /// The general rate in force for [m]: the entry with the latest effective
-  /// month ≤ [m] (the adoption entry's rate before any later change).
-  int generalRateFor(Month m) {
+  /// The general rate in force for [month]: the entry with the latest effective
+  /// month ≤ [month] (the adoption entry's rate before any later change).
+  int generalRateFor(Month month) {
     Month? best;
-    for (final k in generalPctByFromMonth.keys) {
-      final km = Month.parse(k);
-      if (!km.isAfter(m) && (best == null || km.isAfter(best))) best = km;
+    for (final monthKey in generalPctByFromMonth.keys) {
+      final effectiveMonth = Month.parse(monthKey);
+      if (!effectiveMonth.isAfter(month) &&
+          (best == null || effectiveMonth.isAfter(best))) {
+        best = effectiveMonth;
+      }
     }
     return generalPctByFromMonth[(best ?? fromMonth).toKey()] ?? 0;
   }
@@ -982,8 +991,8 @@ class HouseholdState {
   /// The currently-open vacations, sorted by name — the ones quick entry offers
   /// a charge target for and the dashboard boards while a trip is under way.
   List<VacationState> get openVacations =>
-      (vacations.values.where((v) => v.isOpen).toList())
-        ..sort((a, b) => a.name.compareTo(b.name));
+      (vacations.values.where((vacation) => vacation.isOpen).toList())
+        ..sort((first, second) => first.name.compareTo(second.name));
 
   static String monthKey(String id, Month month) => '$id|${month.toKey()}';
 
@@ -998,8 +1007,8 @@ class HouseholdState {
   /// known user is treated as an adult.
   Set<String> get adultIds {
     final declared = {
-      for (final m in members.values)
-        if (m.isAdult && m.active) m.memberId,
+      for (final member in members.values)
+        if (member.isAdult && member.active) member.memberId,
     };
     return declared.isNotEmpty ? declared : userIds;
   }
@@ -1009,24 +1018,24 @@ class HouseholdState {
   /// The outstanding OVERBUDGET debts owned by [userId], sorted by sliceId.
   List<OverbudgetState> outstandingOverbudgetsFor(String userId) =>
       (overbudgets.values
-            .where((d) => d.ownerUserId == userId && !d.settled)
+            .where((debt) => debt.ownerUserId == userId && !debt.settled)
             .toList())
-        ..sort((a, b) => a.sliceId.compareTo(b.sliceId));
+        ..sort((first, second) => first.sliceId.compareTo(second.sliceId));
 
   /// Every outstanding OVERBUDGET in the household, sorted by sliceId.
   List<OverbudgetState> get outstandingOverbudgets =>
       (overbudgets.values
-            .where((d) => !d.settled && d.kind == DebtKind.overbudget)
+            .where((debt) => !debt.settled && debt.kind == DebtKind.overbudget)
             .toList())
-        ..sort((a, b) => a.sliceId.compareTo(b.sliceId));
+        ..sort((first, second) => first.sliceId.compareTo(second.sliceId));
 
   /// Variable-bill top-ups still owed (paid from next month's leftovers;
   /// never shown as a monster or as overspending).
   List<OverbudgetState> get outstandingProvisions =>
       (overbudgets.values
-            .where((d) => !d.settled && d.kind == DebtKind.provisions)
+            .where((debt) => !debt.settled && debt.kind == DebtKind.provisions)
             .toList())
-        ..sort((a, b) => a.sliceId.compareTo(b.sliceId));
+        ..sort((first, second) => first.sliceId.compareTo(second.sliceId));
 
   bool isVaultInconsistent(String userId) =>
       inconsistentVaults.contains(userId);
@@ -1056,10 +1065,10 @@ class HouseholdState {
       return null;
     }
     DefaultIncome? best;
-    for (final d in defaults) {
+    for (final defaultIncome in defaults) {
       // Sorted ascending: keep the last one that is already effective.
-      if (!d.effectiveFromMonth.isAfter(month)) {
-        best = d;
+      if (!defaultIncome.effectiveFromMonth.isAfter(month)) {
+        best = defaultIncome;
       } else {
         break;
       }
@@ -1087,39 +1096,44 @@ class HouseholdState {
     final sortedWithdrawals = withdrawals.keys.toList()..sort();
     return {
       'warChest': warChest.balanceCents,
-      'vaults': {for (final u in sortedVaults) u: vaultCents[u]},
+      'vaults': {for (final userId in sortedVaults) userId: vaultCents[userId]},
       'inconsistentVaults': (inconsistentVaults.toList()..sort()),
       'quests': {
-        for (final q in sortedQuests)
-          q: {
-            'balance': quests[q]!.balanceCents,
-            'completed': quests[q]!.completed,
-            'abandoned': quests[q]!.abandoned,
+        for (final questId in sortedQuests)
+          questId: {
+            'balance': quests[questId]!.balanceCents,
+            'completed': quests[questId]!.completed,
+            'abandoned': quests[questId]!.abandoned,
           },
       },
       'funds': {
-        for (final f in sortedFunds) f: emergencyFunds[f]!.balanceCents,
+        for (final fundId in sortedFunds)
+          fundId: emergencyFunds[fundId]!.balanceCents,
       },
       'ransacks': ransacks.length,
-      'ransackExcess': ransacks.fold<int>(0, (a, r) => a + r.excessCents),
+      'ransackExcess': ransacks.fold<int>(
+        0,
+        (sum, ransack) => sum + ransack.excessCents,
+      ),
       'overbudgets': {
-        for (final k in overbudgets.keys.toList()..sort())
-          k: {
-            'accrued': overbudgets[k]!.accruedCents,
-            'outstanding': overbudgets[k]!.outstandingCents,
+        for (final sliceId in overbudgets.keys.toList()..sort())
+          sliceId: {
+            'accrued': overbudgets[sliceId]!.accruedCents,
+            'outstanding': overbudgets[sliceId]!.outstandingCents,
           },
       },
       'sliceMonths': {
-        for (final k in sortedSliceMonths)
-          k: {
-            'eff': sliceMonths[k]!.effectiveLimitCents,
-            'spent': sliceMonths[k]!.spentCents,
-            'leftover': sliceMonths[k]!.leftoverCents,
-            'carryOut': sliceMonths[k]!.carryOutCents,
+        for (final sliceMonthKey in sortedSliceMonths)
+          sliceMonthKey: {
+            'eff': sliceMonths[sliceMonthKey]!.effectiveLimitCents,
+            'spent': sliceMonths[sliceMonthKey]!.spentCents,
+            'leftover': sliceMonths[sliceMonthKey]!.leftoverCents,
+            'carryOut': sliceMonths[sliceMonthKey]!.carryOutCents,
           },
       },
       'withdrawals': {
-        for (final w in sortedWithdrawals) w: withdrawals[w]!.status.name,
+        for (final withdrawalId in sortedWithdrawals)
+          withdrawalId: withdrawals[withdrawalId]!.status.name,
       },
       'netWorth': netWorth.totalCents,
     };

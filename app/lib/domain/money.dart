@@ -72,27 +72,27 @@ class Money implements Comparable<Money> {
   /// and thousands separators are tolerated. At most two fractional digits are
   /// allowed. Throws [FormatException] on anything else.
   static Money parse(String input) {
-    var s = input.trim();
-    if (s.isEmpty) {
+    var text = input.trim();
+    if (text.isEmpty) {
       throw const FormatException('Empty money string');
     }
     var negative = false;
     // Accounting-style parentheses denote a negative amount.
-    if (s.startsWith('(') && s.endsWith(')')) {
+    if (text.startsWith('(') && text.endsWith(')')) {
       negative = true;
-      s = s.substring(1, s.length - 1);
+      text = text.substring(1, text.length - 1);
     }
-    s = s.replaceAll(RegExp(r'[\$,\s]'), '');
-    if (s.startsWith('-')) {
+    text = text.replaceAll(RegExp(r'[\$,\s]'), '');
+    if (text.startsWith('-')) {
       negative = true;
-      s = s.substring(1);
-    } else if (s.startsWith('+')) {
-      s = s.substring(1);
+      text = text.substring(1);
+    } else if (text.startsWith('+')) {
+      text = text.substring(1);
     }
-    if (s.isEmpty) {
+    if (text.isEmpty) {
       throw FormatException('Not a valid money string: $input');
     }
-    final parts = s.split('.');
+    final parts = text.split('.');
     if (parts.length > 2) {
       throw FormatException('Too many decimal points: $input');
     }
@@ -101,16 +101,18 @@ class Money implements Comparable<Money> {
       throw FormatException('Not a valid money string: $input');
     }
     final whole = wholePart.isEmpty ? 0 : int.parse(wholePart);
-    var frac = 0;
+    var fractionCents = 0;
     if (parts.length == 2) {
-      var f = parts[1];
-      if (f.isEmpty || f.length > 2 || !RegExp(r'^\d+$').hasMatch(f)) {
+      var fractionDigits = parts[1];
+      if (fractionDigits.isEmpty ||
+          fractionDigits.length > 2 ||
+          !RegExp(r'^\d+$').hasMatch(fractionDigits)) {
         throw FormatException('Not a valid money string: $input');
       }
-      f = f.padRight(2, '0');
-      frac = int.parse(f);
+      fractionDigits = fractionDigits.padRight(2, '0');
+      fractionCents = int.parse(fractionDigits);
     }
-    final total = whole * 100 + frac;
+    final total = whole * 100 + fractionCents;
     return Money(negative ? -total : total);
   }
 

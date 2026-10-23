@@ -46,27 +46,27 @@ CategoryColors categoryColorsFor(
 }) {
   final seed = colorArgb == null ? fallback : Color(colorArgb);
   final hsl = HSLColor.fromColor(seed);
-  final h = hsl.hue;
-  final s = hsl.saturation.clamp(0.0, 1.0);
+  final hue = hsl.hue;
+  final seedSaturation = hsl.saturation.clamp(0.0, 1.0);
 
-  Color at(double sat, double light) =>
-      HSLColor.fromAHSL(1, h, sat.clamp(0.0, 1.0), light.clamp(0.0, 1.0))
+  Color toneAt(double saturation, double lightness) =>
+      HSLColor.fromAHSL(1, hue, saturation.clamp(0.0, 1.0), lightness.clamp(0.0, 1.0))
           .toColor();
 
   if (brightness == Brightness.dark) {
     return CategoryColors(
       // Pull the accent up in lightness so it pops off dark surfaces.
-      accent: at(s * 0.85 + 0.1, 0.66),
-      container: at(s * 0.55, 0.20),
-      onContainer: at(s * 0.45 + 0.15, 0.90),
-      track: at(s * 0.35, 0.30),
+      accent: toneAt(seedSaturation * 0.85 + 0.1, 0.66),
+      container: toneAt(seedSaturation * 0.55, 0.20),
+      onContainer: toneAt(seedSaturation * 0.45 + 0.15, 0.90),
+      track: toneAt(seedSaturation * 0.35, 0.30),
     );
   }
   return CategoryColors(
     // Slightly deepen very-light seeds so the accent never washes out on white.
-    accent: at(s, hsl.lightness > 0.58 ? 0.5 : hsl.lightness.clamp(0.35, 0.55)),
-    container: at(s * 0.55 + 0.1, 0.94),
-    onContainer: at(s * 0.7, 0.28),
-    track: at(s * 0.3, 0.88),
+    accent: toneAt(seedSaturation, hsl.lightness > 0.58 ? 0.5 : hsl.lightness.clamp(0.35, 0.55)),
+    container: toneAt(seedSaturation * 0.55 + 0.1, 0.94),
+    onContainer: toneAt(seedSaturation * 0.7, 0.28),
+    track: toneAt(seedSaturation * 0.3, 0.88),
   );
 }
