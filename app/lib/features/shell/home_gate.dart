@@ -12,7 +12,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
-import '../../game/ui/game_home.dart';
+import '../../game/ui/game_home.dart' show HallLinks;
+import '../../game/ui/town/town_shell.dart';
 import '../budget_setup/budget_setup_screen.dart';
 import '../entry/expense_entry_screen.dart';
 import '../household_context.dart';
@@ -83,14 +84,16 @@ class HomeGate extends ConsumerWidget {
         void openLedger() => navigator.push(MaterialPageRoute<void>(
               builder: (_) => ledgerBuilder(navigator.pop),
             ));
-        return GameHome(
+        return buildTownShell(
+          context,
           onOpenLedger: openLedger,
           links: hallLinks(ref, openLedger),
         );
       case HomeDestination.ledger:
         // The hall is pushed over the ledger; its ledger button pops back.
         return ledgerBuilder(() => navigator.push(MaterialPageRoute<void>(
-              builder: (_) => GameHome(
+              builder: (routeContext) => buildTownShell(
+                routeContext,
                 onOpenLedger: navigator.pop,
                 links: hallLinks(ref, navigator.pop),
               ),

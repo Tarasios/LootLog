@@ -250,9 +250,9 @@ class Villager extends KeyedSprite {
     required super.position,
     required AssetKey villagerKey,
     required this.wanderTiles,
+    super.label = 'Villager',
   }) : super(
          assetKey: villagerKey,
-         label: 'Villager',
          size: Vector2.all(kTileSize),
          priority: 3,
        );

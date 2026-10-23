@@ -2,6 +2,7 @@ import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame_test/flame_test.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lootlog/game/assets/asset_key.dart';
 import 'package:lootlog/game/assets/asset_registry.dart';
 import 'package:lootlog/game/domain/game_event.dart';
 import 'package:lootlog/game/domain/game_projection.dart';
@@ -9,6 +10,7 @@ import 'package:lootlog/game/domain/game_state.dart';
 import 'package:lootlog/game/domain/game_values.dart';
 import 'package:lootlog/game/domain/town/town_layout.dart';
 import 'package:lootlog/game/domain/town/town_view.dart';
+import 'package:lootlog/game/scenes/camera_controls.dart';
 import 'package:lootlog/game/scenes/pack_atlas.dart';
 import 'package:lootlog/game/scenes/town/town_components.dart';
 import 'package:lootlog/game/scenes/town/town_game.dart';
@@ -40,10 +42,15 @@ TownView viewWithLumberyard() {
   return TownView.from(game, _adults, _now);
 }
 
-TownGame buildGame({TownView? view}) => TownGame(
+TownGame buildGame({
+  TownView? view,
+  bool ambientLife = false,
+  List<TownsfolkEntry> townsfolk = const [],
+}) => TownGame(
   atlas: PackAtlas(AssetRegistry.empty, Images(prefix: 'assets/game/')),
   view: view ?? sampleView(),
-  ambientLife: false,
+  ambientLife: ambientLife,
+  townsfolk: townsfolk,
 );
 
 Iterable<String> plotLabels(PlotComponent plot) =>
@@ -117,6 +124,41 @@ void main() {
       expect(position.x * 3, closeTo((position.x * 3).roundToDouble(), 1e-3));
       expect(position.y * 3, closeTo((position.y * 3).roundToDouble(), 1e-3));
       expect(position.x, isNot(game.cameraControls.centerX));
+    },
+  );
+
+  const household = [
+    (name: 'Kit', isPet: false),
+    (name: 'Miso', isPet: true),
+  ];
+
+  testWithGame<TownGame>(
+    'each dependent and pet strolls the town beside the two default villagers',
+    () => buildGame(ambientLife: true, townsfolk: household),
+    (game) async {
+      await game.ready();
+      final villagers = game.world.children.whereType<Villager>().toList();
+      expect(villagers, hasLength(4));
+      final folk = villagers.skip(2).toList();
+      expect(folk.map((villager) => villager.label), ['Kit', 'Miso']);
+      expect(folk.map((villager) => villager.assetKey), [
+        const AssetKey('npc', 'villager', 'a'),
+        const AssetKey('npc', 'pet', 'default'),
+      ]);
+      expect(
+        folk[1].position.x - folk[0].position.x,
+        2 * kTileSize,
+        reason: 'staggered two tiles apart',
+      );
+    },
+  );
+
+  testWithGame<TownGame>(
+    'townsfolk stay home when ambient life is off',
+    () => buildGame(townsfolk: household),
+    (game) async {
+      await game.ready();
+      expect(game.world.children.whereType<Villager>(), isEmpty);
     },
   );
 }

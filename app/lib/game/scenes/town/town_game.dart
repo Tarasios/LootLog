@@ -15,11 +15,15 @@ import '../camera_controls.dart';
 import '../pack_atlas.dart';
 import 'town_components.dart';
 
+/// A dependent or pet who strolls the town, by name.
+typedef TownsfolkEntry = ({String name, bool isPet});
+
 class TownGame extends FlameGame {
   TownGame({
     required this.atlas,
     required TownView view,
     this.ambientLife = true,
+    this.townsfolk = const [],
   }) : _view = view,
        cameraControls = CameraControls(
          worldWidth: view.layout.columns * kTileSize,
@@ -28,6 +32,10 @@ class TownGame extends FlameGame {
 
   final PackAtlas atlas;
   final bool ambientLife;
+
+  /// Dependents and pets who stroll beside the default villagers (only with
+  /// [ambientLife]).
+  final List<TownsfolkEntry> townsfolk;
   final CameraControls cameraControls;
   TownView _view;
   final List<Component> _plotsAndHouses = [];
@@ -49,6 +57,7 @@ class TownGame extends FlameGame {
       AssetKey('hero', 'body'),
       AssetKey('npc', 'villager', 'a'),
       AssetKey('npc', 'villager', 'b'),
+      AssetKey('npc', 'pet', 'default'),
     ];
     for (final plot in view.plots) {
       final buildingType = plot.buildingType;
@@ -101,9 +110,36 @@ class TownGame extends FlameGame {
           wanderTiles: 8,
         ),
       );
+      await _addTownsfolk();
     }
     _addPlotsAndHouses();
     _syncCamera();
+  }
+
+  /// One villager per dependent or pet, two tiles apart along the main path
+  /// and wrapping back to the start when the path runs out.
+  Future<void> _addTownsfolk() async {
+    const pathRow = 10;
+    const firstColumn = 3;
+    const spacingTiles = 2;
+    const wanderTiles = 2;
+    final stepsOnPath =
+        (_view.layout.columns - firstColumn - wanderTiles) ~/ spacingTiles;
+    for (var index = 0; index < townsfolk.length; index++) {
+      final entry = townsfolk[index];
+      final column = firstColumn + (index % stepsOnPath) * spacingTiles;
+      await world.add(
+        Villager(
+          atlas: atlas,
+          position: cellPosition(TownCell(column, pathRow)),
+          villagerKey: entry.isPet
+              ? const AssetKey('npc', 'pet', 'default')
+              : const AssetKey('npc', 'villager', 'a'),
+          wanderTiles: wanderTiles,
+          label: entry.name,
+        ),
+      );
+    }
   }
 
   /// Replaces the plots and houses with [view]'s.

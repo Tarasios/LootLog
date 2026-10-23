@@ -172,6 +172,8 @@ List<Override> hallOverrides({
   HallLedgerView? view,
   AdventureTier tier = AdventureTier.text,
   HallHabits? habits,
+  AssetRegistry registry = AssetRegistry.bundled,
+  AdventureTierNotifier? tierNotifier,
 }) {
   var ids = 0;
   return [
@@ -188,8 +190,8 @@ List<Override> hallOverrides({
     hallLedgerViewProvider.overrideWithValue(view ?? sampleView()),
     hallVoiceProvider.overrideWith((ref) async => diskVoice()),
     hallHabitsProvider.overrideWithValue(habits ?? FakeHabits()),
-    adventureTierProvider.overrideWith(() => FixedTier(tier)),
-    gameAssetRegistryProvider.overrideWith((ref) async => AssetRegistry.bundled),
+    adventureTierProvider.overrideWith(() => tierNotifier ?? FixedTier(tier)),
+    gameAssetRegistryProvider.overrideWith((ref) async => registry),
   ];
 }
 

@@ -14,6 +14,8 @@ import '../../domain/town/town_view.dart';
 import '../pack_atlas.dart';
 import 'town_game.dart';
 
+export 'town_game.dart' show TownsfolkEntry;
+
 class TownSceneView extends StatefulWidget {
   const TownSceneView({
     super.key,
@@ -21,12 +23,16 @@ class TownSceneView extends StatefulWidget {
     required this.registry,
     required this.onTarget,
     this.ambientLife = true,
+    this.townsfolk = const [],
   });
 
   final TownView view;
   final AssetRegistry registry;
   final void Function(TownTarget target) onTarget;
   final bool ambientLife;
+
+  /// Dependents and pets who stroll the town.
+  final List<TownsfolkEntry> townsfolk;
 
   @override
   State<TownSceneView> createState() => _TownSceneViewState();
@@ -37,6 +43,7 @@ class _TownSceneViewState extends State<TownSceneView> {
     atlas: PackAtlas(widget.registry, Images(prefix: 'assets/game/')),
     view: widget.view,
     ambientLife: widget.ambientLife,
+    townsfolk: widget.townsfolk,
   );
   int _zoomAtPinchStart = 3;
 
