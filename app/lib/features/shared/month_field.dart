@@ -28,8 +28,10 @@ class MonthField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final nowYear = DateTime.now().year;
-    final years = [for (var y = nowYear - 3; y <= nowYear + 3; y++) y];
-    final m = month ?? Month.fromInstant(DateTime.now());
+    final years = [
+      for (var year = nowYear - 3; year <= nowYear + 3; year++) year,
+    ];
+    final initial = month ?? Month.fromInstant(DateTime.now());
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -43,16 +45,19 @@ class MonthField extends StatelessWidget {
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<int>(
                       isExpanded: true,
-                      value: m.month,
+                      value: initial.month,
                       items: [
                         for (var i = 1; i <= 12; i++)
                           DropdownMenuItem(
                             value: i,
-                            child: Text(monthLabel(m.year, i).split(' ').first),
+                            child: Text(
+                              monthLabel(initial.year, i).split(' ').first,
+                            ),
                           ),
                       ],
-                      onChanged: (v) =>
-                          v == null ? null : onChanged(Month(m.year, v)),
+                      onChanged: (value) => value == null
+                          ? null
+                          : onChanged(Month(initial.year, value)),
                     ),
                   ),
                 ),
@@ -62,13 +67,14 @@ class MonthField extends StatelessWidget {
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<int>(
                       isExpanded: true,
-                      value: years.contains(m.year) ? m.year : null,
+                      value: years.contains(initial.year) ? initial.year : null,
                       items: [
-                        for (final y in years)
-                          DropdownMenuItem(value: y, child: Text('$y')),
+                        for (final year in years)
+                          DropdownMenuItem(value: year, child: Text('$year')),
                       ],
-                      onChanged: (v) =>
-                          v == null ? null : onChanged(Month(v, m.month)),
+                      onChanged: (value) => value == null
+                          ? null
+                          : onChanged(Month(value, initial.month)),
                     ),
                   ),
                 ),

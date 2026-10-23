@@ -64,7 +64,8 @@ class MergePreview {
     return '$head — $present already present';
   }
 
-  static String _plural(int n, String word) => n == 1 ? word : '${word}s';
+  static String _plural(int count, String word) =>
+      count == 1 ? word : '${word}s';
 }
 
 /// Computes a [MergePreview] purely from set membership. [incomingEvents] and
@@ -82,9 +83,9 @@ MergePreview computeMergePreview({
   var newEvents = 0;
   var presentEvents = 0;
   final seenEvents = <String>{};
-  for (final e in incomingEvents) {
-    if (!seenEvents.add(e.eventId)) continue;
-    if (existingEventIds.contains(e.eventId)) {
+  for (final event in incomingEvents) {
+    if (!seenEvents.add(event.eventId)) continue;
+    if (existingEventIds.contains(event.eventId)) {
       presentEvents++;
     } else {
       newEvents++;
@@ -106,9 +107,9 @@ MergePreview computeMergePreview({
   var newGameEvents = 0;
   var presentGameEvents = 0;
   final seenGame = <String>{};
-  for (final e in incomingGameEvents) {
-    if (!seenGame.add(e.eventId)) continue;
-    if (existingGameEventIds.contains(e.eventId)) {
+  for (final event in incomingGameEvents) {
+    if (!seenGame.add(event.eventId)) continue;
+    if (existingGameEventIds.contains(event.eventId)) {
       presentGameEvents++;
     } else {
       newGameEvents++;

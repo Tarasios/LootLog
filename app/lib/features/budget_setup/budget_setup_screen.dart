@@ -37,7 +37,7 @@ class _BudgetSetupScreenState extends ConsumerState<BudgetSetupScreen> {
     if (setup == null || state == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    final order = [for (final a in ref.watch(partyAdultsProvider)) a.id];
+    final order = [for (final adult in ref.watch(partyAdultsProvider)) adult.id];
     final model =
         buildBudgetSetupModel(state, month: _month, orderedUserIds: order);
     final wide = MediaQuery.of(context).size.width >= kWideBreakpoint;
@@ -88,12 +88,12 @@ class _BudgetSetupScreenState extends ConsumerState<BudgetSetupScreen> {
               ],
             )
           else
-            for (final col in model.columns)
+            for (final column in model.columns)
               Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.lg),
                 child: _MemberColumn(
-                  column: col,
-                  name: names[col.userId] ?? 'Member',
+                  column: column,
+                  name: names[column.userId] ?? 'Member',
                 ),
               ),
           const SizedBox(height: AppSpacing.lg),
@@ -107,11 +107,11 @@ class _BudgetSetupScreenState extends ConsumerState<BudgetSetupScreen> {
     final actions = ref.read(householdActionsProvider);
     if (actions == null) return;
     final prev = _month.prev();
-    for (final u in order) {
-      final prior = state.incomeFor(u, prev);
+    for (final userId in order) {
+      final prior = state.incomeFor(userId, prev);
       if (prior > 0) {
         await actions.setIncome(
-            forUserId: u, month: _month, amountCents: prior);
+            forUserId: userId, month: _month, amountCents: prior);
       }
     }
     if (mounted) {
@@ -147,8 +147,8 @@ class _MemberColumn extends ConsumerWidget {
                   ),
             ),
             const Divider(),
-            for (final s in column.slices)
-              _SliceRow(sliceId: s.sliceId, slice: s),
+            for (final slice in column.slices)
+              _SliceRow(sliceId: slice.sliceId, slice: slice),
             if (column.slices.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
@@ -188,7 +188,7 @@ class _GroupSection extends StatelessWidget {
             Text('Group categories',
                 style: Theme.of(context).textTheme.titleMedium),
             const Divider(),
-            for (final s in slices) _SliceRow(sliceId: s.sliceId, slice: s),
+            for (final slice in slices) _SliceRow(sliceId: slice.sliceId, slice: slice),
             if (slices.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
@@ -220,7 +220,7 @@ class _SliceRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(householdStateProvider).value;
-    final cfg = state?.slices[sliceId];
+    final sliceConfig = state?.slices[sliceId];
     return ListTile(
       contentPadding: EdgeInsets.zero,
       dense: true,
@@ -230,9 +230,9 @@ class _SliceRow extends ConsumerWidget {
         '${slice.petName != null ? ' · ${slice.petName}' : ''}',
       ),
       trailing: const Icon(Icons.edit_outlined, size: 18),
-      onTap: cfg == null
+      onTap: sliceConfig == null
           ? null
-          : () => CategoryEditorScreen.open(context, existing: cfg),
+          : () => CategoryEditorScreen.open(context, existing: sliceConfig),
     );
   }
 }

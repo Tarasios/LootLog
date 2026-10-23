@@ -12,10 +12,10 @@ library;
 /// second Sunday of March (10:00 UTC) and ends at 02:00 local daylight time on
 /// the first Sunday of November (09:00 UTC).
 Duration vancouverUtcOffset(DateTime instant) {
-  final u = instant.toUtc();
-  final dstStart = _dstStartUtc(u.year);
-  final dstEnd = _dstEndUtc(u.year);
-  final inDst = !u.isBefore(dstStart) && u.isBefore(dstEnd);
+  final utc = instant.toUtc();
+  final dstStart = _dstStartUtc(utc.year);
+  final dstEnd = _dstEndUtc(utc.year);
+  final inDst = !utc.isBefore(dstStart) && utc.isBefore(dstEnd);
   return Duration(hours: inDst ? -7 : -8);
 }
 
@@ -29,15 +29,15 @@ DateTime _dstEndUtc(int year) {
   return DateTime.utc(year, 11, day, 9);
 }
 
-/// Returns the day-of-month of the [n]th [weekday] in the given [year]/[month].
-int _nthWeekday(int year, int month, int weekday, int n) {
+/// Returns the day-of-month of the [occurrence]th [weekday] in the given [year]/[month].
+int _nthWeekday(int year, int month, int weekday, int occurrence) {
   var count = 0;
   var day = 1;
   while (true) {
-    final d = DateTime.utc(year, month, day);
-    if (d.weekday == weekday) {
+    final date = DateTime.utc(year, month, day);
+    if (date.weekday == weekday) {
       count++;
-      if (count == n) {
+      if (count == occurrence) {
         return day;
       }
     }
@@ -66,8 +66,8 @@ class Month implements Comparable<Month> {
 
   /// Derives the household-timezone month for an [instant].
   factory Month.fromInstant(DateTime instant) {
-    final u = instant.toUtc();
-    final local = u.add(vancouverUtcOffset(u));
+    final utc = instant.toUtc();
+    final local = utc.add(vancouverUtcOffset(utc));
     return Month(local.year, local.month);
   }
 
@@ -143,12 +143,12 @@ class CalendarDay implements Comparable<CalendarDay> {
     if (parts.length != 3) {
       throw FormatException('Not a day key: $key');
     }
-    final d = DateTime.utc(
+    final date = DateTime.utc(
       int.parse(parts[0]),
       int.parse(parts[1]),
       int.parse(parts[2]),
     );
-    final parsed = CalendarDay(d.year, d.month, d.day);
+    final parsed = CalendarDay(date.year, date.month, date.day);
     if (parsed.toKey() != key) {
       throw FormatException('Day out of range: $key');
     }
@@ -157,8 +157,8 @@ class CalendarDay implements Comparable<CalendarDay> {
 
   /// The household-timezone date of an [instant].
   factory CalendarDay.fromInstant(DateTime instant) {
-    final u = instant.toUtc();
-    final local = u.add(vancouverUtcOffset(u));
+    final utc = instant.toUtc();
+    final local = utc.add(vancouverUtcOffset(utc));
     return CalendarDay(local.year, local.month, local.day);
   }
 
@@ -167,9 +167,9 @@ class CalendarDay implements Comparable<CalendarDay> {
   final int day;
 
   /// UTC midnight of this date — DST-free, so day arithmetic is exact.
-  DateTime get _utc => DateTime.utc(year, month, day);
+  DateTime get _utcMidnight => DateTime.utc(year, month, day);
 
-  static CalendarDay _of(DateTime utc) =>
+  static CalendarDay _fromUtcDate(DateTime utc) =>
       CalendarDay(utc.year, utc.month, utc.day);
 
   /// The `"yyyy-MM-dd"` key.
@@ -178,22 +178,25 @@ class CalendarDay implements Comparable<CalendarDay> {
       '${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
 
   /// ISO weekday: Monday = 1 … Sunday = 7.
-  int get weekday => _utc.weekday;
+  int get weekday => _utcMidnight.weekday;
 
   /// The Monday that starts this date's Monday-to-Sunday week.
   CalendarDay get weekStart => addDays(1 - weekday);
 
-  CalendarDay addDays(int days) => _of(_utc.add(Duration(days: days)));
+  CalendarDay addDays(int days) =>
+      _fromUtcDate(_utcMidnight.add(Duration(days: days)));
 
   CalendarDay next() => addDays(1);
 
   CalendarDay previous() => addDays(-1);
 
   /// Whole days from this date to [other] (negative when [other] is earlier).
-  int daysUntil(CalendarDay other) => other._utc.difference(_utc).inDays;
+  int daysUntil(CalendarDay other) =>
+      other._utcMidnight.difference(_utcMidnight).inDays;
 
   @override
-  int compareTo(CalendarDay other) => _utc.compareTo(other._utc);
+  int compareTo(CalendarDay other) =>
+      _utcMidnight.compareTo(other._utcMidnight);
 
   bool operator <(CalendarDay other) => compareTo(other) < 0;
 

@@ -27,7 +27,7 @@ class TutorialStep {
 /// purchase, budget categories, the monthly wrap-up, savings goals, shared
 /// savings & withdrawals, and syncing devices.
 List<TutorialStep> tutorialSteps({required bool isAdventure}) {
-  String t(GlossaryTerm term) => term.label(isAdventure: isAdventure);
+  String termLabel(GlossaryTerm term) => term.label(isAdventure: isAdventure);
   return [
     const TutorialStep(
       icon: Icons.add_circle_outline,
@@ -39,14 +39,14 @@ List<TutorialStep> tutorialSteps({required bool isAdventure}) {
     TutorialStep(
       icon: Icons.pie_chart_outline,
       title: 'Budgets keep spending on track',
-      body: 'Your money is split into ${t(Glossary.category)}s — one monthly '
+      body: 'Your money is split into ${termLabel(Glossary.category)}s — one monthly '
           'limit each, personal or shared by the household. Every purchase '
           'draws down the budget you charge it to, so you always see what’s '
           'left.',
     ),
     TutorialStep(
       icon: Icons.event_available_outlined,
-      title: t(Glossary.leftoverAllocated),
+      title: termLabel(Glossary.leftoverAllocated),
       body: 'At the end of each month you decide what happens to the money '
           'left in each budget: keep it there for next month, put it toward a '
           'savings goal, or move it to your personal spending. '
@@ -54,7 +54,7 @@ List<TutorialStep> tutorialSteps({required bool isAdventure}) {
     ),
     TutorialStep(
       icon: Icons.flag_outlined,
-      title: t(Glossary.quest),
+      title: termLabel(Glossary.quest),
       body: 'Set a target — a jacket, a canoe, a trip — and feed it with '
           'leftovers at month close. Watch the progress climb until you reach '
           'the goal. They live on the Goals tab, one tap from the trophy '
@@ -62,12 +62,12 @@ List<TutorialStep> tutorialSteps({required bool isAdventure}) {
     ),
     TutorialStep(
       icon: Icons.account_balance_outlined,
-      title: '${t(Glossary.warChest)} & withdrawals',
+      title: '${termLabel(Glossary.warChest)} & withdrawals',
       body: '${Glossary.warChest.helper} Taking money back out is a '
-          '${t(Glossary.withdrawal)}: another adult has to approve it first, so '
+          '${termLabel(Glossary.withdrawal)}: another adult has to approve it first, so '
           'big decisions are always shared. Find it on the '
-          '${t(Glossary.funds)} tab, alongside '
-          '${t(Glossary.emergencyFund)}s and ${t(Glossary.vacation)}s.',
+          '${termLabel(Glossary.funds)} tab, alongside '
+          '${termLabel(Glossary.emergencyFund)}s and ${termLabel(Glossary.vacation)}s.',
     ),
     const TutorialStep(
       icon: Icons.sync,

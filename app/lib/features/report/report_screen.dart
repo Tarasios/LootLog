@@ -45,15 +45,15 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     }
 
     final adults = state.adultIds.toList()
-      ..sort((a, b) => (names[a] ?? a).compareTo(names[b] ?? b));
+      ..sort((first, second) => (names[first] ?? first).compareTo(names[second] ?? second));
     // A scope that no longer exists (e.g. after a member change) falls back.
     if (_scope != null && !adults.contains(_scope)) _scope = null;
 
     final report = buildMonthReport(state, _month, userId: _scope);
     final scopes = <ReportScope>[
       const ReportScope(userId: null, label: 'Household'),
-      for (final a in adults)
-        ReportScope(userId: a, label: names[a] ?? 'Adult'),
+      for (final adult in adults)
+        ReportScope(userId: adult, label: names[adult] ?? 'Adult'),
     ];
 
     return Scaffold(
@@ -64,7 +64,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         scopes: scopes,
         onPrevMonth: () => setState(() => _month = _month.prev()),
         onNextMonth: () => setState(() => _month = _month.next()),
-        onScopeChanged: (u) => setState(() => _scope = u),
+        onScopeChanged: (scope) => setState(() => _scope = scope),
       ),
     );
   }

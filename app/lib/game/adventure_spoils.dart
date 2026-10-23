@@ -91,7 +91,7 @@ class AdventureSpoilsRecap extends StatelessWidget {
         Text('Settling accounts with the quartermaster',
             style: AppText.sectionLabel(context)),
         const SizedBox(height: AppSpacing.xs),
-        for (final t in ritual.variableTallies)
+        for (final tally in ritual.variableTallies)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 2),
             child: Row(
@@ -101,12 +101,12 @@ class AdventureSpoilsRecap extends StatelessWidget {
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
-                    '${t.name} — awaiting the true tally',
+                    '${tally.name} — awaiting the true tally',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
                 Text(
-                  'est. ${money(t.estimateCents)}',
+                  'est. ${money(tally.estimateCents)}',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                         fontFeatures: const [FontFeature.tabularFigures()],
@@ -127,7 +127,7 @@ class AdventureSpoilsRecap extends StatelessWidget {
         Text('Monsters felled — loot to divide',
             style: AppText.sectionLabel(context)),
         const SizedBox(height: AppSpacing.xs),
-        for (final s in ritual.sliceLeftovers)
+        for (final leftover in ritual.sliceLeftovers)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 3),
             child: Row(
@@ -136,7 +136,7 @@ class AdventureSpoilsRecap extends StatelessWidget {
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
-                    s.name,
+                    leftover.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context)
@@ -148,7 +148,7 @@ class AdventureSpoilsRecap extends StatelessWidget {
                 const SizedBox(width: AppSpacing.sm),
                 Flexible(
                   child: Text(
-                    '${money(s.leftoverCents)} → ${_destinationLabel(s.defaultPolicy)}',
+                    '${money(leftover.leftoverCents)} → ${_destinationLabel(leftover.defaultPolicy)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.end,
@@ -173,12 +173,12 @@ class AdventureSpoilsRecap extends StatelessWidget {
         Text('Coins that arc on their own',
             style: AppText.sectionLabel(context)),
         const SizedBox(height: AppSpacing.xs),
-        for (final g in ritual.groupFlows)
+        for (final flow in ritual.groupFlows)
           _arc(context, Icons.inventory_2_outlined,
-              '${g.name}: ${money(g.leftoverCents)}', 'the war chest'),
-        for (final e in ritual.emergencyContribs)
+              '${flow.name}: ${money(flow.leftoverCents)}', 'the war chest'),
+        for (final contribution in ritual.emergencyContribs)
           _arc(context, Icons.shield_moon_outlined,
-              '${e.fundName}: ${money(e.amountCents)}', 'a reserve cache'),
+              '${contribution.fundName}: ${money(contribution.amountCents)}', 'a reserve cache'),
       ],
     );
   }
@@ -222,7 +222,7 @@ class AdventureSpoilsRecap extends StatelessWidget {
     );
   }
 
-  static String _destinationLabel(LeftoverDestination d) => switch (d) {
+  static String _destinationLabel(LeftoverDestination destination) => switch (destination) {
         CarryInSlice() => 'next floor',
         QuestDestination() => 'a quest',
         Discretionary() => 'the pouch',

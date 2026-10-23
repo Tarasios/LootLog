@@ -31,11 +31,11 @@ class QuestsScreen extends ConsumerWidget {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     final quests = state.quests.values.toList()
-      ..sort((a, b) {
+      ..sort((first, second) {
         // Active first, then completed, then abandoned; name within.
-        int rank(QuestState q) => q.abandoned ? 2 : (q.completed ? 1 : 0);
-        final r = rank(a).compareTo(rank(b));
-        return r != 0 ? r : a.name.compareTo(b.name);
+        int rank(QuestState quest) => quest.abandoned ? 2 : (quest.completed ? 1 : 0);
+        final byRank = rank(first).compareTo(rank(second));
+        return byRank != 0 ? byRank : first.name.compareTo(second.name);
       });
 
     return Scaffold(
@@ -165,10 +165,10 @@ class QuestDetailScreen extends ConsumerWidget {
     }
     final fundings = questFundings(events, questId);
     final drawdowns = state.purchases.values
-        .where((p) =>
-            !p.voided && p.target == QuestCharge(questId))
+        .where((purchase) =>
+            !purchase.voided && purchase.target == QuestCharge(questId))
         .toList()
-      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+      ..sort((first, second) => second.occurredAt.compareTo(first.occurredAt));
 
     final pct = quest.targetCents == 0
         ? 0.0
@@ -226,13 +226,13 @@ class QuestDetailScreen extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.lg),
           Text('Contributions', style: AppText.sectionLabel(context)),
-          for (final e in quest.contributions.entries)
+          for (final entry in quest.contributions.entries)
             ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.person_outline),
-              title: Text(names[e.key] ?? e.key),
-              trailing: Text(money(e.value)),
+              title: Text(names[entry.key] ?? entry.key),
+              trailing: Text(money(entry.value)),
             ),
           if (quest.contributions.isEmpty)
             const Padding(
@@ -241,13 +241,13 @@ class QuestDetailScreen extends ConsumerWidget {
             ),
           const SizedBox(height: AppSpacing.lg),
           Text('Funding history', style: AppText.sectionLabel(context)),
-          for (final f in fundings)
+          for (final funding in fundings)
             ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.add_circle_outline),
-              title: Text('${names[f.userId] ?? f.userId} · ${f.month}'),
-              trailing: Text(signedMoney(f.amountCents)),
+              title: Text('${names[funding.userId] ?? funding.userId} · ${funding.month}'),
+              trailing: Text(signedMoney(funding.amountCents)),
             ),
           if (fundings.isEmpty)
             const Padding(
@@ -257,14 +257,14 @@ class QuestDetailScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.lg),
           Text('Purchases against this goal',
               style: AppText.sectionLabel(context)),
-          for (final p in drawdowns)
+          for (final drawdown in drawdowns)
             ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.shopping_bag_outlined),
-              title: Text(p.merchant ?? 'Purchase'),
-              subtitle: Text(isoDay(p.occurredAt)),
-              trailing: Text('-${money(p.amountCents)}'),
+              title: Text(drawdown.merchant ?? 'Purchase'),
+              subtitle: Text(isoDay(drawdown.occurredAt)),
+              trailing: Text('-${money(drawdown.amountCents)}'),
             ),
           if (drawdowns.isEmpty)
             const Padding(
@@ -314,10 +314,10 @@ class QuestDetailScreen extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             const Text('Returned to funders:'),
-            for (final e in preview.returnsByUser.entries)
+            for (final entry in preview.returnsByUser.entries)
               Padding(
                 padding: const EdgeInsets.only(top: AppSpacing.xxs),
-                child: Text('• ${names[e.key] ?? e.key}: ${money(e.value)}'),
+                child: Text('• ${names[entry.key] ?? entry.key}: ${money(entry.value)}'),
               ),
           ],
         ),
@@ -371,13 +371,13 @@ class _QuestEditorScreenState extends ConsumerState<QuestEditorScreen> {
   @override
   void initState() {
     super.initState();
-    final e = widget.existing;
-    _name = TextEditingController(text: e?.name ?? '');
+    final existing = widget.existing;
+    _name = TextEditingController(text: existing?.name ?? '');
     _target = TextEditingController(
-        text: e == null ? '' : (e.targetCents / 100).toStringAsFixed(2));
-    _description = TextEditingController(text: e?.descriptionText ?? '');
-    _spriteSha = e?.customSpriteSha256;
-    _mainCategoryId = e?.mainCategoryId;
+        text: existing == null ? '' : (existing.targetCents / 100).toStringAsFixed(2));
+    _description = TextEditingController(text: existing?.descriptionText ?? '');
+    _spriteSha = existing?.customSpriteSha256;
+    _mainCategoryId = existing?.mainCategoryId;
   }
 
   @override
@@ -396,10 +396,10 @@ class _QuestEditorScreenState extends ConsumerState<QuestEditorScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     final mainCategories = state.mainCategories.values.toList()
-      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+      ..sort((first, second) => first.sortOrder.compareTo(second.sortOrder));
     if (!_ownerInit) {
-      final o = widget.existing?.ownership;
-      _ownerUserId = o is PersonalParty ? o.userId : null;
+      final ownership = widget.existing?.ownership;
+      _ownerUserId = ownership is PersonalParty ? ownership.userId : null;
       _ownerInit = true;
     }
 
@@ -439,26 +439,26 @@ class _QuestEditorScreenState extends ConsumerState<QuestEditorScreen> {
                 value: null,
                 child: Text('None'),
               ),
-              for (final m in mainCategories)
+              for (final mainCategory in mainCategories)
                 DropdownMenuItem<String?>(
-                  value: m.id,
+                  value: mainCategory.id,
                   child: Row(
                     children: [
                       Container(
                         width: 14,
                         height: 14,
                         decoration: BoxDecoration(
-                          color: Color(m.colorArgb),
+                          color: Color(mainCategory.colorArgb),
                           shape: BoxShape.circle,
                         ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
-                      Text(m.name),
+                      Text(mainCategory.name),
                     ],
                   ),
                 ),
             ],
-            onChanged: (v) => setState(() => _mainCategoryId = v),
+            onChanged: (value) => setState(() => _mainCategoryId = value),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text('Owner', style: AppText.sectionLabel(context)),

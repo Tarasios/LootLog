@@ -88,10 +88,11 @@ class MonthReport {
   bool get isHousehold => userId == null;
 
   int get totalBudgetedCents =>
-      categories.fold(0, (a, r) => a + r.budgetedCents);
-  int get totalSpentCents => categories.fold(0, (a, r) => a + r.spentCents);
+      categories.fold(0, (sum, row) => sum + row.budgetedCents);
+  int get totalSpentCents =>
+      categories.fold(0, (sum, row) => sum + row.spentCents);
   int get totalLeftoverCents =>
-      categories.fold(0, (a, r) => a + r.leftoverCents);
+      categories.fold(0, (sum, row) => sum + row.leftoverCents);
 }
 
 /// Builds the [MonthReport] for [month]. Household scope (default) includes every
@@ -105,25 +106,27 @@ MonthReport buildMonthReport(
   final rows = <ReportCategoryRow>[];
   final spendByMain = <String, int>{}; // resolved main-category id -> cents
 
-  for (final cfg in state.slices.values) {
-    if (cfg.createdMonth.isAfter(month)) continue;
-    if (userId != null && (cfg.isGroup || cfg.ownerUserId != userId)) {
+  for (final sliceConfig in state.slices.values) {
+    if (sliceConfig.createdMonth.isAfter(month)) continue;
+    if (userId != null &&
+        (sliceConfig.isGroup || sliceConfig.ownerUserId != userId)) {
       continue;
     }
 
-    final sm = state.sliceMonth(cfg.sliceId, month);
-    final budgeted = sm?.effectiveLimitCents ?? cfg.baseEffectiveLimitCents;
-    final spent = sm?.spentCents ?? 0;
+    final sliceMonth = state.sliceMonth(sliceConfig.sliceId, month);
+    final budgeted =
+        sliceMonth?.effectiveLimitCents ?? sliceConfig.baseEffectiveLimitCents;
+    final spent = sliceMonth?.spentCents ?? 0;
     final leftover =
-        sm?.leftoverCents ?? (budgeted > spent ? budgeted - spent : 0);
+        sliceMonth?.leftoverCents ?? (budgeted > spent ? budgeted - spent : 0);
 
     rows.add(
       ReportCategoryRow(
-        categoryId: cfg.sliceId,
-        name: cfg.name,
-        mainCategoryId: cfg.mainCategoryId,
-        isGroup: cfg.isGroup,
-        ownerUserId: cfg.ownerUserId,
+        categoryId: sliceConfig.sliceId,
+        name: sliceConfig.name,
+        mainCategoryId: sliceConfig.mainCategoryId,
+        isGroup: sliceConfig.isGroup,
+        ownerUserId: sliceConfig.ownerUserId,
         budgetedCents: budgeted,
         spentCents: spent,
         leftoverCents: leftover,
@@ -131,12 +134,12 @@ MonthReport buildMonthReport(
     );
 
     if (spent > 0) {
-      final resolved = _resolveMain(state, cfg.mainCategoryId).id;
+      final resolved = _resolveMain(state, sliceConfig.mainCategoryId).id;
       spendByMain[resolved] = (spendByMain[resolved] ?? 0) + spent;
     }
   }
 
-  rows.sort((a, b) => a.name.compareTo(b.name));
+  rows.sort((first, second) => first.name.compareTo(second.name));
 
   final byMain =
       <MainCategorySpend>[
@@ -145,9 +148,13 @@ MonthReport buildMonthReport(
             mainCategory: _resolveMainById(state, entry.key),
             spentCents: entry.value,
           ),
-      ]..sort((a, b) {
-        final c = a.mainCategory.sortOrder.compareTo(b.mainCategory.sortOrder);
-        return c != 0 ? c : a.name.compareTo(b.name);
+      ]..sort((first, second) {
+        final bySortOrder = first.mainCategory.sortOrder.compareTo(
+          second.mainCategory.sortOrder,
+        );
+        return bySortOrder != 0
+            ? bySortOrder
+            : first.name.compareTo(second.name);
       });
 
   return MonthReport(

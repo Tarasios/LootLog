@@ -76,29 +76,31 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
   @override
   void initState() {
     super.initState();
-    final e = widget.existing;
-    _name = TextEditingController(text: e?.name ?? '');
+    final existing = widget.existing;
+    _name = TextEditingController(text: existing?.name ?? '');
     _limit = TextEditingController(
-      text: e == null ? '' : Money(e.limitCents).format(),
+      text: existing == null ? '' : Money(existing.limitCents).format(),
     );
-    _tithe = TextEditingController(text: (e?.poolTithePct ?? 0).toString());
+    _tithe = TextEditingController(
+      text: (existing?.poolTithePct ?? 0).toString(),
+    );
     _emergencyAmount = TextEditingController(
-      text: (e?.emergencyContributionCents ?? 0) > 0
-          ? Money(e!.emergencyContributionCents).format()
+      text: (existing?.emergencyContributionCents ?? 0) > 0
+          ? Money(existing!.emergencyContributionCents).format()
           : '',
     );
-    _taxDefault = e?.taxDeductibleByDefault ?? false;
-    _mainCategoryId = e?.mainCategoryId;
-    _petId = e?.petId;
-    _petOwners.addAll(e?.petOwnerIds ?? const []);
-    _priority = e?.priority ?? SlicePriority.important;
-    if (e != null &&
-        e.emergencyFundId != null &&
-        e.emergencyContributionCents > 0) {
+    _taxDefault = existing?.taxDeductibleByDefault ?? false;
+    _mainCategoryId = existing?.mainCategoryId;
+    _petId = existing?.petId;
+    _petOwners.addAll(existing?.petOwnerIds ?? const []);
+    _priority = existing?.priority ?? SlicePriority.important;
+    if (existing != null &&
+        existing.emergencyFundId != null &&
+        existing.emergencyContributionCents > 0) {
       _emergencyOn = true;
-      _emergencyFundId = e.emergencyFundId;
+      _emergencyFundId = existing.emergencyFundId;
     }
-    final policy = e?.defaultLeftoverPolicy ?? const CarryInSlice();
+    final policy = existing?.defaultLeftoverPolicy ?? const CarryInSlice();
     _policy = policy;
     if (policy is QuestDestination) _policyQuestId = policy.questId;
   }
@@ -113,8 +115,8 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
   }
 
   void _initOwner(String meId) {
-    final o = widget.existing?.ownership ?? widget.defaultOwnership;
-    _ownerUserId = switch (o) {
+    final ownership = widget.existing?.ownership ?? widget.defaultOwnership;
+    _ownerUserId = switch (ownership) {
       GroupSlice() => null,
       PersonalSlice(:final userId) => userId,
       null => meId,
@@ -138,12 +140,13 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
     final savingsRulesOn =
         state.savingsRules?.appliesTo(Month.fromInstant(DateTime.now())) ??
         false;
-    final quests = state.quests.values.where((q) => !q.abandoned).toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
+    final quests =
+        state.quests.values.where((quest) => !quest.abandoned).toList()
+          ..sort((first, second) => first.name.compareTo(second.name));
     final funds = state.emergencyFunds.values.toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
+      ..sort((first, second) => first.name.compareTo(second.name));
     final mainCategories = state.mainCategories.values.toList()
-      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+      ..sort((first, second) => first.sortOrder.compareTo(second.sortOrder));
 
     return Scaffold(
       appBar: AppBar(
@@ -178,8 +181,8 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
               ),
               DropdownMenuItem(value: SlicePriority.fun, child: Text('Fun')),
             ],
-            onChanged: (v) =>
-                setState(() => _priority = v ?? SlicePriority.important),
+            onChanged: (value) =>
+                setState(() => _priority = value ?? SlicePriority.important),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text('Main category', style: AppText.sectionLabel(context)),
@@ -191,26 +194,26 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
             ),
             items: [
               const DropdownMenuItem<String?>(value: null, child: Text('None')),
-              for (final m in mainCategories)
+              for (final mainCategory in mainCategories)
                 DropdownMenuItem<String?>(
-                  value: m.id,
+                  value: mainCategory.id,
                   child: Row(
                     children: [
                       Container(
                         width: 14,
                         height: 14,
                         decoration: BoxDecoration(
-                          color: Color(m.colorArgb),
+                          color: Color(mainCategory.colorArgb),
                           shape: BoxShape.circle,
                         ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
-                      Text(m.name),
+                      Text(mainCategory.name),
                     ],
                   ),
                 ),
             ],
-            onChanged: (v) => setState(() => _mainCategoryId = v),
+            onChanged: (value) => setState(() => _mainCategoryId = value),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text('Owner', style: AppText.sectionLabel(context)),
@@ -238,13 +241,14 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
                 spacing: AppSpacing.sm,
                 runSpacing: AppSpacing.sm,
                 children: [
-                  for (final p in pets)
+                  for (final pet in pets)
                     FilterChip(
-                      label: Text(p.name),
-                      selected: _petOwners.contains(p.id),
-                      onSelected: (on) => setState(
-                        () =>
-                            on ? _petOwners.add(p.id) : _petOwners.remove(p.id),
+                      label: Text(pet.name),
+                      selected: _petOwners.contains(pet.id),
+                      onSelected: (selected) => setState(
+                        () => selected
+                            ? _petOwners.add(pet.id)
+                            : _petOwners.remove(pet.id),
                       ),
                     ),
                 ],
@@ -302,7 +306,7 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
             contentPadding: EdgeInsets.zero,
             title: const Text('Tax-deductible by default'),
             value: _taxDefault,
-            onChanged: (v) => setState(() => _taxDefault = v),
+            onChanged: (value) => setState(() => _taxDefault = value),
           ),
           const Divider(height: AppSpacing.xl),
           SwitchListTile(
@@ -312,7 +316,7 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
             value: _emergencyOn,
             onChanged: funds.isEmpty
                 ? null
-                : (v) => setState(() => _emergencyOn = v),
+                : (value) => setState(() => _emergencyOn = value),
           ),
           if (funds.isEmpty)
             Text(
@@ -325,10 +329,10 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
               initialValue: _emergencyFundId ?? funds.first.fundId,
               decoration: const InputDecoration(labelText: 'Fund'),
               items: [
-                for (final f in funds)
-                  DropdownMenuItem(value: f.fundId, child: Text(f.name)),
+                for (final fund in funds)
+                  DropdownMenuItem(value: fund.fundId, child: Text(fund.name)),
               ],
-              onChanged: (v) => setState(() => _emergencyFundId = v),
+              onChanged: (value) => setState(() => _emergencyFundId = value),
             ),
             const SizedBox(height: AppSpacing.md),
             TextField(
@@ -352,8 +356,8 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
   Widget _policySelector(List<QuestState> quests) {
     // Encode the current selection as a stable token for the dropdown.
     String token() {
-      final p = _policy;
-      return switch (p) {
+      final policy = _policy;
+      return switch (policy) {
         CarryInSlice() => 'carry',
         Discretionary() => 'discretionary',
         QuestDestination() => 'quest',
@@ -382,8 +386,8 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
               child: Text(Glossary.attackQuest.label(isAdventure: adventure)),
             ),
           ],
-          onChanged: (v) => setState(() {
-            switch (v) {
+          onChanged: (value) => setState(() {
+            switch (value) {
               case 'carry':
                 _policy = const CarryInSlice();
               case 'discretionary':
@@ -405,12 +409,15 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
                 labelText: adventure ? 'Quest' : 'Savings goal',
               ),
               items: [
-                for (final q in quests)
-                  DropdownMenuItem(value: q.questId, child: Text(q.name)),
+                for (final quest in quests)
+                  DropdownMenuItem(
+                    value: quest.questId,
+                    child: Text(quest.name),
+                  ),
               ],
-              onChanged: (v) => setState(() {
-                _policyQuestId = v;
-                if (v != null) _policy = QuestDestination(v);
+              onChanged: (value) => setState(() {
+                _policyQuestId = value;
+                if (value != null) _policy = QuestDestination(value);
               }),
             ),
           ),

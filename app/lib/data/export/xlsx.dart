@@ -78,8 +78,8 @@ class XlsxWorkbook {
 
   /// Looks a sheet up by tab name, or null when absent.
   XlsxSheet? sheet(String name) {
-    for (final s in sheets) {
-      if (s.name == name) return s;
+    for (final sheet in sheets) {
+      if (sheet.name == name) return sheet;
     }
     return null;
   }
@@ -156,7 +156,7 @@ String _workbookXml(XlsxWorkbook workbook) {
   final sheets = StringBuffer();
   for (var i = 0; i < workbook.sheets.length; i++) {
     sheets.write(
-      '<sheet name="${_attr(workbook.sheets[i].name)}" '
+      '<sheet name="${_escapeXmlAttribute(workbook.sheets[i].name)}" '
       'sheetId="${i + 1}" r:id="rId${i + 1}"/>',
     );
   }
@@ -203,19 +203,19 @@ String _sheetXml(XlsxSheet sheet) {
 
 String _rowXml(int rowNum, List<XlsxCell> cells) {
   final buffer = StringBuffer('<row r="$rowNum">');
-  for (var col = 0; col < cells.length; col++) {
-    final cell = cells[col];
+  for (var column = 0; column < cells.length; column++) {
+    final cell = cells[column];
     if (cell.isBlank && !cell.bold) continue;
-    final ref = '${_columnName(col)}$rowNum';
+    final ref = '${_columnName(column)}$rowNum';
     final style = cell.bold ? ' s="1"' : '';
     if (cell.isNumber) {
-      buffer.write('<c r="$ref"$style><v>${_text(cell.value)}</v></c>');
+      buffer.write('<c r="$ref"$style><v>${_escapeXmlText(cell.value)}</v></c>');
     } else if (cell.value.isEmpty) {
       buffer.write('<c r="$ref"$style/>');
     } else {
       buffer.write(
         '<c r="$ref"$style t="inlineStr">'
-        '<is><t xml:space="preserve">${_text(cell.value)}</t></is></c>',
+        '<is><t xml:space="preserve">${_escapeXmlText(cell.value)}</t></is></c>',
       );
     }
   }
@@ -236,11 +236,11 @@ String _columnName(int index) {
 }
 
 /// Escapes XML text content (`&`, `<`, `>`).
-String _text(String value) => value
+String _escapeXmlText(String value) => value
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;');
 
 /// Escapes an XML attribute value (text plus quotes).
-String _attr(String value) =>
-    _text(value).replaceAll('"', '&quot;').replaceAll("'", '&apos;');
+String _escapeXmlAttribute(String value) =>
+    _escapeXmlText(value).replaceAll('"', '&quot;').replaceAll("'", '&apos;');

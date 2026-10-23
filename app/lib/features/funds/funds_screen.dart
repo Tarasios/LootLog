@@ -26,7 +26,8 @@ import '../vacation/vacation_screen.dart';
 import '../warchest/advance_model.dart';
 import '../warchest/warchest_screen.dart';
 
-String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+String _capitalize(String text) =>
+    text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);
 
 class FundsScreen extends ConsumerWidget {
   const FundsScreen({super.key});
@@ -49,28 +50,33 @@ class FundsScreen extends ConsumerWidget {
     final chest = state.warChest;
     final writsForMe = state.withdrawals.values
         .where(
-          (w) => w.status == WithdrawalStatus.pending && w.byUserId != meUserId,
+          (withdrawal) =>
+              withdrawal.status == WithdrawalStatus.pending &&
+              withdrawal.byUserId != meUserId,
         )
         .length;
     final advancesForMe = buildPendingAdvances(
       state,
       meUserId: meUserId,
       userNames: names,
-    ).where((a) => a.canApprove).length;
+    ).where((advance) => advance.canApprove).length;
     final waiting = writsForMe + advancesForMe;
 
     // ---- Emergency funds --------------------------------------------------
     final funds = state.emergencyFunds.values.toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
-    final fundsTotal = funds.fold<int>(0, (t, f) => t + f.balanceCents);
+      ..sort((first, second) => first.name.compareTo(second.name));
+    final fundsTotal = funds.fold<int>(
+      0,
+      (sum, fund) => sum + fund.balanceCents,
+    );
     final fundsLabel =
-        '${_cap(Glossary.emergencyFund.label(isAdventure: adventure))}s';
+        '${_capitalize(Glossary.emergencyFund.label(isAdventure: adventure))}s';
 
     // ---- Vacations --------------------------------------------------------
     final open = state.openVacations;
     final closedCount = state.vacations.length - open.length;
     final vacationsLabel =
-        '${_cap(Glossary.vacation.label(isAdventure: adventure))}s';
+        '${_capitalize(Glossary.vacation.label(isAdventure: adventure))}s';
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
@@ -80,13 +86,13 @@ class FundsScreen extends ConsumerWidget {
         AppSpacing.huge,
       ),
       children: [
-        for (final v in open) ...[
-          _OpenVacationCard(vacation: v, adventure: adventure),
+        for (final vacation in open) ...[
+          _OpenVacationCard(vacation: vacation, adventure: adventure),
           const SizedBox(height: AppSpacing.md),
         ],
         _HubCard(
           icon: Icons.account_balance_outlined,
-          title: _cap(Glossary.warChest.label(isAdventure: adventure)),
+          title: _capitalize(Glossary.warChest.label(isAdventure: adventure)),
           trailing: money(chest.balanceCents),
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute<void>(builder: (_) => const WarChestScreen()),
@@ -147,22 +153,25 @@ class FundsScreen extends ConsumerWidget {
                 style: muted,
               )
             else
-              for (final f in funds)
+              for (final fund in funds)
                 Padding(
                   padding: const EdgeInsets.only(top: AppSpacing.xxs),
                   child: Row(
                     children: [
                       Expanded(
                         child: Text(
-                          f.petId == null
-                              ? f.name
-                              : '${f.name} · ${state.pets[f.petId]?.name ?? ''}',
+                          fund.petId == null
+                              ? fund.name
+                              : '${fund.name} · ${state.pets[fund.petId]?.name ?? ''}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: textTheme.bodyMedium,
                         ),
                       ),
-                      Text(money(f.balanceCents), style: textTheme.bodyMedium),
+                      Text(
+                        money(fund.balanceCents),
+                        style: textTheme.bodyMedium,
+                      ),
                     ],
                   ),
                 ),
@@ -267,12 +276,12 @@ class _OpenVacationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final v = vacation;
-    final warnings = vacationWarnings(v);
-    final budget = v.totalLimitCents;
+    final trip = vacation;
+    final warnings = vacationWarnings(trip);
+    final budget = trip.totalLimitCents;
     final fraction = budget <= 0
-        ? (v.totalSpentCents > 0 ? 1.0 : 0.0)
-        : (v.totalSpentCents / budget).clamp(0.0, 1.0);
+        ? (trip.totalSpentCents > 0 ? 1.0 : 0.0)
+        : (trip.totalSpentCents / budget).clamp(0.0, 1.0);
     final onColor = scheme.onTertiaryContainer;
     return AppCard(
       color: scheme.tertiaryContainer,
@@ -287,7 +296,7 @@ class _OpenVacationCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   '${adventure ? 'Expedition abroad' : 'On vacation'} · '
-                  '${v.name}',
+                  '${trip.name}',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: onColor,
                     fontWeight: FontWeight.w700,
@@ -308,15 +317,15 @@ class _OpenVacationCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            '${money(v.totalSpentCents)} of ${money(budget)} spent · '
-            '${dailyAllowanceLabel(v)}',
+            '${money(trip.totalSpentCents)} of ${money(budget)} spent · '
+            '${dailyAllowanceLabel(trip)}',
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: onColor),
           ),
-          for (final w in warnings)
+          for (final warning in warnings)
             Text(
-              w,
+              warning,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: scheme.error,
                 fontWeight: FontWeight.w600,

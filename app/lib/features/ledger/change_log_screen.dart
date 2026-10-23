@@ -31,7 +31,7 @@ class ChangeLogScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Budget change log')),
       body: eventsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Could not load the log.\n$e')),
+        error: (error, _) => Center(child: Text('Could not load the log.\n$error')),
         data: (events) {
           if (state == null) {
             return const Center(child: CircularProgressIndicator());

@@ -44,20 +44,22 @@ List<PendingAdvance> buildPendingAdvances(
   required Map<String, String> userNames,
 }) {
   final out = <PendingAdvance>[
-    for (final a in state.advances.values)
-      if (a.status == WithdrawalStatus.pending)
+    for (final advance in state.advances.values)
+      if (advance.status == WithdrawalStatus.pending)
         PendingAdvance(
-          advanceId: a.advanceId,
-          categoryName: state.slices[a.sliceId]?.name ?? 'a budget',
-          byUserName: userNames[a.byUserId] ?? 'Someone',
-          amountCents: a.amountCents,
-          months: a.months,
-          mine: a.byUserId == meUserId,
+          advanceId: advance.advanceId,
+          categoryName: state.slices[advance.sliceId]?.name ?? 'a budget',
+          byUserName: userNames[advance.byUserId] ?? 'Someone',
+          amountCents: advance.amountCents,
+          months: advance.months,
+          mine: advance.byUserId == meUserId,
         ),
   ];
-  out.sort((a, b) {
-    final c = (a.mine ? 1 : 0).compareTo(b.mine ? 1 : 0);
-    return c != 0 ? c : a.advanceId.compareTo(b.advanceId);
+  out.sort((first, second) {
+    final comparison = (first.mine ? 1 : 0).compareTo(second.mine ? 1 : 0);
+    return comparison != 0
+        ? comparison
+        : first.advanceId.compareTo(second.advanceId);
   });
   return out;
 }

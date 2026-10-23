@@ -58,17 +58,17 @@ List<ReceiptLibraryEntry> planReceiptLibrary(HouseholdState state) {
   // Gather one raw record per (purchase, receipt), independent of iteration
   // order so the projection is stable across machines and runs.
   final raw = <_RawEntry>[];
-  for (final p in state.purchases.values) {
-    if (p.voided) continue;
-    for (final r in p.receipts) {
+  for (final purchase in state.purchases.values) {
+    if (purchase.voided) continue;
+    for (final receipt in purchase.receipts) {
       raw.add(_RawEntry(
-        year: p.month.year,
-        folder: _folderFor(state, p.target),
-        day: _householdDay(p.occurredAt),
-        merchant: p.merchant,
-        amountCents: p.amountCents,
-        sha256: r.sha256,
-        mimeType: r.mimeType,
+        year: purchase.month.year,
+        folder: _folderFor(state, purchase.target),
+        day: _householdDay(purchase.occurredAt),
+        merchant: purchase.merchant,
+        amountCents: purchase.amountCents,
+        sha256: receipt.sha256,
+        mimeType: receipt.mimeType,
       ));
     }
   }
@@ -76,21 +76,21 @@ List<ReceiptLibraryEntry> planReceiptLibrary(HouseholdState state) {
   // Deterministic order: by directory, then by intended base name, then by hash
   // as a stable tie-break. De-dup suffixes are then assigned in this order, so
   // the same inputs always yield the same names.
-  raw.sort((a, b) {
-    final c = a.dir.compareTo(b.dir);
-    if (c != 0) return c;
-    final n = a.baseName.compareTo(b.baseName);
-    if (n != 0) return n;
-    return a.sha256.compareTo(b.sha256);
+  raw.sort((first, second) {
+    final byDir = first.dir.compareTo(second.dir);
+    if (byDir != 0) return byDir;
+    final byName = first.baseName.compareTo(second.baseName);
+    if (byName != 0) return byName;
+    return first.sha256.compareTo(second.sha256);
   });
 
   final usedPaths = <String>{};
   final out = <ReceiptLibraryEntry>[];
-  for (final e in raw) {
-    final path = _dedup(e.dir, e.stem, e.ext, usedPaths);
+  for (final entry in raw) {
+    final path = _dedup(entry.dir, entry.stem, entry.ext, usedPaths);
     out.add(ReceiptLibraryEntry(
-      sha256: e.sha256,
-      mimeType: e.mimeType,
+      sha256: entry.sha256,
+      mimeType: entry.mimeType,
       relativePath: path,
     ));
   }
@@ -159,8 +159,8 @@ class ReceiptLibraryFs {
 
 /// The household-timezone calendar day of [instant] as `yyyy-MM-dd`.
 String _householdDay(DateTime instant) {
-  final u = instant.toUtc();
-  final local = u.add(vancouverUtcOffset(u));
+  final utc = instant.toUtc();
+  final local = utc.add(vancouverUtcOffset(utc));
   return '${local.year.toString().padLeft(4, '0')}-'
       '${local.month.toString().padLeft(2, '0')}-'
       '${local.day.toString().padLeft(2, '0')}';
@@ -188,15 +188,15 @@ final RegExp _unsafeChars = RegExp(r'[\\/:*?"<>|\x00-\x1f]');
 /// unsafe characters collapse to `_`, surrounding whitespace and dots are
 /// trimmed, runs of `_` are collapsed, and an empty result becomes [fallback].
 String sanitizeSegment(String input, {String fallback = 'receipt'}) {
-  var s = input.replaceAll(_unsafeChars, '_');
-  s = s.replaceAll(RegExp(r'\s+'), ' ').trim();
+  var segment = input.replaceAll(_unsafeChars, '_');
+  segment = segment.replaceAll(RegExp(r'\s+'), ' ').trim();
   // Strip characters that are legal mid-name but unsafe at the edges.
-  s = s.replaceAll(RegExp(r'^[.\s]+|[.\s]+$'), '');
-  s = s.replaceAll(RegExp(r'_+'), '_');
-  s = s.replaceAll(RegExp(r'^_+|_+$'), '');
-  if (s.isEmpty) return fallback;
+  segment = segment.replaceAll(RegExp(r'^[.\s]+|[.\s]+$'), '');
+  segment = segment.replaceAll(RegExp(r'_+'), '_');
+  segment = segment.replaceAll(RegExp(r'^_+|_+$'), '');
+  if (segment.isEmpty) return fallback;
   // Guard against absurdly long segments (keep well under common 255-byte caps).
-  return s.length > 80 ? s.substring(0, 80) : s;
+  return segment.length > 80 ? segment.substring(0, 80) : segment;
 }
 
 /// Maps a receipt mime type to a lowercase file extension.
@@ -224,12 +224,12 @@ String extensionForMime(String mimeType) {
 /// Resolves a de-duplicated relative path, appending `_2`, `_3`, … to the stem
 /// until the whole path is unused. Records the winner in [used].
 String _dedup(String dir, String stem, String ext, Set<String> used) {
-  String join(String s) => '$dir/$s.$ext';
+  String join(String candidateStem) => '$dir/$candidateStem.$ext';
   var candidate = join(stem);
-  var n = 2;
+  var suffix = 2;
   while (used.contains(candidate)) {
-    candidate = join('${stem}_$n');
-    n++;
+    candidate = join('${stem}_$suffix');
+    suffix++;
   }
   used.add(candidate);
   return candidate;
@@ -258,8 +258,8 @@ class _RawEntry {
   String get dir => '$year/$folder';
 
   String get _merchantPart {
-    final m = merchant?.trim() ?? '';
-    return m.isEmpty ? 'receipt' : sanitizeSegment(m, fallback: 'receipt');
+    final trimmedMerchant = merchant?.trim() ?? '';
+    return trimmedMerchant.isEmpty ? 'receipt' : sanitizeSegment(trimmedMerchant, fallback: 'receipt');
   }
 
   /// The base name before extension and before de-dup suffixing.

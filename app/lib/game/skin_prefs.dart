@@ -42,18 +42,18 @@ const AdventureTier defaultAdventureTier = AdventureTier.text;
 
 /// Loads the persisted tier, defaulting to [defaultAdventureTier].
 Future<AdventureTier> loadAdventureTier() async {
-  final f = await _tierFile();
-  if (!f.existsSync()) return defaultAdventureTier;
-  final s = f.readAsStringSync().trim();
-  if (s == AdventureTier.text.name) return AdventureTier.text;
-  if (s == AdventureTier.pixel.name) return AdventureTier.pixel;
+  final file = await _tierFile();
+  if (!file.existsSync()) return defaultAdventureTier;
+  final stored = file.readAsStringSync().trim();
+  if (stored == AdventureTier.text.name) return AdventureTier.text;
+  if (stored == AdventureTier.pixel.name) return AdventureTier.pixel;
   return defaultAdventureTier;
 }
 
 /// Persists the chosen [tier].
 Future<void> saveAdventureTier(AdventureTier tier) async {
-  final f = await _tierFile();
-  f.writeAsStringSync(tier.name, flush: true);
+  final file = await _tierFile();
+  file.writeAsStringSync(tier.name, flush: true);
 }
 
 /// The current adventure render tier. Loads the persisted value on first build

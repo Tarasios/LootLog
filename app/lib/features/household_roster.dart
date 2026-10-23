@@ -28,9 +28,9 @@ class RosterEntry {
   String toString() => 'RosterEntry($id, $name)';
 }
 
-int _byName(RosterEntry a, RosterEntry b) {
-  final c = a.name.toLowerCase().compareTo(b.name.toLowerCase());
-  return c != 0 ? c : a.id.compareTo(b.id);
+int _byName(RosterEntry first, RosterEntry second) {
+  final comparison = first.name.toLowerCase().compareTo(second.name.toLowerCase());
+  return comparison != 0 ? comparison : first.id.compareTo(second.id);
 }
 
 /// Every active adult, this device's adult ([meUserId]) first, the rest by
@@ -42,29 +42,29 @@ List<RosterEntry> partyAdults(
   LocalSetup? setup,
 }) {
   var adults = [
-    for (final m in state.members.values)
-      if (m.isAdult && m.active) RosterEntry(id: m.memberId, name: m.name),
+    for (final member in state.members.values)
+      if (member.isAdult && member.active) RosterEntry(id: member.memberId, name: member.name),
   ];
   if (adults.isEmpty && setup != null) {
     final seen = <String>{};
     adults = [
-      for (final p in setup.profiles)
-        if (seen.add(p.userId)) RosterEntry(id: p.userId, name: p.name),
+      for (final profile in setup.profiles)
+        if (seen.add(profile.userId)) RosterEntry(id: profile.userId, name: profile.name),
     ];
   }
-  adults.sort((a, b) {
-    if (a.id == meUserId) return -1;
-    if (b.id == meUserId) return 1;
-    return _byName(a, b);
+  adults.sort((first, second) {
+    if (first.id == meUserId) return -1;
+    if (second.id == meUserId) return 1;
+    return _byName(first, second);
   });
   return adults;
 }
 
 /// Every active pet member, by name.
 List<RosterEntry> partyPets(HouseholdState state) => [
-      for (final m in state.members.values)
-        if (m.role == MemberRole.pet && m.active)
-          RosterEntry(id: m.memberId, name: m.name),
+      for (final member in state.members.values)
+        if (member.role == MemberRole.pet && member.active)
+          RosterEntry(id: member.memberId, name: member.name),
     ]..sort(_byName);
 
 /// Display names keyed by member id for every member (adults, dependents and
@@ -72,6 +72,6 @@ List<RosterEntry> partyPets(HouseholdState state) => [
 /// doesn't know resolve through the legacy [setup] profiles.
 Map<String, String> memberNames(HouseholdState state, {LocalSetup? setup}) => {
       if (setup != null)
-        for (final p in setup.profiles) p.userId: p.name,
-      for (final m in state.members.values) m.memberId: m.name,
+        for (final profile in setup.profiles) profile.userId: profile.name,
+      for (final member in state.members.values) member.memberId: member.name,
     };

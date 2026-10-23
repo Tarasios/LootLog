@@ -31,7 +31,7 @@ class RecurringScreen extends ConsumerWidget {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     final items = state.recurringExpenses.values.toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
+      ..sort((first, second) => first.name.compareTo(second.name));
     final nowMonth = Month.fromInstant(DateTime.now());
 
     return Scaffold(
@@ -48,23 +48,24 @@ class RecurringScreen extends ConsumerWidget {
               itemCount: items.length,
               separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (context, i) {
-                final r = items[i];
-                final ended = r.endMonth != null && r.endMonth! < nowMonth;
-                final owner = r.isShared
+                final expense = items[i];
+                final ended =
+                    expense.endMonth != null && expense.endMonth! < nowMonth;
+                final owner = expense.isShared
                     ? 'Shared'
-                    : (names[r.ownerUserId] ?? 'Personal');
-                final kind = r.kind == RecurringKind.variable
+                    : (names[expense.ownerUserId] ?? 'Personal');
+                final kind = expense.kind == RecurringKind.variable
                     ? 'variable est.'
                     : 'fixed';
-                final cadence = r.isAnnual ? 'annual' : 'monthly';
+                final cadence = expense.isAnnual ? 'annual' : 'monthly';
                 final due = recurringDueLabel(
-                  isAnnual: r.isAnnual,
-                  dueDay: r.dueDay,
-                  dueMonth: r.dueMonth,
+                  isAnnual: expense.isAnnual,
+                  dueDay: expense.dueDay,
+                  dueMonth: expense.dueMonth,
                 );
                 return ListTile(
                   title: Text(
-                    r.name,
+                    expense.name,
                     style: ended
                         ? const TextStyle(
                             decoration: TextDecoration.lineThrough,
@@ -73,20 +74,20 @@ class RecurringScreen extends ConsumerWidget {
                   ),
                   subtitle: Text(
                     '$owner · $kind · $cadence · due $due · '
-                    'from ${r.startMonth.toKey()}'
-                    '${r.endMonth != null ? ' to ${r.endMonth!.toKey()}' : ''}',
+                    'from ${expense.startMonth.toKey()}'
+                    '${expense.endMonth != null ? ' to ${expense.endMonth!.toKey()}' : ''}',
                   ),
                   trailing: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        money(r.amountCents),
+                        money(expense.amountCents),
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
-                      if (r.isAnnual)
+                      if (expense.isAnnual)
                         Text(
-                          '${money(r.amountCents ~/ 12)}/mo',
+                          '${money(expense.amountCents ~/ 12)}/mo',
                           style: Theme.of(context).textTheme.labelSmall
                               ?.copyWith(
                                 color: Theme.of(
@@ -96,7 +97,8 @@ class RecurringScreen extends ConsumerWidget {
                         ),
                     ],
                   ),
-                  onTap: () => RecurringEditorScreen.open(context, existing: r),
+                  onTap: () =>
+                      RecurringEditorScreen.open(context, existing: expense),
                 );
               },
             ),
@@ -157,17 +159,17 @@ class _RecurringEditorScreenState extends ConsumerState<RecurringEditorScreen> {
   @override
   void initState() {
     super.initState();
-    final e = widget.existing;
-    _name = TextEditingController(text: e?.name ?? '');
+    final existing = widget.existing;
+    _name = TextEditingController(text: existing?.name ?? '');
     _amount = TextEditingController(
-      text: e == null ? '' : Money(e.amountCents).format(),
+      text: existing == null ? '' : Money(existing.amountCents).format(),
     );
-    _kind = e?.kind ?? RecurringKind.fixed;
-    _cadence = e?.cadence ?? RecurringCadence.monthly;
-    _dueDay = e?.dueDay ?? 1;
-    _dueMonth = e?.dueMonth ?? Month.fromInstant(DateTime.now()).month;
-    _start = e?.startMonth ?? Month.fromInstant(DateTime.now());
-    _end = e?.endMonth;
+    _kind = existing?.kind ?? RecurringKind.fixed;
+    _cadence = existing?.cadence ?? RecurringCadence.monthly;
+    _dueDay = existing?.dueDay ?? 1;
+    _dueMonth = existing?.dueMonth ?? Month.fromInstant(DateTime.now()).month;
+    _start = existing?.startMonth ?? Month.fromInstant(DateTime.now());
+    _end = existing?.endMonth;
   }
 
   @override
@@ -184,8 +186,8 @@ class _RecurringEditorScreenState extends ConsumerState<RecurringEditorScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (!_ownerInit) {
-      final o = widget.existing?.ownership;
-      _ownerUserId = o is PersonalParty ? o.userId : null;
+      final ownership = widget.existing?.ownership;
+      _ownerUserId = ownership is PersonalParty ? ownership.userId : null;
       _ownerInit = true;
     }
     final variable = _kind == RecurringKind.variable;
@@ -226,7 +228,8 @@ class _RecurringEditorScreenState extends ConsumerState<RecurringEditorScreen> {
               ),
             ],
             selected: {_kind},
-            onSelectionChanged: (s) => setState(() => _kind = s.first),
+            onSelectionChanged: (selection) =>
+                setState(() => _kind = selection.first),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text('Cadence', style: AppText.sectionLabel(context)),
@@ -243,7 +246,8 @@ class _RecurringEditorScreenState extends ConsumerState<RecurringEditorScreen> {
               ),
             ],
             selected: {_cadence},
-            onSelectionChanged: (s) => setState(() => _cadence = s.first),
+            onSelectionChanged: (selection) =>
+                setState(() => _cadence = selection.first),
           ),
           const SizedBox(height: AppSpacing.lg),
           TextField(
@@ -270,14 +274,18 @@ class _RecurringEditorScreenState extends ConsumerState<RecurringEditorScreen> {
                     initialValue: _dueMonth,
                     decoration: const InputDecoration(labelText: 'Month'),
                     items: [
-                      for (var mo = 1; mo <= 12; mo++)
+                      for (
+                        var monthNumber = 1;
+                        monthNumber <= 12;
+                        monthNumber++
+                      )
                         DropdownMenuItem(
-                          value: mo,
-                          child: Text(_monthName(mo)),
+                          value: monthNumber,
+                          child: Text(_monthName(monthNumber)),
                         ),
                     ],
-                    onChanged: (v) =>
-                        setState(() => _dueMonth = v ?? _dueMonth),
+                    onChanged: (value) =>
+                        setState(() => _dueMonth = value ?? _dueMonth),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
@@ -287,13 +295,14 @@ class _RecurringEditorScreenState extends ConsumerState<RecurringEditorScreen> {
                   initialValue: _dueDay,
                   decoration: const InputDecoration(labelText: 'Day'),
                   items: [
-                    for (var d = 1; d <= 31; d++)
+                    for (var day = 1; day <= 31; day++)
                       DropdownMenuItem(
-                        value: d,
-                        child: Text(d == 31 ? 'Last day' : '$d'),
+                        value: day,
+                        child: Text(day == 31 ? 'Last day' : '$day'),
                       ),
                   ],
-                  onChanged: (v) => setState(() => _dueDay = v ?? _dueDay),
+                  onChanged: (value) =>
+                      setState(() => _dueDay = value ?? _dueDay),
                 ),
               ),
             ],
@@ -302,13 +311,13 @@ class _RecurringEditorScreenState extends ConsumerState<RecurringEditorScreen> {
           MonthField(
             label: 'Start month',
             month: _start,
-            onChanged: (m) => setState(() => _start = m),
+            onChanged: (month) => setState(() => _start = month),
           ),
           const SizedBox(height: AppSpacing.md),
           MonthField(
             label: 'End month (optional)',
             month: _end,
-            onChanged: (m) => setState(() => _end = m),
+            onChanged: (month) => setState(() => _end = month),
             onClear: () => setState(() => _end = null),
           ),
           const SizedBox(height: AppSpacing.xl),
@@ -365,23 +374,23 @@ class _RecurringEditorScreenState extends ConsumerState<RecurringEditorScreen> {
   }
 
   Future<void> _cancelExpense() async {
-    final e = widget.existing!;
+    final existing = widget.existing!;
     final navigator = Navigator.of(context);
     // Cancel by ending it at the current month (keeps the run through this month).
     final endAt = Month.fromInstant(DateTime.now());
     await ref
         .read(householdActionsProvider)
         ?.setRecurringExpense(
-          expenseId: e.expenseId,
-          name: e.name,
-          ownership: e.ownership,
-          kind: e.kind,
-          cadence: e.cadence,
-          amountCents: e.amountCents,
-          dueDay: e.dueDay,
-          dueMonth: e.dueMonth,
-          startMonth: e.startMonth,
-          endMonth: endAt < e.startMonth ? e.startMonth : endAt,
+          expenseId: existing.expenseId,
+          name: existing.name,
+          ownership: existing.ownership,
+          kind: existing.kind,
+          cadence: existing.cadence,
+          amountCents: existing.amountCents,
+          dueDay: existing.dueDay,
+          dueMonth: existing.dueMonth,
+          startMonth: existing.startMonth,
+          endMonth: endAt < existing.startMonth ? existing.startMonth : endAt,
         );
     navigator.pop();
   }

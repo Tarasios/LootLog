@@ -52,9 +52,9 @@ class ReceiptOffloadStore {
   /// The device's receipt-storage mode. 'on'/'off' are the legacy values of
   /// the original two-state switch.
   Future<ReceiptStorageMode> mode() async {
-    final f = await _settingFile();
-    if (!await f.exists()) return ReceiptStorageMode.keep;
-    return switch ((await f.readAsString()).trim()) {
+    final file = await _settingFile();
+    if (!await file.exists()) return ReceiptStorageMode.keep;
+    return switch ((await file.readAsString()).trim()) {
       'on' || 'offload' => ReceiptStorageMode.offload,
       'none' => ReceiptStorageMode.none,
       _ => ReceiptStorageMode.keep,
@@ -62,8 +62,8 @@ class ReceiptOffloadStore {
   }
 
   Future<void> setMode(ReceiptStorageMode value) async {
-    final f = await _settingFile();
-    await f.writeAsString(value.name, flush: true);
+    final file = await _settingFile();
+    await file.writeAsString(value.name, flush: true);
   }
 
   /// Whether hub-confirmed offloading is on (the sync-cycle space saver).
@@ -74,10 +74,10 @@ class ReceiptOffloadStore {
 
   /// The hashes this device has deliberately offloaded (skipped on pull).
   Future<Set<String>> shas() async {
-    final f = await _shaFile();
-    if (!await f.exists()) return {};
+    final file = await _shaFile();
+    if (!await file.exists()) return {};
     return {
-      for (final line in (await f.readAsString()).split('\n'))
+      for (final line in (await file.readAsString()).split('\n'))
         if (line.trim().isNotEmpty) line.trim(),
     };
   }
@@ -96,9 +96,9 @@ class ReceiptOffloadStore {
   }
 
   Future<void> _write(Set<String> all) async {
-    final f = await _shaFile();
+    final file = await _shaFile();
     final sorted = all.toList()..sort();
-    await f.writeAsString(sorted.join('\n'), flush: true);
+    await file.writeAsString(sorted.join('\n'), flush: true);
   }
 }
 

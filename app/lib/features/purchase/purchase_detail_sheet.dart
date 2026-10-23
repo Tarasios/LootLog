@@ -54,12 +54,14 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
   late String _purchaseId = widget.initialPurchaseId;
   bool _busy = false;
 
-  Future<void> _run(Future<String?> Function(HouseholdActions a) op) async {
+  Future<void> _run(
+    Future<String?> Function(HouseholdActions actions) operation,
+  ) async {
     final actions = ref.read(householdActionsProvider);
     if (actions == null || _busy) return;
     setState(() => _busy = true);
     try {
-      final newId = await op(actions);
+      final newId = await operation(actions);
       if (newId != null && mounted) setState(() => _purchaseId = newId);
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -138,8 +140,9 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
               onTap: () => _editText(
                 title: 'Merchant',
                 initial: purchase.merchant,
-                onSave: (v) =>
-                    _run((a) => a.amendPurchase(purchase, merchant: v)),
+                onSave: (value) => _run(
+                  (actions) => actions.amendPurchase(purchase, merchant: value),
+                ),
               ),
             ),
             _fieldTile(
@@ -150,7 +153,9 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
               onTap: () => _editText(
                 title: 'Note',
                 initial: purchase.note,
-                onSave: (v) => _run((a) => a.amendPurchase(purchase, note: v)),
+                onSave: (value) => _run(
+                  (actions) => actions.amendPurchase(purchase, note: value),
+                ),
               ),
             ),
             _fieldTile(
@@ -169,7 +174,10 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
                 value: purchase.shared,
                 onChanged: _busy
                     ? null
-                    : (v) => _run((a) => a.amendPurchase(purchase, shared: v)),
+                    : (value) => _run(
+                        (actions) =>
+                            actions.amendPurchase(purchase, shared: value),
+                      ),
               ),
             _taxTile(purchase, inheritedTaxDefault),
             const Divider(),
@@ -211,10 +219,10 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
       value: effective,
       onChanged: _busy
           ? null
-          : (v) => _run(
-              (a) => a.amendPurchase(
+          : (value) => _run(
+              (actions) => actions.amendPurchase(
                 purchase,
-                taxDeductible: v == inheritedDefault ? null : v,
+                taxDeductible: value == inheritedDefault ? null : value,
               ),
             ),
     );
@@ -249,31 +257,31 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
         else
           Column(
             children: [
-              for (final r in purchase.receipts)
-                _receiptTile(purchase.purchaseId, r),
+              for (final receipt in purchase.receipts)
+                _receiptTile(purchase.purchaseId, receipt),
             ],
           ),
       ],
     );
   }
 
-  Widget _receiptTile(String purchaseId, ReceiptRef r) {
-    final isPdf = r.mimeType == 'application/pdf';
+  Widget _receiptTile(String purchaseId, ReceiptRef receipt) {
+    final isPdf = receipt.mimeType == 'application/pdf';
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: Icon(
         isPdf ? Icons.picture_as_pdf_outlined : Icons.image_outlined,
       ),
       title: Text(isPdf ? 'PDF receipt' : 'Image receipt'),
-      subtitle: Text('${(r.sizeBytes / 1024).toStringAsFixed(0)} KB'),
-      onTap: isPdf ? null : () => _viewImage(r.sha256),
+      subtitle: Text('${(receipt.sizeBytes / 1024).toStringAsFixed(0)} KB'),
+      onTap: isPdf ? null : () => _viewImage(receipt.sha256),
       trailing: IconButton(
         icon: const Icon(Icons.close),
         tooltip: 'Detach',
         onPressed: _busy
             ? null
-            : () => _run((a) async {
-                await a.detachReceipt(purchaseId, r.sha256);
+            : () => _run((actions) async {
+                await actions.detachReceipt(purchaseId, receipt.sha256);
                 return null;
               }),
       ),
@@ -331,8 +339,8 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
       ),
     );
     if (ok ?? false) {
-      await _run((a) async {
-        await a.voidPurchase(purchase.purchaseId);
+      await _run((actions) async {
+        await actions.voidPurchase(purchase.purchaseId);
         return null;
       });
     }
@@ -352,7 +360,7 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
           controller: controller,
           autofocus: true,
           textCapitalization: TextCapitalization.words,
-          onSubmitted: (v) => Navigator.pop(context, v),
+          onSubmitted: (value) => Navigator.pop(context, value),
         ),
         actions: [
           TextButton(
@@ -381,26 +389,28 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
       lastDate: now,
     );
     if (picked != null) {
-      final at = DateTime(
+      final occurredAt = DateTime(
         picked.year,
         picked.month,
         picked.day,
         purchase.occurredAt.hour,
         purchase.occurredAt.minute,
       );
-      await _run((a) => a.amendPurchase(purchase, occurredAt: at));
+      await _run(
+        (actions) => actions.amendPurchase(purchase, occurredAt: occurredAt),
+      );
     }
   }
 
   Future<void> _attachReceipts(PurchaseState purchase) async {
     final picks = await _pickReceiptFiles();
     if (picks.isEmpty) return;
-    await _run((a) async {
-      for (final f in picks) {
-        await a.attachReceiptBytes(
+    await _run((actions) async {
+      for (final pick in picks) {
+        await actions.attachReceiptBytes(
           purchase.purchaseId,
-          f.bytes,
-          isPdf: f.isPdf,
+          pick.bytes,
+          isPdf: pick.isPdf,
         );
       }
       return null;
@@ -418,7 +428,7 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
     final ocr = ref.read(receiptOcrProvider);
     if (!ocr.isSupported) return;
     final image = picks.firstWhere(
-      (f) => !f.isPdf && f.path != null,
+      (pick) => !pick.isPdf && pick.path != null,
       orElse: () => _PickedFile(bytes: _empty, isPdf: true),
     );
     if (image.path == null) return;
@@ -432,8 +442,9 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
           content: Text('Receipt scanned ${formatMoney(total)}'),
           action: SnackBarAction(
             label: 'Use total',
-            onPressed: () =>
-                _run((a) => a.amendPurchase(purchase, amountCents: total)),
+            onPressed: () => _run(
+              (actions) => actions.amendPurchase(purchase, amountCents: total),
+            ),
           ),
         ),
       );
@@ -448,11 +459,11 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
     if (isMobile) {
       final images = await ImagePicker().pickMultiImage();
       return [
-        for (final x in images)
+        for (final image in images)
           _PickedFile(
-            bytes: await x.readAsBytes(),
-            isPdf: _looksPdf(x),
-            path: x.path,
+            bytes: await image.readAsBytes(),
+            isPdf: _looksPdf(image),
+            path: image.path,
           ),
       ];
     }
@@ -462,29 +473,29 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
     );
     final files = await openFiles(acceptedTypeGroups: [group]);
     return [
-      for (final x in files)
+      for (final file in files)
         _PickedFile(
-          bytes: await x.readAsBytes(),
-          isPdf: _looksPdf(x),
-          path: x.path,
+          bytes: await file.readAsBytes(),
+          isPdf: _looksPdf(file),
+          path: file.path,
         ),
     ];
   }
 
-  static bool _looksPdf(XFile x) =>
-      (x.mimeType?.contains('pdf') ?? false) ||
-      x.name.toLowerCase().endsWith('.pdf');
+  static bool _looksPdf(XFile file) =>
+      (file.mimeType?.contains('pdf') ?? false) ||
+      file.name.toLowerCase().endsWith('.pdf');
 
-  String _dateLabel(DateTime at) =>
-      '${at.year}-${at.month.toString().padLeft(2, '0')}-'
-      '${at.day.toString().padLeft(2, '0')}';
+  String _dateLabel(DateTime instant) =>
+      '${instant.year}-${instant.month.toString().padLeft(2, '0')}-'
+      '${instant.day.toString().padLeft(2, '0')}';
 
   String _sliceName(HouseholdState state, ChargeTarget target) {
     switch (target) {
       case SliceCharge(:final sliceId):
         return state.slices[sliceId]?.name ?? 'Budget';
       case VaultCharge():
-        return Glossary.cap(
+        return Glossary.capitalize(
           Glossary.vaultLabel(
             isAdventure: false,
             savingsRules: state.savingsRules != null,

@@ -76,7 +76,7 @@ List<ChangeLogEntry> buildChangeLog(
   String fundName(String id) => state.emergencyFunds[id]?.name ?? 'a fund';
   String vacationName(String id) => state.vacations[id]?.name ?? 'a vacation';
 
-  String targetLabel(ChargeTarget t) => switch (t) {
+  String targetLabel(ChargeTarget target) => switch (target) {
         SliceCharge(:final sliceId) => sliceName(sliceId),
         VaultCharge() => vaultWord,
         QuestCharge(:final questId) => questName(questId),
@@ -89,7 +89,7 @@ List<ChangeLogEntry> buildChangeLog(
   // ordered) log, so later events read as updates rather than adds.
   final lastMemberSet = <String, MemberSet>{};
 
-  for (final e in events) {
+  for (final event in events) {
     ChangeLogEntry entry(
       ChangeLogKind kind,
       String title, {
@@ -97,26 +97,26 @@ List<ChangeLogEntry> buildChangeLog(
       int? amountCents,
     }) =>
         ChangeLogEntry(
-          eventId: e.eventId,
+          eventId: event.eventId,
           kind: kind,
           title: title,
           detail: detail,
           amountCents: amountCents,
-          occurredAt: e.occurredAt,
-          createdAt: e.createdAt,
-          author: who(e.userId),
+          occurredAt: event.occurredAt,
+          createdAt: event.createdAt,
+          author: who(event.userId),
         );
 
-    entries.add(switch (e) {
+    entries.add(switch (event) {
       PurchaseAdded() => entry(
           ChangeLogKind.purchase,
-          'Purchase on ${targetLabel(e.target)}',
+          'Purchase on ${targetLabel(event.target)}',
           detail: [
-            if (e.merchant != null) e.merchant,
-            if (e.shared) 'shared',
-            if (e.note != null) e.note,
+            if (event.merchant != null) event.merchant,
+            if (event.shared) 'shared',
+            if (event.note != null) event.note,
           ].whereType<String>().join(' · ').ifEmptyNull(),
-          amountCents: -e.amountCents,
+          amountCents: -event.amountCents,
         ),
       PurchaseVoided() => entry(
           ChangeLogKind.correction,
@@ -125,77 +125,77 @@ List<ChangeLogEntry> buildChangeLog(
         ),
       BudgetSliceSet() => entry(
           ChangeLogKind.config,
-          'Set the "${e.name}" budget category',
-          detail: 'limit ${money(e.limitCents)}'
-              '${e.ownership is GroupSlice ? ' · group' : ''}',
+          'Set the "${event.name}" budget category',
+          detail: 'limit ${money(event.limitCents)}'
+              '${event.ownership is GroupSlice ? ' · group' : ''}',
         ),
       MainCategorySet() => entry(
           ChangeLogKind.config,
-          'Set the "${e.name}" main category',
+          'Set the "${event.name}" main category',
         ),
       RecurringExpenseSet() => entry(
           ChangeLogKind.config,
-          'Set the "${e.name}" recurring expense',
-          detail: '${money(e.amountCents)} · ${e.cadence.name}',
+          'Set the "${event.name}" recurring expense',
+          detail: '${money(event.amountCents)} · ${event.cadence.name}',
         ),
       VariableExpenseRecorded() => entry(
           ChangeLogKind.config,
           'Recorded a variable expense actual',
-          detail: monthLabel(e.month.year, e.month.month),
-          amountCents: -e.actualCents,
+          detail: monthLabel(event.month.year, event.month.month),
+          amountCents: -event.actualCents,
         ),
       IncomeSet() => entry(
           ChangeLogKind.money,
-          'Set ${who(e.forUserId)}\'s income',
-          detail: monthLabel(e.month.year, e.month.month),
-          amountCents: e.amountCents,
+          'Set ${who(event.forUserId)}\'s income',
+          detail: monthLabel(event.month.year, event.month.month),
+          amountCents: event.amountCents,
         ),
       DefaultIncomeSet() => entry(
           ChangeLogKind.money,
-          'Set ${who(e.forUserId)}\'s default income',
+          'Set ${who(event.forUserId)}\'s default income',
           detail:
-              'from ${monthLabel(e.effectiveFromMonth.year, e.effectiveFromMonth.month)}',
-          amountCents: e.amountCents,
+              'from ${monthLabel(event.effectiveFromMonth.year, event.effectiveFromMonth.month)}',
+          amountCents: event.amountCents,
         ),
       QuestSet() => entry(
           ChangeLogKind.config,
-          'Set the "${e.name}" savings goal',
-          detail: 'target ${money(e.targetCents)}',
+          'Set the "${event.name}" savings goal',
+          detail: 'target ${money(event.targetCents)}',
         ),
       QuestAbandoned() => entry(
           ChangeLogKind.governance,
-          'Abandoned ${questName(e.questId)}',
+          'Abandoned ${questName(event.questId)}',
         ),
       LeftoverAllocated() => entry(
           ChangeLogKind.money,
-          'Divided leftovers from ${sliceName(e.sliceId)}',
-          detail: monthLabel(e.month.year, e.month.month),
+          'Divided leftovers from ${sliceName(event.sliceId)}',
+          detail: monthLabel(event.month.year, event.month.month),
           amountCents:
-              e.allocations.fold<int>(0, (a, x) => a + x.amountCents),
+              event.allocations.fold<int>(0, (sum, allocation) => sum + allocation.amountCents),
         ),
       GiftReceived() => entry(
           ChangeLogKind.money,
-          '${who(e.forUserId)} received a gift',
-          detail: e.note,
-          amountCents: e.amountCents,
+          '${who(event.forUserId)} received a gift',
+          detail: event.note,
+          amountCents: event.amountCents,
         ),
       PoolContributionMade() => entry(
           ChangeLogKind.money,
           isAdventure
-              ? '${who(e.fromUserId)} fed the war chest'
-              : '${who(e.fromUserId)} added to shared savings',
-          amountCents: e.amountCents,
+              ? '${who(event.fromUserId)} fed the war chest'
+              : '${who(event.fromUserId)} added to shared savings',
+          amountCents: event.amountCents,
         ),
       PoolWithdrawalProposed() => entry(
           ChangeLogKind.governance,
-          '${who(e.byUserId)} proposed a '
+          '${who(event.byUserId)} proposed a '
           '${Glossary.withdrawal.label(isAdventure: isAdventure)}',
-          detail: e.purpose,
-          amountCents: -e.amountCents,
+          detail: event.purpose,
+          amountCents: -event.amountCents,
         ),
       PoolWithdrawalApproved() => entry(
           ChangeLogKind.governance,
-          '${who(e.byUserId)} approved a withdrawal',
+          '${who(event.byUserId)} approved a withdrawal',
         ),
       PoolWithdrawalCancelled() => entry(
           ChangeLogKind.governance,
@@ -203,23 +203,23 @@ List<ChangeLogEntry> buildChangeLog(
         ),
       ShortfallCovered() => entry(
           ChangeLogKind.money,
-          switch (e.source) {
+          switch (event.source) {
             GeneralCover() =>
-              '${who(e.userId)} covered part of a purchase from general savings',
+              '${who(event.userId)} covered part of a purchase from general savings',
             CategorySavingsCover() =>
-              '${who(e.userId)} put category savings toward a goal purchase',
+              '${who(event.userId)} put category savings toward a goal purchase',
           },
-          amountCents: -e.amountCents,
+          amountCents: -event.amountCents,
         ),
       AllowanceAdvanceProposed() => entry(
           ChangeLogKind.governance,
-          '${who(e.byUserId)} asked to borrow from future months '
-          '(${e.months} month${e.months == 1 ? '' : 's'})',
-          amountCents: -e.amountCents,
+          '${who(event.byUserId)} asked to borrow from future months '
+          '(${event.months} month${event.months == 1 ? '' : 's'})',
+          amountCents: -event.amountCents,
         ),
       AllowanceAdvanceApproved() => entry(
           ChangeLogKind.governance,
-          '${who(e.byUserId)} approved borrowing from future months',
+          '${who(event.byUserId)} approved borrowing from future months',
         ),
       AllowanceAdvanceCancelled() => entry(
           ChangeLogKind.governance,
@@ -228,71 +228,71 @@ List<ChangeLogEntry> buildChangeLog(
       TaxRefundRecorded() => entry(
           ChangeLogKind.money,
           'Recorded a tax refund to $chest',
-          detail: e.note,
-          amountCents: e.amountCents,
+          detail: event.note,
+          amountCents: event.amountCents,
         ),
       EmergencyFundSet() => entry(
           ChangeLogKind.config,
-          'Opened the "${e.name}" emergency fund',
+          'Opened the "${event.name}" emergency fund',
         ),
       MemberSet() => entry(
           ChangeLogKind.config,
           () {
-            final prev = lastMemberSet[e.memberId];
-            lastMemberSet[e.memberId] = e;
-            return switch (classifyMemberSet(e, prev)) {
-              MemberSetChange.retired => 'Retired ${e.name} from the $party',
+            final prev = lastMemberSet[event.memberId];
+            lastMemberSet[event.memberId] = event;
+            return switch (classifyMemberSet(event, prev)) {
+              MemberSetChange.retired => 'Retired ${event.name} from the $party',
               MemberSetChange.added =>
-                'Added ${e.name} (${e.role.name}) to the $party',
-              MemberSetChange.portraitOnly => "Updated ${e.name}'s portrait",
-              MemberSetChange.updated => 'Updated ${e.name} (${e.role.name})',
+                'Added ${event.name} (${event.role.name}) to the $party',
+              MemberSetChange.portraitOnly => "Updated ${event.name}'s portrait",
+              MemberSetChange.updated => 'Updated ${event.name} (${event.role.name})',
             };
           }(),
         ),
       PetSet() => entry(
           ChangeLogKind.config,
-          'Added ${e.name} to the $party',
+          'Added ${event.name} to the $party',
         ),
       GroupShareSet() => entry(
           ChangeLogKind.config,
           'Set the group share split',
-          detail: monthLabel(e.month.year, e.month.month),
+          detail: monthLabel(event.month.year, event.month.month),
         ),
       GoalSet() => entry(
           ChangeLogKind.config,
           'Set the $chest target',
-          amountCents: e.targetCents,
+          amountCents: event.targetCents,
         ),
       TrackedAccountSet() => entry(
           ChangeLogKind.config,
-          'Set the "${e.name}" tracked account',
-          detail: e.kind.name,
+          'Set the "${event.name}" tracked account',
+          detail: event.kind.name,
         ),
       AccountBalanceRecorded() => entry(
           ChangeLogKind.money,
-          'Recorded ${e.accountName}\'s balance',
-          amountCents: e.balanceCents,
+          'Recorded ${event.accountName}\'s balance',
+          amountCents: event.balanceCents,
         ),
       AccountTransferRecorded() => entry(
           ChangeLogKind.money,
-          'Recorded an account ${e.direction.name}',
-          detail: e.note,
-          amountCents: e.direction == TransferDirection.deposit
-              ? e.amountCents
-              : -e.amountCents,
+          'Recorded an account ${event.direction.name}',
+          detail: event.note,
+          amountCents: event.direction == TransferDirection.deposit
+              ? event.amountCents
+              : -event.amountCents,
         ),
       SettingChanged() => entry(
           ChangeLogKind.config,
           'Changed a setting',
-          detail: '${e.key} → ${e.value}',
+          detail: '${event.key} → ${event.value}',
         ),
       VacationSet() => entry(
           ChangeLogKind.config,
-          'Set up the "${e.name}" vacation',
+          'Set up the "${event.name}" vacation',
         ),
       VacationClosed() => entry(
           ChangeLogKind.config,
-          'Closed ${vacationName(e.vacationId)}',
+          'Closed ${vacationName(event.vacationId)}',
         ),
       ReceiptAttached() => entry(
           ChangeLogKind.receipt,
@@ -305,12 +305,12 @@ List<ChangeLogEntry> buildChangeLog(
       CosmeticSet() => entry(
           ChangeLogKind.cosmetic,
           'Changed a cosmetic',
-          detail: e.key,
+          detail: event.key,
         ),
       GameRewardGranted() => entry(
           ChangeLogKind.cosmetic,
           'Earned a reward',
-          detail: e.rewardId,
+          detail: event.rewardId,
         ),
       NoSpendCheckedIn() => entry(
           ChangeLogKind.purchase,
@@ -318,20 +318,20 @@ List<ChangeLogEntry> buildChangeLog(
         ),
       ReconcileCompleted() => entry(
           ChangeLogKind.governance,
-          'Reconciled the week of ${e.weekStart.toKey()}',
+          'Reconciled the week of ${event.weekStart.toKey()}',
         ),
       // Written by a newer version of LootLog; kept and synced untouched.
       UnknownEvent() => entry(
           ChangeLogKind.config,
           'Recorded a change from a newer version of LootLog',
-          detail: e.rawType,
+          detail: event.rawType,
         ),
     });
   }
 
-  entries.sort((a, b) {
-    final c = b.occurredAt.compareTo(a.occurredAt);
-    return c != 0 ? c : b.eventId.compareTo(a.eventId);
+  entries.sort((first, second) {
+    final comparison = second.occurredAt.compareTo(first.occurredAt);
+    return comparison != 0 ? comparison : second.eventId.compareTo(first.eventId);
   });
   return entries;
 }

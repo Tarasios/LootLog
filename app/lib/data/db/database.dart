@@ -30,10 +30,10 @@ class EventsDao extends DatabaseAccessor<AppDatabase> with _$EventsDaoMixin {
     if (events.isEmpty) {
       return;
     }
-    await batch((b) {
-      b.insertAll(
+    await batch((writeBatch) {
+      writeBatch.insertAll(
         this.events,
-        [for (final e in events) _rowFor(e)],
+        [for (final event in events) _rowFor(event)],
         mode: InsertMode.insertOrIgnore,
       );
     });
@@ -45,11 +45,11 @@ class EventsDao extends DatabaseAccessor<AppDatabase> with _$EventsDaoMixin {
   Stream<List<Event>> watchAllEvents() {
     final query = select(events)
       ..orderBy([
-        (t) => OrderingTerm(expression: t.occurredAt),
-        (t) => OrderingTerm(expression: t.eventId),
+        (table) => OrderingTerm(expression: table.occurredAt),
+        (table) => OrderingTerm(expression: table.eventId),
       ]);
     return query.watch().map(
-          (rows) => [for (final r in rows) _eventFromRow(r)],
+          (rows) => [for (final row in rows) _eventFromRow(row)],
         );
   }
 
@@ -57,11 +57,11 @@ class EventsDao extends DatabaseAccessor<AppDatabase> with _$EventsDaoMixin {
   Future<List<Event>> allEvents() async {
     final query = select(events)
       ..orderBy([
-        (t) => OrderingTerm(expression: t.occurredAt),
-        (t) => OrderingTerm(expression: t.eventId),
+        (table) => OrderingTerm(expression: table.occurredAt),
+        (table) => OrderingTerm(expression: table.eventId),
       ]);
     final rows = await query.get();
-    return [for (final r in rows) _eventFromRow(r)];
+    return [for (final row in rows) _eventFromRow(row)];
   }
 
   /// The subset of [ids] that are already in the log. Used by merge-import to
@@ -76,7 +76,7 @@ class EventsDao extends DatabaseAccessor<AppDatabase> with _$EventsDaoMixin {
       ..addColumns([events.eventId])
       ..where(events.eventId.isIn(wanted));
     final rows = await query.get();
-    return {for (final r in rows) r.read(events.eventId)!};
+    return {for (final row in rows) row.read(events.eventId)!};
   }
 
   /// The highest event `rowid` currently stored (0 if the log is empty). rowid is
@@ -100,12 +100,12 @@ class EventsDao extends DatabaseAccessor<AppDatabase> with _$EventsDaoMixin {
       variables: [Variable.withInt(afterRowid)],
       readsFrom: {events},
     ).get();
-    return [for (final r in rows) _eventFromRow(events.map(r.data))];
+    return [for (final row in rows) _eventFromRow(events.map(row.data))];
   }
 
   /// The rowid cursor of the last export (0 if never exported).
   Future<int> lastExportRowid() async {
-    final row = await (select(exportBookmarks)..where((t) => t.id.equals(0)))
+    final row = await (select(exportBookmarks)..where((table) => table.id.equals(0)))
         .getSingleOrNull();
     return row?.lastExportedRowid ?? 0;
   }
@@ -117,24 +117,24 @@ class EventsDao extends DatabaseAccessor<AppDatabase> with _$EventsDaoMixin {
     );
   }
 
-  EventsCompanion _rowFor(Event e) => EventsCompanion.insert(
-        eventId: e.eventId,
-        deviceId: e.deviceId,
-        userId: e.userId,
-        type: e.type,
-        occurredAt: e.occurredAt,
-        createdAt: e.createdAt,
-        payload: jsonEncode(e.payload()),
+  EventsCompanion _rowFor(Event event) => EventsCompanion.insert(
+        eventId: event.eventId,
+        deviceId: event.deviceId,
+        userId: event.userId,
+        type: event.type,
+        occurredAt: event.occurredAt,
+        createdAt: event.createdAt,
+        payload: jsonEncode(event.payload()),
       );
 
-  Event _eventFromRow(EventRow r) => Event.fromJson({
-        'eventId': r.eventId,
-        'deviceId': r.deviceId,
-        'userId': r.userId,
-        'occurredAt': r.occurredAt.toUtc().toIso8601String(),
-        'createdAt': r.createdAt.toUtc().toIso8601String(),
-        'type': r.type,
-        'payload': jsonDecode(r.payload),
+  Event _eventFromRow(EventRow row) => Event.fromJson({
+        'eventId': row.eventId,
+        'deviceId': row.deviceId,
+        'userId': row.userId,
+        'occurredAt': row.occurredAt.toUtc().toIso8601String(),
+        'createdAt': row.createdAt.toUtc().toIso8601String(),
+        'type': row.type,
+        'payload': jsonDecode(row.payload),
       });
 }
 
@@ -155,10 +155,10 @@ class GameEventsDao extends DatabaseAccessor<AppDatabase>
     if (events.isEmpty) {
       return;
     }
-    await batch((b) {
-      b.insertAll(
+    await batch((writeBatch) {
+      writeBatch.insertAll(
         gameEvents,
-        [for (final e in events) _rowFor(e)],
+        [for (final event in events) _rowFor(event)],
         mode: InsertMode.insertOrIgnore,
       );
     });
@@ -167,13 +167,13 @@ class GameEventsDao extends DatabaseAccessor<AppDatabase>
   /// The whole game log in canonical order.
   Future<List<GameEvent>> allGameEvents() async {
     final rows = await _ordered().get();
-    return [for (final r in rows) _eventFromRow(r)];
+    return [for (final row in rows) _eventFromRow(row)];
   }
 
   /// Watches the whole game log in canonical order.
   Stream<List<GameEvent>> watchAllGameEvents() => _ordered()
       .watch()
-      .map((rows) => [for (final r in rows) _eventFromRow(r)]);
+      .map((rows) => [for (final row in rows) _eventFromRow(row)]);
 
   /// The subset of [ids] already in the game log (merge-import preview).
   Future<Set<String>> existingGameEventIds(Iterable<String> ids) async {
@@ -185,7 +185,7 @@ class GameEventsDao extends DatabaseAccessor<AppDatabase>
       ..addColumns([gameEvents.eventId])
       ..where(gameEvents.eventId.isIn(wanted));
     final rows = await query.get();
-    return {for (final r in rows) r.read(gameEvents.eventId)!};
+    return {for (final row in rows) row.read(gameEvents.eventId)!};
   }
 
   /// The highest game-event `rowid` stored (0 if the log is empty); the
@@ -207,13 +207,13 @@ class GameEventsDao extends DatabaseAccessor<AppDatabase>
       variables: [Variable.withInt(afterRowid)],
       readsFrom: {gameEvents},
     ).get();
-    return [for (final r in rows) _eventFromRow(gameEvents.map(r.data))];
+    return [for (final row in rows) _eventFromRow(gameEvents.map(row.data))];
   }
 
   /// The game log's export cursor (0 if never exported).
   Future<int> lastGameExportRowid() async {
     final row = await (select(exportBookmarks)
-          ..where((t) => t.id.equals(kGameExportBookmarkId)))
+          ..where((table) => table.id.equals(kGameExportBookmarkId)))
         .getSingleOrNull();
     return row?.lastExportedRowid ?? 0;
   }
@@ -228,30 +228,30 @@ class GameEventsDao extends DatabaseAccessor<AppDatabase>
   SimpleSelectStatement<$GameEventsTable, GameEventRow> _ordered() =>
       select(gameEvents)
         ..orderBy([
-          (t) => OrderingTerm(expression: t.occurredAt),
-          (t) => OrderingTerm(expression: t.eventId),
+          (table) => OrderingTerm(expression: table.occurredAt),
+          (table) => OrderingTerm(expression: table.eventId),
         ]);
 
-  GameEventsCompanion _rowFor(GameEvent e) => GameEventsCompanion.insert(
-        eventId: e.eventId,
-        deviceId: e.deviceId,
-        actorId: e.actorId,
-        type: e.type,
-        occurredAt: e.occurredAt,
-        createdAt: e.createdAt,
-        schemaVersion: e.schemaVersion,
-        payload: jsonEncode(e.payload()),
+  GameEventsCompanion _rowFor(GameEvent event) => GameEventsCompanion.insert(
+        eventId: event.eventId,
+        deviceId: event.deviceId,
+        actorId: event.actorId,
+        type: event.type,
+        occurredAt: event.occurredAt,
+        createdAt: event.createdAt,
+        schemaVersion: event.schemaVersion,
+        payload: jsonEncode(event.payload()),
       );
 
-  GameEvent _eventFromRow(GameEventRow r) => GameEvent.fromJson({
-        'eventId': r.eventId,
-        'deviceId': r.deviceId,
-        'actorId': r.actorId,
-        'occurredAt': r.occurredAt.toUtc().toIso8601String(),
-        'createdAt': r.createdAt.toUtc().toIso8601String(),
-        'schemaVersion': r.schemaVersion,
-        'type': r.type,
-        'payload': jsonDecode(r.payload),
+  GameEvent _eventFromRow(GameEventRow row) => GameEvent.fromJson({
+        'eventId': row.eventId,
+        'deviceId': row.deviceId,
+        'actorId': row.actorId,
+        'occurredAt': row.occurredAt.toUtc().toIso8601String(),
+        'createdAt': row.createdAt.toUtc().toIso8601String(),
+        'schemaVersion': row.schemaVersion,
+        'type': row.type,
+        'payload': jsonDecode(row.payload),
       });
 }
 
@@ -279,7 +279,7 @@ class GameSyncDao extends DatabaseAccessor<AppDatabase>
   /// The last game `seq` pulled from [hubId] (0 if never pulled).
   Future<int> pullCursor(String hubId) async {
     final row = await (select(gameHubCursors)
-          ..where((t) => t.hubId.equals(hubId)))
+          ..where((table) => table.hubId.equals(hubId)))
         .getSingleOrNull();
     return row?.lastPulledSeq ?? 0;
   }
@@ -297,19 +297,19 @@ class GameSyncDao extends DatabaseAccessor<AppDatabase>
       ..addColumns([gameHubPushLog.eventId])
       ..where(gameHubPushLog.hubId.equals(hubId));
     final query = select(gameEvents)
-      ..where((t) => t.eventId.isNotInQuery(pushed))
+      ..where((table) => table.eventId.isNotInQuery(pushed))
       ..orderBy([
-        (t) => OrderingTerm(expression: t.occurredAt),
-        (t) => OrderingTerm(expression: t.eventId),
+        (table) => OrderingTerm(expression: table.occurredAt),
+        (table) => OrderingTerm(expression: table.eventId),
       ]);
     final rows = await query.get();
-    return [for (final r in rows) db.gameEventsDao._eventFromRow(r)];
+    return [for (final row in rows) db.gameEventsDao._eventFromRow(row)];
   }
 
   /// Marks [eventIds] as pushed to [hubId]. Idempotent.
   Future<void> markPushed(String hubId, Iterable<String> eventIds) async {
-    await batch((b) {
-      b.insertAll(
+    await batch((writeBatch) {
+      writeBatch.insertAll(
         gameHubPushLog,
         [
           for (final id in eventIds)
@@ -328,16 +328,16 @@ class GameSyncDao extends DatabaseAccessor<AppDatabase>
     final assigned = selectOnly(hostedGameEventSeq)
       ..addColumns([hostedGameEventSeq.eventId]);
     final query = select(gameEvents)
-      ..where((t) => t.eventId.isNotInQuery(assigned))
-      ..orderBy([(t) => OrderingTerm(expression: t.eventId)]);
+      ..where((table) => table.eventId.isNotInQuery(assigned))
+      ..orderBy([(table) => OrderingTerm(expression: table.eventId)]);
     final pending = await query.get();
     if (pending.isNotEmpty) {
-      await batch((b) {
-        b.insertAll(
+      await batch((writeBatch) {
+        writeBatch.insertAll(
           hostedGameEventSeq,
           [
-            for (final r in pending)
-              HostedGameEventSeqCompanion.insert(eventId: r.eventId),
+            for (final row in pending)
+              HostedGameEventSeqCompanion.insert(eventId: row.eventId),
           ],
           mode: InsertMode.insertOrIgnore,
         );
@@ -349,8 +349,8 @@ class GameSyncDao extends DatabaseAccessor<AppDatabase>
   /// The highest game `seq` this hub has assigned (0 if none).
   Future<int> maxHostedSeq() async {
     final expr = hostedGameEventSeq.seq.max();
-    final q = selectOnly(hostedGameEventSeq)..addColumns([expr]);
-    final row = await q.getSingleOrNull();
+    final seqQuery = selectOnly(hostedGameEventSeq)..addColumns([expr]);
+    final row = await seqQuery.getSingleOrNull();
     return row?.read(expr) ?? 0;
   }
 
@@ -368,8 +368,8 @@ class GameSyncDao extends DatabaseAccessor<AppDatabase>
         .get();
     return HostedGamePage(
       events: [
-        for (final r in rows)
-          db.gameEventsDao._eventFromRow(r.readTable(gameEvents)),
+        for (final row in rows)
+          db.gameEventsDao._eventFromRow(row.readTable(gameEvents)),
       ],
       cursor: rows.isEmpty ? after : rows.last.read(hostedGameEventSeq.seq)!,
     );
@@ -387,7 +387,7 @@ class SyncDao extends DatabaseAccessor<AppDatabase> with _$SyncDaoMixin {
   /// The last `hub_seq` pulled from [hubId] (0 if never pulled).
   Future<int> pullCursor(String hubId) async {
     final row = await (select(hubCursors)
-          ..where((t) => t.hubId.equals(hubId)))
+          ..where((table) => table.hubId.equals(hubId)))
         .getSingleOrNull();
     return row?.lastPulledSeq ?? 0;
   }
@@ -406,19 +406,19 @@ class SyncDao extends DatabaseAccessor<AppDatabase> with _$SyncDaoMixin {
       ..addColumns([hubPushLog.eventId])
       ..where(hubPushLog.hubId.equals(hubId));
     final query = select(events)
-      ..where((t) => t.eventId.isNotInQuery(pushed))
+      ..where((table) => table.eventId.isNotInQuery(pushed))
       ..orderBy([
-        (t) => OrderingTerm(expression: t.occurredAt),
-        (t) => OrderingTerm(expression: t.eventId),
+        (table) => OrderingTerm(expression: table.occurredAt),
+        (table) => OrderingTerm(expression: table.eventId),
       ]);
     final rows = await query.get();
-    return [for (final r in rows) attachedTo._eventFromRow(r)];
+    return [for (final row in rows) attachedTo._eventFromRow(row)];
   }
 
   /// Marks [eventIds] as pushed to [hubId]. Idempotent on `(hubId, eventId)`.
   Future<void> markPushed(String hubId, Iterable<String> eventIds) async {
-    await batch((b) {
-      b.insertAll(
+    await batch((writeBatch) {
+      writeBatch.insertAll(
         hubPushLog,
         [
           for (final id in eventIds)
@@ -458,7 +458,7 @@ class HubHostDao extends DatabaseAccessor<AppDatabase> with _$HubHostDaoMixin {
   /// (e.g. the e2e harness) pin deterministic values on a fresh database.
   Future<HubConfigRow> ensureConfig({String? hubId, String? pairingSecret}) async {
     final existing =
-        await (select(hubConfigRows)..where((t) => t.id.equals(0)))
+        await (select(hubConfigRows)..where((table) => table.id.equals(0)))
             .getSingleOrNull();
     if (existing != null) {
       return existing;
@@ -478,16 +478,16 @@ class HubHostDao extends DatabaseAccessor<AppDatabase> with _$HubHostDaoMixin {
     final assigned = selectOnly(hostedEventSeq)
       ..addColumns([hostedEventSeq.eventId]);
     final query = select(events)
-      ..where((t) => t.eventId.isNotInQuery(assigned))
-      ..orderBy([(t) => OrderingTerm(expression: t.eventId)]);
+      ..where((table) => table.eventId.isNotInQuery(assigned))
+      ..orderBy([(table) => OrderingTerm(expression: table.eventId)]);
     final pending = await query.get();
     if (pending.isNotEmpty) {
-      await batch((b) {
-        b.insertAll(
+      await batch((writeBatch) {
+        writeBatch.insertAll(
           hostedEventSeq,
           [
-            for (final r in pending)
-              HostedEventSeqCompanion.insert(eventId: r.eventId),
+            for (final row in pending)
+              HostedEventSeqCompanion.insert(eventId: row.eventId),
           ],
           mode: InsertMode.insertOrIgnore,
         );
@@ -499,8 +499,8 @@ class HubHostDao extends DatabaseAccessor<AppDatabase> with _$HubHostDaoMixin {
   /// The highest `seq` this hub has assigned (0 if it hosts nothing yet).
   Future<int> maxSeq() async {
     final expr = hostedEventSeq.seq.max();
-    final q = selectOnly(hostedEventSeq)..addColumns([expr]);
-    final row = await q.getSingleOrNull();
+    final seqQuery = selectOnly(hostedEventSeq)..addColumns([expr]);
+    final row = await seqQuery.getSingleOrNull();
     return row?.read(expr) ?? 0;
   }
 
@@ -520,7 +520,7 @@ class HubHostDao extends DatabaseAccessor<AppDatabase> with _$HubHostDaoMixin {
           ..limit(limit))
         .get();
     final events0 = [
-      for (final r in rows) db.eventsDao._eventFromRow(r.readTable(events)),
+      for (final row in rows) db.eventsDao._eventFromRow(row.readTable(events)),
     ];
     final cursor =
         rows.isEmpty ? after : rows.last.read(hostedEventSeq.seq)!;
@@ -541,7 +541,7 @@ class HubHostDao extends DatabaseAccessor<AppDatabase> with _$HubHostDaoMixin {
   /// Whether [token] is a token this hub issued.
   Future<bool> isValidToken(String token) async {
     final row = await (select(hubDeviceTokens)
-          ..where((t) => t.token.equals(token)))
+          ..where((table) => table.token.equals(token)))
         .getSingleOrNull();
     return row != null;
   }
@@ -555,12 +555,12 @@ class PairedHubDao extends DatabaseAccessor<AppDatabase>
 
   /// All hubs this device syncs with.
   Future<List<PairedHubRow>> all() =>
-      (select(pairedHubs)..orderBy([(t) => OrderingTerm(expression: t.hubId)]))
+      (select(pairedHubs)..orderBy([(table) => OrderingTerm(expression: table.hubId)]))
           .get();
 
   /// Watches the paired hubs for the sync-status UI.
   Stream<List<PairedHubRow>> watch() =>
-      (select(pairedHubs)..orderBy([(t) => OrderingTerm(expression: t.hubId)]))
+      (select(pairedHubs)..orderBy([(table) => OrderingTerm(expression: table.hubId)]))
           .watch();
 
   /// Adds or updates a pairing.
@@ -569,7 +569,7 @@ class PairedHubDao extends DatabaseAccessor<AppDatabase>
 
   /// Forgets a hub (unpairs it).
   Future<void> remove(String hubId) =>
-      (delete(pairedHubs)..where((t) => t.hubId.equals(hubId))).go();
+      (delete(pairedHubs)..where((table) => table.hubId.equals(hubId))).go();
 }
 
 /// Data-access object for device-local setup (timezone, profiles, "me").
@@ -581,15 +581,15 @@ class LocalSetupDao extends DatabaseAccessor<AppDatabase>
   /// The saved setup for this device, or null on a fresh install.
   Future<LocalSetup?> load() async {
     final row = await (select(localSetupRows)
-          ..where((t) => t.id.equals(0)))
+          ..where((table) => table.id.equals(0)))
         .getSingleOrNull();
     return row == null ? null : _fromRow(row);
   }
 
   /// Watches the setup, emitting null until first-run setup completes.
   Stream<LocalSetup?> watch() {
-    final query = select(localSetupRows)..where((t) => t.id.equals(0));
-    return query.watchSingleOrNull().map((r) => r == null ? null : _fromRow(r));
+    final query = select(localSetupRows)..where((table) => table.id.equals(0));
+    return query.watchSingleOrNull().map((row) => row == null ? null : _fromRow(row));
   }
 
   /// Persists (or overwrites) the device-local setup.
@@ -607,11 +607,11 @@ class LocalSetupDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
-  LocalSetup _fromRow(LocalSetupRow r) => LocalSetup(
-        timezone: r.timezone,
-        user1: UserProfile(userId: r.user1Id, name: r.user1Name),
-        user2: UserProfile(userId: r.user2Id, name: r.user2Name),
-        meUserId: r.meUserId,
+  LocalSetup _fromRow(LocalSetupRow row) => LocalSetup(
+        timezone: row.timezone,
+        user1: UserProfile(userId: row.user1Id, name: row.user1Name),
+        user2: UserProfile(userId: row.user2Id, name: row.user2Name),
+        meUserId: row.meUserId,
       );
 }
 
@@ -651,30 +651,30 @@ class AppDatabase extends _$AppDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) => m.createAll(),
-        onUpgrade: (m, from, to) async {
+        onCreate: (migrator) => migrator.createAll(),
+        onUpgrade: (migrator, from, to) async {
           // v2 adds the hub-hosting and client-pairing tables. Nothing in the
           // append-only event log changes, so the upgrade only creates the new
           // bookkeeping tables.
           if (from < 2) {
-            await m.createTable(hostedEventSeq);
-            await m.createTable(hubConfigRows);
-            await m.createTable(hubDeviceTokens);
-            await m.createTable(pairedHubs);
+            await migrator.createTable(hostedEventSeq);
+            await migrator.createTable(hubConfigRows);
+            await migrator.createTable(hubDeviceTokens);
+            await migrator.createTable(pairedHubs);
           }
           // v3 adds the device-local "export since last export" bookmark. Again
           // device-local bookkeeping only; the event log is untouched.
           if (from < 3) {
-            await m.createTable(exportBookmarks);
+            await migrator.createTable(exportBookmarks);
           }
           // v4 adds the guild-hall game's own event log and its sync
           // bookkeeping, in separate tables so the ledger's event log and
           // sync state are untouched.
           if (from < 4) {
-            await m.createTable(gameEvents);
-            await m.createTable(hostedGameEventSeq);
-            await m.createTable(gameHubCursors);
-            await m.createTable(gameHubPushLog);
+            await migrator.createTable(gameEvents);
+            await migrator.createTable(hostedGameEventSeq);
+            await migrator.createTable(gameHubCursors);
+            await migrator.createTable(gameHubPushLog);
           }
         },
       );

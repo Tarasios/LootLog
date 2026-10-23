@@ -21,7 +21,7 @@ import 'advance_model.dart';
 import 'pending_advance_tile.dart';
 import 'warchest_model.dart';
 
-String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+String _capitalize(String text) => text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);
 
 /// This device's name for an adult's own pool: "general savings" (Classic on
 /// the savings rules), "personal spending" (Classic before them) or "gold
@@ -45,7 +45,7 @@ class WarChestScreen extends ConsumerWidget {
     }
     // Classic speaks plain language; Adventure keeps the war-chest flavor.
     final adventure = ref.watch(isAdventureProvider);
-    final title = _cap(Glossary.warChest.label(isAdventure: adventure));
+    final title = _capitalize(Glossary.warChest.label(isAdventure: adventure));
     final ledger = buildWarChestLedger(
       state,
       events,
@@ -54,9 +54,9 @@ class WarChestScreen extends ConsumerWidget {
     );
     final pending =
         state.withdrawals.values
-            .where((w) => w.status == WithdrawalStatus.pending)
+            .where((withdrawal) => withdrawal.status == WithdrawalStatus.pending)
             .toList()
-          ..sort((a, b) => a.purpose.compareTo(b.purpose));
+          ..sort((first, second) => first.purpose.compareTo(second.purpose));
     final advances =
         buildPendingAdvances(state, meUserId: meUserId, userNames: names);
     final actions = ref.watch(householdActionsProvider);
@@ -135,9 +135,9 @@ class WarChestScreen extends ConsumerWidget {
               adventure ? 'Pending writs' : 'Pending withdrawals',
               style: AppText.sectionLabel(context),
             ),
-            for (final w in pending)
+            for (final withdrawal in pending)
               _PendingWrit(
-                writ: w,
+                writ: withdrawal,
                 meUserId: meUserId,
                 names: names,
                 adventure: adventure,
@@ -146,9 +146,9 @@ class WarChestScreen extends ConsumerWidget {
           if (advances.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.lg),
             Text('Borrowing requests', style: AppText.sectionLabel(context)),
-            for (final a in advances)
+            for (final advance in advances)
               PendingAdvanceTile(
-                advance: a,
+                advance: advance,
                 onApprove: (id) => actions?.approveAdvance(id),
                 onCancel: (id) => actions?.cancelAdvance(id),
               ),
@@ -160,7 +160,7 @@ class WarChestScreen extends ConsumerWidget {
               padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
               child: Text('No pool activity yet.'),
             ),
-          for (final e in ledger) _LedgerRow(entry: e),
+          for (final entry in ledger) _LedgerRow(entry: entry),
         ],
       ),
     );
@@ -243,10 +243,10 @@ class WarChestScreen extends ConsumerWidget {
                 initialValue: recipient,
                 decoration: const InputDecoration(labelText: 'Recipient'),
                 items: [
-                  for (final a in adults)
-                    DropdownMenuItem(value: a.id, child: Text(a.name)),
+                  for (final adult in adults)
+                    DropdownMenuItem(value: adult.id, child: Text(adult.name)),
                 ],
-                onChanged: (v) => setSheet(() => recipient = v ?? recipient),
+                onChanged: (value) => setSheet(() => recipient = value ?? recipient),
               ),
               const SizedBox(height: AppSpacing.md),
               TextField(
@@ -574,17 +574,17 @@ class _WritSheetState extends ConsumerState<_WritSheet> {
                 value: 'external',
                 child: Text('External'),
               ),
-              for (final a in ref.watch(partyAdultsProvider))
+              for (final adult in ref.watch(partyAdultsProvider))
                 DropdownMenuItem(
-                  value: 'vault:${a.id}',
-                  child: Text('${a.name}\'s ${_vaultWord(ref)}'),
+                  value: 'vault:${adult.id}',
+                  child: Text('${adult.name}\'s ${_vaultWord(ref)}'),
                 ),
             ],
-            onChanged: (v) => setState(() {
-              if (v == null) return;
-              if (v.startsWith('vault:')) {
+            onChanged: (value) => setState(() {
+              if (value == null) return;
+              if (value.startsWith('vault:')) {
                 _destKind = 'vault';
-                _destUserId = v.substring('vault:'.length);
+                _destUserId = value.substring('vault:'.length);
               } else {
                 _destKind = 'external';
                 _destUserId = null;

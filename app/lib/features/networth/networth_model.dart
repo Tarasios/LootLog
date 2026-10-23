@@ -46,24 +46,24 @@ class AccountHistory {
 /// recorded yet.
 List<BalancePoint> buildNetWorthSeries(Iterable<Event> events) {
   final recs = <AccountBalanceRecorded>[
-    for (final e in events)
-      if (e is AccountBalanceRecorded) e,
-  ]..sort((a, b) {
-      final c = a.occurredAt.compareTo(b.occurredAt);
-      return c != 0 ? c : a.eventId.compareTo(b.eventId);
+    for (final event in events)
+      if (event is AccountBalanceRecorded) event,
+  ]..sort((first, second) {
+      final comparison = first.occurredAt.compareTo(second.occurredAt);
+      return comparison != 0 ? comparison : first.eventId.compareTo(second.eventId);
     });
   final latestByAccount = <String, AccountBalanceRecorded>{};
   final out = <BalancePoint>[];
-  for (final r in recs) {
-    latestByAccount[r.accountId] = r;
+  for (final record in recs) {
+    latestByAccount[record.accountId] = record;
     var total = 0;
-    for (final a in latestByAccount.values) {
-      total += a.kind == AccountKind.debt ? -a.balanceCents : a.balanceCents;
+    for (final account in latestByAccount.values) {
+      total += account.kind == AccountKind.debt ? -account.balanceCents : account.balanceCents;
     }
-    if (out.isNotEmpty && out.last.at == r.occurredAt) {
-      out[out.length - 1] = BalancePoint(at: r.occurredAt, balanceCents: total);
+    if (out.isNotEmpty && out.last.at == record.occurredAt) {
+      out[out.length - 1] = BalancePoint(at: record.occurredAt, balanceCents: total);
     } else {
-      out.add(BalancePoint(at: r.occurredAt, balanceCents: total));
+      out.add(BalancePoint(at: record.occurredAt, balanceCents: total));
     }
   }
   return out;
@@ -73,17 +73,17 @@ List<BalancePoint> buildNetWorthSeries(Iterable<Event> events) {
 /// each account and returned sorted by account name.
 List<AccountHistory> buildAccountHistories(Iterable<Event> events) {
   final byAccount = <String, List<AccountBalanceRecorded>>{};
-  for (final e in events) {
-    if (e is AccountBalanceRecorded) {
-      byAccount.putIfAbsent(e.accountId, () => []).add(e);
+  for (final event in events) {
+    if (event is AccountBalanceRecorded) {
+      byAccount.putIfAbsent(event.accountId, () => []).add(event);
     }
   }
   final out = <AccountHistory>[];
   for (final entry in byAccount.entries) {
     final recs = entry.value
-      ..sort((a, b) {
-        final c = a.occurredAt.compareTo(b.occurredAt);
-        return c != 0 ? c : a.eventId.compareTo(b.eventId);
+      ..sort((first, second) {
+        final comparison = first.occurredAt.compareTo(second.occurredAt);
+        return comparison != 0 ? comparison : first.eventId.compareTo(second.eventId);
       });
     final latest = recs.last;
     out.add(AccountHistory(
@@ -91,11 +91,11 @@ List<AccountHistory> buildAccountHistories(Iterable<Event> events) {
       name: latest.accountName,
       kind: latest.kind,
       points: [
-        for (final r in recs)
-          BalancePoint(at: r.occurredAt, balanceCents: r.balanceCents),
+        for (final record in recs)
+          BalancePoint(at: record.occurredAt, balanceCents: record.balanceCents),
       ],
     ));
   }
-  out.sort((a, b) => a.name.compareTo(b.name));
+  out.sort((first, second) => first.name.compareTo(second.name));
   return out;
 }

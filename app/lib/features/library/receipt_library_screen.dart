@@ -160,8 +160,8 @@ class _ReceiptLibraryScreenState extends ConsumerState<ReceiptLibraryScreen> {
     try {
       final written = await projectReceiptLibrary(root, state, blobs);
       setState(() => _lastResult = 'Wrote ${written.length} files.');
-    } on Object catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Projection failed: $e')));
+    } on Object catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text('Projection failed: $error')));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

@@ -63,19 +63,21 @@ class _ShortfallSheetState extends State<_ShortfallSheet> {
   late String _selected = _defaultSelection();
   int _months = 1;
 
-  ShortfallOptions get o => widget.options;
+  ShortfallOptions get options => widget.options;
 
-  int get _generalAmount => o.generalAvailableCents < o.shortCents
-      ? o.generalAvailableCents
-      : o.shortCents;
+  int get _generalAmount => options.generalAvailableCents < options.shortCents
+      ? options.generalAvailableCents
+      : options.shortCents;
 
   String _defaultSelection() {
-    if (o.generalCoversIt) return 'general';
-    for (final s in o.savingsSources) {
-      if (s.deliveredCents >= o.shortCents) return 'savings:${s.sliceId}';
+    if (options.generalCoversIt) return 'general';
+    for (final source in options.savingsSources) {
+      if (source.deliveredCents >= options.shortCents) {
+        return 'savings:${source.sliceId}';
+      }
     }
-    if (o.canBorrow) return 'borrow';
-    if (o.generalAvailableCents > 0) return 'general';
+    if (options.canBorrow) return 'borrow';
+    if (options.generalAvailableCents > 0) return 'general';
     return 'leave';
   }
 
@@ -84,8 +86,10 @@ class _ShortfallSheetState extends State<_ShortfallSheet> {
     if (_selected == 'borrow') return BorrowAhead(_months);
     if (_selected.startsWith('savings:')) {
       final id = _selected.substring('savings:'.length);
-      final s = o.savingsSources.firstWhere((x) => x.sliceId == id);
-      return CoverFromSavings(id, s.moveCents);
+      final source = options.savingsSources.firstWhere(
+        (candidate) => candidate.sliceId == id,
+      );
+      return CoverFromSavings(id, source.moveCents);
     }
     return const LeaveIt();
   }
@@ -111,7 +115,7 @@ class _ShortfallSheetState extends State<_ShortfallSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final isGoal = o.questId != null;
+    final isGoal = options.questId != null;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -121,7 +125,7 @@ class _ShortfallSheetState extends State<_ShortfallSheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                '${money(o.shortCents)} short',
+                '${money(options.shortCents)} short',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: AppSpacing.xs),
@@ -129,41 +133,39 @@ class _ShortfallSheetState extends State<_ShortfallSheet> {
                 isGoal
                     ? 'This goal doesn’t have enough saved yet. You can top it '
                           'up from your savings.'
-                    : 'This is more than ${o.sliceName ?? 'this budget'} has '
+                    : 'This is more than ${options.sliceName ?? 'this budget'} has '
                           'left, including what’s saved in it. How should the '
                           'rest be covered?',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: AppSpacing.md),
-              if (o.generalAvailableCents > 0)
+              if (options.generalAvailableCents > 0)
                 _option(
                   'general',
                   'From general savings',
-                  o.generalCoversIt
-                      ? 'You have ${money(o.generalAvailableCents)}'
+                  options.generalCoversIt
+                      ? 'You have ${money(options.generalAvailableCents)}'
                       : 'Covers ${money(_generalAmount)} of it — you have '
-                            '${money(o.generalAvailableCents)}',
+                            '${money(options.generalAvailableCents)}',
                 ),
-              for (final s in o.savingsSources)
+              for (final source in options.savingsSources)
                 _option(
-                  'savings:${s.sliceId}',
-                  'From ${s.name} savings',
+                  'savings:${source.sliceId}',
+                  'From ${source.name} savings',
                   [
-                    s.taxCents > 0
-                        ? 'Moves ${money(s.moveCents)} — ${money(s.taxCents)} '
+                    source.taxCents > 0
+                        ? 'Moves ${money(source.moveCents)} — ${money(source.taxCents)} '
                               'to shared savings'
-                        : 'Moves ${money(s.moveCents)}, no tax',
-                    if (s.deliveredCents < o.shortCents)
-                      'covers ${money(s.deliveredCents)} of it',
+                        : 'Moves ${money(source.moveCents)}, no tax',
+                    if (source.deliveredCents < options.shortCents)
+                      'covers ${money(source.deliveredCents)} of it',
                   ].join(' · '),
                 ),
-              if (o.canBorrow)
+              if (options.canBorrow)
                 _option(
                   'borrow',
-                  'Borrow from future ${o.sliceName ?? ''} months'.replaceAll(
-                    '  ',
-                    ' ',
-                  ),
+                  'Borrow from future ${options.sliceName ?? ''} months'
+                      .replaceAll('  ', ' '),
                   'Another adult approves; repaid from the next $_months '
                       'month${_months == 1 ? '' : 's'} of this budget',
                   trailing: Row(

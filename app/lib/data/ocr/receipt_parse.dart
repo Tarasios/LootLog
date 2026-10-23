@@ -108,10 +108,10 @@ ReceiptScan parseReceiptLines(List<String> lines) {
   }
 
   final candidateTotals = byAmount.values.toList()
-    ..sort((a, b) {
-      final byScore = b.score.compareTo(a.score);
+    ..sort((first, second) {
+      final byScore = second.score.compareTo(first.score);
       if (byScore != 0) return byScore;
-      return b.amountCents.compareTo(a.amountCents);
+      return second.amountCents.compareTo(first.amountCents);
     });
 
   return ReceiptScan(
@@ -175,8 +175,8 @@ final RegExp _amountRe = RegExp(
 /// Extracts every plausible money amount on a line, in left-to-right order.
 List<int> _extractAmounts(String line) {
   final out = <int>[];
-  for (final m in _amountRe.allMatches(line)) {
-    final cents = _parseMoneyToken(m.group(0)!);
+  for (final match in _amountRe.allMatches(line)) {
+    final cents = _parseMoneyToken(match.group(0)!);
     if (cents != null) out.add(cents);
   }
   return out;
@@ -187,40 +187,40 @@ List<int> _extractAmounts(String line) {
 /// Handles both `1,234.56` (US: `,` groups, `.` decimal) and `1.234,56`
 /// (European: `.` groups, `,` decimal), normalizing both to `123456` cents.
 int? _parseMoneyToken(String token) {
-  final t = token.replaceAll(RegExp(r'[^\d.,]'), '');
-  if (t.isEmpty) return null;
+  final digits = token.replaceAll(RegExp(r'[^\d.,]'), '');
+  if (digits.isEmpty) return null;
 
-  final hasDot = t.contains('.');
-  final hasComma = t.contains(',');
+  final hasDot = digits.contains('.');
+  final hasComma = digits.contains(',');
   String normalized;
 
   if (hasDot && hasComma) {
     // The right-most separator is the decimal point; the other groups thousands.
-    if (t.lastIndexOf(',') > t.lastIndexOf('.')) {
-      normalized = t.replaceAll('.', '').replaceAll(',', '.');
+    if (digits.lastIndexOf(',') > digits.lastIndexOf('.')) {
+      normalized = digits.replaceAll('.', '').replaceAll(',', '.');
     } else {
-      normalized = t.replaceAll(',', '');
+      normalized = digits.replaceAll(',', '');
     }
   } else if (hasComma) {
-    final parts = t.split(',');
+    final parts = digits.split(',');
     if (parts.length == 2 && parts[1].length == 2) {
       normalized = '${parts[0]}.${parts[1]}'; // European decimal comma
     } else {
-      normalized = t.replaceAll(',', ''); // thousands grouping
+      normalized = digits.replaceAll(',', ''); // thousands grouping
     }
   } else if (hasDot) {
-    final parts = t.split('.');
+    final parts = digits.split('.');
     if (parts.length > 2) {
-      normalized = t.replaceAll('.', ''); // dotted thousands grouping
+      normalized = digits.replaceAll('.', ''); // dotted thousands grouping
     } else if (parts.length == 2 &&
         parts[1].length == 3 &&
         parts[0].length <= 3) {
-      normalized = t.replaceAll('.', ''); // e.g. 1.234 -> 1234
+      normalized = digits.replaceAll('.', ''); // e.g. 1.234 -> 1234
     } else {
-      normalized = t;
+      normalized = digits;
     }
   } else {
-    normalized = t;
+    normalized = digits;
   }
 
   final value = double.tryParse(normalized);
@@ -259,8 +259,8 @@ DateTime? _findDate(List<String> lines) {
   for (final raw in lines) {
     final line = raw.trim();
     if (line.isEmpty) continue;
-    final d = _parseDateFromLine(line);
-    if (d != null) return d;
+    final date = _parseDateFromLine(line);
+    if (date != null) return date;
   }
   return null;
 }
@@ -303,13 +303,13 @@ DateTime? _parseDateFromLine(String line) {
   if (numeric != null) {
     var year = int.parse(numeric.group(3)!);
     if (year < 100) year += 2000;
-    final a = int.parse(numeric.group(1)!);
-    final b = int.parse(numeric.group(2)!);
+    final firstNumber = int.parse(numeric.group(1)!);
+    final secondNumber = int.parse(numeric.group(2)!);
     // Default to North American MM/DD; fall back to DD/MM when unambiguous.
-    if (a > 12 && b <= 12) {
-      return _validDate(year, b, a);
+    if (firstNumber > 12 && secondNumber <= 12) {
+      return _validDate(year, secondNumber, firstNumber);
     }
-    return _validDate(year, a, b) ?? _validDate(year, b, a);
+    return _validDate(year, firstNumber, secondNumber) ?? _validDate(year, secondNumber, firstNumber);
   }
 
   return null;
@@ -325,10 +325,10 @@ int? _monthIndex(String name) {
 
 DateTime? _validDate(int year, int month, int day) {
   if (month < 1 || month > 12 || day < 1 || day > 31) return null;
-  final d = DateTime(year, month, day);
+  final date = DateTime(year, month, day);
   // Reject rollovers like Feb 30 -> Mar 2.
-  if (d.year != year || d.month != month || d.day != day) return null;
-  return d;
+  if (date.year != year || date.month != month || date.day != day) return null;
+  return date;
 }
 
 bool _lineHasDate(String line) => _parseDateFromLine(line) != null;

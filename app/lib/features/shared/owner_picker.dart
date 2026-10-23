@@ -34,11 +34,11 @@ class OwnerPicker extends StatelessWidget {
       spacing: AppSpacing.sm,
       runSpacing: AppSpacing.sm,
       children: [
-        for (final a in adults)
+        for (final adult in adults)
           ChoiceChip(
-            label: Text(a.name),
-            selected: selectedUserId == a.id,
-            onSelected: (_) => onChanged(a.id),
+            label: Text(adult.name),
+            selected: selectedUserId == adult.id,
+            onSelected: (_) => onChanged(adult.id),
           ),
         ChoiceChip(
           avatar: const Icon(Icons.groups_outlined, size: 18),

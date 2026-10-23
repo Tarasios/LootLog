@@ -61,9 +61,9 @@ final rewardsSnapshotProvider = Provider<RewardsSnapshot?>((ref) {
 final grantedRewardsProvider = Provider<List<GameRewardGranted>>((ref) {
   final log = ref.watch(eventLogProvider).value ?? const [];
   return [
-    for (final e in log)
-      if (e is GameRewardGranted) e,
-  ]..sort((a, b) => b.grantedAt.compareTo(a.grantedAt));
+    for (final event in log)
+      if (event is GameRewardGranted) event,
+  ]..sort((first, second) => second.grantedAt.compareTo(first.grantedAt));
 });
 
 /// The renameable Homestead flavour name, from the latest `homestead.flavor`
@@ -71,9 +71,11 @@ final grantedRewardsProvider = Provider<List<GameRewardGranted>>((ref) {
 final homesteadFlavorProvider = Provider<String>((ref) {
   final log = ref.watch(eventLogProvider).value ?? const [];
   String flavor = HomesteadConfig.defaults().flavorName;
-  for (final e in log) {
-    if (e is CosmeticSet && e.key == 'homestead.flavor' && e.value is String) {
-      flavor = e.value! as String;
+  for (final event in log) {
+    if (event is CosmeticSet &&
+        event.key == 'homestead.flavor' &&
+        event.value is String) {
+      flavor = event.value! as String;
     }
   }
   return flavor;
@@ -86,9 +88,10 @@ final homesteadFlavorProvider = Provider<String>((ref) {
 final homesteadConfigProvider = Provider<HomesteadConfig>((ref) {
   final log = ref.watch(eventLogProvider).value ?? const [];
   var stages = HomesteadConfig.defaults().stages;
-  for (final e in log) {
-    if (e is CosmeticSet && e.key == 'homestead.stages') {
-      stages = stagesFromCosmetic(e.value) ?? HomesteadConfig.defaults().stages;
+  for (final event in log) {
+    if (event is CosmeticSet && event.key == 'homestead.stages') {
+      stages =
+          stagesFromCosmetic(event.value) ?? HomesteadConfig.defaults().stages;
     }
   }
   return HomesteadConfig(

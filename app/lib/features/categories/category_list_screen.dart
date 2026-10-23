@@ -23,7 +23,7 @@ class CategoryListScreen extends ConsumerWidget {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     final categories = state.slices.values.toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
+      ..sort((first, second) => first.name.compareTo(second.name));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Budget categories')),
@@ -50,20 +50,20 @@ class CategoryListScreen extends ConsumerWidget {
               itemCount: categories.length,
               separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (context, i) {
-                final s = categories[i];
-                final owner = s.isGroup
+                final category = categories[i];
+                final owner = category.isGroup
                     ? 'Group'
-                    : (names[s.ownerUserId] ?? 'Personal');
-                final mainCat = s.mainCategoryId == null
+                    : (names[category.ownerUserId] ?? 'Personal');
+                final mainCat = category.mainCategoryId == null
                     ? null
-                    : state.mainCategories[s.mainCategoryId];
+                    : state.mainCategories[category.mainCategoryId];
                 final extras = <String>[
                   if (mainCat != null) mainCat.name,
-                  if (!s.isGroup && s.poolTithePct > 0)
-                    '${s.poolTithePct}% to savings',
-                  if (s.emergencyContributionCents > 0)
-                    '${money(s.emergencyContributionCents)} reserve',
-                  if (s.taxDeductibleByDefault) 'tax',
+                  if (!category.isGroup && category.poolTithePct > 0)
+                    '${category.poolTithePct}% to savings',
+                  if (category.emergencyContributionCents > 0)
+                    '${money(category.emergencyContributionCents)} reserve',
+                  if (category.taxDeductibleByDefault) 'tax',
                 ];
                 return ListTile(
                   leading: mainCat != null
@@ -71,17 +71,17 @@ class CategoryListScreen extends ConsumerWidget {
                           radius: 12,
                           backgroundColor: Color(mainCat.colorArgb),
                         )
-                      : Icon(s.isGroup
+                      : Icon(category.isGroup
                           ? Icons.groups_outlined
                           : Icons.person_outline),
-                  title: Text(s.name),
+                  title: Text(category.name),
                   subtitle: Text([owner, ...extras].join(' · ')),
                   trailing: Text(
-                    money(s.limitCents),
+                    money(category.limitCents),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   onTap: () =>
-                      CategoryEditorScreen.open(context, existing: s),
+                      CategoryEditorScreen.open(context, existing: category),
                 );
               },
             ),

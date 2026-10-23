@@ -13,19 +13,19 @@ String _money(int cents) => '\$${Money(cents).format()}';
 /// The warnings to surface for a vacation, most urgent first: over the total
 /// trip budget, then over any single category, then an over-provisioned fund.
 /// Empty when the trip is comfortably within budget.
-List<String> vacationWarnings(VacationState v) {
+List<String> vacationWarnings(VacationState vacation) {
   final warnings = <String>[];
-  if (v.overspent) {
-    warnings.add('Over trip budget by ${_money(v.totalOverspendCents)}');
+  if (vacation.overspent) {
+    warnings.add('Over trip budget by ${_money(vacation.totalOverspendCents)}');
   }
-  for (final c in v.categories) {
-    if (c.overspent) {
-      warnings.add('${c.name} over by ${_money(c.overspendCents)}');
+  for (final category in vacation.categories) {
+    if (category.overspent) {
+      warnings.add('${category.name} over by ${_money(category.overspendCents)}');
     }
   }
-  if (v.fundBalanceCents < 0) {
+  if (vacation.fundBalanceCents < 0) {
     warnings.add(
-      'Reserving ${_money(-v.fundBalanceCents)} more than the fund holds',
+      'Reserving ${_money(-vacation.fundBalanceCents)} more than the fund holds',
     );
   }
   return warnings;
@@ -34,13 +34,13 @@ List<String> vacationWarnings(VacationState v) {
 /// A short line describing how much can still be spent per day for the rest of
 /// the trip, e.g. `"$120.00/day for 6 more days"`. Falls back gracefully once
 /// the trip is over or the budget is exhausted.
-String dailyAllowanceLabel(VacationState v) {
-  if (v.daysRemaining <= 0) {
+String dailyAllowanceLabel(VacationState vacation) {
+  if (vacation.daysRemaining <= 0) {
     return 'Trip over';
   }
-  if (v.totalLeftoverCents <= 0) {
+  if (vacation.totalLeftoverCents <= 0) {
     return 'Budget spent — ${_money(0)}/day left';
   }
-  final days = v.daysRemaining == 1 ? '1 more day' : '${v.daysRemaining} more days';
-  return '${_money(v.dailyAllowanceRemainingCents)}/day for $days';
+  final days = vacation.daysRemaining == 1 ? '1 more day' : '${vacation.daysRemaining} more days';
+  return '${_money(vacation.dailyAllowanceRemainingCents)}/day for $days';
 }

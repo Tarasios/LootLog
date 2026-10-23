@@ -88,20 +88,28 @@ ShortfallOptions? shortfallFor(
 
   switch (target) {
     case SliceCharge(:final sliceId):
-      final cfg = state.slices[sliceId];
-      if (cfg == null || cfg.isGroup || cfg.ownerUserId != meUserId) {
+      final sliceConfig = state.slices[sliceId];
+      if (sliceConfig == null ||
+          sliceConfig.isGroup ||
+          sliceConfig.ownerUserId != meUserId) {
         return null;
       }
-      final sm = state.sliceMonth(sliceId, month);
-      final allowance = sm?.effectiveLimitCents ?? cfg.baseEffectiveLimitCents;
-      final usedAllowance = sm == null
+      final sliceMonth = state.sliceMonth(sliceId, month);
+      final allowance =
+          sliceMonth?.effectiveLimitCents ??
+          sliceConfig.baseEffectiveLimitCents;
+      final usedAllowance = sliceMonth == null
           ? 0
-          : sm.spentCents - sm.coveredCents - sm.fromSavingsCents;
+          : sliceMonth.spentCents -
+                sliceMonth.coveredCents -
+                sliceMonth.fromSavingsCents;
       final freeAllowance = allowance > usedAllowance
           ? allowance - usedAllowance
           : 0;
       final savings =
-          sm?.savingsCents ?? state.categorySavings[sliceId]?.balanceCents ?? 0;
+          sliceMonth?.savingsCents ??
+          state.categorySavings[sliceId]?.balanceCents ??
+          0;
       final short = amountCents - freeAllowance - savings;
       if (short <= 0) return null;
       return ShortfallOptions(
@@ -110,7 +118,7 @@ ShortfallOptions? shortfallFor(
         savingsSources: const [],
         canBorrow: true,
         sliceId: sliceId,
-        sliceName: cfg.name,
+        sliceName: sliceConfig.name,
       );
 
     case QuestCharge(:final questId):
@@ -120,28 +128,31 @@ ShortfallOptions? shortfallFor(
       if (short <= 0) return null;
       final rate = rules.generalRateFor(month);
       final sources = <SavingsSource>[];
-      for (final cfg in state.slices.values) {
-        if (cfg.isGroup || cfg.ownerUserId != meUserId) continue;
-        final pool = state.categorySavings[cfg.sliceId] ?? TaxedBalance.zero;
+      for (final sliceConfig in state.slices.values) {
+        if (sliceConfig.isGroup || sliceConfig.ownerUserId != meUserId) {
+          continue;
+        }
+        final pool =
+            state.categorySavings[sliceConfig.sliceId] ?? TaxedBalance.zero;
         if (pool.balanceCents <= 0) continue;
         final matches =
             quest.mainCategoryId != null &&
-            quest.mainCategoryId == cfg.mainCategoryId;
+            quest.mainCategoryId == sliceConfig.mainCategoryId;
         final destRate = matches ? 0 : rate;
         final move = grossToDeliver(pool, short, destRate);
-        final r = moveTaxed(pool, move, destRate);
+        final moveResult = moveTaxed(pool, move, destRate);
         sources.add(
           SavingsSource(
-            sliceId: cfg.sliceId,
-            name: cfg.name,
+            sliceId: sliceConfig.sliceId,
+            name: sliceConfig.name,
             balanceCents: pool.balanceCents,
             moveCents: move,
-            taxCents: r.topUpCents,
-            deliveredCents: r.delivered.balanceCents,
+            taxCents: moveResult.topUpCents,
+            deliveredCents: moveResult.delivered.balanceCents,
           ),
         );
       }
-      sources.sort((a, b) => a.name.compareTo(b.name));
+      sources.sort((first, second) => first.name.compareTo(second.name));
       return ShortfallOptions(
         shortCents: short,
         generalAvailableCents: general,

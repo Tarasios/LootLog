@@ -97,29 +97,31 @@ int grossToDeliver(
   int destRatePct,
 ) {
   if (targetDeliveredCents <= 0) return 0;
-  int delivered(int x) =>
-      moveTaxed(from, x, destRatePct).delivered.balanceCents;
+  int delivered(int amountCents) =>
+      moveTaxed(from, amountCents, destRatePct).delivered.balanceCents;
   if (delivered(from.balanceCents) < targetDeliveredCents) {
     return from.balanceCents;
   }
-  var lo = 0;
-  var hi = from.balanceCents;
-  while (lo < hi) {
-    final mid = (lo + hi) ~/ 2;
+  var low = 0;
+  var high = from.balanceCents;
+  while (low < high) {
+    final mid = (low + high) ~/ 2;
     if (delivered(mid) >= targetDeliveredCents) {
-      hi = mid;
+      high = mid;
     } else {
-      lo = mid + 1;
+      low = mid + 1;
     }
   }
-  return lo;
+  return low;
 }
 
 /// An advance of [amountCents] repaid over [months] (≥ 1): an even split with
 /// the remainder cents in the first month.
 List<int> advanceTrimSchedule(int amountCents, int months) {
-  final n = months < 1 ? 1 : months;
-  final base = amountCents ~/ n;
-  final rem = amountCents - base * n;
-  return [for (var i = 0; i < n; i++) base + (i == 0 ? rem : 0)];
+  final repaymentMonths = months < 1 ? 1 : months;
+  final base = amountCents ~/ repaymentMonths;
+  final remainder = amountCents - base * repaymentMonths;
+  return [
+    for (var i = 0; i < repaymentMonths; i++) base + (i == 0 ? remainder : 0),
+  ];
 }
