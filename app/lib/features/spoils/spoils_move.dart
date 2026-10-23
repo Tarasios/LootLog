@@ -96,6 +96,30 @@ List<Allocation> allocationsForChoice(SliceLeftover leftover, SpoilsChoice choic
   return [Allocation(destination: destination, amountCents: amount)];
 }
 
+/// A recorded variable actual, part of the confirmed result.
+class TallyResult {
+  const TallyResult({required this.expenseId, required this.actualCents});
+  final String expenseId;
+  final int actualCents;
+}
+
+/// A confirmed per-slice allocation, part of the result.
+class SliceAllocationResult {
+  const SliceAllocationResult({
+    required this.sliceId,
+    required this.allocations,
+  });
+  final String sliceId;
+  final List<Allocation> allocations;
+}
+
+/// Everything the ritual produces on confirm.
+class SpoilsResult {
+  const SpoilsResult({required this.tallies, required this.allocations});
+  final List<TallyResult> tallies;
+  final List<SliceAllocationResult> allocations;
+}
+
 /// What one choice does, in the reducer's numbers.
 class SpoilsMovePreview {
   const SpoilsMovePreview({

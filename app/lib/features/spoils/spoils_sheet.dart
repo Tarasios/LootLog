@@ -18,29 +18,7 @@ import '../../ui/theme.dart';
 import 'spoils_model.dart';
 import 'spoils_move.dart';
 
-/// A recorded variable actual, part of the confirmed result.
-class TallyResult {
-  const TallyResult({required this.expenseId, required this.actualCents});
-  final String expenseId;
-  final int actualCents;
-}
-
-/// A confirmed per-slice allocation, part of the result.
-class SliceAllocationResult {
-  const SliceAllocationResult({
-    required this.sliceId,
-    required this.allocations,
-  });
-  final String sliceId;
-  final List<Allocation> allocations;
-}
-
-/// Everything the ritual produces on confirm.
-class SpoilsResult {
-  const SpoilsResult({required this.tallies, required this.allocations});
-  final List<TallyResult> tallies;
-  final List<SliceAllocationResult> allocations;
-}
+export 'spoils_move.dart' show TallyResult, SliceAllocationResult, SpoilsResult;
 
 /// Where the whole of a slice's leftover is directed. The ritual keeps a single
 /// destination per slice for a fast, legible split; the amount is the entire
