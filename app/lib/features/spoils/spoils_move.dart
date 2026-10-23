@@ -222,7 +222,8 @@ SpoilsMovePreview _previewUnderSavingsRules(SliceLeftover leftover, SpoilsChoice
           sliceMainCategoryId: leftover.mainCategoryId,
           destMainCategoryId: quest.mainCategoryId);
       final move = previewMove(from, amount, rate);
-      return _goalPreview(quest, move.keepCents, move.taxCents, rate == 0);
+      final matched = quest.mainCategoryId != null && quest.mainCategoryId == leftover.mainCategoryId;
+      return _goalPreview(quest, move.keepCents, move.taxCents, matched);
     case SpoilsMove.debt:
       final debt = _debtFor(leftover, choice.overbudgetSliceId);
       if (debt == null) {

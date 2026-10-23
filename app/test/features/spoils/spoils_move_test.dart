@@ -127,6 +127,15 @@ void main() {
       expect(matching.matched, isTrue);
     });
 
+    test('a zero general rate leaves a non-matching goal untaxed but still not matched', () {
+      final preview = previewSpoilsChoice(
+        legacyLeftover(leftoverCents: 5000, tithePct: 10, mainCategoryId: 'food', generalRatePct: 0),
+        const SpoilsChoice(SpoilsMove.goal, questId: 'console'),
+      );
+      expect(preview.taxCents, 0);
+      expect(preview.matched, isFalse, reason: 'matching is about categories, not the rate');
+    });
+
     test('a provisions debt is paid untaxed', () {
       final withProvisions = legacyLeftover(
         leftoverCents: 5000,

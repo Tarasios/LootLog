@@ -33,6 +33,7 @@ void main() {
         await tester.runAsync(harness.store.all) ?? const [],
       );
       expect(state.person(harness.meId).gems, 200 - affordable.priceGems!);
+      expect(state.decor.ownedByPerson[harness.meId]?[affordable.id], 1);
       expect(
         find.text('${affordable.name} is in your inventory.'),
         findsOneWidget,
