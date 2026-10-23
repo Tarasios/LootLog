@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/domain/event.dart';
+import 'package:lootlog/domain/state.dart';
 import 'package:lootlog/domain/value_types.dart';
 import 'package:lootlog/game/config/balance.dart';
 import 'package:lootlog/game/domain/clock.dart';
@@ -636,6 +637,7 @@ class _RecordingMonthEnd implements MonthEndRewards {
     Clock clock, {
     required Party party,
     required GameEventStamp stamp,
+    HouseholdState? household,
   }) {
     calls++;
     return [

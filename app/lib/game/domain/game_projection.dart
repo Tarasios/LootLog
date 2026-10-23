@@ -10,6 +10,7 @@
 library;
 
 import '../../domain/time.dart';
+import '../config/balance.dart';
 import 'game_event.dart';
 import 'game_state.dart';
 import 'game_values.dart';
@@ -47,7 +48,7 @@ GameState applyGameEvent(GameState state, GameEvent event) {
           '${cursor.eventId}; rebuild with projectGameState.');
     }
   }
-  final tx = _Tx(state, event.eventId);
+  final tx = _Tx(state, event.eventId, event.occurredAt);
   _apply(tx, event);
   return tx.build(event);
 }
@@ -283,12 +284,15 @@ void _apply(_Tx tx, GameEvent event) {
 
 /// One event's worth of changes, applied copy-on-write to the prior state.
 class _Tx {
-  _Tx(GameState prior, this.eventId)
+  _Tx(GameState prior, this.eventId, this.at)
       : hall = prior.hall,
         _people = prior.people,
         _warnings = prior.warnings;
 
   final String eventId;
+
+  /// The applied event's instant (Storehouse capacity is read as of it).
+  final DateTime at;
   HallState hall;
   Map<String, PersonState> _people;
   List<GameWarning> _warnings;
@@ -324,18 +328,33 @@ class _Tx {
   }
 
   /// Adds ([sign] = 1) or removes ([sign] = -1) [delta] from the shared pool,
-  /// clamping each kind at zero.
+  /// clamping each kind at zero and, on a credit, at the Storehouse capacity
+  /// (never below what the pool already held).
   void adjustPool(MaterialBundle delta, int sign) {
     if (delta.isEmpty) return;
     final next = Map.of(hall.materials.amounts);
     final short = <String>[];
+    final over = <String>[];
+    final capacity = hall.storageCapacityAt(at);
     for (final e in delta.amounts.entries) {
-      final v = (next[e.key] ?? 0) + sign * e.value;
+      final before = next[e.key] ?? 0;
+      var v = before + sign * e.value;
       if (v < 0) short.add('${e.key.name} ${-v}');
-      next[e.key] = v < 0 ? 0 : v;
+      if (v < 0) v = 0;
+      if (sign > 0 && !Balance.uncappedMaterials.contains(e.key)) {
+        final cap = before > capacity ? before : capacity;
+        if (v > cap) {
+          over.add('${e.key.name} ${v - cap}');
+          v = cap;
+        }
+      }
+      next[e.key] = v;
     }
     if (short.isNotEmpty) {
       warn(GameWarningCode.materialsClamped, short.join(', '));
+    }
+    if (over.isNotEmpty) {
+      warn(GameWarningCode.materialsCapped, over.join(', '));
     }
     hall = hall.copyWith(materials: MaterialBundle(next));
   }
