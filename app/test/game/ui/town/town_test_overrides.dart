@@ -13,6 +13,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lootlog/domain/time.dart';
 import 'package:lootlog/game/assets/asset_registry.dart';
 import 'package:lootlog/game/battle/month_end_battle.dart';
 import 'package:lootlog/game/data/game_providers.dart';
@@ -103,10 +104,13 @@ class TownTestHarness {
   String get partnerId => kPartnerId;
 
   /// Builds the harness: [gems] are credited to Alex as a granted-and-claimed
-  /// reward, [starterClaimed] adds the starter furniture.
+  /// reward, [starterClaimed] adds the starter furniture, and
+  /// [firstBudgetMonth] is the household's first budgeted month (default:
+  /// unknown, so every open month-end counts).
   static Future<TownTestHarness> create({
     int gems = 0,
     bool starterClaimed = false,
+    Month? firstBudgetMonth,
   }) async {
     final catalog = DecorCatalog.fromJson(
       jsonDecode(File('assets/game/catalog.json').readAsStringSync())
@@ -128,13 +132,14 @@ class TownTestHarness {
       store: store,
       catalog: catalog,
       service: service,
-      view: const HallLedgerView(
+      view: HallLedgerView(
         meId: kMeId,
-        adults: [
+        adults: const [
           HallAdult(memberId: kMeId, name: 'Alex', inAdventure: true),
           HallAdult(memberId: kPartnerId, name: 'Sam', inAdventure: true),
         ],
         habitsAvailable: true,
+        firstBudgetMonth: firstBudgetMonth,
       ),
     );
     if (gems > 0) {

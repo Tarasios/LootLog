@@ -170,7 +170,7 @@ class _TownShellState extends ConsumerState<TownShell> {
     final townsfolk = ref.watch(townsfolkProvider);
     final registryLoad = ref.watch(gameAssetRegistryProvider);
     final clock = ref.watch(gameClockProvider);
-    final dungeonOpen = ref.watch(monthEndBattleProvider) != null;
+    final battleWaiting = ref.watch(monthEndBattleProvider) != null;
     final voice = ref.watch(hallVoiceProvider).value ?? HallVoice.empty;
 
     void openTarget(TownTarget target) => switch (target) {
@@ -223,6 +223,16 @@ class _TownShellState extends ConsumerState<TownShell> {
       child: HallTicker(
         builder: (context) {
           final now = clock.now();
+          // The gate opens while leftovers wait to be divided, and also for
+          // a finished month whose spoils chest has not come home yet (the
+          // chest never depends on there being leftovers).
+          final dungeonOpen =
+              battleWaiting ||
+              pendingRitualMonths(
+                me,
+                now,
+                firstBudgetMonth: ledgerView.firstBudgetMonth,
+              ).isNotEmpty;
           final townView = TownView.from(
             game,
             [

@@ -11,17 +11,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/providers.dart';
+import '../../game/ui/dungeon/dungeon_screen.dart';
 import '../../game/ui/game_home.dart' show HallLinks;
 import '../../game/ui/town/town_shell.dart';
 import '../budget_setup/budget_setup_screen.dart';
 import '../entry/expense_entry_screen.dart';
-import '../household_context.dart';
 import '../report/report_screen.dart';
 import '../settings/play_mode.dart';
 import '../settings/play_mode_providers.dart';
-import '../spoils/spoils_model.dart';
-import '../spoils/spoils_screen.dart';
 import 'app_shell.dart';
 import 'loading_screen.dart';
 
@@ -40,22 +37,10 @@ HallLinks ledgerHallLinks(WidgetRef ref, VoidCallback openLedger) => HallLinks(
           ReportScreen.open(context, initialMonth: month),
       planMonth: (context, month) => Navigator.of(context).push<void>(
           MaterialPageRoute(builder: (_) => const BudgetSetupScreen())),
-      divideLeftovers: (context, month) {
-        final state = ref.read(householdStateProvider).value;
-        final me = ref.read(meUserIdProvider);
-        final pending = state != null &&
-            me != null &&
-            buildSpoilsRitual(state,
-                    meUserId: me, userNames: ref.read(userNamesProvider)) !=
-                null;
-        if (!pending) {
-          ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(
-              content: Text('Nothing is waiting to be divided right now: '
-                  'the leftovers are already settled.')));
-          return;
-        }
-        unawaited(openSpoilsRitual(context, ref));
-      },
+      // The hall is Adventure only: dividing leftovers is the month-end
+      // dungeon, which also brings home the spoils chest when the ledger has
+      // nothing left to divide.
+      divideLeftovers: (context, month) => unawaited(DungeonScreen.open(context)),
     );
 
 class HomeGate extends ConsumerWidget {

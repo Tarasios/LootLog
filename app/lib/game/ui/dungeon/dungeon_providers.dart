@@ -20,7 +20,12 @@ final monthEndBattleProvider = Provider<MonthEndBattle?>((ref) {
   final household = ref.watch(householdStateProvider).value;
   final meId = ref.watch(meUserIdProvider);
   if (household == null || meId == null) return null;
-  final ritual = buildSpoilsRitual(household, meUserId: meId, userNames: ref.watch(userNamesProvider));
+  final ritual = buildSpoilsRitual(
+    household,
+    meUserId: meId,
+    userNames: ref.watch(userNamesProvider),
+    asOf: ref.watch(gameClockProvider).now(),
+  );
   return MonthEndBattle.from(ritual, household);
 });
 

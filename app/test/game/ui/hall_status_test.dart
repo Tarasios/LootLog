@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/domain/event.dart';
+import 'package:lootlog/domain/reducer.dart';
 import 'package:lootlog/domain/time.dart';
 import 'package:lootlog/domain/value_types.dart';
 import 'package:lootlog/game/domain/commands/game_commands.dart'
@@ -8,6 +9,8 @@ import 'package:lootlog/game/domain/game_state.dart';
 import 'package:lootlog/game/domain/game_values.dart';
 import 'package:lootlog/game/ui/hall_ledger_view.dart';
 import 'package:lootlog/game/ui/hall_status.dart';
+
+import '../../features/spoils/spoils_fixtures.dart';
 
 void main() {
   final today = CalendarDay(2026, 10, 3);
@@ -65,6 +68,22 @@ void main() {
             now),
         [Month(2026, 8), Month(2026, 9)],
         reason: "only the person's own chest finishes their month");
+  });
+
+  test('months before the household first budgeted are never pending', () {
+    final now = DateTime.utc(2026, 10, 3, 18);
+    const p = PersonState(personId: 'u1');
+    expect(pendingRitualMonths(p, now, firstBudgetMonth: Month(2026, 9)),
+        [Month(2026, 9)]);
+    expect(pendingRitualMonths(p, now, firstBudgetMonth: Month(2026, 10)),
+        isEmpty);
+  });
+
+  test('firstBudgetMonth is the earliest category, or this month without one',
+      () {
+    final now = DateTime.utc(2026, 10, 3, 18);
+    expect(firstBudgetMonth(allOverspentHousehold(), now), Month(2026, 9));
+    expect(firstBudgetMonth(reduce(const [], asOf: now), now), Month(2026, 10));
   });
 
   test('savingsRunMonths counts a live run of saving months only', () {

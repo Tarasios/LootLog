@@ -88,7 +88,8 @@ HallVoice diskVoice() =>
     HallVoice.parse(File(kHallLinesAsset).readAsStringSync());
 
 /// Robin (Adventure, this device) and Sam (Standard: the supply caravan).
-HallLedgerView sampleView({bool habits = true}) => HallLedgerView(
+HallLedgerView sampleView({bool habits = true, Month? firstBudgetMonth}) =>
+    HallLedgerView(
       meId: robin,
       adults: const [
         HallAdult(memberId: robin, name: 'Robin', inAdventure: true),
@@ -105,6 +106,7 @@ HallLedgerView sampleView({bool habits = true}) => HallLedgerView(
       ],
       savingsRunMonths: 4,
       habitsAvailable: habits,
+      firstBudgetMonth: firstBudgetMonth,
     );
 
 /// A lived-in hall: 130 gems, a token, a three-day streak, a Lumberyard that

@@ -51,7 +51,9 @@ class DungeonVoice {
     'dividedNoChest': 'Your leftovers are divided.',
     'headBack': 'Head back to town',
     'saveFailed': "The spoils couldn't be saved just now. Nothing is lost, so please try again.",
-    'chestPending': 'Your leftovers are divided and saved. The spoils chest got stuck at the gate; try again and it will follow you home.',
+    'chestPending': 'Your leftovers are divided and saved. The spoils chest got stuck at the gate; try again now to bring it home.',
+    'nothingToDivide': 'Nothing left to divide for {month} — the party returns with the spoils.',
+    'returnPending': 'The spoils chest got stuck at the gate. Try again now to bring it home.',
   };
 
   /// Parses the JSON document. Keys starting with `_` are comments.

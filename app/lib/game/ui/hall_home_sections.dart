@@ -481,7 +481,8 @@ class RitualCallout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pending = pendingRitualMonths(data.me, data.now);
+    final pending = pendingRitualMonths(data.me, data.now,
+        firstBudgetMonth: data.view.firstBudgetMonth);
     if (pending.isEmpty) return const SizedBox.shrink();
     // The month that just ended.
     final month = pending.last;
@@ -720,7 +721,8 @@ class PlacesPanel extends StatelessWidget {
     } else {
       tripStatus = 'Back from ${HallNames.region(trip.region)} with a report!';
     }
-    final pending = pendingRitualMonths(me, data.now);
+    final pending = pendingRitualMonths(me, data.now,
+        firstBudgetMonth: data.view.firstBudgetMonth);
     return HallSection(
       title: 'Around the hall',
       icon: Icons.signpost_outlined,

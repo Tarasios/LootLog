@@ -68,9 +68,14 @@ List<Month> openRitualMonths(DateTime now) {
 ///
 /// A month is finished once its spoils chest has been granted (the dungeon's
 /// return to town) or, in older logs, once its seasonal boss was fought.
-List<Month> pendingRitualMonths(PersonState person, DateTime now) => [
+/// Months before [firstBudgetMonth] (when given) are never pending: the
+/// household did not budget then.
+List<Month> pendingRitualMonths(PersonState person, DateTime now,
+        {Month? firstBudgetMonth}) =>
+    [
       for (final m in openRitualMonths(now).reversed)
-        if (person.ritual[m]?.boss == null &&
+        if ((firstBudgetMonth == null || !m.isBefore(firstBudgetMonth)) &&
+            person.ritual[m]?.boss == null &&
             !person.seenChestIds.contains(spoilsChestId(person.personId, m)))
           m,
     ];

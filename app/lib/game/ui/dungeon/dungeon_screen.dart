@@ -4,6 +4,11 @@
 /// until "Return to town": then one result goes through the shared spoils
 /// path, followed by the cosmetic spoils chest. Leaving early writes nothing,
 /// so the ledger's own grace-period defaults still apply.
+///
+/// The chest never depends on leftovers or on how they were divided: when the
+/// ledger has nothing left to divide for a finished month (all spent, past
+/// the grace period, or already divided in the ledger) and its chest has not
+/// come home, the dungeon is a short victory that grants only the chest.
 library;
 
 import 'dart:async';
@@ -14,11 +19,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
+import '../../../domain/time.dart';
 import '../../../features/household_context.dart';
 import '../../../features/report/report_screen.dart';
 import '../../../features/spoils/spoils_model.dart';
 import '../../../features/spoils/spoils_move.dart';
 import '../../../ui/format.dart';
+import '../../assets/asset_catalog.dart';
 import '../../assets/asset_key.dart';
 import '../../assets/asset_registry.dart';
 import '../../assets/game_asset_scope.dart';
@@ -26,11 +33,15 @@ import '../../battle/month_end_battle.dart';
 import '../../data/game_providers.dart';
 import '../../domain/decor/catalog.dart';
 import '../../domain/game_state.dart';
+import '../../domain/game_values.dart';
+import '../../game_sprite.dart';
 import '../../scenes/dungeon/dungeon_game.dart';
 import '../../scenes/dungeon/dungeon_scene_view.dart';
 import '../../scenes/pack_atlas.dart';
 import '../../skin_prefs.dart';
 import '../../text_mode/text_battle.dart';
+import '../hall_ledger_view.dart';
+import '../hall_status.dart';
 import 'battle_turn_sheet.dart';
 import 'dungeon_commit.dart';
 import 'dungeon_providers.dart';
@@ -71,6 +82,10 @@ class _DungeonScreenState extends ConsumerState<DungeonScreen> {
 
   /// The ledger is written but the chest has not arrived yet.
   bool _chestPending = false;
+
+  /// With no battle: the finished month whose spoils chest this visit brings
+  /// home. Fixed once chosen, so granting the chest does not change it.
+  Month? _returnMonth;
 
   @override
   void initState() {
@@ -235,10 +250,47 @@ class _DungeonScreenState extends ConsumerState<DungeonScreen> {
     if (mounted) Navigator.of(context).pop();
   }
 
+  /// The oldest finished month still waiting for its spoils chest.
+  Month? _watchReturnMonth() {
+    final game = ref.watch(gameStateProvider).value;
+    final view = ref.watch(hallLedgerViewProvider);
+    final meId = view.meId;
+    if (game == null || meId == null) return null;
+    return pendingRitualMonths(
+      game.person(meId),
+      ref.watch(gameClockProvider).now(),
+      firstBudgetMonth: view.firstBudgetMonth,
+    ).firstOrNull;
+  }
+
+  /// Nothing left to divide in the ledger: brings [month]'s chest home and
+  /// writes nothing to the ledger. A failed chest keeps the screen open with
+  /// a note; the next tap tries again.
+  Future<void> _returnWithSpoils(Month month) async {
+    if (_saving) return;
+    final container = ProviderScope.containerOf(context, listen: false);
+    setState(() => _saving = true);
+    final MonthEndGameOutcome outcome;
+    try {
+      outcome = await finishMonthEndGame(container, month);
+    } on Object {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _chestPending = true;
+      });
+      return;
+    }
+    if (!mounted) return;
+    await showMonthEndCelebration(context, container, outcome, seed: '${month.toKey()}:victory');
+    if (mounted) Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     final battle = _battle;
     final voice = ref.watch(dungeonVoiceProvider).value ?? DungeonVoice.empty;
+    final returnMonth = battle == null ? (_returnMonth ??= _watchReturnMonth()) : null;
     if (ref.watch(adventureTierProvider) == AdventureTier.text && battle != null) {
       // Text tier: the turn-based text battle, fed by the same ritual and
       // written through the same path.
@@ -249,6 +301,14 @@ class _DungeonScreenState extends ConsumerState<DungeonScreen> {
       child: Scaffold(
         appBar: AppBar(title: const Text('The dungeon')),
         body: switch ((battle, _stage)) {
+          (null, _) when returnMonth != null => _SpoilsReturn(
+              headline: voice.line('nothingToDivide',
+                  seed: '${returnMonth.toKey()}:return',
+                  fill: {'month': monthLabel(returnMonth.year, returnMonth.month)}),
+              pendingNote: _chestPending ? voice.line('returnPending') : null,
+              saving: _saving,
+              onReturn: () => unawaited(_returnWithSpoils(returnMonth)),
+            ),
           (null, _) => _GateClosed(line: voice.line('gateClosed')),
           (final MonthEndBattle open, _DungeonStage.upkeep) => UpkeepStep(
               tallies: open.upkeep,
@@ -349,6 +409,37 @@ class _GateClosed extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(padding: const EdgeInsets.all(24), child: Text(line));
+}
+
+/// A finished month with nothing left to divide: the party comes home with
+/// the spoils chest anyway.
+class _SpoilsReturn extends StatelessWidget {
+  const _SpoilsReturn({
+    required this.headline,
+    required this.pendingNote,
+    required this.saving,
+    required this.onReturn,
+  });
+
+  final String headline;
+  final String? pendingNote;
+  final bool saving;
+  final VoidCallback onReturn;
+
+  @override
+  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(24), children: [
+        Center(
+          child: GameSprite.fromKey(GameAssetKeys.chest(ChestType.spoils), label: 'Spoils chest'),
+        ),
+        const SizedBox(height: 16),
+        Text(headline, key: const ValueKey('spoils-return'), style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 16),
+        if (pendingNote case final String note) ...[
+          Text(note, key: const ValueKey('chest-pending')),
+          const SizedBox(height: 8),
+        ],
+        FilledButton(onPressed: saving ? null : onReturn, child: const Text('Return to town')),
+      ]);
 }
 
 /// Under the scene while weapons remain: the last move's line, the next

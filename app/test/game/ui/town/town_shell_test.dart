@@ -150,10 +150,34 @@ void main() {
     TownSceneView scene(WidgetTester tester) =>
         tester.widget<TownSceneView>(find.byKey(const ValueKey('town-scene')));
 
-    testWidgets('with no ritual waiting the gate is not lit', (tester) async {
-      await pumpShell(tester, host(tier: AdventureTier.pixel));
+    testWidgets('with no month-end waiting the gate is not lit', (
+      tester,
+    ) async {
+      // The household only started budgeting this month.
+      await pumpShell(
+        tester,
+        host(
+          tier: AdventureTier.pixel,
+          view: sampleView(firstBudgetMonth: const Month(2026, 10)),
+        ),
+      );
       expect(scene(tester).view.dungeonOpen, isFalse);
     });
+
+    testWidgets(
+      'a finished month whose chest has not come home opens the gate, '
+      'leftovers or not',
+      (tester) async {
+        await pumpShell(
+          tester,
+          host(
+            tier: AdventureTier.pixel,
+            view: sampleView(firstBudgetMonth: const Month(2026, 9)),
+          ),
+        );
+        expect(scene(tester).view.dungeonOpen, isTrue);
+      },
+    );
 
     testWidgets('with a pending ritual the gate glows and opens the dungeon', (
       tester,

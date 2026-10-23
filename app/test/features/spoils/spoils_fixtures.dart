@@ -90,6 +90,16 @@ class TestLedger {
         amountCents: cents,
       ));
 
+  void setting(String key, Object? value) => events.add(SettingChanged(
+        eventId: _nextId(),
+        deviceId: 'd',
+        userId: 'alex',
+        occurredAt: setupInstant,
+        createdAt: setupInstant,
+        key: key,
+        value: value,
+      ));
+
   void allocate(String who, String sliceId, Month month, List<Allocation> lines) {
     final when = month.next().startInstantUtc().add(const Duration(days: 1, hours: 18));
     events.add(LeftoverAllocated(
@@ -153,3 +163,47 @@ SpoilsRitual _ritual(HouseholdState household) =>
   final household = reduce(ledger.events, asOf: ritualInstant);
   return (household, _ritual(household));
 }
+
+/// As [ritualFixture]'s ledger, as a [TestLedger] to add to.
+TestLedger ritualFixtureLedger() => TestLedger()
+  ..adult('alex')
+  ..category('fun', owner: 'alex', limitCents: 20000, mainCategoryId: 'entertainment')
+  ..category('food', owner: 'alex', limitCents: 40000, mainCategoryId: 'food')
+  ..quest('canoe', 130000, ownership: const PersonalParty('alex'), mainCategoryId: 'entertainment')
+  ..buy('alex', 'fun', 5000, dayOf(2026, 9, 10))
+  ..buy('alex', 'food', 30000, dayOf(2026, 9, 12));
+
+/// September with every category overspent (categories start in September,
+/// so the vault is empty): nothing is left to divide.
+HouseholdState allOverspentHousehold() {
+  final ledger = TestLedger()
+    ..adult('alex')
+    ..category('fun', owner: 'alex', limitCents: 20000, mainCategoryId: 'entertainment', since: dayOf(2026, 9, 1))
+    ..category('food', owner: 'alex', limitCents: 40000, mainCategoryId: 'food', since: dayOf(2026, 9, 1))
+    ..buy('alex', 'fun', 25000, dayOf(2026, 9, 10))
+    ..buy('alex', 'food', 45000, dayOf(2026, 9, 12));
+  return reduce(ledger.events, asOf: ritualInstant);
+}
+
+/// [ritualFixture]'s September with a one-day grace period, so on October
+/// 3rd the defaults have already applied.
+HouseholdState pastGraceHousehold() {
+  final ledger = ritualFixtureLedger()..setting('spoilsGraceDays', 1);
+  return reduce(ledger.events, asOf: ritualInstant);
+}
+
+/// [ritualFixture]'s September with both leftovers already divided in the
+/// ledger (the plain sheet, or another surface).
+HouseholdState dividedInLedgerHousehold() {
+  final ledger = ritualFixtureLedger()
+    ..allocate('alex', 'fun', const Month(2026, 9),
+        const [Allocation(destination: Discretionary(), amountCents: 15000)])
+    ..allocate('alex', 'food', const Month(2026, 9),
+        const [Allocation(destination: Discretionary(), amountCents: 10000)]);
+  return reduce(ledger.events, asOf: ritualInstant);
+}
+
+/// [household]'s month-end battle for Alex on October 3rd (null when the
+/// ledger has nothing left to divide).
+SpoilsRitual? ritualOn(HouseholdState household) =>
+    buildSpoilsRitual(household, meUserId: 'alex', userNames: const {'alex': 'Alex'}, asOf: ritualInstant);

@@ -59,6 +59,7 @@ class HallLedgerView {
     this.quests = const [],
     this.savingsRunMonths = 0,
     this.habitsAvailable = false,
+    this.firstBudgetMonth,
   });
 
   /// Nothing known yet (before setup, or while the ledger loads).
@@ -80,6 +81,13 @@ class HallLedgerView {
   /// Whether no-spend check-ins and weekly reconciles can be recorded (the
   /// household adopted the savings rules, so every device understands them).
   final bool habitsAvailable;
+
+  /// The first month the household budgeted in (its earliest category). A
+  /// month-end dungeon is only offered for months from this one on, so a
+  /// brand-new household is never handed chests for months it never
+  /// budgeted. The current month when there are no categories yet; null when
+  /// unknown (no limit).
+  final Month? firstBudgetMonth;
 
   /// [memberId]'s display name, or a neutral fallback.
   String nameOf(String memberId) {
@@ -144,7 +152,19 @@ HallLedgerView buildHallLedgerView({
     savingsRunMonths:
         meId == null ? 0 : savingsRunMonths(log, meId, Month.fromInstant(now)),
     habitsAvailable: householdAcceptsNewEventTypes(state),
+    firstBudgetMonth: firstBudgetMonth(state, now),
   );
+}
+
+/// The household's earliest category month, or the month of [now] when it
+/// has no categories yet.
+Month firstBudgetMonth(HouseholdState state, DateTime now) {
+  Month? earliest;
+  for (final category in state.slices.values) {
+    final created = category.createdMonth;
+    if (earliest == null || created.isBefore(earliest)) earliest = created;
+  }
+  return earliest ?? Month.fromInstant(now);
 }
 
 /// The run of consecutive saving months ending at the latest closed month

@@ -27,8 +27,8 @@ you can replace any of them with better writing without guessing at intent.
 > dashboard, which Adventure no longer has: the town is the home. Nothing loads
 > those five files now. They stay in `app/assets/game/text/` so the lines can be
 > reused, but editing them changes nothing in the app. The live voice is in
-> `hall_lines.json`, `dungeon_lines.json` and `encounter_lines.json`, listed
-> from "Month-end encounter lines" onward.
+> `hall_lines.json` and `dungeon_lines.json`, listed from "Guild hall lines"
+> onward.
 
 ## 1. `purchase_logged.json` — after a purchase is logged
 
@@ -150,27 +150,6 @@ tension, no urgency, nothing that reads as a warning.
 3. Placeholders mid-sentence, never leading, so a missing value degrades
    cleanly.
 4. Keep each set at 8+ lines so repeats stay rare.
-
-## Month-end encounter lines (`encounter_lines.json`)
-
-Shown once per monster in the floor-cleared walkthrough before dividing the
-spoils. Placeholders: `{name}` `{spent}` `{leftover}` `{limit}` `{over}`.
-
-| Group | Trigger | Intended outcome |
-|-------|---------|------------------|
-| `flawless` | Category with a limit and zero spend | Celebrate that NOT spending is the strongest win |
-| `victory` | Spent under the limit | Frame leftover as effort saved, feeding the spoils |
-| `exact` | Spent exactly the limit | Neutral, satisfied close — no shame, no reward inflation |
-| `enraged` | Spent over the limit | Supportive, forward-looking; never blames |
-
-Every line, by group:
-
-| Group | Lines |
-|-------|-------|
-| `flawless` | The {name} monster falls without you lifting a finger — all {leftover} of your strength is saved! <br> {name} didn't even get a swing in. Zero effort spent, {leftover} banked! <br> A flawless victory over {name} — your whole {leftover} guard is intact. |
-| `victory` | {name} takes {spent} damage and crumbles — {leftover} of effort saved for the spoils! <br> Down goes {name} after {spent}. You walk away {leftover} stronger. <br> {name} is felled for {spent} — the remaining {leftover} is yours to divide. |
-| `exact` | {name} falls with your final swing — every coin of {limit} spent, nothing wasted. <br> A hard-fought draw-down: {name} took exactly {limit} to fell. Clean kill. |
-| `enraged` | {name} fought ENRAGED — it took {spent}, {over} past your guard. The party regroups; next floor, we fight smarter. <br> {name} hit harder than planned: {over} beyond the limit. No shame — mark it, plan it, slay it next month. |
 
 ## Guild hall lines (`hall_lines.json`)
 
@@ -578,4 +557,6 @@ present and that nothing shames or blames.
 | `dividedNoChest` | Return to town on a device with no game service yet | Confirm the leftovers are divided | Your leftovers are divided. |
 | `headBack` | Button when nothing was left over | A calm way out, no judgement | Head back to town |
 | `saveFailed` | The ledger write failed (nothing was divided) | Reassure and invite a retry, no blame | The spoils couldn't be saved just now. Nothing is lost, so please try again. |
-| `chestPending` | The leftovers were saved but the chest failed to arrive | Say plainly the money is done, and that retrying brings the chest | Your leftovers are divided and saved. The spoils chest got stuck at the gate; try again and it will follow you home. |
+| `chestPending` | The leftovers were saved but the chest failed to arrive | Say plainly the money is done, and invite a retry now (no promise it happens on its own) | Your leftovers are divided and saved. The spoils chest got stuck at the gate; try again now to bring it home. |
+| `nothingToDivide` | The dungeon opens for a finished month with nothing left to divide in the ledger (all spent, past the grace period, or divided in the ledger). Placeholder `{month}` | The chest never depends on leftovers: celebrate finishing the month either way | Nothing left to divide for {month} — the party returns with the spoils. |
+| `returnPending` | That month's chest failed to arrive | Invite a retry, no blame | The spoils chest got stuck at the gate. Try again now to bring it home. |

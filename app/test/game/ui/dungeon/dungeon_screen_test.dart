@@ -3,10 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lootlog/domain/state.dart';
+import 'package:lootlog/domain/time.dart';
 import 'package:lootlog/features/spoils/spoils_model.dart';
 import 'package:lootlog/features/spoils/spoils_move.dart';
 import 'package:lootlog/game/battle/month_end_battle.dart';
 import 'package:lootlog/game/data/game_providers.dart';
+import 'package:lootlog/game/domain/commands/game_commands.dart' show spoilsChestId;
 import 'package:lootlog/game/domain/game_event.dart';
 import 'package:lootlog/game/domain/game_values.dart';
 import 'package:lootlog/game/skin_prefs.dart';
@@ -57,11 +60,12 @@ Future<(TownTestHarness, List<RecordedWrite>)> pumpDungeon(
   AdventureTier tier = AdventureTier.pixel,
   FlakyOnTimeMonths? onTimeMonths,
   SpoilsWriter? writer,
+  Month? firstBudgetMonth,
 }) async {
   tester.view.physicalSize = const Size(420, 900);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final harness = await TownTestHarness.create();
+  final harness = await TownTestHarness.create(firstBudgetMonth: firstBudgetMonth);
   final writes = <RecordedWrite>[];
   await tester.pumpWidget(ProviderScope(
     overrides: [
@@ -103,8 +107,68 @@ Future<void> strikeEveryWeapon(WidgetTester tester, MonthEndBattle battle) async
 
 void main() {
   testWidgets('a closed gate explains when it opens', (tester) async {
-    await pumpDungeon(tester);
+    // The household started budgeting this month: no month-end is waiting.
+    await pumpDungeon(tester, firstBudgetMonth: const Month(2026, 10));
     expect(find.textContaining('sealed until the month turns'), findsOneWidget);
+  });
+
+  group('the spoils chest never depends on leftovers', () {
+    const september = Month(2026, 9);
+
+    Future<void> expectChestWithoutLedgerWrite(WidgetTester tester, HouseholdState household) async {
+      final battle = MonthEndBattle.from(ritualOn(household), household);
+      expect(battle, isNull, reason: 'the ledger has nothing left to divide');
+      final (harness, writes) = await pumpDungeon(tester, battle: battle, firstBudgetMonth: september);
+      expect(find.byKey(const ValueKey('spoils-return')), findsOneWidget);
+      expect(find.textContaining('September 2026'), findsOneWidget);
+      await tester.tap(find.text('Return to town'));
+      await pumpFrames(tester);
+      expect(writes, isEmpty, reason: 'nothing is written to the ledger');
+      final chests = (await tester.runAsync(harness.store.all))!.whereType<ChestGranted>().toList();
+      expect(chests.single.chestId, spoilsChestId(harness.meId, september));
+      expect(find.text('The spoils are home'), findsOneWidget);
+    }
+
+    testWidgets('an all-overspent month still gets its chest', (tester) async {
+      await expectChestWithoutLedgerWrite(tester, allOverspentHousehold());
+    });
+
+    testWidgets('a month past its grace period still gets its chest', (tester) async {
+      await expectChestWithoutLedgerWrite(tester, pastGraceHousehold());
+    });
+
+    testWidgets('a month divided in the ledger gets its chest through the dungeon', (tester) async {
+      await expectChestWithoutLedgerWrite(tester, dividedInLedgerHousehold());
+    });
+
+    testWidgets('the oldest waiting month comes home first', (tester) async {
+      final (harness, _) = await pumpDungeon(tester);
+      expect(find.textContaining('August 2026'), findsOneWidget);
+      await tester.tap(find.text('Return to town'));
+      await pumpFrames(tester);
+      final chests = (await tester.runAsync(harness.store.all))!.whereType<ChestGranted>().toList();
+      expect(chests.single.chestId, spoilsChestId(harness.meId, const Month(2026, 8)));
+    });
+
+    testWidgets('a failed chest says so and the next tap tries again', (tester) async {
+      final (harness, _) = await pumpDungeon(
+        tester,
+        firstBudgetMonth: september,
+        onTimeMonths: FlakyOnTimeMonths(failures: 1),
+      );
+      await tester.tap(find.text('Return to town'));
+      await pumpFrames(tester);
+      expect(find.byKey(const ValueKey('chest-pending')), findsOneWidget);
+      await tester.tap(find.text('Return to town'));
+      await pumpFrames(tester);
+      final chests = (await tester.runAsync(harness.store.all))!.whereType<ChestGranted>();
+      expect(chests, hasLength(1));
+    });
+
+    testWidgets('the text tier shows the same victory', (tester) async {
+      await pumpDungeon(tester, tier: AdventureTier.text, firstBudgetMonth: september);
+      expect(find.byKey(const ValueKey('spoils-return')), findsOneWidget);
+    });
   });
 
   testWidgets('an open gate shows the scene and the first weapon', (tester) async {
