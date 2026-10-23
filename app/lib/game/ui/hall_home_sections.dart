@@ -352,12 +352,16 @@ class _ScribeRow extends StatelessWidget {
                   style: hallBodyStyle(context, weight: FontWeight.w700)),
               Text('Budgets, the ledger and settings.',
                   style: hallMutedStyle(context)),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: data.onOpenLedger,
+                  icon: const Icon(Icons.menu_book, size: 18),
+                  label: const Text('Open the ledger'),
+                ),
+              ),
             ],
           ),
-        ),
-        TextButton(
-          onPressed: data.onOpenLedger,
-          child: const Text('Open the ledger'),
         ),
       ],
     );

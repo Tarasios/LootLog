@@ -237,6 +237,7 @@ Future<GameCommandResult?> runHallCommand(
   }
   final result = await command(service);
   if (!result.accepted) {
+    messenger?.hideCurrentSnackBar();
     messenger?.showSnackBar(
         SnackBar(content: Text(voice.rejection(result.rejection!))));
   }
