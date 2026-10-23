@@ -32,4 +32,18 @@ void main() {
       expect(catalog.chestPool(rarity), isNotEmpty, reason: rarity.name);
     }
   });
+
+  test('equippable ids follow the naming the projection relies on', () {
+    for (final item in catalog.items) {
+      if (item.kind == DecorKind.outfit) expect(item.id, startsWith('outfit_'));
+      if (item.kind == DecorKind.title) expect(item.id, endsWith('_title'));
+    }
+  });
+
+  test('every purchasable town decoration id starts with town_', () {
+    for (final item in catalog.shopPool) {
+      if (item.kind == DecorKind.townDecor) expect(item.id, startsWith('town_'));
+      if (item.kind != DecorKind.townDecor) expect(item.id, isNot(startsWith('town_')));
+    }
+  });
 }

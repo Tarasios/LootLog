@@ -10,6 +10,7 @@ library;
 
 import '../../domain/time.dart';
 import '../config/balance.dart';
+import 'decor/decor_state.dart';
 import 'game_event.dart';
 import 'game_projection.dart';
 import 'game_values.dart';
@@ -67,6 +68,15 @@ enum GameWarningCode {
   /// A credit would have pushed a material past the Storehouse capacity; the
   /// excess was dropped (typically two devices collecting at once).
   materialsCapped,
+
+  /// An acquisition id already seen; the duplicate grant was ignored.
+  duplicateAcquisition,
+
+  /// Placing a decoration the person has no free copy of; ignored.
+  decorNotOwned,
+
+  /// Storing a placement that does not exist; ignored.
+  unknownPlacement,
 }
 
 /// One recorded inconsistency, tied to the event that caused it.
@@ -515,6 +525,7 @@ class GameState {
     this.people = const {},
     this.warnings = const [],
     this.cursor,
+    this.decor = DecorState.empty,
   });
 
   /// The state before any event: the starting plots unlocked and empty.
@@ -540,6 +551,9 @@ class GameState {
   /// application; not part of equality.
   final GameEvent? cursor;
 
+  /// Decoration inventories, placements and worn outfits and titles.
+  final DecorState decor;
+
   /// [personId]'s state, or an empty person if no event has touched them.
   PersonState person(String personId) =>
       people[personId] ?? PersonState(personId: personId);
@@ -555,12 +569,14 @@ class GameState {
     Map<String, PersonState>? people,
     List<GameWarning>? warnings,
     GameEvent? cursor,
+    DecorState? decor,
   }) =>
       GameState(
         hall: hall ?? this.hall,
         people: people ?? this.people,
         warnings: warnings ?? this.warnings,
         cursor: cursor ?? this.cursor,
+        decor: decor ?? this.decor,
       );
 
   @override
@@ -568,7 +584,8 @@ class GameState {
       other is GameState &&
       other.hall == hall &&
       _mapsEqual(other.people, people) &&
-      _listsEqual(other.warnings, warnings);
+      _listsEqual(other.warnings, warnings) &&
+      other.decor == decor;
 
   @override
   int get hashCode => Object.hash(hall, people.length, warnings.length);
