@@ -1100,4 +1100,4 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
   }
 }
 
-String _cap(String leftover) => leftover.isEmpty ? leftover : leftover[0].toUpperCase() + leftover.substring(1);
+String _cap(String text) => text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);
