@@ -18,6 +18,7 @@ import '../../domain/town/town_view.dart';
 import '../../scenes/town/town_scene_view.dart';
 import '../../skin_prefs.dart';
 import '../building_sheet.dart';
+import '../decor/room_screen.dart';
 import '../decor/shop_screen.dart';
 import '../game_home.dart';
 import '../hall_common.dart';
@@ -37,7 +38,10 @@ Widget buildTownShell(
 }) => TownShell(
   onOpenLedger: onOpenLedger,
   links: links,
-  openers: const TownPlaceOpeners(openShop: ShopScreen.open),
+  openers: const TownPlaceOpeners(
+    openShop: ShopScreen.open,
+    openRoom: RoomScreen.open,
+  ),
 );
 
 class TownShell extends ConsumerStatefulWidget {
