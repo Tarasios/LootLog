@@ -11,6 +11,7 @@ import '../../assets/asset_catalog.dart';
 import '../../assets/asset_registry.dart';
 import '../../assets/game_asset_scope.dart';
 import '../../data/game_providers.dart';
+import '../../domain/commands/decor_commands.dart' show starterAcquisitionId;
 import '../../domain/game_state.dart';
 import '../../domain/game_values.dart';
 import '../../domain/town/town_view.dart';
@@ -69,7 +70,7 @@ class _TownShellState extends ConsumerState<TownShell> {
   /// per visit (the claim is idempotent anyway).
   bool _starterClaimScheduled = false;
 
-  /// Gives a player who owns nothing yet the starter furniture, once the
+  /// Gives a player the starter furniture they have not yet received, once the
   /// catalogue and their game state have loaded. Quiet: never blocks the
   /// scene, and a refusal (already claimed) shows nothing.
   void _claimStarterSetWhenReady(GameState game, String? meId) {
@@ -77,16 +78,30 @@ class _TownShellState extends ConsumerState<TownShell> {
     final catalog = ref.read(decorCatalogProvider).value;
     if (catalog == null || catalog.starterSet.isEmpty) return;
     if (!ref.read(gameStateProvider).hasValue) return;
-    if (game.decor.ownedByPerson[meId]?.isNotEmpty ?? false) return;
+    final starterPending = catalog.starterSet.any(
+      (item) => !game.decor.seenAcquisitionIds.contains(
+        starterAcquisitionId(meId, item.id),
+      ),
+    );
+    if (!starterPending) return;
     _starterClaimScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) => _claimStarterSet());
   }
 
   Future<void> _claimStarterSet() async {
     final service = ref.read(gameCommandsServiceProvider);
-    if (service == null) return;
-    final result = await service.claimStarterSet();
-    if (!result.accepted || !mounted) return;
+    if (service == null) {
+      _starterClaimScheduled = false;
+      return;
+    }
+    try {
+      final result = await service.claimStarterSet();
+      if (!result.accepted || result.events.isEmpty || !mounted) return;
+    } on Object {
+      // Silent: a later rebuild tries again.
+      _starterClaimScheduled = false;
+      return;
+    }
     await showHallCelebration(
       context,
       sprite: GameAssetKeys.chest(ChestType.wood),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/features/settings/play_mode_switch.dart';
+import 'package:lootlog/game/domain/decor/decor_values.dart';
 import 'package:lootlog/game/domain/game_event.dart';
 import 'package:lootlog/game/domain/game_event_store.dart';
 import 'package:lootlog/game/skin_prefs.dart';
@@ -9,7 +10,7 @@ import 'package:lootlog/game/ui/game_home.dart';
 import 'package:lootlog/game/ui/town/town_place_openers.dart';
 import 'package:lootlog/game/ui/town/town_shell.dart';
 
-import '../hall_harness.dart' show FixedTier, sampleEvents, storeWith;
+import '../hall_harness.dart' show FixedTier, before, sampleEvents, storeWith;
 import 'town_test_overrides.dart';
 
 /// Counts toggles instead of writing the tier file.
@@ -206,6 +207,37 @@ void main() {
       expect(acquired.every((event) => event.actorId == harness.meId), isTrue);
       expect(find.text('Welcome home'), findsOneWidget);
     });
+
+    testWidgets(
+      'a player who already owns a chest item still gets the starter set',
+      (tester) async {
+        final harness = await TownTestHarness.create();
+        await tester.runAsync(
+          () => harness.store.append([
+            ItemAcquired(
+              eventId: 'c0001',
+              deviceId: 'test',
+              actorId: harness.meId,
+              occurredAt: before(const Duration(days: 1)),
+              createdAt: before(const Duration(days: 1)),
+              acquisitionId: 'chest:c0001',
+              itemId: 'plant_pot',
+              source: DecorSource.chest,
+            ),
+          ]),
+        );
+        await pumpShell(tester, starterHost(harness, AdventureTier.pixel));
+        await pumpUi(tester);
+        final acquired = await starterEvents(tester, harness);
+        expect(
+          acquired
+              .where((event) => event.source == DecorSource.starter)
+              .map((event) => event.itemId),
+          harness.catalog.starterItemIds,
+        );
+        expect(find.text('Welcome home'), findsOneWidget);
+      },
+    );
 
     testWidgets(
       'a player who already has the starter set is not given it twice',

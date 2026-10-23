@@ -12,7 +12,7 @@ void main() {
   testWidgets(
     'shows six items with prices; buying one spends gems and celebrates',
     (tester) async {
-      final harness = await TownTestHarness.create(gems: 40);
+      final harness = await TownTestHarness.create(gems: 200);
       await tester.pumpWidget(
         ProviderScope(
           overrides: harness.overrides(tier: AdventureTier.pixel),
@@ -26,13 +26,13 @@ void main() {
         expect(find.byKey(ValueKey('decor-name-${item.id}')), findsOneWidget);
         expect(find.text(item.name), findsWidgets);
       }
-      final affordable = shop.firstWhere((item) => item.priceGems! <= 40);
+      final affordable = shop.first;
       await tester.tap(find.byKey(ValueKey('buy-${affordable.id}')));
       await tester.pumpAndSettle();
       final state = projectGameState(
         await tester.runAsync(harness.store.all) ?? const [],
       );
-      expect(state.person(harness.meId).gems, 40 - affordable.priceGems!);
+      expect(state.person(harness.meId).gems, 200 - affordable.priceGems!);
       expect(
         find.text('${affordable.name} is in your inventory.'),
         findsOneWidget,
