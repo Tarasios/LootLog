@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -487,7 +488,9 @@ void main() {
         tester.widget<TownSceneView>(find.byKey(const ValueKey('town-scene')));
 
     void logAPurchase(WidgetTester tester) =>
-        ProviderScope.containerOf(tester.element(find.byType(TownShell)))
+        ProviderScope.containerOf(
+          tester.element(find.byType(TownShell, skipOffstage: false)),
+        )
             .read(testLoggedPurchasesProvider.notifier)
             .log();
 
@@ -552,6 +555,32 @@ void main() {
       logAPurchase(tester);
       await pumpUi(tester);
       final pulse = scene(tester).logPulse!;
+      expect(pulse.personId, robin);
+      expect(pulse.gems, 0);
+    });
+
+    testWidgets('a log made under a covering screen plays once the town is back', (
+      tester,
+    ) async {
+      await pumpLive(tester);
+      final navigator = Navigator.of(tester.element(find.byType(TownShell)));
+      unawaited(
+        navigator.push(
+          MaterialPageRoute<void>(
+            builder: (_) => const Scaffold(body: Text('entry screen')),
+          ),
+        ),
+      );
+      await pumpUi(tester);
+      TownSceneView coveredScene() => tester.widget<TownSceneView>(
+        find.byKey(const ValueKey('town-scene'), skipOffstage: false),
+      );
+      logAPurchase(tester);
+      await pumpUi(tester);
+      expect(coveredScene().logPulse, isNull, reason: 'held while covered');
+      navigator.pop();
+      await pumpUi(tester);
+      final pulse = coveredScene().logPulse!;
       expect(pulse.personId, robin);
       expect(pulse.gems, 0);
     });

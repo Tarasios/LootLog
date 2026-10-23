@@ -113,9 +113,36 @@ class _TownShellState extends ConsumerState<TownShell> {
       );
       return;
     }
-    setState(
-      () => _logPulse = LogPulse(personId: meId, gems: gems, sequence: ++_pulseSequence),
-    );
+    if (!_townIsCurrent) {
+      // A screen (the entry screen, say) covers the town and the scene keeps
+      // ticking underneath: hold the celebration until the town is back.
+      _heldLog = (personId: meId, gems: (_heldLog?.gems ?? 0) + gems);
+      return;
+    }
+    _playLog(meId, gems);
+  }
+
+  void _playLog(String personId, int gems) => setState(
+    () => _logPulse = LogPulse(personId: personId, gems: gems, sequence: ++_pulseSequence),
+  );
+
+  /// Whether the town's route is on top, as of the last build. The build
+  /// depends on the route, so a covering route's pop rebuilds it.
+  bool _townIsCurrent = true;
+
+  /// A log celebrated while the town was covered, waiting to play.
+  ({String personId, int gems})? _heldLog;
+
+  /// Notes whether the town is on top and, once it is again, plays a held
+  /// celebration after this frame.
+  void _trackRoute() {
+    _townIsCurrent = ModalRoute.of(context)?.isCurrent ?? true;
+    final held = _heldLog;
+    if (!_townIsCurrent || held == null) return;
+    _heldLog = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _playLog(held.personId, held.gems);
+    });
   }
 
   void _listenForLogs() {
@@ -200,6 +227,7 @@ class _TownShellState extends ConsumerState<TownShell> {
 
   @override
   Widget build(BuildContext context) {
+    _trackRoute();
     _listenForLogs();
     final onOpenLedger = widget.onOpenLedger;
     final links = widget.links;
