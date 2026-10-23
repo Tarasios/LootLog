@@ -33,9 +33,11 @@ class TownGame extends FlameGame {
   final PackAtlas atlas;
   final bool ambientLife;
 
+  final List<Villager> _townsfolkVillagers = [];
+
   /// Dependents and pets who stroll beside the default villagers (only with
   /// [ambientLife]).
-  final List<TownsfolkEntry> townsfolk;
+  List<TownsfolkEntry> townsfolk;
   final CameraControls cameraControls;
   TownView _view;
   final List<Component> _plotsAndHouses = [];
@@ -128,18 +130,31 @@ class TownGame extends FlameGame {
     for (var index = 0; index < townsfolk.length; index++) {
       final entry = townsfolk[index];
       final column = firstColumn + (index % stepsOnPath) * spacingTiles;
-      await world.add(
-        Villager(
-          atlas: atlas,
-          position: cellPosition(TownCell(column, pathRow)),
-          villagerKey: entry.isPet
-              ? const AssetKey('npc', 'pet', 'default')
-              : const AssetKey('npc', 'villager', 'a'),
-          wanderTiles: wanderTiles,
-          label: entry.name,
-        ),
+      final villager = Villager(
+        atlas: atlas,
+        position: cellPosition(TownCell(column, pathRow)),
+        villagerKey: entry.isPet
+            ? const AssetKey('npc', 'pet', 'default')
+            : const AssetKey('npc', 'villager', 'a'),
+        wanderTiles: wanderTiles,
+        label: entry.name,
       );
+      _townsfolkVillagers.add(villager);
+      await world.add(villager);
     }
+  }
+
+  /// Replaces the strolling dependents and pets with [townsfolk]; the default
+  /// villagers stay. Before the scene has loaded, only the list is stored (the
+  /// load draws it).
+  Future<void> updateTownsfolk(List<TownsfolkEntry> townsfolk) async {
+    this.townsfolk = townsfolk;
+    if (!ambientLife || !isLoaded) return;
+    for (final villager in _townsfolkVillagers) {
+      villager.removeFromParent();
+    }
+    _townsfolkVillagers.clear();
+    await _addTownsfolk();
   }
 
   /// Replaces the plots and houses with [view]'s.

@@ -69,4 +69,42 @@ void main() {
     final view = TownView.from(GameState.initial(), adults, startedAt);
     expect(view.targetAt(TownLayout.standard.houseOrigins[4]), isNull);
   });
+
+  group('value equality', () {
+    test('two views built from the same inputs are equal', () {
+      final first = TownView.from(GameState.initial(), adults, startedAt);
+      final second = TownView.from(GameState.initial(), adults, startedAt);
+      expect(identical(first, second), isFalse);
+      expect(second, first);
+      expect(second.hashCode, first.hashCode);
+    });
+
+    test('a building going up makes the view differ', () {
+      final empty = TownView.from(GameState.initial(), adults, startedAt);
+      final game = projectGameState([lumberyardOnPlotZero(completesAt: startedAt)]);
+      expect(TownView.from(game, adults, startedAt), isNot(empty));
+    });
+
+    test('a construction finishing differs from the same view before it ends', () {
+      final endsAt = startedAt.add(const Duration(hours: 1));
+      final game = projectGameState([lumberyardOnPlotZero(completesAt: endsAt)]);
+      final during = TownView.from(game, adults, startedAt.add(const Duration(minutes: 10)));
+      final after = TownView.from(game, adults, endsAt.add(const Duration(minutes: 1)));
+      expect(after, isNot(during));
+    });
+
+    test('a renamed or re-moded resident makes the view differ', () {
+      final base = TownView.from(GameState.initial(), adults, startedAt);
+      final renamed = TownView.from(GameState.initial(), [
+        const TownAdult(memberId: 'alex', name: 'Alexa', inAdventure: true),
+        adults.last,
+      ], startedAt);
+      final switched = TownView.from(GameState.initial(), [
+        adults.first,
+        const TownAdult(memberId: 'sam', name: 'Sam', inAdventure: true),
+      ], startedAt);
+      expect(renamed, isNot(base));
+      expect(switched, isNot(base));
+    });
+  });
 }

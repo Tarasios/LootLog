@@ -6,6 +6,7 @@ import 'dart:async';
 
 import 'package:flame/cache.dart';
 import 'package:flame/game.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 
@@ -50,8 +51,11 @@ class _TownSceneViewState extends State<TownSceneView> {
   @override
   void didUpdateWidget(TownSceneView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.view, widget.view)) {
+    if (oldWidget.view != widget.view) {
       unawaited(_game.updateView(widget.view));
+    }
+    if (!listEquals(oldWidget.townsfolk, widget.townsfolk)) {
+      unawaited(_game.updateTownsfolk(widget.townsfolk));
     }
   }
 

@@ -72,6 +72,30 @@ class TownPlotView {
   final bool underConstruction;
   final DateTime? completesAt;
   final bool readyToCollect;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TownPlotView &&
+      other.plotIndex == plotIndex &&
+      other.origin == origin &&
+      other.unlocked == unlocked &&
+      other.buildingType == buildingType &&
+      other.tier == tier &&
+      other.underConstruction == underConstruction &&
+      other.completesAt == completesAt &&
+      other.readyToCollect == readyToCollect;
+
+  @override
+  int get hashCode => Object.hash(
+        plotIndex,
+        origin,
+        unlocked,
+        buildingType,
+        tier,
+        underConstruction,
+        completesAt,
+        readyToCollect,
+      );
 }
 
 class TownResident {
@@ -89,6 +113,17 @@ class TownResident {
   /// named as missing or blamed (design rule 7).
   final bool inAdventure;
   final TownCell houseOrigin;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TownResident &&
+      other.personId == personId &&
+      other.name == name &&
+      other.inAdventure == inAdventure &&
+      other.houseOrigin == houseOrigin;
+
+  @override
+  int get hashCode => Object.hash(personId, name, inAdventure, houseOrigin);
 }
 
 class TownView {
@@ -146,6 +181,26 @@ class TownView {
       cell.column < origin.column + TownLayout.footprint &&
       cell.row >= origin.row &&
       cell.row < origin.row + TownLayout.footprint;
+
+  /// Equal when it draws the same town, so the scene only rebuilds on a
+  /// real change, not on every fresh read-model.
+  @override
+  bool operator ==(Object other) =>
+      other is TownView &&
+      other.layout == layout &&
+      _sameItems(other.plots, plots) &&
+      _sameItems(other.residents, residents);
+
+  @override
+  int get hashCode => Object.hash(layout, Object.hashAll(plots), Object.hashAll(residents));
+
+  static bool _sameItems<T>(List<T> first, List<T> second) {
+    if (first.length != second.length) return false;
+    for (var index = 0; index < first.length; index++) {
+      if (first[index] != second[index]) return false;
+    }
+    return true;
+  }
 
   /// What a tap on [cell] means, or null for scenery.
   TownTarget? targetAt(TownCell cell) {

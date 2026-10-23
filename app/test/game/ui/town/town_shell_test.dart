@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/features/settings/play_mode_switch.dart';
+import 'package:lootlog/game/domain/game_event_store.dart';
 import 'package:lootlog/game/skin_prefs.dart';
 import 'package:lootlog/game/ui/game_home.dart';
 import 'package:lootlog/game/ui/town/town_place_openers.dart';
 import 'package:lootlog/game/ui/town/town_shell.dart';
 
-import '../hall_harness.dart' show FixedTier;
+import '../hall_harness.dart' show FixedTier, sampleEvents, storeWith;
 import 'town_test_overrides.dart';
 
 /// Counts toggles instead of writing the tier file.
@@ -21,14 +22,22 @@ class RecordingTier extends FixedTier {
 
 Widget host({
   required AdventureTier tier,
+  VoidCallback? onOpenLedger,
   HallLinks links = const HallLinks(),
+  InMemoryGameEventStore? liveStore,
+  bool registryFails = false,
   TownPlaceOpeners openers = const TownPlaceOpeners(),
   AdventureTierNotifier? tierNotifier,
 }) => ProviderScope(
-  overrides: townTestOverrides(tier: tier, tierNotifier: tierNotifier),
+  overrides: townTestOverrides(
+    tier: tier,
+    tierNotifier: tierNotifier,
+    liveStore: liveStore,
+    registryFails: registryFails,
+  ),
   child: MaterialApp(
     home: TownShell(
-      onOpenLedger: () {},
+      onOpenLedger: onOpenLedger ?? () {},
       links: links,
       openers: openers,
       ambientLife: false,
@@ -139,5 +148,55 @@ void main() {
     await tester.tap(find.text('Inbox'));
     await pumpUi(tester);
     expect(find.text('Wood chest'), findsOneWidget);
+  });
+
+  testWidgets('Log a purchase falls back to the ledger when no entry link is wired', (
+    tester,
+  ) async {
+    var ledgerOpened = 0;
+    await pumpShell(
+      tester,
+      host(tier: AdventureTier.pixel, onOpenLedger: () => ledgerOpened++),
+    );
+    await tester.tap(find.text('Log a purchase'));
+    expect(ledgerOpened, 1);
+  });
+
+  testWidgets('a registry that fails to load falls back to bundled art and still shows the scene', (
+    tester,
+  ) async {
+    await pumpShell(tester, host(tier: AdventureTier.pixel, registryFails: true));
+    expect(find.byKey(const ValueKey('town-scene')), findsOneWidget);
+  });
+
+  group('the Inbox sheet stays live', () {
+    Future<void> pumpLiveShell(WidgetTester tester) async {
+      final store = await tester.runAsync(() => storeWith(sampleEvents()));
+      await pumpShell(tester, host(tier: AdventureTier.pixel, liveStore: store));
+      await tester.tap(find.text('Inbox'));
+      await pumpUi(tester);
+    }
+
+    testWidgets('opening a chest removes its row', (tester) async {
+      await pumpLiveShell(tester);
+      expect(find.widgetWithText(FilledButton, 'Open'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Open'));
+      await pumpUi(tester);
+      await tester.tap(find.text('Huzzah!'));
+      await pumpUi(tester);
+
+      expect(find.widgetWithText(FilledButton, 'Open'), findsNothing);
+    });
+
+    testWidgets('claiming a reward removes its row', (tester) async {
+      await pumpLiveShell(tester);
+      expect(find.widgetWithText(FilledButton, 'Claim'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Claim'));
+      await pumpUi(tester);
+
+      expect(find.widgetWithText(FilledButton, 'Claim'), findsNothing);
+    });
   });
 }

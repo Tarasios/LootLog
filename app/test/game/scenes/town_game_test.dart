@@ -161,4 +161,31 @@ void main() {
       expect(game.world.children.whereType<Villager>(), isEmpty);
     },
   );
+
+  testWithGame<TownGame>(
+    'updateTownsfolk replaces the strollers and keeps the default villagers',
+    () => buildGame(ambientLife: true, townsfolk: household),
+    (game) async {
+      await game.ready();
+      await game.updateTownsfolk(const [(name: 'Rex', isPet: true)]);
+      await game.ready();
+      final villagers = game.world.children.whereType<Villager>().toList();
+      expect(villagers, hasLength(3));
+      expect(villagers.skip(2).single.label, 'Rex');
+      await game.updateTownsfolk(const []);
+      await game.ready();
+      expect(game.world.children.whereType<Villager>(), hasLength(2));
+    },
+  );
+
+  testWithGame<TownGame>(
+    'updateTownsfolk does nothing while ambient life is off',
+    buildGame,
+    (game) async {
+      await game.ready();
+      await game.updateTownsfolk(household);
+      await game.ready();
+      expect(game.world.children.whereType<Villager>(), isEmpty);
+    },
+  );
 }

@@ -15,22 +15,30 @@ import 'package:lootlog/game/ui/town/town_townsfolk.dart';
 
 import '../hall_harness.dart';
 
-/// The hall harness overrides plus [game] (default: the lived-in sample hall),
+/// The hall harness overrides plus [game] (default: the lived-in sample hall;
+/// or, with a [liveStore], the state projected live from that log so commands
+/// show up),
 /// no townsfolk (unless given), and [registry] (default: [AssetRegistry.empty], so every
 /// sprite is a labelled placeholder and no image is decoded).
 List<Override> townTestOverrides({
   required AdventureTier tier,
   GameState? game,
+  InMemoryGameEventStore? liveStore,
+  bool registryFails = false,
   AssetRegistry registry = AssetRegistry.empty,
   List<TownsfolkEntry> townsfolk = const [],
   AdventureTierNotifier? tierNotifier,
 }) {
   final state = game ?? projectGameState(sampleEvents());
   return [
-    ...hallOverrides(store: InMemoryGameEventStore(), tier: tier, registry: registry,
+    ...hallOverrides(
+      store: liveStore ?? InMemoryGameEventStore(),
+      tier: tier,
+      registry: registry,
+      registryFails: registryFails,
       tierNotifier: tierNotifier,
     ),
-    gameStateProvider.overrideWith((ref) => Stream.value(state)),
+    if (liveStore == null) gameStateProvider.overrideWith((ref) => Stream.value(state)),
     townsfolkProvider.overrideWithValue(townsfolk),
   ];
 }

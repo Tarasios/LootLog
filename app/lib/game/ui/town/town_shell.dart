@@ -18,11 +18,10 @@ import '../../skin_prefs.dart';
 import '../building_sheet.dart';
 import '../game_home.dart';
 import '../hall_common.dart';
-import '../hall_home_sections.dart';
 import '../hall_ledger_view.dart';
 import '../hall_status.dart';
-import '../hall_voice.dart';
 import 'town_bottom_bar.dart';
+import 'town_inbox_sheet.dart';
 import 'town_place_openers.dart';
 import 'town_top_bar.dart';
 import 'town_townsfolk.dart';
@@ -62,7 +61,6 @@ class TownShell extends ConsumerWidget {
 
     final game = ref.watch(gameStateProvider).value ?? GameState.initial();
     final ledgerView = ref.watch(hallLedgerViewProvider);
-    final voice = ref.watch(hallVoiceProvider).value ?? HallVoice.empty;
     final townsfolk = ref.watch(townsfolkProvider);
     final registryLoad = ref.watch(gameAssetRegistryProvider);
     final clock = ref.watch(gameClockProvider);
@@ -92,25 +90,7 @@ class TownShell extends ConsumerWidget {
               ),
     };
 
-    void openInbox() => showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (sheetContext) => HallScope(
-        child: SingleChildScrollView(
-          child: InboxPanel(
-            HallHomeData(
-              game: game,
-              view: ledgerView,
-              voice: voice,
-              now: clock.now(),
-              onOpenLedger: onOpenLedger,
-              links: links,
-            ),
-          ),
-        ),
-      ),
-    );
+    void openInbox() => showTownInbox(context, onOpenLedger: onOpenLedger, links: links);
 
     void logPurchase() {
       final openEntry = links.logPurchase;
@@ -146,7 +126,7 @@ class TownShell extends ConsumerWidget {
             body: Stack(
               children: [
                 Positioned.fill(
-                  child: registryLoad.isLoading
+                  child: registryLoad.isLoading && !registryLoad.hasValue
                       // The scene reads its art once, so wait for the registry.
                       ? const ColoredBox(color: Color(0xFF30346D))
                       : TownSceneView(

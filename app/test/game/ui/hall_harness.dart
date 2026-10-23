@@ -173,6 +173,7 @@ List<Override> hallOverrides({
   AdventureTier tier = AdventureTier.text,
   HallHabits? habits,
   AssetRegistry registry = AssetRegistry.bundled,
+  bool registryFails = false,
   AdventureTierNotifier? tierNotifier,
 }) {
   var ids = 0;
@@ -191,7 +192,10 @@ List<Override> hallOverrides({
     hallVoiceProvider.overrideWith((ref) async => diskVoice()),
     hallHabitsProvider.overrideWithValue(habits ?? FakeHabits()),
     adventureTierProvider.overrideWith(() => tierNotifier ?? FixedTier(tier)),
-    gameAssetRegistryProvider.overrideWith((ref) async => registry),
+    gameAssetRegistryProvider.overrideWith((ref) async {
+      if (registryFails) throw StateError('asset manifest unreadable');
+      return registry;
+    }),
   ];
 }
 
