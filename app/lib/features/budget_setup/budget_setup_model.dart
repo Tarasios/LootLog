@@ -45,7 +45,7 @@ class SetupColumn {
   final List<SetupSlice> slices;
 
   int get totalLimitCents =>
-      slices.fold<int>(0, (a, s) => a + s.effectiveLimitCents);
+      slices.fold<int>(0, (sum, slice) => sum + slice.effectiveLimitCents);
 }
 
 /// The whole setup view for a month.
@@ -68,44 +68,44 @@ BudgetSetupModel buildBudgetSetupModel(
   required Month month,
   required List<String> orderedUserIds,
 }) {
-  SetupSlice toSetup(SliceConfig cfg) {
-    final sm = state.sliceMonth(cfg.sliceId, month);
+  SetupSlice toSetup(SliceConfig sliceConfig) {
+    final sliceMonth = state.sliceMonth(sliceConfig.sliceId, month);
     return SetupSlice(
-      sliceId: cfg.sliceId,
-      name: cfg.name,
-      limitCents: cfg.limitCents,
-      effectiveLimitCents: sm?.effectiveLimitCents ?? cfg.baseEffectiveLimitCents,
-      spentCents: sm?.spentCents ?? 0,
-      petName: cfg.petId == null ? null : state.pets[cfg.petId]?.name,
+      sliceId: sliceConfig.sliceId,
+      name: sliceConfig.name,
+      limitCents: sliceConfig.limitCents,
+      effectiveLimitCents: sliceMonth?.effectiveLimitCents ?? sliceConfig.baseEffectiveLimitCents,
+      spentCents: sliceMonth?.spentCents ?? 0,
+      petName: sliceConfig.petId == null ? null : state.pets[sliceConfig.petId]?.name,
     );
   }
 
   final personal = <String, List<SetupSlice>>{
-    for (final u in orderedUserIds) u: <SetupSlice>[],
+    for (final userId in orderedUserIds) userId: <SetupSlice>[],
   };
   final group = <SetupSlice>[];
-  for (final cfg in state.slices.values) {
-    if (cfg.createdMonth.isAfter(month)) continue;
-    if (cfg.isGroup) {
-      group.add(toSetup(cfg));
+  for (final sliceConfig in state.slices.values) {
+    if (sliceConfig.createdMonth.isAfter(month)) continue;
+    if (sliceConfig.isGroup) {
+      group.add(toSetup(sliceConfig));
     } else {
-      final owner = cfg.ownerUserId!;
-      personal.putIfAbsent(owner, () => []).add(toSetup(cfg));
+      final owner = sliceConfig.ownerUserId!;
+      personal.putIfAbsent(owner, () => []).add(toSetup(sliceConfig));
     }
   }
   for (final list in personal.values) {
-    list.sort((a, b) => a.name.compareTo(b.name));
+    list.sort((first, second) => first.name.compareTo(second.name));
   }
-  group.sort((a, b) => a.name.compareTo(b.name));
+  group.sort((first, second) => first.name.compareTo(second.name));
 
   return BudgetSetupModel(
     month: month,
     columns: [
-      for (final u in orderedUserIds)
+      for (final userId in orderedUserIds)
         SetupColumn(
-          userId: u,
-          incomeCents: state.incomeFor(u, month),
-          slices: personal[u] ?? const [],
+          userId: userId,
+          incomeCents: state.incomeFor(userId, month),
+          slices: personal[userId] ?? const [],
         ),
     ],
     groupSlices: group,

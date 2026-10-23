@@ -48,12 +48,12 @@ Future<void> openSpoilsRitual(BuildContext context, WidgetRef ref) async {
       if (!context.mounted) return;
       final proceed = await Navigator.of(context).push<bool>(
         MaterialPageRoute(
-          builder: (routeCtx) => MonthEndEncountersScreen(
+          builder: (routeContext) => MonthEndEncountersScreen(
             encounters: encounters,
             lines: lines,
             monthLabel: monthLabel(ritual.month.year, ritual.month.month),
             resolver: AssetSpriteResolver(customBlobs: blobs),
-            onFinished: () => Navigator.of(routeCtx).pop(true),
+            onFinished: () => Navigator.of(routeContext).pop(true),
           ),
         ),
       );
@@ -103,19 +103,19 @@ Future<void> _apply(
   SpoilsRitual ritual,
   SpoilsResult result,
 ) async {
-  for (final t in result.tallies) {
+  for (final tally in result.tallies) {
     await actions.recordVariableActual(
-      expenseId: t.expenseId,
+      expenseId: tally.expenseId,
       month: ritual.month,
-      actualCents: t.actualCents,
+      actualCents: tally.actualCents,
     );
   }
-  for (final a in result.allocations) {
+  for (final allocation in result.allocations) {
     await actions.allocateLeftover(
       forUserId: ritual.forUserId,
       month: ritual.month,
-      sliceId: a.sliceId,
-      allocations: a.allocations,
+      sliceId: allocation.sliceId,
+      allocations: allocation.allocations,
     );
   }
 }

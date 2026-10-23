@@ -148,7 +148,7 @@ class SyncService {
     }
     onStatus(SyncStatus.syncing);
     final result = await _client.syncOnce();
-    if (result.hubs.any((h) => h.pulled > 0 || h.gamePulled > 0)) {
+    if (result.hubs.any((hub) => hub.pulled > 0 || hub.gamePulled > 0)) {
       await afterMerge?.call();
     }
     if (result.allOk) {
@@ -178,11 +178,11 @@ class SyncService {
       final confirmed = await _client.confirmBlobsOnAllHubs(local);
       if (confirmed.isEmpty) return 0;
       await store.addAll(confirmed);
-      var n = 0;
+      var offloaded = 0;
       for (final sha in confirmed) {
-        if (await blobs.offload(sha)) n++;
+        if (await blobs.offload(sha)) offloaded++;
       }
-      return n;
+      return offloaded;
     } on Object {
       return 0; // Space saving must never interfere with sync.
     }
@@ -253,13 +253,13 @@ class SyncService {
 
   Future<PreparedImport> _prepare(ImportedArchive imported) async {
     final existingIds = await db.eventsDao
-        .existingEventIds(imported.events.map((e) => e.eventId));
+        .existingEventIds(imported.events.map((event) => event.eventId));
     final existingShas = <String>{};
     for (final sha in imported.blobs.keys) {
       if (await blobs.exists(sha)) existingShas.add(sha);
     }
     final existingGameIds = await db.gameEventsDao
-        .existingGameEventIds(imported.gameEvents.map((e) => e.eventId));
+        .existingGameEventIds(imported.gameEvents.map((event) => event.eventId));
     final preview = computeMergePreview(
       incomingEvents: imported.events,
       existingEventIds: existingIds,
@@ -362,7 +362,7 @@ final syncServiceProvider = Provider<SyncService?>((ref) {
     db: ref.watch(appDatabaseProvider),
     blobs: ref.watch(blobStoreProvider),
     deviceName: setup.me.name,
-    onStatus: (s) => ref.read(liveSyncStatusProvider.notifier).set(s),
+    onStatus: (status) => ref.read(liveSyncStatusProvider.notifier).set(status),
     offload: ref.watch(receiptOffloadStoreProvider),
     afterMerge: ref.watch(gameRewardRunnerProvider)?.run,
   );

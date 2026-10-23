@@ -22,7 +22,7 @@ import '../settings/play_mode.dart';
 /// only so the collecting UI can order the flow (adults → dependents → pets).
 enum DraftRole { adult, dependent, pet }
 
-MemberRole _roleOf(DraftRole r) => switch (r) {
+MemberRole _roleOf(DraftRole role) => switch (role) {
   DraftRole.adult => MemberRole.adult,
   DraftRole.dependent => MemberRole.dependent,
   DraftRole.pet => MemberRole.pet,
@@ -232,7 +232,7 @@ class OnboardingInput {
   final Map<String, PlayMode> playModes;
 
   List<DraftMember> get adults =>
-      members.where((m) => m.isAdult).toList(growable: false);
+      members.where((member) => member.isAdult).toList(growable: false);
 }
 
 /// The events to append plus the device-local setup to persist, produced from an
@@ -247,10 +247,10 @@ class OnboardingPlan {
 /// An even permille split across [n] adults that always sums to exactly 1000;
 /// the remainder cents land on the earliest adults.
 Map<String, int> evenShares(List<String> adultIds) {
-  final n = adultIds.length;
-  if (n == 0) return const {};
-  final base = 1000 ~/ n;
-  var remainder = 1000 - base * n;
+  final adultCount = adultIds.length;
+  if (adultCount == 0) return const {};
+  final base = 1000 ~/ adultCount;
+  var remainder = 1000 - base * adultCount;
   return {for (final id in adultIds) id: base + (remainder-- > 0 ? 1 : 0)};
 }
 
@@ -272,51 +272,53 @@ OnboardingPlan buildOnboardingEvents(
   if (adults.isEmpty) {
     throw ArgumentError('Onboarding needs at least one adult member.');
   }
-  if (!adults.any((a) => a.localId == input.meLocalId)) {
+  if (!adults.any((adult) => adult.localId == input.meLocalId)) {
     throw ArgumentError('meLocalId must be one of the adult members.');
   }
 
-  final at = (now ?? DateTime.now()).toUtc();
+  final occurredAt = (now ?? DateTime.now()).toUtc();
   final nextId = idGen ?? uuidv7;
-  final me = input.meLocalId;
+  final meLocalId = input.meLocalId;
 
   Event stamp(Event Function(String eventId) build) => build(nextId());
 
   final events = <Event>[];
 
   // 1. The party: adults, then dependents, then pets (MemberSet).
-  for (final m in input.members) {
+  for (final member in input.members) {
     events.add(
       stamp(
         (eventId) => MemberSet(
           eventId: eventId,
           deviceId: deviceId,
-          userId: me,
-          occurredAt: at,
-          createdAt: at,
-          memberId: m.localId,
-          name: m.name,
-          role: _roleOf(m.role),
-          descriptionText: m.descriptionText,
-          customSpriteSha256: m.spriteSha256,
-          fundedByUserId: m.role == DraftRole.pet ? m.fundedByUserId : null,
+          userId: meLocalId,
+          occurredAt: occurredAt,
+          createdAt: occurredAt,
+          memberId: member.localId,
+          name: member.name,
+          role: _roleOf(member.role),
+          descriptionText: member.descriptionText,
+          customSpriteSha256: member.spriteSha256,
+          fundedByUserId: member.role == DraftRole.pet
+              ? member.fundedByUserId
+              : null,
         ),
       ),
     );
   }
 
   // 2. Per-adult default monthly income (0 is written explicitly).
-  for (final a in adults) {
+  for (final adult in adults) {
     events.add(
       stamp(
         (eventId) => DefaultIncomeSet(
           eventId: eventId,
           deviceId: deviceId,
-          userId: me,
-          occurredAt: at,
-          createdAt: at,
-          forUserId: a.localId,
-          amountCents: input.defaultIncomeByAdult[a.localId] ?? 0,
+          userId: meLocalId,
+          occurredAt: occurredAt,
+          createdAt: occurredAt,
+          forUserId: adult.localId,
+          amountCents: input.defaultIncomeByAdult[adult.localId] ?? 0,
           effectiveFromMonth: startMonth,
         ),
       ),
@@ -331,32 +333,32 @@ OnboardingPlan buildOnboardingEvents(
         (eventId) => SettingChanged(
           eventId: eventId,
           deviceId: deviceId,
-          userId: me,
-          occurredAt: at,
-          createdAt: at,
+          userId: meLocalId,
+          occurredAt: occurredAt,
+          createdAt: occurredAt,
           key: 'showNetWorth',
           value: true,
         ),
       ),
     );
   }
-  for (final acc in input.accounts) {
+  for (final account in input.accounts) {
     final accountId = nextId();
     events.add(
       stamp(
         (eventId) => TrackedAccountSet(
           eventId: eventId,
           deviceId: deviceId,
-          userId: me,
-          occurredAt: at,
-          createdAt: at,
+          userId: meLocalId,
+          occurredAt: occurredAt,
+          createdAt: occurredAt,
           accountId: accountId,
-          name: acc.name,
-          kind: acc.kind,
-          aprBps: acc.aprBps,
-          accrualCadence: acc.accrualCadence,
-          updateCadence: acc.updateCadence,
-          minPaymentCents: acc.minPaymentCents,
+          name: account.name,
+          kind: account.kind,
+          aprBps: account.aprBps,
+          accrualCadence: account.accrualCadence,
+          updateCadence: account.updateCadence,
+          minPaymentCents: account.minPaymentCents,
         ),
       ),
     );
@@ -365,13 +367,13 @@ OnboardingPlan buildOnboardingEvents(
         (eventId) => AccountBalanceRecorded(
           eventId: eventId,
           deviceId: deviceId,
-          userId: me,
-          occurredAt: at,
-          createdAt: at,
+          userId: meLocalId,
+          occurredAt: occurredAt,
+          createdAt: occurredAt,
           accountId: accountId,
-          accountName: acc.name,
-          kind: acc.kind,
-          balanceCents: acc.balanceCents,
+          accountName: account.name,
+          kind: account.kind,
+          balanceCents: account.balanceCents,
         ),
       ),
     );
@@ -380,29 +382,29 @@ OnboardingPlan buildOnboardingEvents(
   // 4. Recurring bills (fixed or variable): group first, then per-adult
   // (RecurringExpenseSet).
   final orderedExpenses = [
-    ...input.fixedExpenses.where((e) => e.shared),
-    ...input.fixedExpenses.where((e) => !e.shared),
+    ...input.fixedExpenses.where((expense) => expense.shared),
+    ...input.fixedExpenses.where((expense) => !expense.shared),
   ];
-  for (final e in orderedExpenses) {
-    final ownership = e.shared
+  for (final expense in orderedExpenses) {
+    final ownership = expense.shared
         ? const SharedParty()
-        : PersonalParty(e.ownerLocalId ?? me);
+        : PersonalParty(expense.ownerLocalId ?? meLocalId);
     events.add(
       stamp(
         (eventId) => RecurringExpenseSet(
           eventId: eventId,
           deviceId: deviceId,
-          userId: me,
-          occurredAt: at,
-          createdAt: at,
+          userId: meLocalId,
+          occurredAt: occurredAt,
+          createdAt: occurredAt,
           expenseId: nextId(),
-          name: e.name,
+          name: expense.name,
           ownership: ownership,
-          kind: e.kind,
-          cadence: e.cadence,
-          amountCents: e.amountCents,
-          dueDay: e.dueDay,
-          dueMonth: e.dueMonth,
+          kind: expense.kind,
+          cadence: expense.cadence,
+          amountCents: expense.amountCents,
+          dueDay: expense.dueDay,
+          dueMonth: expense.dueMonth,
           startMonth: startMonth,
         ),
       ),
@@ -411,13 +413,16 @@ OnboardingPlan buildOnboardingEvents(
 
   // 5a. Main-category customizations: only entries that differ from the
   // built-in defaults (renames, recolors) or are brand new write an event.
-  final defaultsById = {for (final d in defaultMainCategories) d.id: d};
-  for (final m in input.mainCategories) {
-    final d = defaultsById[m.id];
-    if (d != null &&
-        d.name == m.name &&
-        d.colorArgb == m.colorArgb &&
-        d.sortOrder == m.sortOrder) {
+  final defaultsById = {
+    for (final defaultCategory in defaultMainCategories)
+      defaultCategory.id: defaultCategory,
+  };
+  for (final mainCategory in input.mainCategories) {
+    final defaults = defaultsById[mainCategory.id];
+    if (defaults != null &&
+        defaults.name == mainCategory.name &&
+        defaults.colorArgb == mainCategory.colorArgb &&
+        defaults.sortOrder == mainCategory.sortOrder) {
       continue;
     }
     events.add(
@@ -425,13 +430,13 @@ OnboardingPlan buildOnboardingEvents(
         (eventId) => MainCategorySet(
           eventId: eventId,
           deviceId: deviceId,
-          userId: me,
-          occurredAt: at,
-          createdAt: at,
-          id: m.id,
-          name: m.name,
-          colorArgb: m.colorArgb,
-          sortOrder: m.sortOrder,
+          userId: meLocalId,
+          occurredAt: occurredAt,
+          createdAt: occurredAt,
+          id: mainCategory.id,
+          name: mainCategory.name,
+          colorArgb: mainCategory.colorArgb,
+          sortOrder: mainCategory.sortOrder,
         ),
       ),
     );
@@ -439,31 +444,31 @@ OnboardingPlan buildOnboardingEvents(
 
   // 5. Budget: group categories first, then personal (BudgetSliceSet).
   final orderedCategories = [
-    ...input.categories.where((c) => c.group),
-    ...input.categories.where((c) => !c.group),
+    ...input.categories.where((category) => category.group),
+    ...input.categories.where((category) => !category.group),
   ];
-  for (final c in orderedCategories) {
-    final ownership = c.group
+  for (final category in orderedCategories) {
+    final ownership = category.group
         ? const GroupSlice()
-        : PersonalSlice(c.ownerLocalId ?? me);
+        : PersonalSlice(category.ownerLocalId ?? meLocalId);
     events.add(
       stamp(
         (eventId) => BudgetSliceSet(
           eventId: eventId,
           deviceId: deviceId,
-          userId: me,
-          occurredAt: at,
-          createdAt: at,
+          userId: meLocalId,
+          occurredAt: occurredAt,
+          createdAt: occurredAt,
           sliceId: nextId(),
-          name: c.name,
+          name: category.name,
           ownership: ownership,
-          mainCategoryId: c.mainCategoryId,
-          limitCents: c.limitCents,
-          poolTithePct: c.tithePct,
+          mainCategoryId: category.mainCategoryId,
+          limitCents: category.limitCents,
+          poolTithePct: category.tithePct,
           defaultLeftoverPolicy: const CarryInSlice(),
           taxDeductibleByDefault: false,
-          petId: c.petId,
-          petOwnerIds: c.petOwnerIds,
+          petId: category.petId,
+          petOwnerIds: category.petOwnerIds,
         ),
       ),
     );
@@ -471,16 +476,16 @@ OnboardingPlan buildOnboardingEvents(
 
   // 6. Share table for the first month (only meaningful with ≥2 adults).
   if (adults.length >= 2) {
-    final adultIds = [for (final a in adults) a.localId];
+    final adultIds = [for (final adult in adults) adult.localId];
     final shares = input.shares ?? evenShares(adultIds);
     events.add(
       stamp(
         (eventId) => GroupShareSet(
           eventId: eventId,
           deviceId: deviceId,
-          userId: me,
-          occurredAt: at,
-          createdAt: at,
+          userId: meLocalId,
+          occurredAt: occurredAt,
+          createdAt: occurredAt,
           month: startMonth,
           shares: shares,
         ),
@@ -493,15 +498,15 @@ OnboardingPlan buildOnboardingEvents(
   if (quest != null) {
     final ownership = quest.shared
         ? const SharedParty()
-        : PersonalParty(quest.ownerLocalId ?? me);
+        : PersonalParty(quest.ownerLocalId ?? meLocalId);
     events.add(
       stamp(
         (eventId) => QuestSet(
           eventId: eventId,
           deviceId: deviceId,
-          userId: me,
-          occurredAt: at,
-          createdAt: at,
+          userId: meLocalId,
+          occurredAt: occurredAt,
+          createdAt: occurredAt,
           questId: nextId(),
           name: quest.name,
           targetCents: quest.targetCents,
@@ -519,9 +524,9 @@ OnboardingPlan buildOnboardingEvents(
       (eventId) => SettingChanged(
         eventId: eventId,
         deviceId: deviceId,
-        userId: me,
-        occurredAt: at,
-        createdAt: at,
+        userId: meLocalId,
+        occurredAt: occurredAt,
+        createdAt: occurredAt,
         key: 'savingsRules',
         value: {
           'fromMonth': startMonth.toKey(),
@@ -540,9 +545,9 @@ OnboardingPlan buildOnboardingEvents(
         (eventId) => CosmeticSet(
           eventId: eventId,
           deviceId: deviceId,
-          userId: me,
-          occurredAt: at,
-          createdAt: at,
+          userId: meLocalId,
+          occurredAt: occurredAt,
+          createdAt: occurredAt,
           key: playModeKey(adult.localId),
           value: mode.name,
         ),
@@ -559,9 +564,11 @@ OnboardingPlan buildOnboardingEvents(
 /// (a single-adult household points both profiles at that adult).
 LocalSetup _localSetupFor(OnboardingInput input) {
   final adults = input.adults;
-  final meAdult = adults.firstWhere((a) => a.localId == input.meLocalId);
+  final meAdult = adults.firstWhere(
+    (adult) => adult.localId == input.meLocalId,
+  );
   final other = adults.firstWhere(
-    (a) => a.localId != input.meLocalId,
+    (adult) => adult.localId != input.meLocalId,
     orElse: () => meAdult,
   );
   return LocalSetup(

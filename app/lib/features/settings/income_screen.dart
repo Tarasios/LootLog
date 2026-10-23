@@ -37,11 +37,11 @@ class IncomeScreen extends ConsumerWidget {
     // gets every earner listed. The device owner sorts first.
     final meId = setup.me.userId;
     final adults = state.adultIds.toList()
-      ..sort((a, b) {
-        final am = a == meId ? 0 : 1;
-        final bm = b == meId ? 0 : 1;
-        if (am != bm) return am - bm;
-        return (names[a] ?? a).compareTo(names[b] ?? b);
+      ..sort((first, second) {
+        final firstRank = first == meId ? 0 : 1;
+        final secondRank = second == meId ? 0 : 1;
+        if (firstRank != secondRank) return firstRank - secondRank;
+        return (names[first] ?? first).compareTo(names[second] ?? second);
       });
     return Scaffold(
       appBar: AppBar(title: const Text('Income')),
@@ -78,10 +78,10 @@ class _UserIncomeCard extends ConsumerWidget {
 
   List<Month> get _months {
     final months = <Month>[];
-    var m = currentMonth;
+    var month = currentMonth;
     for (var i = 0; i < _monthsShown; i++) {
-      months.add(m);
-      m = m.prev();
+      months.add(month);
+      month = month.prev();
     }
     return months;
   }
@@ -117,13 +117,13 @@ class _UserIncomeCard extends ConsumerWidget {
                   ),
             ),
             const Divider(height: AppSpacing.xl),
-            for (final m in _months)
+            for (final month in _months)
               _MonthRow(
-                month: m,
-                cents: state.incomeFor(userId, m),
-                isOverride: state.hasIncomeOverride(userId, m),
-                hasDefault: state.defaultIncomeFor(userId, m) != null,
-                onEdit: () => _editMonth(context, ref, m),
+                month: month,
+                cents: state.incomeFor(userId, month),
+                isOverride: state.hasIncomeOverride(userId, month),
+                hasDefault: state.defaultIncomeFor(userId, month) != null,
+                onEdit: () => _editMonth(context, ref, month),
               ),
           ],
         ),
@@ -131,18 +131,22 @@ class _UserIncomeCard extends ConsumerWidget {
     );
   }
 
-  Future<void> _editMonth(BuildContext context, WidgetRef ref, Month m) async {
+  Future<void> _editMonth(
+    BuildContext context,
+    WidgetRef ref,
+    Month month,
+  ) async {
     final cents = await showDialog<int>(
       context: context,
       builder: (_) => _OverrideDialog(
-        title: '$name — ${monthLabel(m.year, m.month)}',
-        initialCents: state.incomeFor(userId, m),
+        title: '$name — ${monthLabel(month.year, month.month)}',
+        initialCents: state.incomeFor(userId, month),
       ),
     );
     if (cents == null) return;
     await ref
         .read(householdActionsProvider)
-        ?.setIncome(forUserId: userId, month: m, amountCents: cents);
+        ?.setIncome(forUserId: userId, month: month, amountCents: cents);
   }
 }
 
@@ -167,7 +171,7 @@ class _DefaultIncomeEditor extends StatefulWidget {
 }
 
 class _DefaultIncomeEditorState extends State<_DefaultIncomeEditor> {
-  late final TextEditingController _c = TextEditingController(
+  late final TextEditingController _amountController = TextEditingController(
     text: widget.cents != null ? Money(widget.cents!).format() : '',
   );
   late final TextEditingController _high = TextEditingController(
@@ -177,7 +181,7 @@ class _DefaultIncomeEditorState extends State<_DefaultIncomeEditor> {
 
   @override
   void dispose() {
-    _c.dispose();
+    _amountController.dispose();
     _high.dispose();
     super.dispose();
   }
@@ -191,7 +195,7 @@ class _DefaultIncomeEditorState extends State<_DefaultIncomeEditor> {
           children: [
             Expanded(
               child: TextField(
-                controller: _c,
+                controller: _amountController,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
@@ -210,7 +214,7 @@ class _DefaultIncomeEditorState extends State<_DefaultIncomeEditor> {
             const SizedBox(width: AppSpacing.md),
             FilledButton(
               onPressed: () {
-                final cents = tryParseMoneyCents(_c.text) ?? 0;
+                final cents = tryParseMoneyCents(_amountController.text) ?? 0;
                 final high = _varies ? tryParseMoneyCents(_high.text) : null;
                 widget.onSave(cents, high);
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -232,7 +236,7 @@ class _DefaultIncomeEditorState extends State<_DefaultIncomeEditor> {
             'at the low end and record what each month really paid',
           ),
           value: _varies,
-          onChanged: (v) => setState(() => _varies = v),
+          onChanged: (value) => setState(() => _varies = value),
         ),
         if (_varies)
           TextField(
@@ -308,10 +312,10 @@ class _Badge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final bg = tone == _BadgeTone.override
+    final background = tone == _BadgeTone.override
         ? scheme.tertiaryContainer
         : scheme.secondaryContainer;
-    final fg = tone == _BadgeTone.override
+    final foreground = tone == _BadgeTone.override
         ? scheme.onTertiaryContainer
         : scheme.onSecondaryContainer;
     return Container(
@@ -320,12 +324,14 @@ class _Badge extends StatelessWidget {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: bg,
+        color: background,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(color: fg),
+        style: Theme.of(
+          context,
+        ).textTheme.labelSmall?.copyWith(color: foreground),
       ),
     );
   }
@@ -342,13 +348,13 @@ class _OverrideDialog extends StatefulWidget {
 }
 
 class _OverrideDialogState extends State<_OverrideDialog> {
-  late final TextEditingController _c = TextEditingController(
+  late final TextEditingController _amountController = TextEditingController(
     text: widget.initialCents > 0 ? Money(widget.initialCents).format() : '',
   );
 
   @override
   void dispose() {
-    _c.dispose();
+    _amountController.dispose();
     super.dispose();
   }
 
@@ -357,7 +363,7 @@ class _OverrideDialogState extends State<_OverrideDialog> {
     return AlertDialog(
       title: Text(widget.title),
       content: TextField(
-        controller: _c,
+        controller: _amountController,
         autofocus: true,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         decoration: const InputDecoration(
@@ -371,8 +377,9 @@ class _OverrideDialogState extends State<_OverrideDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: () =>
-              Navigator.of(context).pop(tryParseMoneyCents(_c.text) ?? 0),
+          onPressed: () => Navigator.of(
+            context,
+          ).pop(tryParseMoneyCents(_amountController.text) ?? 0),
           child: const Text('Save override'),
         ),
       ],

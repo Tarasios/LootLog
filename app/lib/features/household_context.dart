@@ -22,7 +22,7 @@ final userNamesProvider = Provider<Map<String, String>>((ref) {
   final state = ref.watch(householdStateProvider).value;
   if (setup == null) return const {};
   if (state == null) {
-    return {for (final p in setup.profiles) p.userId: p.name};
+    return {for (final profile in setup.profiles) profile.userId: profile.name};
   }
   return memberNames(state, setup: setup);
 });

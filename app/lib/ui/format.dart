@@ -12,10 +12,10 @@ String signedMoney(int cents) =>
     cents >= 0 ? '+${money(cents)}' : '-${money(-cents)}';
 
 /// `2026-07-04`. A stable, locale-independent day label.
-String isoDay(DateTime at) =>
-    '${at.year.toString().padLeft(4, '0')}-'
-    '${at.month.toString().padLeft(2, '0')}-'
-    '${at.day.toString().padLeft(2, '0')}';
+String isoDay(DateTime instant) =>
+    '${instant.year.toString().padLeft(4, '0')}-'
+    '${instant.month.toString().padLeft(2, '0')}-'
+    '${instant.day.toString().padLeft(2, '0')}';
 
 /// Month names for compact headers (`Month(2026,7)` -> "July 2026").
 const _monthNames = <String>[

@@ -13,8 +13,8 @@ import '../dungeon_state.dart';
 /// A block-character progress bar, e.g. `████████░░░░`. [fraction] is clamped to
 /// 0..1; [width] is the number of cells.
 String textBar(double fraction, {int width = 12}) {
-  final f = fraction.isNaN ? 0.0 : fraction.clamp(0.0, 1.0);
-  final filled = (f * width).round();
+  final clamped = fraction.isNaN ? 0.0 : fraction.clamp(0.0, 1.0);
+  final filled = (clamped * width).round();
   return '█' * filled + '░' * (width - filled);
 }
 

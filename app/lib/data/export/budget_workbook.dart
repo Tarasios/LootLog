@@ -57,9 +57,9 @@ XlsxSheet _transactionsSheet(
   Map<String, String> names,
 ) {
   final purchases = state.purchases.values.toList()
-    ..sort((a, b) {
-      final c = a.occurredAt.compareTo(b.occurredAt);
-      return c != 0 ? c : a.purchaseId.compareTo(b.purchaseId);
+    ..sort((first, second) {
+      final byTime = first.occurredAt.compareTo(second.occurredAt);
+      return byTime != 0 ? byTime : first.purchaseId.compareTo(second.purchaseId);
     });
   return XlsxSheet(
     name: kTransactionsSheet,
@@ -76,18 +76,18 @@ XlsxSheet _transactionsSheet(
       'Note',
     ],
     rows: [
-      for (final p in purchases)
+      for (final purchase in purchases)
         [
-          XlsxCell.text(_householdDay(p.occurredAt)),
-          XlsxCell.text(p.month.toKey()),
-          XlsxCell.text(names[p.userId] ?? p.userId),
-          XlsxCell.text(_targetLabel(state, p.target, names)),
-          XlsxCell.text(p.merchant),
-          XlsxCell.number(Money(p.amountCents).format()),
-          XlsxCell.text(_yesNo(p.shared)),
-          XlsxCell.text(_taxLabel(p.taxDeductible)),
-          XlsxCell.text(_yesNo(p.voided)),
-          XlsxCell.text(p.note),
+          XlsxCell.text(_householdDay(purchase.occurredAt)),
+          XlsxCell.text(purchase.month.toKey()),
+          XlsxCell.text(names[purchase.userId] ?? purchase.userId),
+          XlsxCell.text(_targetLabel(state, purchase.target, names)),
+          XlsxCell.text(purchase.merchant),
+          XlsxCell.number(Money(purchase.amountCents).format()),
+          XlsxCell.text(_yesNo(purchase.shared)),
+          XlsxCell.text(_taxLabel(purchase.taxDeductible)),
+          XlsxCell.text(_yesNo(purchase.voided)),
+          XlsxCell.text(purchase.note),
         ],
     ],
   );
@@ -108,11 +108,11 @@ String _targetLabel(
     case EmergencyCharge(:final fundId):
       return state.emergencyFunds[fundId]?.name ?? fundId;
     case VacationCharge(:final vacationId, :final categoryId):
-      final vac = state.vacations[vacationId];
-      final cat = vac?.categories
-          .where((c) => c.categoryId == categoryId)
+      final vacation = state.vacations[vacationId];
+      final cat = vacation?.categories
+          .where((category) => category.categoryId == categoryId)
           .firstOrNull;
-      final vacName = vac?.name ?? vacationId;
+      final vacName = vacation?.name ?? vacationId;
       final catName = cat?.name ?? categoryId;
       return 'Vacation: $vacName / $catName';
   }
@@ -167,10 +167,10 @@ XlsxSheet _membersIncomeSheet(
   Month? incomeMonth,
 ) {
   final members = state.members.values.toList()
-    ..sort((a, b) {
+    ..sort((first, second) {
       // Adults first, then dependents, then pets; ties broken by name.
-      final c = a.role.index.compareTo(b.role.index);
-      return c != 0 ? c : a.name.compareTo(b.name);
+      final byRole = first.role.index.compareTo(second.role.index);
+      return byRole != 0 ? byRole : first.name.compareTo(second.name);
     });
   return XlsxSheet(
     name: kMembersIncomeSheet,
@@ -181,13 +181,13 @@ XlsxSheet _membersIncomeSheet(
       'Monthly income',
     ],
     rows: [
-      for (final m in members)
+      for (final member in members)
         [
-          XlsxCell.text(m.name),
-          XlsxCell.text(m.role.name),
-          XlsxCell.text(_yesNo(m.active)),
-          if (m.isAdult && incomeMonth != null)
-            XlsxCell.number(Money(state.incomeFor(m.memberId, incomeMonth)).format())
+          XlsxCell.text(member.name),
+          XlsxCell.text(member.role.name),
+          XlsxCell.text(_yesNo(member.active)),
+          if (member.isAdult && incomeMonth != null)
+            XlsxCell.number(Money(state.incomeFor(member.memberId, incomeMonth)).format())
           else
             XlsxCell.empty,
         ],
@@ -204,7 +204,7 @@ XlsxSheet _savingsGoalsSheet(
   Map<String, String> names,
 ) {
   final quests = state.quests.values.toList()
-    ..sort((a, b) => a.name.compareTo(b.name));
+    ..sort((first, second) => first.name.compareTo(second.name));
   return XlsxSheet(
     name: kSavingsGoalsSheet,
     header: const [
@@ -218,16 +218,16 @@ XlsxSheet _savingsGoalsSheet(
       'Status',
     ],
     rows: [
-      for (final q in quests)
+      for (final quest in quests)
         [
-          XlsxCell.text(q.name),
-          XlsxCell.text(_mainCategoryName(state, q.mainCategoryId)),
-          XlsxCell.text(_partyLabel(q.ownership, names)),
-          XlsxCell.number(Money(q.targetCents).format()),
-          XlsxCell.number(Money(q.balanceCents).format()),
-          XlsxCell.number(Money(_remaining(q.targetCents, q.balanceCents)).format()),
-          XlsxCell.number('${_percent(q.balanceCents, q.targetCents)}'),
-          XlsxCell.text(_questStatus(q)),
+          XlsxCell.text(quest.name),
+          XlsxCell.text(_mainCategoryName(state, quest.mainCategoryId)),
+          XlsxCell.text(_partyLabel(quest.ownership, names)),
+          XlsxCell.number(Money(quest.targetCents).format()),
+          XlsxCell.number(Money(quest.balanceCents).format()),
+          XlsxCell.number(Money(_remaining(quest.targetCents, quest.balanceCents)).format()),
+          XlsxCell.number('${_percent(quest.balanceCents, quest.targetCents)}'),
+          XlsxCell.text(_questStatus(quest)),
         ],
     ],
   );
@@ -239,22 +239,22 @@ XlsxSheet _savingsGoalsSheet(
 
 XlsxSheet _netWorthSheet(HouseholdState state) {
   final accounts = state.netWorth.accounts.values.toList()
-    ..sort((a, b) => a.name.compareTo(b.name));
+    ..sort((first, second) => first.name.compareTo(second.name));
   final rows = <List<XlsxCell>>[
-    for (final a in accounts)
+    for (final account in accounts)
       [
-        XlsxCell.text(a.name),
-        XlsxCell.text(a.kind.name),
-        XlsxCell.number(Money(a.currentValueCents).format()),
-        XlsxCell.number(Money(a.balanceCents).format()),
-        XlsxCell.number(Money(a.accruedInterestCents).format()),
+        XlsxCell.text(account.name),
+        XlsxCell.text(account.kind.name),
+        XlsxCell.number(Money(account.currentValueCents).format()),
+        XlsxCell.number(Money(account.balanceCents).format()),
+        XlsxCell.number(Money(account.accruedInterestCents).format()),
         // APR is basis points: divide by 100 the same way cents make dollars.
-        a.aprBps != null ? XlsxCell.number(Money(a.aprBps!).format()) : XlsxCell.empty,
-        XlsxCell.text(_yesNo(a.stale)),
-        a.minPaymentCents != null
-            ? XlsxCell.number(Money(a.minPaymentCents!).format())
+        account.aprBps != null ? XlsxCell.number(Money(account.aprBps!).format()) : XlsxCell.empty,
+        XlsxCell.text(_yesNo(account.stale)),
+        account.minPaymentCents != null
+            ? XlsxCell.number(Money(account.minPaymentCents!).format())
             : XlsxCell.empty,
-        XlsxCell.number(Money(a.signedCents).format()),
+        XlsxCell.number(Money(account.signedCents).format()),
       ],
   ];
   // A closing total row: the signed household net worth.
@@ -295,7 +295,7 @@ XlsxSheet _recurringSheet(
   Map<String, String> names,
 ) {
   final expenses = state.recurringExpenses.values.toList()
-    ..sort((a, b) => a.name.compareTo(b.name));
+    ..sort((first, second) => first.name.compareTo(second.name));
   return XlsxSheet(
     name: kRecurringSheet,
     header: const [
@@ -310,17 +310,17 @@ XlsxSheet _recurringSheet(
       'End month',
     ],
     rows: [
-      for (final e in expenses)
+      for (final expense in expenses)
         [
-          XlsxCell.text(e.name),
-          XlsxCell.text(_partyLabel(e.ownership, names)),
-          XlsxCell.text(e.kind.name),
-          XlsxCell.text(e.cadence.name),
-          XlsxCell.number(Money(e.amountCents).format()),
-          XlsxCell.number('${e.dueDay}'),
-          e.dueMonth != null ? XlsxCell.number('${e.dueMonth}') : XlsxCell.empty,
-          XlsxCell.text(e.startMonth.toKey()),
-          e.endMonth != null ? XlsxCell.text(e.endMonth!.toKey()) : XlsxCell.empty,
+          XlsxCell.text(expense.name),
+          XlsxCell.text(_partyLabel(expense.ownership, names)),
+          XlsxCell.text(expense.kind.name),
+          XlsxCell.text(expense.cadence.name),
+          XlsxCell.number(Money(expense.amountCents).format()),
+          XlsxCell.number('${expense.dueDay}'),
+          expense.dueMonth != null ? XlsxCell.number('${expense.dueMonth}') : XlsxCell.empty,
+          XlsxCell.text(expense.startMonth.toKey()),
+          expense.endMonth != null ? XlsxCell.text(expense.endMonth!.toKey()) : XlsxCell.empty,
         ],
     ],
   );
@@ -337,8 +337,8 @@ List<Month> _monthsInScope(HouseholdState state) {
     final month = key.split('|').last;
     keys.add(month);
   }
-  for (final p in state.purchases.values) {
-    keys.add(p.month.toKey());
+  for (final purchase in state.purchases.values) {
+    keys.add(purchase.month.toKey());
   }
   final months = keys.map(Month.parse).toList()..sort();
   return months;
@@ -349,9 +349,9 @@ List<Month> _monthsInScope(HouseholdState state) {
 Month? _latestIncomeMonth(HouseholdState state, List<Month> monthsInScope) {
   Month? latest = monthsInScope.isNotEmpty ? monthsInScope.last : null;
   for (final defaults in state.incomeDefaultsByUser.values) {
-    for (final d in defaults) {
-      if (latest == null || d.effectiveFromMonth.isAfter(latest)) {
-        latest = d.effectiveFromMonth;
+    for (final defaultIncome in defaults) {
+      if (latest == null || defaultIncome.effectiveFromMonth.isAfter(latest)) {
+        latest = defaultIncome.effectiveFromMonth;
       }
     }
   }
@@ -380,17 +380,17 @@ String _partyLabel(PartyOwnership ownership, Map<String, String> names) {
 }
 
 int _remaining(int targetCents, int balanceCents) {
-  final r = targetCents - balanceCents;
-  return r > 0 ? r : 0;
+  final remaining = targetCents - balanceCents;
+  return remaining > 0 ? remaining : 0;
 }
 
 /// Integer percent complete with truncating division — no float involved.
 int _percent(int balanceCents, int targetCents) =>
     targetCents > 0 ? (balanceCents * 100) ~/ targetCents : 0;
 
-String _questStatus(QuestState q) {
-  if (q.abandoned) return 'Abandoned';
-  if (q.completed) return 'Completed';
+String _questStatus(QuestState quest) {
+  if (quest.abandoned) return 'Abandoned';
+  if (quest.completed) return 'Completed';
   return 'Active';
 }
 
@@ -403,8 +403,8 @@ String _taxLabel(bool? deductible) => switch (deductible) {
 String _yesNo(bool value) => value ? 'yes' : 'no';
 
 String _householdDay(DateTime instant) {
-  final u = instant.toUtc();
-  final local = u.add(vancouverUtcOffset(u));
+  final utc = instant.toUtc();
+  final local = utc.add(vancouverUtcOffset(utc));
   return '${local.year.toString().padLeft(4, '0')}-'
       '${local.month.toString().padLeft(2, '0')}-'
       '${local.day.toString().padLeft(2, '0')}';

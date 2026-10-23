@@ -42,8 +42,8 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen> {
 
     final deductibles = <DeductiblePurchase>[
       ...?state.deductibleByYear[year],
-    ]..sort((a, b) => a.occurredAt.compareTo(b.occurredAt));
-    final total = deductibles.fold<int>(0, (a, d) => a + d.amountCents);
+    ]..sort((first, second) => first.occurredAt.compareTo(second.occurredAt));
+    final total = deductibles.fold<int>(0, (sum, deductible) => sum + deductible.amountCents);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Tax center')),
@@ -57,10 +57,10 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen> {
               DropdownButton<int>(
                 value: year,
                 items: [
-                  for (final y in years)
-                    DropdownMenuItem(value: y, child: Text('$y')),
+                  for (final yearOption in years)
+                    DropdownMenuItem(value: yearOption, child: Text('$yearOption')),
                 ],
-                onChanged: (v) => setState(() => _year = v),
+                onChanged: (value) => setState(() => _year = value),
               ),
             ],
           ),
@@ -103,8 +103,8 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen> {
               padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
               child: Text('No deductible purchases in this year.'),
             ),
-          for (final d in deductibles)
-            _DeductibleRow(d: d, userName: names[d.userId] ?? d.userId),
+          for (final deductible in deductibles)
+            _DeductibleRow(deductible: deductible, userName: names[deductible.userId] ?? deductible.userId),
         ],
       ),
     );
@@ -141,8 +141,8 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen> {
       messenger.showSnackBar(
         SnackBar(content: Text('Exported to ${location.path}')),
       );
-    } on Object catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
+    } on Object catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text('Export failed: $error')));
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
@@ -150,14 +150,14 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen> {
 }
 
 class _DeductibleRow extends StatelessWidget {
-  const _DeductibleRow({required this.d, required this.userName});
+  const _DeductibleRow({required this.deductible, required this.userName});
 
-  final DeductiblePurchase d;
+  final DeductiblePurchase deductible;
   final String userName;
 
   @override
   Widget build(BuildContext context) {
-    final hasReceipt = d.receiptShas.isNotEmpty;
+    final hasReceipt = deductible.receiptShas.isNotEmpty;
     return ListTile(
       dense: true,
       contentPadding: EdgeInsets.zero,
@@ -167,12 +167,12 @@ class _DeductibleRow extends StatelessWidget {
             ? Theme.of(context).colorScheme.primary
             : Theme.of(context).colorScheme.onSurfaceVariant,
       ),
-      title: Text(d.merchant ?? d.sliceName),
+      title: Text(deductible.merchant ?? deductible.sliceName),
       subtitle: Text(
-        '${isoDay(d.occurredAt)} · $userName · ${d.sliceName}'
-        '${d.shared ? ' · shared' : ''}',
+        '${isoDay(deductible.occurredAt)} · $userName · ${deductible.sliceName}'
+        '${deductible.shared ? ' · shared' : ''}',
       ),
-      trailing: Text(money(d.amountCents),
+      trailing: Text(money(deductible.amountCents),
           style: Theme.of(context).textTheme.titleMedium),
     );
   }

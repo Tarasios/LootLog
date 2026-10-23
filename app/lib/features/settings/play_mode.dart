@@ -65,20 +65,20 @@ PlayPrefs resolvePlayPrefs(
   final modeKey = playModeKey(memberId);
   final homeKey = adventureHomeKey(memberId);
   final settings = [
-    for (final e in log)
-      if (e is CosmeticSet && (e.key == modeKey || e.key == homeKey)) e,
-  ]..sort((a, b) {
-      final byTime = a.occurredAt.compareTo(b.occurredAt);
-      return byTime != 0 ? byTime : a.eventId.compareTo(b.eventId);
+    for (final event in log)
+      if (event is CosmeticSet && (event.key == modeKey || event.key == homeKey)) event,
+  ]..sort((first, second) {
+      final byTime = first.occurredAt.compareTo(second.occurredAt);
+      return byTime != 0 ? byTime : first.eventId.compareTo(second.eventId);
     });
 
   var mode = fallbackMode;
   var home = PlayPrefs.defaults.home;
-  for (final e in settings) {
-    if (e.key == modeKey) {
-      mode = playModeFromName(e.value) ?? mode;
+  for (final setting in settings) {
+    if (setting.key == modeKey) {
+      mode = playModeFromName(setting.value) ?? mode;
     } else {
-      home = _byName(AdventureHome.values, e.value) ?? home;
+      home = _byName(AdventureHome.values, setting.value) ?? home;
     }
   }
   return PlayPrefs(mode: mode, home: home);
@@ -88,8 +88,8 @@ PlayPrefs resolvePlayPrefs(
 PlayMode? playModeFromName(Object? name) => _byName(PlayMode.values, name);
 
 T? _byName<T extends Enum>(List<T> values, Object? name) {
-  for (final v in values) {
-    if (v.name == name) return v;
+  for (final value in values) {
+    if (value.name == name) return value;
   }
   return null;
 }

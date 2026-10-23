@@ -82,12 +82,12 @@ List<HomesteadStage>? stagesFromCosmetic(Object? value) {
 
 /// Serialises a stage ladder back into the `homestead.stages` cosmetic value.
 List<Map<String, Object?>> stagesToCosmetic(List<HomesteadStage> stages) => [
-      for (final s in stages)
+      for (final stage in stages)
         {
-          'name': s.name,
-          'thresholdCents': s.thresholdCents,
-          if (s.customSpriteSha256 != null)
-            'spriteSha256': s.customSpriteSha256,
+          'name': stage.name,
+          'thresholdCents': stage.thresholdCents,
+          if (stage.customSpriteSha256 != null)
+            'spriteSha256': stage.customSpriteSha256,
         },
     ];
 
@@ -178,8 +178,8 @@ class HomesteadView {
 /// Builds the [HomesteadView] for the current war-chest balance. [config]
 /// defaults to [HomesteadConfig.defaults].
 HomesteadView buildHomestead(HouseholdState state, {HomesteadConfig? config}) {
-  final cfg = config ?? HomesteadConfig.defaults();
-  final stages = cfg.stages;
+  final effectiveConfig = config ?? HomesteadConfig.defaults();
+  final stages = effectiveConfig.stages;
   assert(stages.isNotEmpty, 'homestead needs at least one stage');
 
   // The reducer clamps the war chest at zero; mirror that so a stage is always
@@ -217,7 +217,7 @@ HomesteadView buildHomestead(HouseholdState state, {HomesteadConfig? config}) {
   }
 
   return HomesteadView(
-    flavorName: cfg.flavorName,
+    flavorName: effectiveConfig.flavorName,
     balanceCents: balance,
     currentStage: current,
     nextStage: next,

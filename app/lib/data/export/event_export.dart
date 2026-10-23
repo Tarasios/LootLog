@@ -64,8 +64,8 @@ class BlobIntegrityException implements Exception {
 String exportEventsJsonl(Iterable<Event> events) {
   final ordered = _canonical(events);
   final buffer = StringBuffer();
-  for (final e in ordered) {
-    buffer.writeln(jsonEncode(e.toJson()));
+  for (final event in ordered) {
+    buffer.writeln(jsonEncode(event.toJson()));
   }
   return buffer.toString();
 }
@@ -82,8 +82,8 @@ List<Event> importEventsJsonl(String text) {
     try {
       final map = (jsonDecode(line) as Map).cast<String, dynamic>();
       events.add(Event.fromJson(map));
-    } on Object catch (e) {
-      throw ImportException('line ${i + 1}: $e');
+    } on Object catch (error) {
+      throw ImportException('line ${i + 1}: $error');
     }
   }
   return events;
@@ -92,8 +92,8 @@ List<Event> importEventsJsonl(String text) {
 /// Serializes game [events] as JSON Lines in canonical order.
 String exportGameEventsJsonl(Iterable<GameEvent> events) {
   final buffer = StringBuffer();
-  for (final e in [...events]..sort(compareGameEvents)) {
-    buffer.writeln(jsonEncode(e.toJson()));
+  for (final event in [...events]..sort(compareGameEvents)) {
+    buffer.writeln(jsonEncode(event.toJson()));
   }
   return buffer.toString();
 }
@@ -109,8 +109,8 @@ List<GameEvent> importGameEventsJsonl(String text) {
     try {
       final map = (jsonDecode(line) as Map).cast<String, dynamic>();
       events.add(GameEvent.fromJson(map));
-    } on Object catch (e) {
-      throw ImportException('$kGameEventsEntryName line ${i + 1}: $e');
+    } on Object catch (error) {
+      throw ImportException('$kGameEventsEntryName line ${i + 1}: $error');
     }
   }
   return events;
@@ -174,8 +174,8 @@ ImportedArchive readEventsZip(List<int> zipBytes) {
   final Archive archive;
   try {
     archive = ZipDecoder().decodeBytes(zipBytes);
-  } on Object catch (e) {
-    throw ImportException('not a readable zip: $e');
+  } on Object catch (error) {
+    throw ImportException('not a readable zip: $error');
   }
   final eventsFile = archive.findFile(kEventsEntryName);
   if (eventsFile == null) {
@@ -216,7 +216,7 @@ Future<List<String>> saveImportedBlobs(
 }
 
 List<Event> _canonical(Iterable<Event> events) => events.toList()
-  ..sort((a, b) {
-    final c = a.occurredAt.compareTo(b.occurredAt);
-    return c != 0 ? c : a.eventId.compareTo(b.eventId);
+  ..sort((first, second) {
+    final byTime = first.occurredAt.compareTo(second.occurredAt);
+    return byTime != 0 ? byTime : first.eventId.compareTo(second.eventId);
   });

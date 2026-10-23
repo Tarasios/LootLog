@@ -27,14 +27,14 @@ Future<File> _file() async => File(
 
 /// Loads the persisted choice; defaults to true (full mutual visibility).
 Future<bool> loadShowHouseholdBudgets() async {
-  final f = await _file();
-  if (!await f.exists()) return true;
-  return (await f.readAsString()).trim() != 'off';
+  final file = await _file();
+  if (!await file.exists()) return true;
+  return (await file.readAsString()).trim() != 'off';
 }
 
 Future<void> saveShowHouseholdBudgets(bool value) async {
-  final f = await _file();
-  await f.writeAsString(value ? 'on' : 'off', flush: true);
+  final file = await _file();
+  await file.writeAsString(value ? 'on' : 'off', flush: true);
 }
 
 class ShowHouseholdBudgets extends Notifier<bool> {

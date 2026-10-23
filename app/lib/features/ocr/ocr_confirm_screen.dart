@@ -60,17 +60,17 @@ class _PickedPhoto {
 Future<_PickedPhoto?> _pickReceiptPhoto() async {
   final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
   if (isMobile) {
-    final x = await ImagePicker().pickImage(source: ImageSource.camera);
-    if (x == null) return null;
-    return _PickedPhoto(bytes: await x.readAsBytes(), path: x.path);
+    final photo = await ImagePicker().pickImage(source: ImageSource.camera);
+    if (photo == null) return null;
+    return _PickedPhoto(bytes: await photo.readAsBytes(), path: photo.path);
   }
   const group = XTypeGroup(
     label: 'Receipt image',
     extensions: ['jpg', 'jpeg', 'png', 'webp'],
   );
-  final x = await openFile(acceptedTypeGroups: [group]);
-  if (x == null) return null;
-  return _PickedPhoto(bytes: await x.readAsBytes(), path: x.path);
+  final picked = await openFile(acceptedTypeGroups: [group]);
+  if (picked == null) return null;
+  return _PickedPhoto(bytes: await picked.readAsBytes(), path: picked.path);
 }
 
 class OcrConfirmScreen extends ConsumerWidget {

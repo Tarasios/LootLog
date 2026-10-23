@@ -22,7 +22,7 @@ class EmergencyFundsScreen extends ConsumerWidget {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     final funds = state.emergencyFunds.values.toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
+      ..sort((first, second) => first.name.compareTo(second.name));
     return Scaffold(
       appBar: AppBar(title: const Text('Emergency funds')),
       floatingActionButton: FloatingActionButton.extended(
@@ -47,19 +47,19 @@ class EmergencyFundsScreen extends ConsumerWidget {
               itemCount: funds.length,
               separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (context, i) {
-                final f = funds[i];
-                final petName = f.petId == null
+                final fund = funds[i];
+                final petName = fund.petId == null
                     ? null
-                    : state.pets[f.petId]?.name;
+                    : state.pets[fund.petId]?.name;
                 return ListTile(
                   leading: const Icon(Icons.emergency_outlined),
-                  title: Text(f.name),
+                  title: Text(fund.name),
                   subtitle: petName == null ? null : Text('Pet: $petName'),
                   trailing: Text(
-                    money(f.balanceCents),
+                    money(fund.balanceCents),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
-                  onTap: () => _editFund(context, ref, state, existing: f),
+                  onTap: () => _editFund(context, ref, state, existing: fund),
                 );
               },
             ),
@@ -75,7 +75,7 @@ class EmergencyFundsScreen extends ConsumerWidget {
     final nameController = TextEditingController(text: existing?.name ?? '');
     String? petId = existing?.petId;
     final pets = state.pets.values.toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
+      ..sort((first, second) => first.name.compareTo(second.name));
 
     final saved = await showModalBottomSheet<bool>(
       context: context,
@@ -109,10 +109,10 @@ class EmergencyFundsScreen extends ConsumerWidget {
                 decoration: const InputDecoration(labelText: 'Pet (optional)'),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('None')),
-                  for (final p in pets)
-                    DropdownMenuItem(value: p.petId, child: Text(p.name)),
+                  for (final pet in pets)
+                    DropdownMenuItem(value: pet.petId, child: Text(pet.name)),
                 ],
-                onChanged: (v) => setSheet(() => petId = v),
+                onChanged: (value) => setSheet(() => petId = value),
               ),
               const SizedBox(height: AppSpacing.lg),
               FilledButton(

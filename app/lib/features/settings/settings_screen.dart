@@ -52,35 +52,35 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         children: [
           const _SectionHeader('Household'),
-          _nav(
+          _navigationTile(
             context,
             Icons.groups_outlined,
             'Members',
             'Adults, dependents, and pets',
             const MembersScreen(),
           ),
-          _nav(
+          _navigationTile(
             context,
             Icons.payments_outlined,
             'Income',
             'Each member\'s monthly income',
             const IncomeScreen(),
           ),
-          _nav(
+          _navigationTile(
             context,
             Icons.autorenew,
             'Recurring expenses',
             'Regular bills and subscriptions, charged off the top',
             const RecurringScreen(),
           ),
-          _nav(
+          _navigationTile(
             context,
             Icons.pie_chart_outline,
             'Budget categories',
             'Limits, savings cut, and how leftovers are handled',
             const CategoryListScreen(),
           ),
-          _nav(
+          _navigationTile(
             context,
             Icons.emergency_outlined,
             'Emergency funds',
@@ -96,8 +96,8 @@ class SettingsScreen extends ConsumerWidget {
               'data still syncs in full and shared savings always show.',
             ),
             value: ref.watch(showHouseholdBudgetsProvider),
-            onChanged: (v) => unawaited(
-              ref.read(showHouseholdBudgetsProvider.notifier).select(v),
+            onChanged: (value) => unawaited(
+              ref.read(showHouseholdBudgetsProvider.notifier).select(value),
             ),
           ),
           const _SectionHeader('Play mode'),
@@ -111,10 +111,10 @@ class SettingsScreen extends ConsumerWidget {
                 'instead of pixel art — works with no artwork at all',
               ),
               value: ref.watch(adventureTierProvider) == AdventureTier.text,
-              onChanged: (v) => unawaited(
+              onChanged: (value) => unawaited(
                 ref
                     .read(adventureTierProvider.notifier)
-                    .select(v ? AdventureTier.text : AdventureTier.pixel),
+                    .select(value ? AdventureTier.text : AdventureTier.pixel),
               ),
             ),
           const _SectionHeader('Rules'),
@@ -163,10 +163,10 @@ class SettingsScreen extends ConsumerWidget {
               'separate net-worth screen',
             ),
             value: settings.showNetWorth,
-            onChanged: (v) {
+            onChanged: (value) {
               final actions = ref.read(householdActionsProvider);
               unawaited(
-                actions?.changeSetting('showNetWorth', v) ??
+                actions?.changeSetting('showNetWorth', value) ??
                     Future<void>.value(),
               );
             },
@@ -197,10 +197,10 @@ class SettingsScreen extends ConsumerWidget {
               groupValue:
                   ref.watch(receiptStorageModeProvider).value ??
                   ReceiptStorageMode.keep,
-              onChanged: (v) => unawaited(
+              onChanged: (value) => unawaited(
                 ref
                     .read(receiptStorageModeProvider.notifier)
-                    .set(v ?? ReceiptStorageMode.keep),
+                    .set(value ?? ReceiptStorageMode.keep),
               ),
               child: const Column(
                 children: [
@@ -234,21 +234,21 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ],
           if (isDesktop)
-            _nav(
+            _navigationTile(
               context,
               Icons.folder_copy_outlined,
               'Receipt library',
               'Mirror receipts to a folder',
               const ReceiptLibraryScreen(),
             ),
-          _nav(
+          _navigationTile(
             context,
             Icons.receipt_long_outlined,
             'Tax center',
             'Deductible totals and package export',
             const TaxCenterScreen(),
           ),
-          _nav(
+          _navigationTile(
             context,
             Icons.table_view_outlined,
             'Export',
@@ -260,7 +260,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _nav(
+  Widget _navigationTile(
     BuildContext context,
     IconData icon,
     String title,
@@ -305,9 +305,9 @@ class SettingsScreen extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () {
-              final n = int.tryParse(controller.text.trim());
-              if (n != null && n >= min && n <= max) {
-                Navigator.of(context).pop(n);
+              final days = int.tryParse(controller.text.trim());
+              if (days != null && days >= min && days <= max) {
+                Navigator.of(context).pop(days);
               }
             },
             child: const Text('Save'),
@@ -369,7 +369,7 @@ class _PlayModeSection extends ConsumerWidget {
                 selected: {selected},
                 onSelectionChanged: actions == null
                     ? null
-                    : (s) => unawaited(save(actions, s.first)),
+                    : (selection) => unawaited(save(actions, selection.first)),
               ),
             ],
           ),

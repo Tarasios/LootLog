@@ -63,8 +63,8 @@ class _OcrConfirmViewState extends State<OcrConfirmView> {
   ChargeChoice? _selected;
 
   DateTime get _today {
-    final n = widget.now ?? DateTime.now();
-    return DateTime(n.year, n.month, n.day);
+    final now = widget.now ?? DateTime.now();
+    return DateTime(now.year, now.month, now.day);
   }
 
   bool get _canConfirm => _cents > 0 && _selected != null;
@@ -79,13 +79,13 @@ class _OcrConfirmViewState extends State<OcrConfirmView> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
-    final k = event.logicalKey;
-    final digit = digitForKey(k);
+    final key = event.logicalKey;
+    final digit = digitForKey(key);
     if (digit != null) {
       setState(() => _cents = applyDigit(_cents, digit));
       return KeyEventResult.handled;
     }
-    if (k == LogicalKeyboardKey.backspace) {
+    if (key == LogicalKeyboardKey.backspace) {
       setState(() => _cents = applyBackspace(_cents));
       return KeyEventResult.handled;
     }
@@ -153,7 +153,7 @@ class _OcrConfirmViewState extends State<OcrConfirmView> {
                     const SizedBox(height: AppSpacing.sm),
                     AmountKeypad(
                       cents: _cents,
-                      onChanged: (v) => setState(() => _cents = v),
+                      onChanged: (value) => setState(() => _cents = value),
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     TextField(

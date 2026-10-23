@@ -66,77 +66,79 @@ List<ChargeGroup> buildChargeGroups(
 }) {
   final month = Month.fromInstant(asOf ?? DateTime.now());
 
-  int remaining(SliceConfig cfg) {
-    final sm = state.sliceMonth(cfg.sliceId, month);
-    final eff = sm?.effectiveLimitCents ?? cfg.baseEffectiveLimitCents;
-    final spent = sm?.spentCents ?? 0;
-    final r = eff - spent;
-    return r < 0 ? 0 : r;
+  int remaining(SliceConfig sliceConfig) {
+    final sliceMonth = state.sliceMonth(sliceConfig.sliceId, month);
+    final effectiveLimit =
+        sliceMonth?.effectiveLimitCents ?? sliceConfig.baseEffectiveLimitCents;
+    final spent = sliceMonth?.spentCents ?? 0;
+    final leftover = effectiveLimit - spent;
+    return leftover < 0 ? 0 : leftover;
   }
 
   final personal = <ChargeChoice>[];
   final group = <ChargeChoice>[];
-  for (final cfg in state.slices.values) {
-    if (cfg.isGroup) {
+  for (final sliceConfig in state.slices.values) {
+    if (sliceConfig.isGroup) {
       group.add(
         ChargeChoice(
-          target: SliceCharge(cfg.sliceId),
-          label: cfg.name,
-          subtitle: '${_money(remaining(cfg))} left',
+          target: SliceCharge(sliceConfig.sliceId),
+          label: sliceConfig.name,
+          subtitle: '${_money(remaining(sliceConfig))} left',
           kind: ChargeGroupKind.groupSlice,
           supportsShared: false,
         ),
       );
-    } else if (cfg.ownerUserId == meUserId) {
+    } else if (sliceConfig.ownerUserId == meUserId) {
       personal.add(
         ChargeChoice(
-          target: SliceCharge(cfg.sliceId),
-          label: cfg.name,
-          subtitle: '${_money(remaining(cfg))} left',
+          target: SliceCharge(sliceConfig.sliceId),
+          label: sliceConfig.name,
+          subtitle: '${_money(remaining(sliceConfig))} left',
           kind: ChargeGroupKind.personalSlice,
           supportsShared: true,
         ),
       );
     }
   }
-  personal.sort((a, b) => a.label.compareTo(b.label));
-  group.sort((a, b) => a.label.compareTo(b.label));
+  personal.sort((first, second) => first.label.compareTo(second.label));
+  group.sort((first, second) => first.label.compareTo(second.label));
 
   final quests = <ChargeChoice>[];
-  for (final q in state.quests.values) {
-    if (q.completed || q.abandoned) continue;
-    final owner = q.ownership;
+  for (final quest in state.quests.values) {
+    if (quest.completed || quest.abandoned) continue;
+    final owner = quest.ownership;
     final mine =
         owner is SharedParty ||
         (owner is PersonalParty && owner.userId == meUserId);
     if (!mine) continue;
     quests.add(
       ChargeChoice(
-        target: QuestCharge(q.questId),
-        label: q.name,
-        subtitle: '${_money(q.balanceCents)} / ${_money(q.targetCents)}',
+        target: QuestCharge(quest.questId),
+        label: quest.name,
+        subtitle:
+            '${_money(quest.balanceCents)} / ${_money(quest.targetCents)}',
         kind: ChargeGroupKind.quest,
         supportsShared: false,
       ),
     );
   }
-  quests.sort((a, b) => a.label.compareTo(b.label));
+  quests.sort((first, second) => first.label.compareTo(second.label));
 
   final funds = <ChargeChoice>[];
-  for (final f in state.emergencyFunds.values) {
+  for (final fund in state.emergencyFunds.values) {
     funds.add(
       ChargeChoice(
-        target: EmergencyCharge(f.fundId),
-        label: f.name,
-        subtitle: '${_money(f.balanceCents)} reserve',
+        target: EmergencyCharge(fund.fundId),
+        label: fund.name,
+        subtitle: '${_money(fund.balanceCents)} reserve',
         kind: ChargeGroupKind.emergency,
         supportsShared: false,
       ),
     );
   }
-  funds.sort((a, b) => a.label.compareTo(b.label));
+  funds.sort((first, second) => first.label.compareTo(second.label));
 
-  final vaultTitle = Glossary.cap(
+  final vaultTitle = Glossary.capitalize(
     Glossary.vaultLabel(
       isAdventure: isAdventure,
       savingsRules: state.savingsRules != null,
@@ -152,14 +154,14 @@ List<ChargeGroup> buildChargeGroups(
 
   // Open vacations expose one charge target per category, each carrying its
   // remaining sub-budget so the trip stays self-contained.
-  final vacation = <ChargeChoice>[];
-  for (final v in state.openVacations) {
-    for (final c in v.categories) {
-      vacation.add(
+  final vacationChoices = <ChargeChoice>[];
+  for (final openVacation in state.openVacations) {
+    for (final category in openVacation.categories) {
+      vacationChoices.add(
         ChargeChoice(
-          target: VacationCharge(v.vacationId, c.categoryId),
-          label: '${v.name} · ${c.name}',
-          subtitle: '${_money(c.leftoverCents)} left',
+          target: VacationCharge(openVacation.vacationId, category.categoryId),
+          label: '${openVacation.name} · ${category.name}',
+          subtitle: '${_money(category.leftoverCents)} left',
           kind: ChargeGroupKind.vacation,
           supportsShared: false,
         ),
@@ -197,11 +199,11 @@ List<ChargeGroup> buildChargeGroups(
         label: 'Emergency funds',
         choices: funds,
       ),
-    if (vacation.isNotEmpty)
+    if (vacationChoices.isNotEmpty)
       ChargeGroup(
         kind: ChargeGroupKind.vacation,
         label: 'Vacation',
-        choices: vacation,
+        choices: vacationChoices,
       ),
   ];
 }

@@ -19,7 +19,7 @@ class SystemClock implements Clock {
 
 /// A clock frozen at one instant (tests, replays).
 class FixedClock implements Clock {
-  FixedClock(DateTime at) : _at = at.toUtc();
+  FixedClock(DateTime instant) : _at = instant.toUtc();
 
   final DateTime _at;
 

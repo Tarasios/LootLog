@@ -411,9 +411,9 @@ abstract final class Glossary {
           ? vault.adventure
           : (savingsRules ? generalSavings.classic : vault.classic);
 
-  /// [s] with its first letter upper-cased, for headings and buttons.
-  static String cap(String s) =>
-      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+  /// [text] with its first letter upper-cased, for headings and buttons.
+  static String capitalize(String text) =>
+      text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);
 
   /// The grace-period label, which reads more naturally with the day count
   /// inlined: Classic "Auto-divide leftovers after 7 days"; Adventure

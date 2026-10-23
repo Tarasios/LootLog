@@ -23,18 +23,18 @@ Future<File> _rootFile() async {
 
 /// Loads the configured receipt-library root, or null if none is set.
 Future<String?> loadReceiptLibraryRoot() async {
-  final f = await _rootFile();
+  final file = await _rootFile();
   // Small device-local prefs file; a synchronous read is fine and avoids the
   // slow-async-io lint.
-  if (!f.existsSync()) return null;
-  final s = f.readAsStringSync().trim();
-  return s.isEmpty ? null : s;
+  if (!file.existsSync()) return null;
+  final stored = file.readAsStringSync().trim();
+  return stored.isEmpty ? null : stored;
 }
 
 /// Persists (or clears, when [path] is null) the receipt-library root.
 Future<void> saveReceiptLibraryRoot(String? path) async {
-  final f = await _rootFile();
-  f.writeAsStringSync(path ?? '', flush: true);
+  final file = await _rootFile();
+  file.writeAsStringSync(path ?? '', flush: true);
 }
 
 /// Projects the receipt library to the configured root if one is set. Safe to

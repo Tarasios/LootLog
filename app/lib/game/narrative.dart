@@ -122,7 +122,7 @@ Narrative parseNarrative({
         minDays: (raw as Map)['minDays'] as int,
         lines: _stringList(raw['lines']),
       ),
-  ]..sort((a, b) => a.minDays.compareTo(b.minDays));
+  ]..sort((first, second) => first.minDays.compareTo(second.minDays));
 
   return Narrative(
     purchaseLogged:
@@ -138,20 +138,20 @@ Narrative parseNarrative({
 List<String> _linesOf(String json) =>
     _stringList((jsonDecode(json) as Map)['lines']);
 
-List<dynamic> _list(Object? v) => (v as List?) ?? const [];
+List<dynamic> _list(Object? value) => (value as List?) ?? const [];
 
-List<String> _stringList(Object? v) =>
-    [for (final e in _list(v)) e as String];
+List<String> _stringList(Object? value) =>
+    [for (final item in _list(value)) item as String];
 
 /// Loads the narrative from the asset bundle. Defaults to [rootBundle].
 Future<Narrative> loadNarrative([AssetBundle? bundle]) async {
-  final b = bundle ?? rootBundle;
+  final assetBundle = bundle ?? rootBundle;
   final results = await Future.wait([
-    b.loadString(NarrativeAssets.purchaseLogged),
-    b.loadString(NarrativeAssets.streakCelebrations),
-    b.loadString(NarrativeAssets.ritualCelebrations),
-    b.loadString(NarrativeAssets.overspendSupport),
-    b.loadString(NarrativeAssets.campAmbience),
+    assetBundle.loadString(NarrativeAssets.purchaseLogged),
+    assetBundle.loadString(NarrativeAssets.streakCelebrations),
+    assetBundle.loadString(NarrativeAssets.ritualCelebrations),
+    assetBundle.loadString(NarrativeAssets.overspendSupport),
+    assetBundle.loadString(NarrativeAssets.campAmbience),
   ]);
   return parseNarrative(
     purchaseLoggedJson: results[0],

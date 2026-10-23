@@ -38,9 +38,9 @@ class BlobStore {
     if (!await file.exists()) {
       await root.create(recursive: true);
       // Write to a temp file then rename, so a reader never sees a partial blob.
-      final tmp = File('${file.path}.tmp-$pid');
-      await tmp.writeAsBytes(bytes, flush: true);
-      await tmp.rename(file.path);
+      final tempFile = File('${file.path}.tmp-$pid');
+      await tempFile.writeAsBytes(bytes, flush: true);
+      await tempFile.rename(file.path);
     }
     return sha;
   }
@@ -122,9 +122,9 @@ class BlobStore {
     // Order attach/detach chronologically so a detach only cancels a prior
     // attach, mirroring the reducer's per-purchase receipt handling.
     final ordered = events.toList()
-      ..sort((a, b) {
-        final c = a.occurredAt.compareTo(b.occurredAt);
-        return c != 0 ? c : a.eventId.compareTo(b.eventId);
+      ..sort((first, second) {
+        final byTime = first.occurredAt.compareTo(second.occurredAt);
+        return byTime != 0 ? byTime : first.eventId.compareTo(second.eventId);
       });
 
     final liveReceipts = <String, Set<String>>{}; // purchaseId -> live shas
@@ -133,20 +133,20 @@ class BlobStore {
     final memberSprite = <String, String?>{}; // last-writer-wins per member
     final cosmeticSprites = <String>{};
 
-    for (final e in ordered) {
-      switch (e) {
+    for (final event in ordered) {
+      switch (event) {
         case ReceiptAttached():
-          liveReceipts.putIfAbsent(e.purchaseId, () => {}).add(e.sha256);
+          liveReceipts.putIfAbsent(event.purchaseId, () => {}).add(event.sha256);
         case ReceiptDetached():
-          liveReceipts[e.purchaseId]?.remove(e.sha256);
+          liveReceipts[event.purchaseId]?.remove(event.sha256);
         case QuestSet():
-          questSprite[e.questId] = e.customSpriteSha256;
+          questSprite[event.questId] = event.customSpriteSha256;
         case PetSet():
-          petSprite[e.petId] = e.customSpriteSha256;
+          petSprite[event.petId] = event.customSpriteSha256;
         case MemberSet():
-          memberSprite[e.memberId] = e.customSpriteSha256;
+          memberSprite[event.memberId] = event.customSpriteSha256;
         case CosmeticSet():
-          _collectCosmeticShas(e.value, cosmeticSprites);
+          _collectCosmeticShas(event.value, cosmeticSprites);
         default:
           break;
       }
@@ -154,9 +154,9 @@ class BlobStore {
 
     return {
       for (final shas in liveReceipts.values) ...shas,
-      for (final s in questSprite.values) ?s,
-      for (final s in petSprite.values) ?s,
-      for (final s in memberSprite.values) ?s,
+      for (final sha in questSprite.values) ?sha,
+      for (final sha in petSprite.values) ?sha,
+      for (final sha in memberSprite.values) ?sha,
       ...cosmeticSprites,
     };
   }
@@ -166,17 +166,17 @@ class BlobStore {
   /// constantly, so evicting them would refetch on every frame's miss.
   static Set<String> receiptBlobs(Iterable<Event> events) {
     final ordered = events.toList()
-      ..sort((a, b) {
-        final c = a.occurredAt.compareTo(b.occurredAt);
-        return c != 0 ? c : a.eventId.compareTo(b.eventId);
+      ..sort((first, second) {
+        final byTime = first.occurredAt.compareTo(second.occurredAt);
+        return byTime != 0 ? byTime : first.eventId.compareTo(second.eventId);
       });
     final live = <String, Set<String>>{};
-    for (final e in ordered) {
-      switch (e) {
+    for (final event in ordered) {
+      switch (event) {
         case ReceiptAttached():
-          live.putIfAbsent(e.purchaseId, () => {}).add(e.sha256);
+          live.putIfAbsent(event.purchaseId, () => {}).add(event.sha256);
         case ReceiptDetached():
-          live[e.purchaseId]?.remove(e.sha256);
+          live[event.purchaseId]?.remove(event.sha256);
         default:
           break;
       }
@@ -186,22 +186,22 @@ class BlobStore {
 
   static final RegExp _sha256Re = RegExp(r'^[0-9a-f]{64}$');
 
-  static bool _isSha256(String s) => _sha256Re.hasMatch(s);
+  static bool _isSha256(String value) => _sha256Re.hasMatch(value);
 
   /// Collects every 64-hex string in a cosmetic value, however nested — a bare
   /// sprite sha, or per-stage `spriteSha256` entries inside the homestead
   /// ladder's list of maps.
   static void _collectCosmeticShas(Object? value, Set<String> out) {
     switch (value) {
-      case String s when _isSha256(s):
-        out.add(s);
-      case List<dynamic> l:
-        for (final v in l) {
-          _collectCosmeticShas(v, out);
+      case String sha when _isSha256(sha):
+        out.add(sha);
+      case List<dynamic> list:
+        for (final item in list) {
+          _collectCosmeticShas(item, out);
         }
-      case Map<dynamic, dynamic> m:
-        for (final v in m.values) {
-          _collectCosmeticShas(v, out);
+      case Map<dynamic, dynamic> map:
+        for (final item in map.values) {
+          _collectCosmeticShas(item, out);
         }
       default:
         break;

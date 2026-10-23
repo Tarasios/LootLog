@@ -289,7 +289,9 @@ class _AppShellState extends ConsumerState<AppShell> {
     if (!settings.pushAfterSync) return;
     final workbook = buildBudgetWorkbook(
       state,
-      userNames: {for (final m in state.members.values) m.memberId: m.name},
+      userNames: {
+        for (final member in state.members.values) member.memberId: member.name,
+      },
     );
     await ref
         .read(sheetsSyncServiceProvider)

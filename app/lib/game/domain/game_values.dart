@@ -19,8 +19,8 @@ class UnrecognizedGameValue extends FormatException {
 /// Looks up [name] in an enum's [values], throwing [UnrecognizedGameValue] for
 /// a name this build does not know.
 T gameEnumByName<T extends Enum>(List<T> values, String name, String what) {
-  for (final v in values) {
-    if (v.name == name) return v;
+  for (final value in values) {
+    if (value.name == name) return value;
   }
   throw UnrecognizedGameValue(what, name);
 }
@@ -35,8 +35,8 @@ class MaterialBundle {
 
   MaterialBundle(Map<MaterialKind, int> amounts)
       : _amounts = Map.unmodifiable({
-          for (final k in MaterialKind.values)
-            if ((amounts[k] ?? 0) != 0) k: amounts[k]!,
+          for (final kind in MaterialKind.values)
+            if ((amounts[kind] ?? 0) != 0) kind: amounts[kind]!,
         });
 
   final Map<MaterialKind, int> _amounts;
@@ -64,23 +64,23 @@ class MaterialBundle {
       cost.amounts.entries.every((e) => this[e.key] >= e.value);
 
   Map<String, int> toJson() => {
-        for (final e in _amounts.entries) e.key.name: e.value,
+        for (final entry in _amounts.entries) entry.key.name: entry.value,
       };
 
   static MaterialBundle fromJson(Map<String, dynamic> json) => MaterialBundle({
-        for (final e in json.entries)
-          gameEnumByName(MaterialKind.values, e.key, 'material'): e.value as int,
+        for (final entry in json.entries)
+          gameEnumByName(MaterialKind.values, entry.key, 'material'): entry.value as int,
       });
 
   @override
   bool operator ==(Object other) =>
       other is MaterialBundle &&
       other._amounts.length == _amounts.length &&
-      _amounts.entries.every((e) => other[e.key] == e.value);
+      _amounts.entries.every((entry) => other[entry.key] == entry.value);
 
   @override
   int get hashCode => Object.hashAll(
-      [for (final e in _amounts.entries) Object.hash(e.key, e.value)]);
+      [for (final entry in _amounts.entries) Object.hash(entry.key, entry.value)]);
 
   @override
   String toString() => 'MaterialBundle(${toJson()})';

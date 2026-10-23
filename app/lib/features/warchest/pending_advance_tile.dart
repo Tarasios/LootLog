@@ -28,8 +28,8 @@ class PendingAdvanceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final a = advance;
-    final months = a.months;
+    final current = advance;
+    final months = current.months;
     final plural = months == 1 ? '' : 's';
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -39,12 +39,12 @@ class PendingAdvanceTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${money(a.amountCents)} from ${a.categoryName} over $months '
+              '${money(current.amountCents)} from ${current.categoryName} over $months '
               'month$plural',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             Text(
-              'Asked by ${a.byUserName} · repaid from the next $months '
+              'Asked by ${current.byUserName} · repaid from the next $months '
               'month$plural of that budget',
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -52,7 +52,7 @@ class PendingAdvanceTile extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                if (a.mine)
+                if (current.mine)
                   Expanded(
                     child: Text(
                       'Waiting for another adult to approve.',
@@ -61,15 +61,15 @@ class PendingAdvanceTile extends StatelessWidget {
                   ),
                 TextButton(
                   onPressed:
-                      onCancel == null ? null : () => onCancel!(a.advanceId),
-                  child: Text(a.mine ? 'Withdraw' : 'Decline'),
+                      onCancel == null ? null : () => onCancel!(current.advanceId),
+                  child: Text(current.mine ? 'Withdraw' : 'Decline'),
                 ),
-                if (a.canApprove) ...[
+                if (current.canApprove) ...[
                   const SizedBox(width: AppSpacing.sm),
                   FilledButton(
                     onPressed: onApprove == null
                         ? null
-                        : () => onApprove!(a.advanceId),
+                        : () => onApprove!(current.advanceId),
                     child: const Text('Approve'),
                   ),
                 ],

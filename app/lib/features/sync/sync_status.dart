@@ -50,20 +50,20 @@ class SyncStatusIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final warn = status == SyncStatus.offline;
-    final fg = warn ? scheme.error : scheme.onSurfaceVariant;
+    final foreground = warn ? scheme.error : scheme.onSurfaceVariant;
     return Semantics(
       label: 'Sync status: ${status.label}',
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(status.icon, size: 16, color: fg),
+          Icon(status.icon, size: 16, color: foreground),
           const SizedBox(width: AppSpacing.xs),
           Text(
             status.label,
             style: Theme.of(context)
                 .textTheme
                 .labelMedium
-                ?.copyWith(color: fg, fontWeight: FontWeight.w600),
+                ?.copyWith(color: foreground, fontWeight: FontWeight.w600),
           ),
         ],
       ),

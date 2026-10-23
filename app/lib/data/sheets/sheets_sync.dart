@@ -266,8 +266,8 @@ class SheetsSyncService {
         spreadsheetId: settings.spreadsheetId!,
       );
       return SheetsPushOutcome(SheetsPushStatus.pushed, result: result);
-    } on Object catch (e) {
-      return SheetsPushOutcome(SheetsPushStatus.failed, message: '$e');
+    } on Object catch (error) {
+      return SheetsPushOutcome(SheetsPushStatus.failed, message: '$error');
     }
   }
 }

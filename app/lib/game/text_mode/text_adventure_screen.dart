@@ -140,19 +140,19 @@ Future<void> _apply(
   SpoilsRitual ritual,
   SpoilsResult result,
 ) async {
-  for (final t in result.tallies) {
+  for (final tally in result.tallies) {
     await actions.recordVariableActual(
-      expenseId: t.expenseId,
+      expenseId: tally.expenseId,
       month: ritual.month,
-      actualCents: t.actualCents,
+      actualCents: tally.actualCents,
     );
   }
-  for (final a in result.allocations) {
+  for (final allocation in result.allocations) {
     await actions.allocateLeftover(
       forUserId: ritual.forUserId,
       month: ritual.month,
-      sliceId: a.sliceId,
-      allocations: a.allocations,
+      sliceId: allocation.sliceId,
+      allocations: allocation.allocations,
     );
   }
 }

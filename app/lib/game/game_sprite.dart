@@ -49,17 +49,17 @@ int spriteFrameCount(String assetName) {
   final base = dot == -1 ? assetName : assetName.substring(0, dot);
   final match = RegExp(r'_(\d+)f$').firstMatch(base);
   if (match == null) return 1;
-  final n = int.parse(match.group(1)!);
-  return n <= 0 ? 1 : n;
+  final frames = int.parse(match.group(1)!);
+  return frames <= 0 ? 1 : frames;
 }
 
 /// The source rectangle of [frameIndex] within a strip of [frameCount] uniform
 /// frames laid out horizontally across an image of [imageSize].
 Rect spriteFrameSrc(Size imageSize, int frameCount, int frameIndex) {
   final count = frameCount <= 0 ? 1 : frameCount;
-  final idx = frameIndex % count;
+  final frame = frameIndex % count;
   final frameWidth = imageSize.width / count;
-  return Rect.fromLTWH(frameWidth * idx, 0, frameWidth, imageSize.height);
+  return Rect.fromLTWH(frameWidth * frame, 0, frameWidth, imageSize.height);
 }
 
 /// Resolves a [SpriteRef] to an [ImageProvider], or null when the art is not
@@ -517,9 +517,9 @@ class _SpritePlaceholder extends StatelessWidget {
 
   /// Up to two initials from the label, so small placeholders stay legible.
   static String _initials(String label) {
-    final words = label.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty);
+    final words = label.trim().split(RegExp(r'\s+')).where((word) => word.isNotEmpty);
     if (words.isEmpty) return '?';
-    final letters = words.map((w) => w[0].toUpperCase()).take(2).join();
+    final letters = words.map((word) => word[0].toUpperCase()).take(2).join();
     return letters.isEmpty ? '?' : letters;
   }
 }
@@ -544,9 +544,9 @@ class _SpritePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final imageSize =
         Size(image.width.toDouble(), image.height.toDouble());
-    final src = spriteFrameSrc(imageSize, frameCount, frameIndex);
-    final dst = Offset.zero & size;
-    canvas.drawImageRect(image, src, dst, _paint);
+    final sourceRect = spriteFrameSrc(imageSize, frameCount, frameIndex);
+    final destinationRect = Offset.zero & size;
+    canvas.drawImageRect(image, sourceRect, destinationRect, _paint);
   }
 
   @override

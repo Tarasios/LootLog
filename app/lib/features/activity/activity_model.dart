@@ -79,7 +79,7 @@ List<ActivityItem> buildActivityFeed(
 
   String vacationName(String id) => state.vacations[id]?.name ?? 'a vacation';
 
-  String targetLabel(ChargeTarget t) => switch (t) {
+  String targetLabel(ChargeTarget target) => switch (target) {
     SliceCharge(:final sliceId) => sliceName(sliceId),
     VaultCharge() => 'their $vaultWord',
     QuestCharge(:final questId) => questName(questId),
@@ -91,259 +91,259 @@ List<ActivityItem> buildActivityFeed(
   // Tracks the last MemberSet seen per member while walking the (append-
   // ordered) log, so later events read as updates rather than adds.
   final lastMemberSet = <String, MemberSet>{};
-  for (final e in events) {
-    final mine = e.userId == meUserId;
+  for (final event in events) {
+    final mine = event.userId == meUserId;
     ActivityItem? item;
-    switch (e) {
+    switch (event) {
       case PurchaseAdded():
         item = ActivityItem(
-          eventId: e.eventId,
+          eventId: event.eventId,
           kind: ActivityKind.purchase,
-          userId: e.userId,
-          title: '${who(e.userId)} spent on ${targetLabel(e.target)}',
+          userId: event.userId,
+          title: '${who(event.userId)} spent on ${targetLabel(event.target)}',
           subtitle: [
-            if (e.merchant != null) e.merchant,
-            if (e.shared) 'shared',
+            if (event.merchant != null) event.merchant,
+            if (event.shared) 'shared',
           ].whereType<String>().join(' · ').ifEmptyNull(),
-          amountCents: -e.amountCents,
-          occurredAt: e.occurredAt,
+          amountCents: -event.amountCents,
+          occurredAt: event.occurredAt,
           isMine: mine,
         );
       case PurchaseVoided():
         item = ActivityItem(
-          eventId: e.eventId,
+          eventId: event.eventId,
           kind: ActivityKind.purchaseVoided,
-          userId: e.userId,
-          title: '${who(e.userId)} voided a purchase',
-          occurredAt: e.occurredAt,
+          userId: event.userId,
+          title: '${who(event.userId)} voided a purchase',
+          occurredAt: event.occurredAt,
           isMine: mine,
         );
       case GiftReceived():
         item = ActivityItem(
-          eventId: e.eventId,
+          eventId: event.eventId,
           kind: ActivityKind.gift,
-          userId: e.userId,
-          title: '${who(e.forUserId)} received a gift',
-          subtitle: e.note,
-          amountCents: e.amountCents,
-          occurredAt: e.occurredAt,
-          isMine: e.forUserId == meUserId,
+          userId: event.userId,
+          title: '${who(event.forUserId)} received a gift',
+          subtitle: event.note,
+          amountCents: event.amountCents,
+          occurredAt: event.occurredAt,
+          isMine: event.forUserId == meUserId,
         );
       case QuestSet():
         item = ActivityItem(
-          eventId: e.eventId,
+          eventId: event.eventId,
           kind: ActivityKind.quest,
-          userId: e.userId,
-          title: '${who(e.userId)} set the $goalWord "${e.name}"',
-          subtitle: 'target ${money(e.targetCents)}',
-          occurredAt: e.occurredAt,
+          userId: event.userId,
+          title: '${who(event.userId)} set the $goalWord "${event.name}"',
+          subtitle: 'target ${money(event.targetCents)}',
+          occurredAt: event.occurredAt,
           isMine: mine,
         );
       case QuestAbandoned():
         item = ActivityItem(
-          eventId: e.eventId,
+          eventId: event.eventId,
           kind: ActivityKind.quest,
-          userId: e.userId,
-          title: '${who(e.userId)} abandoned ${questName(e.questId)}',
-          occurredAt: e.occurredAt,
+          userId: event.userId,
+          title: '${who(event.userId)} abandoned ${questName(event.questId)}',
+          occurredAt: event.occurredAt,
           isMine: mine,
         );
       case LeftoverAllocated():
-        final total = e.allocations.fold<int>(0, (a, x) => a + x.amountCents);
+        final total = event.allocations.fold<int>(0, (sum, allocation) => sum + allocation.amountCents);
         item = ActivityItem(
-          eventId: e.eventId,
+          eventId: event.eventId,
           kind: ActivityKind.allocation,
-          userId: e.userId,
+          userId: event.userId,
           title:
-              '${who(e.forUserId)} divided leftovers from ${sliceName(e.sliceId)}',
-          subtitle: monthLabel(e.month.year, e.month.month),
+              '${who(event.forUserId)} divided leftovers from ${sliceName(event.sliceId)}',
+          subtitle: monthLabel(event.month.year, event.month.month),
           amountCents: total,
-          occurredAt: e.occurredAt,
-          isMine: e.forUserId == meUserId,
+          occurredAt: event.occurredAt,
+          isMine: event.forUserId == meUserId,
         );
       case ShortfallCovered():
         item = ActivityItem(
-          eventId: e.eventId,
+          eventId: event.eventId,
           kind: ActivityKind.allocation,
-          userId: e.userId,
-          title: switch (e.source) {
+          userId: event.userId,
+          title: switch (event.source) {
             GeneralCover() =>
-              '${who(e.userId)} covered part of a purchase from general savings',
+              '${who(event.userId)} covered part of a purchase from general savings',
             CategorySavingsCover() =>
-              '${who(e.userId)} put category savings toward a goal purchase',
+              '${who(event.userId)} put category savings toward a goal purchase',
           },
-          amountCents: -e.amountCents,
-          occurredAt: e.occurredAt,
-          isMine: e.userId == meUserId,
+          amountCents: -event.amountCents,
+          occurredAt: event.occurredAt,
+          isMine: event.userId == meUserId,
         );
       case AllowanceAdvanceProposed():
         item = ActivityItem(
-          eventId: e.eventId,
+          eventId: event.eventId,
           kind: ActivityKind.withdrawal,
-          userId: e.userId,
+          userId: event.userId,
           title:
-              '${who(e.byUserId)} asked to borrow from future months '
-              '(${e.months} month${e.months == 1 ? '' : 's'})',
-          amountCents: -e.amountCents,
-          occurredAt: e.occurredAt,
-          isMine: e.byUserId == meUserId,
+              '${who(event.byUserId)} asked to borrow from future months '
+              '(${event.months} month${event.months == 1 ? '' : 's'})',
+          amountCents: -event.amountCents,
+          occurredAt: event.occurredAt,
+          isMine: event.byUserId == meUserId,
         );
       case AllowanceAdvanceApproved():
         item = ActivityItem(
-          eventId: e.eventId,
+          eventId: event.eventId,
           kind: ActivityKind.withdrawal,
-          userId: e.userId,
-          title: '${who(e.byUserId)} approved borrowing from future months',
-          occurredAt: e.occurredAt,
-          isMine: e.byUserId == meUserId,
+          userId: event.userId,
+          title: '${who(event.byUserId)} approved borrowing from future months',
+          occurredAt: event.occurredAt,
+          isMine: event.byUserId == meUserId,
         );
       case AllowanceAdvanceCancelled():
         item = ActivityItem(
-          eventId: e.eventId,
+          eventId: event.eventId,
           kind: ActivityKind.withdrawal,
-          userId: e.userId,
+          userId: event.userId,
           title:
-              '${who(e.userId)} cancelled a request to borrow from future '
+              '${who(event.userId)} cancelled a request to borrow from future '
               'months',
-          occurredAt: e.occurredAt,
-          isMine: e.userId == meUserId,
+          occurredAt: event.occurredAt,
+          isMine: event.userId == meUserId,
         );
       case PoolWithdrawalProposed():
         item = ActivityItem(
-          eventId: e.eventId,
+          eventId: event.eventId,
           kind: ActivityKind.withdrawal,
-          userId: e.userId,
+          userId: event.userId,
           title: isAdventure
-              ? '${who(e.byUserId)} proposed a war-chest writ'
-              : '${who(e.byUserId)} proposed a $withdrawal',
-          subtitle: e.purpose,
-          amountCents: -e.amountCents,
-          occurredAt: e.occurredAt,
-          isMine: e.byUserId == meUserId,
+              ? '${who(event.byUserId)} proposed a war-chest writ'
+              : '${who(event.byUserId)} proposed a $withdrawal',
+          subtitle: event.purpose,
+          amountCents: -event.amountCents,
+          occurredAt: event.occurredAt,
+          isMine: event.byUserId == meUserId,
         );
       case PoolWithdrawalApproved():
         item = ActivityItem(
-          eventId: e.eventId,
+          eventId: event.eventId,
           kind: ActivityKind.withdrawal,
-          userId: e.userId,
+          userId: event.userId,
           title: isAdventure
-              ? '${who(e.byUserId)} signed a writ'
-              : '${who(e.byUserId)} approved a $withdrawal',
-          occurredAt: e.occurredAt,
-          isMine: e.byUserId == meUserId,
+              ? '${who(event.byUserId)} signed a writ'
+              : '${who(event.byUserId)} approved a $withdrawal',
+          occurredAt: event.occurredAt,
+          isMine: event.byUserId == meUserId,
         );
       case PoolWithdrawalCancelled():
         item = ActivityItem(
-          eventId: e.eventId,
+          eventId: event.eventId,
           kind: ActivityKind.withdrawal,
-          userId: e.userId,
-          title: '${who(e.userId)} cancelled a $withdrawal',
-          occurredAt: e.occurredAt,
+          userId: event.userId,
+          title: '${who(event.userId)} cancelled a $withdrawal',
+          occurredAt: event.occurredAt,
           isMine: mine,
         );
       case PoolContributionMade():
         item = ActivityItem(
-          eventId: e.eventId,
+          eventId: event.eventId,
           kind: ActivityKind.contribution,
-          userId: e.userId,
+          userId: event.userId,
           title: isAdventure
-              ? '${who(e.fromUserId)} fed the war chest'
-              : '${who(e.fromUserId)} added to shared savings',
-          amountCents: e.amountCents,
-          occurredAt: e.occurredAt,
-          isMine: e.fromUserId == meUserId,
+              ? '${who(event.fromUserId)} fed the war chest'
+              : '${who(event.fromUserId)} added to shared savings',
+          amountCents: event.amountCents,
+          occurredAt: event.occurredAt,
+          isMine: event.fromUserId == meUserId,
         );
       case TaxRefundRecorded():
         item = ActivityItem(
-          eventId: e.eventId,
+          eventId: event.eventId,
           kind: ActivityKind.taxRefund,
-          userId: e.userId,
+          userId: event.userId,
           title: isAdventure
               ? 'A royal rebate reached the war chest'
               : 'A tax refund went to shared savings',
-          subtitle: e.note,
-          amountCents: e.amountCents,
-          occurredAt: e.occurredAt,
+          subtitle: event.note,
+          amountCents: event.amountCents,
+          occurredAt: event.occurredAt,
           isMine: mine,
         );
       case IncomeSet():
         item = ActivityItem(
-          eventId: e.eventId,
+          eventId: event.eventId,
           kind: ActivityKind.income,
-          userId: e.userId,
-          title: '${Glossary.cap(supplies)} logged for ${who(e.forUserId)}',
-          subtitle: monthLabel(e.month.year, e.month.month),
-          amountCents: e.amountCents,
-          occurredAt: e.occurredAt,
-          isMine: e.forUserId == meUserId,
+          userId: event.userId,
+          title: '${Glossary.capitalize(supplies)} logged for ${who(event.forUserId)}',
+          subtitle: monthLabel(event.month.year, event.month.month),
+          amountCents: event.amountCents,
+          occurredAt: event.occurredAt,
+          isMine: event.forUserId == meUserId,
         );
       case DefaultIncomeSet():
         item = ActivityItem(
-          eventId: e.eventId,
+          eventId: event.eventId,
           kind: ActivityKind.income,
-          userId: e.userId,
-          title: 'Standing $supplies set for ${who(e.forUserId)}',
+          userId: event.userId,
+          title: 'Standing $supplies set for ${who(event.forUserId)}',
           subtitle:
-              'from ${monthLabel(e.effectiveFromMonth.year, e.effectiveFromMonth.month)}',
-          amountCents: e.amountCents,
-          occurredAt: e.occurredAt,
-          isMine: e.forUserId == meUserId,
+              'from ${monthLabel(event.effectiveFromMonth.year, event.effectiveFromMonth.month)}',
+          amountCents: event.amountCents,
+          occurredAt: event.occurredAt,
+          isMine: event.forUserId == meUserId,
         );
       case BudgetSliceSet():
         item = ActivityItem(
-          eventId: e.eventId,
+          eventId: event.eventId,
           kind: ActivityKind.config,
-          userId: e.userId,
-          title: '${who(e.userId)} set up the "${e.name}" budget',
-          occurredAt: e.occurredAt,
+          userId: event.userId,
+          title: '${who(event.userId)} set up the "${event.name}" budget',
+          occurredAt: event.occurredAt,
           isMine: mine,
         );
       case RecurringExpenseSet():
         item = ActivityItem(
-          eventId: e.eventId,
+          eventId: event.eventId,
           kind: ActivityKind.config,
-          userId: e.userId,
-          title: '${who(e.userId)} scheduled "${e.name}"',
-          occurredAt: e.occurredAt,
+          userId: event.userId,
+          title: '${who(event.userId)} scheduled "${event.name}"',
+          occurredAt: event.occurredAt,
           isMine: mine,
         );
       case EmergencyFundSet():
         item = ActivityItem(
-          eventId: e.eventId,
+          eventId: event.eventId,
           kind: ActivityKind.config,
-          userId: e.userId,
-          title: '${who(e.userId)} opened the "${e.name}" '
+          userId: event.userId,
+          title: '${who(event.userId)} opened the "${event.name}" '
               '${Glossary.emergencyFund.label(isAdventure: isAdventure)}',
-          occurredAt: e.occurredAt,
+          occurredAt: event.occurredAt,
           isMine: mine,
         );
       case PetSet():
         item = ActivityItem(
-          eventId: e.eventId,
+          eventId: event.eventId,
           kind: ActivityKind.config,
-          userId: e.userId,
-          title: '${who(e.userId)} added ${e.name} to the $party',
-          occurredAt: e.occurredAt,
+          userId: event.userId,
+          title: '${who(event.userId)} added ${event.name} to the $party',
+          occurredAt: event.occurredAt,
           isMine: mine,
         );
       case MemberSet():
-        final prev = lastMemberSet[e.memberId];
-        lastMemberSet[e.memberId] = e;
-        final title = switch (classifyMemberSet(e, prev)) {
+        final prev = lastMemberSet[event.memberId];
+        lastMemberSet[event.memberId] = event;
+        final title = switch (classifyMemberSet(event, prev)) {
           MemberSetChange.retired =>
-            '${who(e.userId)} retired ${e.name} from the $party',
+            '${who(event.userId)} retired ${event.name} from the $party',
           MemberSetChange.added =>
-            '${who(e.userId)} added ${e.name} to the $party',
+            '${who(event.userId)} added ${event.name} to the $party',
           MemberSetChange.portraitOnly =>
-            "${who(e.userId)} updated ${e.name}'s portrait",
-          MemberSetChange.updated => '${who(e.userId)} updated ${e.name}',
+            "${who(event.userId)} updated ${event.name}'s portrait",
+          MemberSetChange.updated => '${who(event.userId)} updated ${event.name}',
         };
         item = ActivityItem(
-          eventId: e.eventId,
+          eventId: event.eventId,
           kind: ActivityKind.config,
-          userId: e.userId,
+          userId: event.userId,
           title: title,
-          occurredAt: e.occurredAt,
+          occurredAt: event.occurredAt,
           isMine: mine,
         );
       // Deliberately silent: receipts, goals, accounts, settings, cosmetics,
@@ -372,9 +372,9 @@ List<ActivityItem> buildActivityFeed(
     }
   }
 
-  items.sort((a, b) {
-    final c = b.occurredAt.compareTo(a.occurredAt);
-    return c != 0 ? c : b.eventId.compareTo(a.eventId);
+  items.sort((first, second) {
+    final comparison = second.occurredAt.compareTo(first.occurredAt);
+    return comparison != 0 ? comparison : second.eventId.compareTo(first.eventId);
   });
   return items.length > limit ? items.sublist(0, limit) : items;
 }

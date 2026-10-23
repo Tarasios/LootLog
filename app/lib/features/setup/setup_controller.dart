@@ -73,15 +73,15 @@ class SetupController extends ChangeNotifier {
       playModes[localId] ?? PlayPrefs.defaults.mode;
 
   List<DraftMember> get adults =>
-      members.where((m) => m.isAdult).toList(growable: false);
+      members.where((member) => member.isAdult).toList(growable: false);
   List<DraftMember> get pets =>
-      members.where((m) => m.role == DraftRole.pet).toList(growable: false);
+      members.where((member) => member.role == DraftRole.pet).toList(growable: false);
 
   bool get hasAdult => adults.isNotEmpty;
 
   DraftMember? memberById(String id) {
-    for (final m in members) {
-      if (m.localId == id) return m;
+    for (final member in members) {
+      if (member.localId == id) return member;
     }
     return null;
   }
@@ -117,7 +117,7 @@ class SetupController extends ChangeNotifier {
     String? spriteSha256,
     String? fundedByUserId,
   }) {
-    final i = members.indexWhere((m) => m.localId == localId);
+    final i = members.indexWhere((member) => member.localId == localId);
     if (i < 0) return;
     final old = members[i];
     members[i] = DraftMember(
@@ -132,14 +132,14 @@ class SetupController extends ChangeNotifier {
   }
 
   void removeMember(String localId) {
-    members.removeWhere((m) => m.localId == localId);
+    members.removeWhere((member) => member.localId == localId);
     income.remove(localId);
     if (meLocalId == localId) {
       meLocalId = adults.isEmpty ? null : adults.first.localId;
     }
     // Drop personal items owned by the removed member.
-    fixedExpenses.removeWhere((e) => !e.shared && e.ownerLocalId == localId);
-    categories.removeWhere((c) => !c.group && c.ownerLocalId == localId);
+    fixedExpenses.removeWhere((expense) => !expense.shared && expense.ownerLocalId == localId);
+    categories.removeWhere((category) => !category.group && category.ownerLocalId == localId);
     notifyListeners();
   }
 
@@ -160,12 +160,12 @@ class SetupController extends ChangeNotifier {
   int incomeOf(String adultId) => income[adultId] ?? 0;
 
   int get totalIncomeCents =>
-      adults.fold(0, (a, m) => a + incomeOf(m.localId));
+      adults.fold(0, (sum, adult) => sum + incomeOf(adult.localId));
 
   // ---- Accounts / expenses / categories ------------------------------------
 
-  void addAccount(DraftAccount a) {
-    accounts.add(a);
+  void addAccount(DraftAccount account) {
+    accounts.add(account);
     notifyListeners();
   }
 
@@ -174,13 +174,13 @@ class SetupController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void addFixedExpense(DraftFixedExpense e) {
-    fixedExpenses.add(e);
+  void addFixedExpense(DraftFixedExpense expense) {
+    fixedExpenses.add(expense);
     notifyListeners();
   }
 
-  void updateFixedExpense(int index, DraftFixedExpense e) {
-    fixedExpenses[index] = e;
+  void updateFixedExpense(int index, DraftFixedExpense expense) {
+    fixedExpenses[index] = expense;
     notifyListeners();
   }
 
@@ -189,13 +189,13 @@ class SetupController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void addCategory(DraftCategory c) {
-    categories.add(c);
+  void addCategory(DraftCategory category) {
+    categories.add(category);
     notifyListeners();
   }
 
-  void updateCategory(int index, DraftCategory c) {
-    categories[index] = c;
+  void updateCategory(int index, DraftCategory category) {
+    categories[index] = category;
     notifyListeners();
   }
 
@@ -207,7 +207,7 @@ class SetupController extends ChangeNotifier {
   // ---- Main categories -------------------------------------------------------
 
   void renameMainCategory(String id, String name) {
-    final i = mainCategories.indexWhere((m) => m.id == id);
+    final i = mainCategories.indexWhere((mainCategory) => mainCategory.id == id);
     if (i < 0 || name.trim().isEmpty) return;
     mainCategories[i] = mainCategories[i].copyWith(name: name.trim());
     notifyListeners();
@@ -229,18 +229,18 @@ class SetupController extends ChangeNotifier {
     return id;
   }
 
-  void setShares(Map<String, int>? s) {
-    shares = s;
+  void setShares(Map<String, int>? newShares) {
+    shares = newShares;
     notifyListeners();
   }
 
-  void setFirstQuest(DraftQuest? q) {
-    firstQuest = q;
+  void setFirstQuest(DraftQuest? quest) {
+    firstQuest = quest;
     notifyListeners();
   }
 
-  void setModeFor(String localId, PlayMode m) {
-    playModes[localId] = m;
+  void setModeFor(String localId, PlayMode mode) {
+    playModes[localId] = mode;
     notifyListeners();
   }
 
@@ -248,43 +248,43 @@ class SetupController extends ChangeNotifier {
 
   /// The monthly-equivalent amount of a fixed expense (annual bills spread over
   /// twelve months for the counter; the ledger accrues them precisely).
-  static int _monthlyEquivalent(DraftFixedExpense e) => switch (e.cadence.name) {
-        'annual' => e.amountCents ~/ 12,
-        _ => e.amountCents,
+  static int _monthlyEquivalent(DraftFixedExpense expense) => switch (expense.cadence.name) {
+        'annual' => expense.amountCents ~/ 12,
+        _ => expense.amountCents,
       };
 
   /// The permille split in effect (custom if set, else an even split).
   Map<String, int> effectiveShares() {
-    final ids = [for (final a in adults) a.localId];
+    final ids = [for (final adult in adults) adult.localId];
     return shares ?? evenShares(ids);
   }
 
   /// The slice of a pet-owned category's limit funded by [adultId]: each
   /// owning pet takes an equal share; a pet funded by an adult moves its
   /// share off that adult's budget instead of the group's.
-  int _petShareFundedBy(DraftCategory cat, String adultId) {
-    if (cat.petOwnerIds.isEmpty) return 0;
-    final per = cat.limitCents ~/ cat.petOwnerIds.length;
+  int _petShareFundedBy(DraftCategory category, String adultId) {
+    if (category.petOwnerIds.isEmpty) return 0;
+    final perOwnerCents = category.limitCents ~/ category.petOwnerIds.length;
     var total = 0;
-    for (final petId in cat.petOwnerIds) {
-      if (memberById(petId)?.fundedByUserId == adultId) total += per;
+    for (final petId in category.petOwnerIds) {
+      if (memberById(petId)?.fundedByUserId == adultId) total += perOwnerCents;
     }
     return total;
   }
 
-  int _petAdultFundedTotal(DraftCategory cat) =>
-      adults.fold(0, (a, m) => a + _petShareFundedBy(cat, m.localId));
+  int _petAdultFundedTotal(DraftCategory category) =>
+      adults.fold(0, (sum, adult) => sum + _petShareFundedBy(category, adult.localId));
 
   /// Total group burden = group category limits + shared fixed expenses
   /// (monthly-equivalent), funded by shares off the top. Pet shares funded by
   /// a specific adult are carved out and land on that adult instead.
   int get groupBurdenCents {
     var total = 0;
-    for (final c in categories.where((c) => c.group)) {
-      total += c.limitCents - _petAdultFundedTotal(c);
+    for (final category in categories.where((category) => category.group)) {
+      total += category.limitCents - _petAdultFundedTotal(category);
     }
-    for (final e in fixedExpenses.where((e) => e.shared)) {
-      total += _monthlyEquivalent(e);
+    for (final expense in fixedExpenses.where((expense) => expense.shared)) {
+      total += _monthlyEquivalent(expense);
     }
     return total;
   }
@@ -297,15 +297,15 @@ class SetupController extends ChangeNotifier {
         ? groupBurdenCents
         : (groupBurdenCents * permille) ~/ 1000;
     var personalBudget = categories
-        .where((c) => !c.group && c.ownerLocalId == adultId)
-        .fold(0, (a, c) => a + c.limitCents);
+        .where((category) => !category.group && category.ownerLocalId == adultId)
+        .fold(0, (sum, category) => sum + category.limitCents);
     // Pet shares this adult personally funds (pets assigned to them).
-    for (final c in categories.where((c) => c.group)) {
-      personalBudget += _petShareFundedBy(c, adultId);
+    for (final category in categories.where((category) => category.group)) {
+      personalBudget += _petShareFundedBy(category, adultId);
     }
     final personalFixed = fixedExpenses
-        .where((e) => !e.shared && e.ownerLocalId == adultId)
-        .fold(0, (a, e) => a + _monthlyEquivalent(e));
+        .where((expense) => !expense.shared && expense.ownerLocalId == adultId)
+        .fold(0, (sum, expense) => sum + _monthlyEquivalent(expense));
     return AdultAllocation(
       adultId: adultId,
       incomeCents: incomeOf(adultId),
@@ -318,7 +318,7 @@ class SetupController extends ChangeNotifier {
   /// Whether any adult's plan exceeds their income (budgets + fixed + group
   /// share > income). The wizard blocks finishing while this is true.
   bool get anyOverAllocated =>
-      adults.any((a) => allocationFor(a.localId).unallocatedCents < 0);
+      adults.any((adult) => allocationFor(adult.localId).unallocatedCents < 0);
 
   /// Replaces [adultId]'s personal category limits with an even division of
   /// whatever their income leaves after the group share and personal fixed
@@ -356,6 +356,6 @@ class SetupController extends ChangeNotifier {
         mainCategories: List.unmodifiable(mainCategories),
         shares: shares == null ? null : Map.unmodifiable(shares!),
         firstQuest: firstQuest,
-        playModes: {for (final a in adults) a.localId: modeOf(a.localId)},
+        playModes: {for (final adult in adults) adult.localId: modeOf(adult.localId)},
       );
 }

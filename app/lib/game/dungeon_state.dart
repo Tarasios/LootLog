@@ -90,8 +90,8 @@ class HpBar {
   /// Consumed fraction in 0..1. A zero-max bar reads full once anything lands.
   double get fraction {
     if (maxCents <= 0) return currentCents > 0 ? 1 : 0;
-    final f = currentCents / maxCents;
-    return f < 0 ? 0 : (f > 1 ? 1 : f);
+    final consumed = currentCents / maxCents;
+    return consumed < 0 ? 0 : (consumed > 1 ? 1 : consumed);
   }
 
   int get pct => (fraction * 100).round();

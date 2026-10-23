@@ -17,11 +17,11 @@ bool memberEditChanged(
   String? descriptionText,
   String? fundedByUserId,
 }) {
-  String norm(String? s) => (s ?? '').trim();
+  String normalized(String? text) => (text ?? '').trim();
   return existing.name != name ||
       existing.role != role ||
       existing.active != active ||
       existing.customSpriteSha256 != customSpriteSha256 ||
-      norm(existing.descriptionText) != norm(descriptionText) ||
+      normalized(existing.descriptionText) != normalized(descriptionText) ||
       existing.fundedByUserId != fundedByUserId;
 }

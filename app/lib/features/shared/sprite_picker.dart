@@ -26,8 +26,8 @@ Future<String?> pickAndIngestSprite(
   try {
     final bytes = await file.readAsBytes();
     return await actions.ingestSpriteBytes(bytes);
-  } on SpriteRejected catch (e) {
-    messenger.showSnackBar(SnackBar(content: Text('Sprite rejected: ${e.message}')));
+  } on SpriteRejected catch (error) {
+    messenger.showSnackBar(SnackBar(content: Text('Sprite rejected: ${error.message}')));
     return null;
   } on Object catch (_) {
     messenger.showSnackBar(

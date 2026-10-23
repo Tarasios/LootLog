@@ -81,13 +81,13 @@ class ReportView extends StatelessWidget {
       width: double.infinity,
       child: SegmentedButton<String?>(
         segments: [
-          for (final s in scopes)
-            ButtonSegment<String?>(value: s.userId, label: Text(s.label)),
+          for (final scope in scopes)
+            ButtonSegment<String?>(value: scope.userId, label: Text(scope.label)),
         ],
         selected: {report.userId},
         showSelectedIcon: false,
         onSelectionChanged:
-            onScopeChanged == null ? null : (s) => onScopeChanged!(s.first),
+            onScopeChanged == null ? null : (selection) => onScopeChanged!(selection.first),
       ),
     );
   }
@@ -134,13 +134,13 @@ class _PieCard extends StatelessWidget {
                     sectionsSpace: 2,
                     centerSpaceRadius: 48,
                     sections: [
-                      for (final s in slices)
+                      for (final slice in slices)
                         PieChartSectionData(
-                          value: s.spentCents.toDouble(),
-                          color: Color(s.colorArgb),
+                          value: slice.spentCents.toDouble(),
+                          color: Color(slice.colorArgb),
                           title: total == 0
                               ? ''
-                              : '${(s.spentCents * 100 / total).round()}%',
+                              : '${(slice.spentCents * 100 / total).round()}%',
                           titleStyle: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
@@ -154,7 +154,7 @@ class _PieCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
-              for (final s in slices)
+              for (final slice in slices)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
                   child: Row(
@@ -163,13 +163,13 @@ class _PieCard extends StatelessWidget {
                         width: 14,
                         height: 14,
                         decoration: BoxDecoration(
-                          color: Color(s.colorArgb),
+                          color: Color(slice.colorArgb),
                           shape: BoxShape.circle,
                         ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
-                      Expanded(child: Text(s.name)),
-                      Text(money(s.spentCents),
+                      Expanded(child: Text(slice.name)),
+                      Text(money(slice.spentCents),
                           style: Theme.of(context).textTheme.bodyMedium),
                     ],
                   ),
@@ -236,24 +236,24 @@ class _TableCard extends StatelessWidget {
         TableRow(
           children: [
             Text('Category', style: labelStyle),
-            _num(context, 'Budget', header: true),
-            _num(context, 'Spent', header: true),
-            _num(context, 'Left', header: true),
+            _numberCell(context, 'Budget', header: true),
+            _numberCell(context, 'Spent', header: true),
+            _numberCell(context, 'Left', header: true),
           ],
         ),
-        for (final r in rows)
+        for (final row in rows)
           TableRow(
             children: [
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-                child: Text(r.name),
+                child: Text(row.name),
               ),
-              _num(context, money(r.budgetedCents)),
-              _num(context, money(r.spentCents),
-                  color: r.overspent
+              _numberCell(context, money(row.budgetedCents)),
+              _numberCell(context, money(row.spentCents),
+                  color: row.overspent
                       ? Theme.of(context).colorScheme.error
                       : null),
-              _num(context, money(r.leftoverCents)),
+              _numberCell(context, money(row.leftoverCents)),
             ],
           ),
         TableRow(
@@ -268,16 +268,16 @@ class _TableCard extends StatelessWidget {
               child: Text('Total',
                   style: TextStyle(fontWeight: FontWeight.w700)),
             ),
-            _num(context, money(report.totalBudgetedCents), bold: true),
-            _num(context, money(report.totalSpentCents), bold: true),
-            _num(context, money(report.totalLeftoverCents), bold: true),
+            _numberCell(context, money(report.totalBudgetedCents), bold: true),
+            _numberCell(context, money(report.totalSpentCents), bold: true),
+            _numberCell(context, money(report.totalLeftoverCents), bold: true),
           ],
         ),
       ],
     );
   }
 
-  Widget _num(BuildContext context, String text,
+  Widget _numberCell(BuildContext context, String text,
       {bool header = false, bool bold = false, Color? color}) {
     final base = header
         ? Theme.of(context)

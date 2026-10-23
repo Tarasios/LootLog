@@ -34,10 +34,10 @@ class VacationScreen extends ConsumerWidget {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     final vacations = state.vacations.values.toList()
-      ..sort((a, b) {
+      ..sort((first, second) {
         // Open trips first, then by name.
-        final r = (a.isOpen ? 0 : 1).compareTo(b.isOpen ? 0 : 1);
-        return r != 0 ? r : a.name.compareTo(b.name);
+        final byOpen = (first.isOpen ? 0 : 1).compareTo(second.isOpen ? 0 : 1);
+        return byOpen != 0 ? byOpen : first.name.compareTo(second.name);
       });
 
     final canCreate = _fundOptions(state).isNotEmpty;
@@ -56,8 +56,8 @@ class VacationScreen extends ConsumerWidget {
           : ListView(
               padding: const EdgeInsets.all(AppSpacing.lg),
               children: [
-                for (final v in vacations)
-                  _VacationCard(vacation: v),
+                for (final vacation in vacations)
+                  _VacationCard(vacation: vacation),
               ],
             ),
     );
@@ -68,20 +68,20 @@ class VacationScreen extends ConsumerWidget {
 /// emergency fund.
 List<({VacationFund fund, String label})> _fundOptions(HouseholdState state) {
   final options = <({VacationFund fund, String label})>[];
-  for (final q in state.quests.values) {
-    if (q.completed || q.abandoned) continue;
+  for (final quest in state.quests.values) {
+    if (quest.completed || quest.abandoned) continue;
     options.add((
-      fund: VacationFundQuest(q.questId),
-      label: 'Goal · ${q.name} (${money(q.balanceCents)})',
+      fund: VacationFundQuest(quest.questId),
+      label: 'Goal · ${quest.name} (${money(quest.balanceCents)})',
     ));
   }
-  for (final f in state.emergencyFunds.values) {
+  for (final fund in state.emergencyFunds.values) {
     options.add((
-      fund: VacationFundEmergency(f.fundId),
-      label: 'Fund · ${f.name} (${money(f.balanceCents)})',
+      fund: VacationFundEmergency(fund.fundId),
+      label: 'Fund · ${fund.name} (${money(fund.balanceCents)})',
     ));
   }
-  options.sort((a, b) => a.label.compareTo(b.label));
+  options.sort((first, second) => first.label.compareTo(second.label));
   return options;
 }
 
@@ -157,8 +157,8 @@ class _VacationCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
-    final v = vacation;
-    final warnings = vacationWarnings(v);
+    final trip = vacation;
+    final warnings = vacationWarnings(trip);
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.lg),
       child: Padding(
@@ -172,16 +172,16 @@ class _VacationCard extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(v.name,
+                      Text(trip.name,
                           style: Theme.of(context).textTheme.titleLarge),
                       Text(
-                        '${isoDay(v.startDate)} → ${isoDay(v.endDate)}',
+                        '${isoDay(trip.startDate)} → ${isoDay(trip.endDate)}',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
                   ),
                 ),
-                if (v.isOpen)
+                if (trip.isOpen)
                   TextButton.icon(
                     onPressed: () => _close(context, ref),
                     icon: const Icon(Icons.flag_outlined, size: 18),
@@ -196,21 +196,21 @@ class _VacationCard extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              '${money(v.totalSpentCents)} of ${money(v.totalLimitCents)} spent',
+              '${money(trip.totalSpentCents)} of ${money(trip.totalLimitCents)} spent',
               style: Theme.of(context).textTheme.titleMedium,
             ),
-            if (v.isOpen)
+            if (trip.isOpen)
               Padding(
                 padding: const EdgeInsets.only(top: AppSpacing.xxs),
                 child: Text(
-                  dailyAllowanceLabel(v),
+                  dailyAllowanceLabel(trip),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: scheme.primary,
                         fontWeight: FontWeight.w600,
                       ),
                 ),
               ),
-            for (final w in warnings)
+            for (final warning in warnings)
               Padding(
                 padding: const EdgeInsets.only(top: AppSpacing.xs),
                 child: Row(
@@ -220,7 +220,7 @@ class _VacationCard extends ConsumerWidget {
                     const SizedBox(width: AppSpacing.xs),
                     Expanded(
                       child: Text(
-                        w,
+                        warning,
                         style: Theme.of(context)
                             .textTheme
                             .bodySmall
@@ -235,8 +235,8 @@ class _VacationCard extends ConsumerWidget {
               spacing: AppSpacing.lg,
               runSpacing: AppSpacing.md,
               children: [
-                for (final c in v.categories)
-                  _CategoryRing(category: c),
+                for (final category in trip.categories)
+                  _CategoryRing(category: category),
               ],
             ),
           ],
@@ -254,10 +254,10 @@ class _CategoryRing extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final c = category;
-    final fraction = c.limitCents <= 0
-        ? (c.spentCents > 0 ? 1.0 : 0.0)
-        : c.spentCents / c.limitCents;
+    final current = category;
+    final fraction = current.limitCents <= 0
+        ? (current.spentCents > 0 ? 1.0 : 0.0)
+        : current.spentCents / current.limitCents;
     return SizedBox(
       width: 96,
       child: Column(
@@ -267,7 +267,7 @@ class _CategoryRing extends StatelessWidget {
             color: scheme.primary,
             trackColor: scheme.surfaceContainerHighest,
             overColor: scheme.error,
-            overspent: c.overspent,
+            overspent: current.overspent,
             center: Text(
               '${(fraction * 100).round()}%',
               style: Theme.of(context).textTheme.labelMedium,
@@ -275,19 +275,19 @@ class _CategoryRing extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            c.name,
+            current.name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.labelLarge,
           ),
           Text(
-            c.overspent
-                ? 'over ${money(c.overspendCents)}'
-                : '${money(c.leftoverCents)} left',
+            current.overspent
+                ? 'over ${money(current.overspendCents)}'
+                : '${money(current.leftoverCents)} left',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: c.overspent ? scheme.error : null,
+                  color: current.overspent ? scheme.error : null,
                 ),
           ),
         ],
@@ -327,9 +327,9 @@ class _VacationEditorScreenState extends ConsumerState<VacationEditorScreen> {
   @override
   void dispose() {
     _name.dispose();
-    for (final c in _categories) {
-      c.name.dispose();
-      c.limit.dispose();
+    for (final category in _categories) {
+      category.name.dispose();
+      category.limit.dispose();
     }
     super.dispose();
   }
@@ -345,9 +345,9 @@ class _VacationEditorScreenState extends ConsumerState<VacationEditorScreen> {
   List<VacationCategory> _validCategories() {
     final out = <VacationCategory>[];
     for (var i = 0; i < _categories.length; i++) {
-      final d = _categories[i];
-      final name = d.name.text.trim();
-      final cents = tryParseMoneyCents(d.limit.text);
+      final draft = _categories[i];
+      final name = draft.name.text.trim();
+      final cents = tryParseMoneyCents(draft.limit.text);
       if (name.isEmpty || cents == null || cents <= 0) continue;
       out.add(VacationCategory(
         categoryId: 'c${i + 1}',
@@ -419,12 +419,12 @@ class _VacationEditorScreenState extends ConsumerState<VacationEditorScreen> {
           ),
           const SizedBox(height: AppSpacing.lg),
           Text('Drawn from', style: AppText.sectionLabel(context)),
-          for (final o in options)
+          for (final option in options)
             RadioListTile<VacationFund>(
-              value: o.fund,
+              value: option.fund,
               groupValue: _fund,
-              onChanged: (f) => setState(() => _fund = f),
-              title: Text(o.label),
+              onChanged: (fund) => setState(() => _fund = fund),
+              title: Text(option.label),
               contentPadding: EdgeInsets.zero,
               visualDensity: VisualDensity.compact,
             ),

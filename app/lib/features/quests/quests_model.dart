@@ -24,7 +24,7 @@ class AbandonPreview {
   final Map<String, int> returnsByUser;
 
   int get totalReturnedCents =>
-      returnsByUser.values.fold<int>(0, (a, b) => a + b);
+      returnsByUser.values.fold<int>(0, (sum, cents) => sum + cents);
 }
 
 /// Computes the abandon preview for a quest [balanceCents] funded by
@@ -40,7 +40,7 @@ AbandonPreview previewAbandon(
     return AbandonPreview(
       balanceCents: 0,
       titheCents: 0,
-      returnsByUser: {for (final k in contributions.keys) k: 0},
+      returnsByUser: {for (final userId in contributions.keys) userId: 0},
     );
   }
   final tithe = Money.titheCents(balanceCents, dissolutionTithePct).titheCents;
@@ -71,30 +71,30 @@ class QuestFunding {
 /// Extracts the funding history for [questId] from the event log, newest first.
 List<QuestFunding> questFundings(Iterable<Event> events, String questId) {
   final out = <QuestFunding>[];
-  for (final e in events) {
-    if (e is! LeftoverAllocated) continue;
-    for (final a in e.allocations) {
-      final dest = a.destination;
+  for (final event in events) {
+    if (event is! LeftoverAllocated) continue;
+    for (final allocation in event.allocations) {
+      final dest = allocation.destination;
       if (dest is QuestDestination && dest.questId == questId) {
         out.add(QuestFunding(
-          userId: e.forUserId,
-          month: e.month.toKey(),
-          amountCents: a.amountCents,
-          occurredAt: e.occurredAt,
+          userId: event.forUserId,
+          month: event.month.toKey(),
+          amountCents: allocation.amountCents,
+          occurredAt: event.occurredAt,
         ));
       }
     }
   }
-  out.sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+  out.sort((first, second) => second.occurredAt.compareTo(first.occurredAt));
   return out;
 }
 
 /// Largest-remainder proportional split, identical to the reducer's, so the
 /// preview and the applied result always agree.
 Map<String, int> _proportional(int amount, Map<String, int> weights) {
-  final totalWeight = weights.values.fold<int>(0, (a, b) => a + b);
+  final totalWeight = weights.values.fold<int>(0, (sum, weight) => sum + weight);
   if (amount <= 0 || totalWeight <= 0) {
-    return {for (final k in weights.keys) k: 0};
+    return {for (final recipient in weights.keys) recipient: 0};
   }
   final base = <String, int>{};
   final remainders = <String, int>{};
@@ -108,13 +108,13 @@ Map<String, int> _proportional(int amount, Map<String, int> weights) {
   }
   var leftover = amount - assigned;
   final order = weights.keys.toList()
-    ..sort((a, b) {
-      final c = remainders[b]!.compareTo(remainders[a]!);
-      return c != 0 ? c : a.compareTo(b);
+    ..sort((first, second) {
+      final comparison = remainders[second]!.compareTo(remainders[first]!);
+      return comparison != 0 ? comparison : first.compareTo(second);
     });
-  for (final k in order) {
+  for (final recipient in order) {
     if (leftover <= 0) break;
-    base[k] = base[k]! + 1;
+    base[recipient] = base[recipient]! + 1;
     leftover--;
   }
   return base;
