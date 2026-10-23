@@ -1,4 +1,5 @@
 import 'package:lootlog/data/ocr/receipt_parse.dart';
+import 'package:lootlog/data/ocr/receipt_scan_outcome.dart';
 import 'package:lootlog/features/ocr/ocr_confirm_view.dart';
 import 'package:lootlog/ui/theme.dart';
 import 'package:flutter/material.dart';
@@ -12,13 +13,13 @@ Widget _host(Widget child) => MaterialApp(
       home: child,
     );
 
-ReceiptScan _scan() => ReceiptScan(
+ReceiptScanOutcome _scan() => ReceiptScanOutcome(scan: ReceiptScan(
       candidateTotals: const [
         AmountCandidate(amountCents: 3888, sourceLine: 'TOTAL 38.88', score: 200),
       ],
       candidateDate: DateTime(2026, 3, 15),
       merchantGuess: 'Trattoria Roma',
-    );
+    ));
 
 void main() {
   testWidgets('confirm requires a target and prefills from the scan',
@@ -32,7 +33,7 @@ void main() {
     OcrConfirmResult? result;
     await tester.pumpWidget(_host(OcrConfirmView(
       groups: sampleChargeGroups(),
-      scan: _scan(),
+      outcome: _scan(),
       now: DateTime(2026, 7, 4, 9),
       onConfirm: (r) => result = r,
     )));
@@ -64,7 +65,7 @@ void main() {
 
     await tester.pumpWidget(_host(OcrConfirmView(
       groups: sampleChargeGroups(),
-      scan: _scan(),
+      outcome: _scan(),
       now: DateTime(2026, 7, 4, 9),
       onConfirm: (_) {},
     )));

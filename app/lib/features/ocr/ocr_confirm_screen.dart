@@ -2,9 +2,10 @@
 ///
 /// Capture a photo → run on-device recognition (Android) → show the confirm
 /// screen with prefilled, editable fields and the receipt pre-attached → create
-/// the purchase and attach the receipt **only** on explicit confirm. On
-/// platforms without OCR the same confirm screen is shown with no prefill, so a
-/// photographed receipt can still be filed manually.
+/// the purchase and attach the receipt **only** on explicit confirm. When the
+/// scan finds nothing usable (or OCR does not run on this platform) the same
+/// confirm screen opens with no prefill and says why, so a photographed
+/// receipt can still be filed manually.
 library;
 
 import 'dart:io';
@@ -19,7 +20,6 @@ import 'package:image_picker/image_picker.dart';
 import '../../data/actions.dart';
 import '../settings/play_mode_providers.dart';
 import '../../data/blobs/receipt_offload.dart';
-import '../../data/ocr/receipt_parse.dart';
 import '../../data/ocr/text_recognizer.dart';
 import '../../data/providers.dart';
 import '../entry/charge_choice.dart';
@@ -33,20 +33,20 @@ Future<void> captureReceiptAndConfirm(BuildContext context, WidgetRef ref) async
   if (picked == null) return;
 
   final ocr = ref.read(receiptOcrProvider);
-  var scan = const ReceiptScan(candidateTotals: []);
-  if (ocr.isSupported && picked.path != null) {
-    try {
-      scan = await ocr.scanImageFile(picked.path!);
-    } on Object {
-      // Recognition failing is non-fatal: fall through to manual confirm.
-      scan = const ReceiptScan(candidateTotals: []);
-    }
-  }
+  // Recognition never throws: a failure comes back as an outcome whose issue
+  // the confirm screen explains in plain words, keypad ready.
+  final photoPath = picked.path;
+  final outcome = photoPath != null
+      ? await ocr.scanImageFile(photoPath)
+      : ocr.isSupported
+          ? ReceiptScanOutcome.recognizerFailed('the photo has no file to read')
+          : ReceiptScanOutcome.unsupported;
 
   if (!context.mounted) return;
   await Navigator.of(context).push(
     MaterialPageRoute<void>(
-      builder: (_) => OcrConfirmScreen(scan: scan, receiptBytes: picked.bytes),
+      builder: (_) =>
+          OcrConfirmScreen(outcome: outcome, receiptBytes: picked.bytes),
     ),
   );
 }
@@ -76,11 +76,11 @@ Future<_PickedPhoto?> _pickReceiptPhoto() async {
 class OcrConfirmScreen extends ConsumerWidget {
   const OcrConfirmScreen({
     super.key,
-    required this.scan,
+    required this.outcome,
     required this.receiptBytes,
   });
 
-  final ReceiptScan scan;
+  final ReceiptScanOutcome outcome;
   final Uint8List receiptBytes;
 
   @override
@@ -101,7 +101,7 @@ class OcrConfirmScreen extends ConsumerWidget {
 
     return OcrConfirmView(
       groups: groups,
-      scan: scan,
+      outcome: outcome,
       receiptThumbnail: ClipRRect(
         borderRadius: BorderRadius.circular(6),
         child: Image.memory(receiptBytes, fit: BoxFit.cover),

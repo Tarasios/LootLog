@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/actions.dart';
 import '../../data/blobs/receipt_offload.dart';
+import '../../data/ocr/text_recognizer.dart';
 import '../../data/providers.dart';
 import '../../game/skin_prefs.dart';
 import '../../ui/glossary.dart';
@@ -22,6 +23,7 @@ import '../categories/category_list_screen.dart';
 import '../export/export_screen.dart';
 import '../ledger/change_log_screen.dart';
 import '../library/receipt_library_screen.dart';
+import '../ocr/scanner_test_screen.dart';
 import '../tax/tax_center_screen.dart';
 import '../tutorial/tutorial.dart';
 import 'emergency_funds_screen.dart';
@@ -233,6 +235,17 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
           ],
+          ListTile(
+            leading: const Icon(Icons.document_scanner_outlined),
+            title: const Text('Test receipt scanner'),
+            subtitle: Text(
+              ref.watch(receiptOcrProvider).isSupported
+                  ? 'See exactly what the scanner reads from a photo'
+                  : 'Scanning runs on Android phones',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => ReceiptScannerTestScreen.open(context),
+          ),
           if (isDesktop)
             _navigationTile(
               context,
