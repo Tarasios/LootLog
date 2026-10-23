@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lootlog/domain/reducer.dart';
+import 'package:lootlog/domain/time.dart';
 import 'package:lootlog/domain/value_types.dart';
 import 'package:lootlog/features/spoils/spoils_move.dart';
 import 'package:lootlog/game/assets/asset_key.dart';
@@ -113,5 +115,62 @@ void main() {
     expect(lines, hasLength(1));
     expect(lines.first.destination, isA<OverbudgetPayment>());
     expect(lines.first.amountCents, ritual.sliceLeftovers.first.leftoverCents);
+  });
+
+  group('a later weapon previews against what earlier ones left', () {
+    const september = Month(2026, 9);
+    const payFun = SpoilsChoice(SpoilsMove.debt, overbudgetSliceId: 'fun');
+
+    test('the second hit on a partly paid debt matches the reducer', () {
+      final ledger = twoLeftoversOneDebtLedger();
+      final household = reduce(ledger.events, asOf: ritualInstant);
+      final battle = MonthEndBattle.from(ritualOn(household), household)!;
+      expect(battle.weapons.map((weapon) => weapon.sliceId), ['food', 'hygiene']);
+      final debt = battle.debts.single;
+      expect(debt.outstandingCents, 5000);
+
+      final food = battle.weapons[0];
+      final hygiene = battle.weapons[1];
+      final firstHit = previewSpoilsChoice(food.leftover, payFun);
+      final debtsNow = [debt.afterLanding(firstHit.landsCents)];
+      final secondHit = previewSpoilsChoice(
+        leftoverAgainst(hygiene.leftover, bosses: battle.bosses, debts: debtsNow),
+        payFun,
+      );
+
+      ledger
+        ..allocate('alex', 'food', september, allocationsForChoice(food.leftover, payFun))
+        ..allocate('alex', 'hygiene', september, allocationsForChoice(hygiene.leftover, payFun));
+      final after = reduce(ledger.events, asOf: ritualInstant);
+
+      expect(firstHit.landsCents, 3000);
+      expect(secondHit.landsCents, 2000, reason: 'only what is still owed');
+      expect(secondHit.completesTarget, isTrue);
+      expect(after.outstandingOverbudgetsFor('alex'), isEmpty);
+      expect(secondHit.toPersonalCents, after.vaultOf('alex') - household.vaultOf('alex'));
+      // The stale preview against the ritual's original debt over-promised.
+      expect(previewSpoilsChoice(hygiene.leftover, payFun).landsCents, 4000);
+    });
+
+    test('a goal boss carries its progress into the next preview', () {
+      final (household, ritual) = ritualFixture();
+      final battle = MonthEndBattle.from(ritual, household)!;
+      final boss = battle.bosses.single;
+      final nearlyDone = boss.afterLanding(boss.targetCents - 100);
+      final weapon = battle.weapons.first;
+      final choice = SpoilsChoice(SpoilsMove.goal, questId: boss.questId);
+      final current = leftoverAgainst(weapon.leftover, bosses: [nearlyDone], debts: const []);
+      expect(current.questOptions.single.totalContributedCents, nearlyDone.progressCents);
+      expect(previewSpoilsChoice(current, choice).completesTarget, isTrue);
+      expect(previewSpoilsChoice(weapon.leftover, choice).completesTarget, isFalse);
+    });
+
+    test('targets the battle does not track are left as they are', () {
+      final (household, ritual) = ritualFixture();
+      final weapon = MonthEndBattle.from(ritual, household)!.weapons.first;
+      final same = leftoverAgainst(weapon.leftover, bosses: const [], debts: const []);
+      expect(same.questOptions.single.totalContributedCents, weapon.leftover.questOptions.single.totalContributedCents);
+      expect(same.leftoverCents, weapon.leftover.leftoverCents);
+    });
   });
 }

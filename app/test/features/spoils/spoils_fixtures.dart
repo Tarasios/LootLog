@@ -207,3 +207,16 @@ HouseholdState dividedInLedgerHousehold() {
 /// ledger has nothing left to divide).
 SpoilsRitual? ritualOn(HouseholdState household) =>
     buildSpoilsRitual(household, meUserId: 'alex', userNames: const {'alex': 'Alex'}, asOf: ritualInstant);
+
+/// Fun overspent by $50 in September (an OVERBUDGET with an empty vault),
+/// with $30 left in Food and $40 in Hygiene, both able to pay it, and a
+/// $1,300 canoe goal with $1,280 already saved. As a [TestLedger] so tests
+/// can add the allocations.
+TestLedger twoLeftoversOneDebtLedger() => TestLedger()
+  ..adult('alex')
+  ..category('fun', owner: 'alex', limitCents: 20000, mainCategoryId: 'entertainment', since: dayOf(2026, 9, 1))
+  ..category('food', owner: 'alex', limitCents: 40000, mainCategoryId: 'food', since: dayOf(2026, 9, 1))
+  ..category('hygiene', owner: 'alex', limitCents: 10000, mainCategoryId: 'health', since: dayOf(2026, 9, 1))
+  ..buy('alex', 'fun', 25000, dayOf(2026, 9, 10))
+  ..buy('alex', 'food', 37000, dayOf(2026, 9, 12))
+  ..buy('alex', 'hygiene', 6000, dayOf(2026, 9, 14));

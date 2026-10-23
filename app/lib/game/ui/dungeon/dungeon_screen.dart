@@ -187,7 +187,9 @@ class _DungeonScreenState extends ConsumerState<DungeonScreen> {
   Future<void> _takeTurn(BattleWeapon weapon) async {
     final choice = await showBattleTurnSheet(context, weapon: weapon, bosses: _bosses, debts: _debts, isAdventure: true);
     if (choice == null || !mounted) return;
-    final preview = previewSpoilsChoice(weapon.leftover, choice);
+    // Against where earlier weapons left the goals and debts, as the ledger
+    // will apply the allocations in turn order.
+    final preview = previewSpoilsChoice(leftoverAgainst(weapon.leftover, bosses: _bosses, debts: _debts), choice);
     final voice = ref.read(dungeonVoiceProvider).value ?? DungeonVoice.empty;
     final targetId = switch (choice.move) {
       SpoilsMove.goal => choice.questId,

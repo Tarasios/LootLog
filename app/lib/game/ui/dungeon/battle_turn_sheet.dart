@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../features/spoils/spoils_model.dart';
 import '../../../features/spoils/spoils_move.dart';
 import '../../../ui/format.dart';
 import '../../../ui/glossary.dart';
@@ -39,11 +40,16 @@ class _BattleTurn extends StatefulWidget {
 class _BattleTurnState extends State<_BattleTurn> {
   late SpoilsChoice _choice = widget.weapon.defaultChoice;
 
+  /// The leftover with its goals and debts where earlier weapons left them,
+  /// so the preview matches what the ledger will do.
+  late final SliceLeftover _leftover =
+      leftoverAgainst(widget.weapon.leftover, bosses: widget.bosses, debts: widget.debts);
+
   /// The moves this leftover can make, each with its label: the debts and
   /// goals it can reach that are still standing (an earlier weapon may have
   /// cleared a shared debt or finished a goal), then savings and keeping it.
   List<(SpoilsChoice, String)> get _options {
-    final leftover = widget.weapon.leftover;
+    final leftover = _leftover;
     final savingsLabel = Glossary.vaultLabel(isAdventure: widget.isAdventure, savingsRules: leftover.savingsRules);
     return [
       for (final debt in widget.debts)
@@ -58,11 +64,17 @@ class _BattleTurnState extends State<_BattleTurn> {
   }
 
   /// The listed option matching [_choice]. A bank or carry default may
-  /// carry a stray quest id, so those match by move; a goal or debt that is
-  /// no longer offered falls back to banking it.
+  /// carry a stray quest id, so those match by move. A debt that is no
+  /// longer offered falls back to another standing debt, and a goal or debt
+  /// with nothing left to aim at falls back to banking it.
   SpoilsChoice _selected(List<(SpoilsChoice, String)> options) {
     for (final (choice, _) in options) {
       if (choice == _choice) return choice;
+    }
+    if (_choice.move == SpoilsMove.debt) {
+      for (final (choice, _) in options) {
+        if (choice.move == SpoilsMove.debt) return choice;
+      }
     }
     final move = _choice.move == SpoilsMove.carry ? SpoilsMove.carry : SpoilsMove.bank;
     return options.firstWhere((option) => option.$1.move == move).$1;
@@ -72,7 +84,7 @@ class _BattleTurnState extends State<_BattleTurn> {
   Widget build(BuildContext context) {
     final options = _options;
     final selected = _selected(options);
-    final preview = previewSpoilsChoice(widget.weapon.leftover, selected);
+    final preview = previewSpoilsChoice(_leftover, selected);
     final taxLine = preview.taxCents > 0
         ? '${money(preview.taxCents)} goes to ${widget.isAdventure ? 'the war chest' : 'shared savings'} on the way.'
         : 'Nothing is taken on the way.';

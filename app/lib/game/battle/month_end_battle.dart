@@ -78,6 +78,60 @@ class DebtMonster {
       );
 }
 
+/// [leftover] with its goal and debt options showing where [bosses] and
+/// [debts] stand now, after earlier weapons in this battle hit them. The
+/// allocations land in the ledger in turn order, so previewing a later
+/// weapon against these current amounts matches what the reducer does; the
+/// ritual's own options still carry the amounts from before the battle.
+/// Options the battle does not track are left as they are.
+SliceLeftover leftoverAgainst(
+  SliceLeftover leftover, {
+  required List<GoalBoss> bosses,
+  required List<DebtMonster> debts,
+}) {
+  final progressByQuest = {for (final boss in bosses) boss.questId: boss.progressCents};
+  final owedBySlice = {for (final debt in debts) debt.sliceId: debt.outstandingCents};
+  return SliceLeftover(
+    sliceId: leftover.sliceId,
+    name: leftover.name,
+    leftoverCents: leftover.leftoverCents,
+    poolTithePct: leftover.poolTithePct,
+    defaultPolicy: leftover.defaultPolicy,
+    questOptions: [
+      for (final option in leftover.questOptions)
+        switch (progressByQuest[option.questId]) {
+          null => option,
+          final progress => QuestOption(
+              questId: option.questId,
+              name: option.name,
+              balanceCents: option.balanceCents + progress - option.totalContributedCents,
+              targetCents: option.targetCents,
+              totalContributedCents: progress,
+              mainCategoryId: option.mainCategoryId,
+            ),
+        },
+    ],
+    overbudgetOptions: [
+      for (final option in leftover.overbudgetOptions)
+        switch (owedBySlice[option.sliceId]) {
+          null => option,
+          final owed => OverbudgetOption(
+              sliceId: option.sliceId,
+              name: option.name,
+              outstandingCents: owed,
+              mainCategoryId: option.mainCategoryId,
+              provisions: option.provisions,
+            ),
+        },
+    ],
+    priority: leftover.priority,
+    mainCategoryId: leftover.mainCategoryId,
+    petName: leftover.petName,
+    generalRatePct: leftover.generalRatePct,
+    savings: leftover.savings,
+  );
+}
+
 class MonthEndBattle {
   const MonthEndBattle({
     required this.ritual,

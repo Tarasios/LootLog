@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lootlog/domain/reducer.dart';
 import 'package:lootlog/domain/state.dart';
 import 'package:lootlog/domain/time.dart';
+import 'package:lootlog/domain/value_types.dart';
 import 'package:lootlog/features/spoils/spoils_model.dart';
 import 'package:lootlog/features/spoils/spoils_move.dart';
 import 'package:lootlog/game/battle/month_end_battle.dart';
@@ -110,6 +112,27 @@ void main() {
     // The household started budgeting this month: no month-end is waiting.
     await pumpDungeon(tester, firstBudgetMonth: const Month(2026, 10));
     expect(find.textContaining('sealed until the month turns'), findsOneWidget);
+  });
+
+  testWidgets('a second weapon at a partly paid debt previews only what is still owed', (tester) async {
+    final household = reduce(twoLeftoversOneDebtLedger().events, asOf: ritualInstant);
+    final battle = MonthEndBattle.from(ritualOn(household), household)!;
+    await pumpDungeon(tester, battle: battle);
+    // Food's $30 strikes the $50 OVERBUDGET first (the pre-selected move).
+    await tester.tap(find.byKey(const ValueKey('next-weapon')));
+    await pumpFrames(tester);
+    await tester.tap(find.text('Strike'));
+    await pumpFrames(tester);
+    // Hygiene's $40 now meets $20 of debt.
+    await tester.tap(find.byKey(const ValueKey('next-weapon')));
+    await pumpFrames(tester);
+    final shown = tester.widget<Text>(find.byKey(const ValueKey('battle-preview'))).data!;
+    expect(shown, startsWith('${money(2000)} lands.'));
+    expect(find.text('That finishes it!'), findsOneWidget);
+    await tester.tap(find.text('Strike'));
+    await pumpFrames(tester);
+    // The victory tally agrees: the OVERBUDGET is cleared, not over-paid.
+    expect(find.text('Cleared!'), findsOneWidget);
   });
 
   group('the spoils chest never depends on leftovers', () {
@@ -407,6 +430,41 @@ void main() {
       final bank = previewSpoilsChoice(battle.weapons.first.leftover, const SpoilsChoice(SpoilsMove.bank));
       final shown = tester.widget<Text>(find.byKey(const ValueKey('battle-preview'))).data!;
       expect(shown, startsWith('${money(bank.landsCents)} lands.'));
+    });
+
+    testWidgets('when the default debt is cleared, another standing debt comes before banking', (tester) async {
+      const leftover = SliceLeftover(
+        sliceId: 'food',
+        name: 'Food',
+        leftoverCents: 3000,
+        poolTithePct: 0,
+        defaultPolicy: Discretionary(),
+        questOptions: [],
+        overbudgetOptions: [
+          OverbudgetOption(sliceId: 'fun', name: 'Fun', outstandingCents: 5000),
+          OverbudgetOption(sliceId: 'toys', name: 'Toys', outstandingCents: 1000),
+        ],
+      );
+      final weapon = BattleWeapon(leftover: leftover, defaultChoice: defaultSpoilsChoice(leftover));
+      const fun = DebtMonster(sliceId: 'fun', name: 'Fun', outstandingCents: 0);
+      const toys = DebtMonster(sliceId: 'toys', name: 'Toys', outstandingCents: 1000);
+      await tester.pumpWidget(MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => showBattleTurnSheet(context,
+                  weapon: weapon, bosses: const [], debts: const [fun, toys], isAdventure: true),
+              child: const Text('turn'),
+            ),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('turn'));
+      await tester.pumpAndSettle();
+      final radio = tester.widget<RadioGroup<SpoilsChoice>>(find.byType(RadioGroup<SpoilsChoice>));
+      expect(radio.groupValue, const SpoilsChoice(SpoilsMove.debt, overbudgetSliceId: 'toys'));
+      final shown = tester.widget<Text>(find.byKey(const ValueKey('battle-preview'))).data!;
+      expect(shown, startsWith('${money(1000)} lands.'));
     });
 
     testWidgets('a still-standing debt is offered', (tester) async {
