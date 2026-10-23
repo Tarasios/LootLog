@@ -570,10 +570,8 @@ class RitualCallout extends StatelessWidget {
   Widget build(BuildContext context) {
     final pending = pendingRitualMonths(data.me, data.now);
     if (pending.isEmpty) return const SizedBox.shrink();
-    // A month already started first; otherwise the month just ended.
-    final month = pending.firstWhere(
-        (m) => (data.me.ritual[m]?.steps.length ?? 0) > 0,
-        orElse: () => pending.last);
+    // The month that just ended.
+    final month = pending.last;
     final scheme = Theme.of(context).colorScheme;
     return HallSection(
       title: 'The ${Glossary.monthRitual.adventure} awaits',
@@ -583,16 +581,16 @@ class RitualCallout extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${monthLabel(month.year, month.month)}: the dungeon below the '
-            'town gate is open. Aim each leftover at a goal boss or an '
-            'OVERBUDGET, then return for the spoils chest.',
+            data.voice.line('dungeonCallout',
+                seed: month.toKey(),
+                fill: {'month': monthLabel(month.year, month.month)}),
             style: hallBodyStyle(context),
           ),
           const SizedBox(height: AppSpacing.sm),
           FilledButton.icon(
             onPressed: () => unawaited(openDungeon(context)),
             icon: const Icon(Icons.auto_awesome),
-            label: const Text('Enter the dungeon'),
+            label: Text(data.voice.line('dungeonCalloutButton')),
           ),
         ],
       ),
@@ -840,9 +838,12 @@ class PlacesPanel extends StatelessWidget {
             icon: Icons.auto_awesome,
             title: _cap(Glossary.monthRitual.adventure),
             subtitle: pending.isEmpty
-                ? 'All done for now. The next one opens when the month ends.'
-                : '${pending.length} month${pending.length == 1 ? '' : 's'} '
-                    'ready for the ritual',
+                ? data.voice.line('dungeonPlaceDone')
+                : data.voice.line(
+                    pending.length == 1
+                        ? 'dungeonPlaceReadyOne'
+                        : 'dungeonPlaceReadyMany',
+                    fill: {'n': '${pending.length}'}),
             onTap: () => unawaited(openDungeon(context)),
           ),
         ],

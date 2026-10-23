@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/domain/time.dart';
+import 'package:lootlog/game/domain/commands/game_commands.dart'
+    show spoilsChestId;
 import 'package:lootlog/game/domain/decor/catalog.dart';
 import 'package:lootlog/game/domain/game_event.dart';
 import 'package:lootlog/game/domain/game_values.dart';
@@ -76,6 +78,26 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byType(DungeonScreen), findsOneWidget);
+  });
+
+  testWidgets('finished months hide the ritual callout and clear the place '
+      'tile', (tester) async {
+    await pumpHall(tester, store: await storeWith(sampleEvents()));
+    expect(find.text('2 months ready for the dungeon'), findsOneWidget);
+
+    await pumpHall(tester,
+        store: await storeWith([
+          ...sampleEvents(),
+          for (final month in [Month(2026, 8), Month(2026, 9)])
+            chestGranted('spoils-${month.toKey()}', spoilsChestId(robin, month),
+                ChestType.spoils,
+                when: before(const Duration(hours: 1))),
+        ]));
+    expect(find.textContaining('the dungeon below the town gate is open'),
+        findsNothing);
+    expect(find.text('Enter the dungeon'), findsNothing);
+    expect(find.text('All done for now. The next one opens when the month ends.'),
+        findsOneWidget);
   });
 
   testWidgets('"Log a purchase" opens quick entry in one tap', (tester) async {

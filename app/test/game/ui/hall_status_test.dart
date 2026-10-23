@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/domain/event.dart';
 import 'package:lootlog/domain/time.dart';
 import 'package:lootlog/domain/value_types.dart';
+import 'package:lootlog/game/domain/commands/game_commands.dart'
+    show spoilsChestId;
 import 'package:lootlog/game/domain/game_state.dart';
 import 'package:lootlog/game/domain/game_values.dart';
 import 'package:lootlog/game/ui/hall_ledger_view.dart';
@@ -38,6 +40,31 @@ void main() {
     expect(openRitualMonths(now), [Month(2026, 9), Month(2026, 8)]);
     const p = PersonState(personId: 'u1');
     expect(pendingRitualMonths(p, now), [Month(2026, 8), Month(2026, 9)]);
+  });
+
+  test('a month whose spoils chest was granted is no longer pending', () {
+    final now = DateTime.utc(2026, 10, 3, 18);
+    final finished = PersonState(
+      personId: 'u1',
+      seenChestIds: {spoilsChestId('u1', Month(2026, 9))},
+    );
+    expect(pendingRitualMonths(finished, now), [Month(2026, 8)]);
+    final bothFinished = PersonState(
+      personId: 'u1',
+      seenChestIds: {
+        spoilsChestId('u1', Month(2026, 8)),
+        spoilsChestId('u1', Month(2026, 9)),
+      },
+    );
+    expect(pendingRitualMonths(bothFinished, now), isEmpty);
+    expect(
+        pendingRitualMonths(
+            PersonState(
+                personId: 'u2',
+                seenChestIds: {spoilsChestId('u1', Month(2026, 9))}),
+            now),
+        [Month(2026, 8), Month(2026, 9)],
+        reason: "only the person's own chest finishes their month");
   });
 
   test('savingsRunMonths counts a live run of saving months only', () {

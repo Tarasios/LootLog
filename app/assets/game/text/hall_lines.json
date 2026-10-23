@@ -150,6 +150,13 @@
     "Spoils delivered. Go see what's inside.",
     "The ritual's reward is waiting in the inbox."
   ],
+  "dungeonCallout": [
+    "{month}: the dungeon below the town gate is open. Aim each leftover at a goal boss or an OVERBUDGET, then return for the spoils chest."
+  ],
+  "dungeonCalloutButton": ["Enter the dungeon"],
+  "dungeonPlaceDone": ["All done for now. The next one opens when the month ends."],
+  "dungeonPlaceReadyOne": ["{n} month ready for the dungeon"],
+  "dungeonPlaceReadyMany": ["{n} months ready for the dungeon"],
   "caravan": [
     "The supply caravan keeps the party's stores stocked.",
     "Supply carts roll in, courtesy of the caravan.",

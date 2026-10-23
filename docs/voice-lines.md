@@ -445,6 +445,21 @@ losing boss line still promises the spoils.
 | Fresh supplies from the caravan reach the yard. |
 | The caravan is the backbone of the party's stores. |
 
+### Month-end dungeon entrance (`dungeonCallout`, `dungeonCalloutButton`, `dungeonPlace*`)
+
+Single-line sets for the guild-hall text screens' way into the month-end
+dungeon. Placeholders: `{month}` (e.g. "September 2026") and `{n}` (how many
+months are waiting). They show only while a month's dungeon is unfinished; a
+month is finished once its spoils chest has been granted.
+
+| Set | Trigger | Intended outcome | Current line |
+|-----|---------|------------------|--------------|
+| `dungeonCallout` | The home shows the callout for the most recent unfinished month | Invite the person in; leftovers are weapons to aim, not a test | {month}: the dungeon below the town gate is open. Aim each leftover at a goal boss or an OVERBUDGET, then return for the spoils chest. |
+| `dungeonCalloutButton` | The callout's button | A plain, inviting action | Enter the dungeon |
+| `dungeonPlaceDone` | The "Around the hall" dungeon tile with nothing waiting | Calm: nothing is owed, and say when the next one opens | All done for now. The next one opens when the month ends. |
+| `dungeonPlaceReadyOne` | The dungeon tile with one month waiting | Say what is ready, without pressure | {n} month ready for the dungeon |
+| `dungeonPlaceReadyMany` | The dungeon tile with several months waiting | Same, plural | {n} months ready for the dungeon |
+
 ### `rejections`
 
 **Trigger:** a hall action that can't happen yet (a button's gate, or a
