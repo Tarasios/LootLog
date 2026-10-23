@@ -31,6 +31,19 @@ abstract final class GameReasonCodes {
   /// A Standard-mode partner's supply caravan for the party pool.
   static const String caravan = 'caravan.supply';
 
+  /// The spoils chest for finishing a month's ritual (win or lose).
+  static const String ritualSpoils = 'ritual.spoils';
+
+  /// The gold chest for a personal category that ended a closed month at or
+  /// under its limit (a bonus, never a requirement).
+  static const String monthGold = 'month.gold';
+
+  /// Gems for a savings quest crossing a share of its goal.
+  static const String vaultQuest = 'vault.quest';
+
+  /// Gems for consecutive closed months with a savings allocation.
+  static const String vaultSavingsStreak = 'vault.consistency';
+
   /// Rewards whose grant marks their household-local day as covered in the
   /// person's streak. The reward engine must grant at most one per person per
   /// day (the daily gem cap) and stamp it with the logged day's `occurredAt`.

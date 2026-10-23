@@ -49,6 +49,20 @@ class MaterialBundle {
 
   bool get isEmpty => _amounts.isEmpty;
 
+  /// The sum of both bundles, kind by kind.
+  MaterialBundle operator +(MaterialBundle other) => MaterialBundle({
+        for (final k in MaterialKind.values) k: this[k] + other[k],
+      });
+
+  /// Every amount multiplied by [factor].
+  MaterialBundle scaled(int factor) => MaterialBundle({
+        for (final e in _amounts.entries) e.key: e.value * factor,
+      });
+
+  /// Whether this bundle holds at least [cost] of every kind.
+  bool covers(MaterialBundle cost) =>
+      cost.amounts.entries.every((e) => this[e.key] >= e.value);
+
   Map<String, int> toJson() => {
         for (final entry in _amounts.entries) entry.key.name: entry.value,
       };
@@ -87,6 +101,8 @@ class Loot {
   final int gems;
   final MaterialBundle materials;
   final int tokens;
+
+  bool get isEmpty => gems == 0 && materials.isEmpty && tokens == 0;
 
   Map<String, dynamic> toJson() => {
         'gems': gems,
@@ -143,6 +159,9 @@ enum ExpeditionRegion {
 
 /// Chest kinds (see the glossary for what earns each).
 enum ChestType { wood, iron, gold, party, spoils }
+
+/// The id of the household's one adventuring party (`PartyJoined.partyId`).
+const String kHouseholdPartyId = 'household';
 
 /// The month-end spoils ritual steps that precede the seasonal boss fight.
 enum RitualStep { reconcile, review, plan, contribute }

@@ -10,6 +10,7 @@
 library;
 
 import '../../domain/time.dart';
+import '../config/balance.dart';
 import 'game_event.dart';
 import 'game_state.dart';
 import 'game_values.dart';
@@ -289,6 +290,9 @@ class _GameStateDraft {
         _warnings = prior.warnings;
 
   final String eventId;
+
+  /// The applied event's instant (Storehouse capacity is read as of it).
+  final DateTime at;
   HallState hall;
   Map<String, PersonState> _people;
   List<GameWarning> _warnings;
@@ -324,7 +328,8 @@ class _GameStateDraft {
   }
 
   /// Adds ([sign] = 1) or removes ([sign] = -1) [delta] from the shared pool,
-  /// clamping each kind at zero.
+  /// clamping each kind at zero and, on a credit, at the Storehouse capacity
+  /// (never below what the pool already held).
   void adjustPool(MaterialBundle delta, int sign) {
     if (delta.isEmpty) return;
     final next = Map.of(hall.materials.amounts);
@@ -336,6 +341,9 @@ class _GameStateDraft {
     }
     if (short.isNotEmpty) {
       warn(GameWarningCode.materialsClamped, short.join(', '));
+    }
+    if (over.isNotEmpty) {
+      warn(GameWarningCode.materialsCapped, over.join(', '));
     }
     hall = hall.copyWith(materials: MaterialBundle(next));
   }

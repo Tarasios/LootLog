@@ -13,6 +13,8 @@ import 'package:lootlog/domain/ids.dart';
 import 'package:lootlog/domain/reducer.dart';
 import 'package:lootlog/domain/time.dart';
 import 'package:lootlog/domain/value_types.dart';
+import 'package:lootlog/features/settings/play_mode.dart';
+import 'package:lootlog/features/settings/play_mode_providers.dart';
 import 'package:lootlog/features/sync/sync_status.dart';
 import 'package:lootlog/game/domain/game_event.dart';
 import 'package:lootlog/game/domain/game_projection.dart';
@@ -122,6 +124,24 @@ void main() {
       expect(me.unopenedChests.values, [ChestType.iron]);
       expect(me.unclaimedRewards.values.single.loot.gems, 10);
     });
+  });
+
+  test('play mode drives party membership, in the game log only', () async {
+    await actions.addPurchase(
+        target: const VaultCharge(), amountCents: 500);
+    expect((await game()).person('u1').partyId, kHouseholdPartyId);
+
+    final ledgerBefore = (await ledger()).length;
+    await setPlayMode(actions, PlayMode.standard);
+    expect((await game()).person('u1').partyId, isNull);
+    // Only the mode's own CosmeticSet reached the ledger.
+    expect((await ledger()).length, ledgerBefore + 1);
+
+    await setPlayMode(actions, PlayMode.adventure);
+    expect((await game()).person('u1').partyId, kHouseholdPartyId);
+    final joins = (await gameLog()).whereType<PartyJoined>().length;
+    expect(await runner.run(), 0);
+    expect((await gameLog()).whereType<PartyJoined>(), hasLength(joins));
   });
 
   test('a sync merge rewards what arrived', () async {

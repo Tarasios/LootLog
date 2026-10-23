@@ -289,6 +289,69 @@ abstract final class Glossary {
         'goes to savings, and if it comes in higher, it comes from savings.',
   );
 
+  // ---- Guild hall (Adventure only; Classic never shows the hall) ----------
+
+  /// The Adventure home: the party's base, built up by budgeting habits.
+  static const guildHall = GlossaryTerm(
+    internal: 'GameState.hall',
+    classic: 'rewards hall',
+    adventure: 'guild hall',
+    helper: 'A game built from your budgeting habits. It never changes any '
+        'money.',
+  );
+
+  /// The premium game currency, earned only by budgeting actions.
+  static const gems = GlossaryTerm(
+    internal: 'PersonState.gems',
+    classic: 'reward points',
+    adventure: 'gems',
+    helper: 'Earned by logging purchases and keeping up your habits. Never '
+        'bought, never real money.',
+  );
+
+  /// The shared building materials, made by buildings and expeditions.
+  static const materials = GlossaryTerm(
+    internal: 'HallState.materials',
+    classic: 'building materials',
+    adventure: 'materials',
+    helper: 'Shared by the whole party. Buildings and expeditions produce '
+        'them; logging is never required to collect them.',
+  );
+
+  /// A token that keeps a streak alive over a missed day.
+  static const freezeToken = GlossaryTerm(
+    internal: 'PersonState.freezeTokens',
+    classic: 'streak saver',
+    adventure: 'freeze token',
+    helper: 'Covers a missed day automatically so your streak keeps going.',
+  );
+
+  /// A Standard-mode adult, shown backing the party.
+  static const supplyCaravan = GlossaryTerm(
+    internal: 'PartyAdult.inAdventure == false',
+    classic: 'supporter',
+    adventure: 'supply caravan',
+    helper: 'An adult using the plain budgeting app. Their logging sends '
+        'supplies to the party, and they can join as a hero any time.',
+  );
+
+  /// The hall building that opens the budgeting ledger.
+  static const scribesDesk = GlossaryTerm(
+    internal: 'BuildingType.scribesDesk',
+    classic: 'ledger',
+    adventure: "Scribe's Desk",
+    helper: 'Where purchases are logged and budgets live.',
+  );
+
+  /// The month-end steps that lead to the seasonal boss fight.
+  static const monthRitual = GlossaryTerm(
+    internal: 'RitualStepCompleted',
+    classic: 'month-end checklist',
+    adventure: 'spoils ritual',
+    helper: 'Four month-end steps: check the entries, review the month, plan '
+        'the next one, and divide what was left over.',
+  );
+
   /// Every defined term, for tests and any glossary/help screen.
   static const all = <GlossaryTerm>[
     leftoverAllocated,
@@ -317,6 +380,13 @@ abstract final class Glossary {
     household,
     fixedBill,
     variableBill,
+    guildHall,
+    gems,
+    materials,
+    freezeToken,
+    supplyCaravan,
+    scribesDesk,
+    monthRitual,
   ];
 
   /// Flavor words that must never appear in Classic-mode copy. The glossary is

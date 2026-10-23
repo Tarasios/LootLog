@@ -11,8 +11,9 @@ Two things to hold onto before we start:
    app wearing a dungeon-crawler costume. Your sprites decorate numbers the app
    already computed; they never change a single cent. Draw freely — you cannot
    break the money.
-2. **Every asset is optional.** The app ships and is fun with *zero* art (it
-   falls back to a labelled grey card, then to a full text-adventure mode). So
+2. **Every asset is optional.** The app ships and is fun with *zero* art (each
+   missing sprite falls back to a small text/ASCII card, and the whole game
+   has a full text-adventure mode). So
    there is no "you must finish everything" pressure. Draw the highest-priority
    thing, drop it in, see it appear. Then draw the next.
 
@@ -107,6 +108,42 @@ square frames in a single PNG, and the filename says how many frames:
 - Frames are square and equal: frame width = image width ÷ N = image height.
 - You can *always* start with `_1f` and add animation later by widening the strip
   and renaming — nothing else changes.
+
+### Asset keys — how new art is named
+
+Every visual in the game has an **asset key**: four lower-case words joined by
+dots, `category.subject.variant.state`. For example:
+
+| Key | Means |
+|-----|-------|
+| `building.lumberyard.t2.idle` | the Lumberyard at tier 2, standing still |
+| `chest.gold.open.idle` | an opened gold chest |
+| `material.ore.icon.idle` | the ore icon |
+| `region.subscription_swamp.banner.idle` | the Subscription Swamp's banner |
+
+To ship art for a key, **name the PNG exactly after the key, plus the frame
+suffix**, and drop it straight into `app/assets/game/` (not a subfolder):
+
+```
+building.lumberyard.t2.idle_4f.png     (a 4-frame strip)
+chest.gold.open.idle_1f.png            (a still)
+```
+
+The app finds it on its own — no code change. Words inside a segment use
+underscores (`subscription_swamp`); only the three separators are dots.
+
+**You rarely need every variant.** If a key has no file, the app tries simpler
+keys before giving up:
+
+1. the same thing at `idle` (`building.forge.t3.constructing` → `building.forge.t3.idle`),
+2. the `default` variant (`building.forge.t3.idle` → `building.forge.default.idle`).
+
+So one `building.forge.default.idle_1f.png` covers every Forge tier until you
+draw the tiers. If nothing on that list exists, the key shows its text card.
+§9 lists every key.
+
+The older files in §6–§7 (`monster_idle_4f.png` and friends) predate keys and
+keep their names; they also answer to `dungeon.*` keys (see §9).
 
 Custom sprites a *user* supplies (their own quest / pet / avatar art) are always
 treated as a single still frame and are decoded from the user's file, but they
@@ -249,8 +286,10 @@ done), `confetti_8f.png` (streak milestone).
 Every game surface renders at three tiers, decided **per asset, at runtime**:
 
 1. **Full pixel art** — your PNG exists and is drawn (this guide's target look).
-2. **Partial** — a *specific* sprite is missing, so *that one* falls back to a
-   labelled grey placeholder card. Everything around it still renders as art.
+2. **Partial** — a *specific* sprite is missing, so *that one* falls back to its
+   text card (a tiny ASCII emblem with its name, e.g. a `/\` roof over
+   "Lumberyard T2"); older dungeon sprites fall back to a labelled grey card.
+   Everything around it still renders as art.
 3. **Text mode** — a first-class text-adventure presentation of the same screens,
    using the household's written character descriptions. Not an error state; the
    app is complete and fun here with no art at all.
@@ -259,3 +298,74 @@ So you never have to finish a set. Draw `monster_food_4f.png`, and the Food
 monster becomes art while every other monster stays a placeholder — no code
 change, no coordination, no risk. That's the whole point of this pipeline: it
 lets exactly one beginner artist improve the game one file at a time.
+
+---
+
+## 9. Every asset key (the guild hall and beyond)
+
+Each key below is **individually optional**: with no file it renders as its text
+card, and the moment `<key>_<N>f.png` lands in `app/assets/game/` it renders as
+art. Sizes follow §2 (32×32, portraits 48×48, panels per §5). The source of truth
+is `app/lib/game/assets/asset_catalog.dart`; keep this list in step with it.
+
+**Buildings** — `building.<building>.t<1-5>.idle`, 32×32. Draw
+`building.<building>.default.idle` first: it covers every tier until you draw
+them. A `constructing` state (`building.forge.t3.constructing`) is optional and
+falls back to `idle`.
+
+| Building | Subject |
+|----------|---------|
+| Central Hall | `central_hall` |
+| Scribe's Desk | `scribes_desk` |
+| Storehouse | `storehouse` |
+| Forge | `forge` |
+| Vault | `vault` |
+| Lumberyard | `lumberyard` |
+| Quarry | `quarry` |
+| Mine | `mine` |
+| Herb Garden | `herb_garden` |
+| Hunter's Lodge | `hunters_lodge` |
+| Arcane Well | `arcane_well` |
+
+**Materials** — `material.<material>.icon.idle`, 32×32: `lumber`, `stone`,
+`ore`, `herbs`, `hide`, `crystal`, `essence`, `trophy`.
+
+**Currency** — `currency.gem.icon.idle` (gems), `currency.freeze_token.icon.idle`
+(streak-freeze token).
+
+**Chests** — `chest.<chest>.closed.idle` and `chest.<chest>.open.idle`, 32×32,
+for `wood`, `iron`, `gold`, `party`, `spoils`. A `chest.<chest>.default.idle`
+covers both until you draw the pair.
+
+**Regions** — `region.<region>.banner.idle`, 32×32: `market_catacombs`,
+`tavern_cellars`, `old_roads`, `hearthstone_keep`, `bazaar_of_whims`,
+`subscription_swamp`, `the_wilds`.
+
+**Heroes** — `hero.portrait.default.idle` (48×48, the generic adventurer face),
+`hero.caravan.default.idle` (32×32, the supply caravan a Standard-mode adult
+appears as).
+
+**Gear** — `gear.<slot>.default.idle`, optionally per tier `gear.<slot>.t<N>.idle`,
+32×32. Starter slots: `weapon`, `armor`, `helm`, `trinket`.
+
+**Bosses** — `boss.<boss>.default.idle`, 32×32 (a `defeated` state is optional).
+Starter seasonal bosses: `winter`, `spring`, `summer`, `autumn`.
+
+**UI panels** — `ui.panel.<panel>.idle`, 48×48 9-slice (§5). Draw
+`ui.panel.default.idle` first; every other panel falls back to it:
+`party_frame`, `log`, `viewport`, `hall_plot`, `chest`, `ritual`.
+
+**Homestead** — `homestead.stage.s<0-5>.idle`, 32×32, stage 0 (bare clearing)
+to stage 5 (grand estate).
+
+**Dungeon (drawn today as script-generated placeholders)** — these keys point at
+the §6–§7 files: `dungeon.hero.a.idle`, `dungeon.hero.b.idle`,
+`dungeon.monster.default.idle`, `dungeon.monster.default.enraged`,
+`dungeon.pet.default.idle`, `dungeon.quest_monster.default.idle`,
+`dungeon.gold_pouch.default.idle`, `dungeon.war_chest.default.idle`,
+`dungeon.reserve_cache.default.idle`, `dungeon.coin.default.idle`,
+`dungeon.trophy.default.idle`, `dungeon.anvil.default.idle`,
+`dungeon.contract_seal.default.idle`, `dungeon.ransack.default.idle`,
+`dungeon.scroll_seal.default.idle`, `dungeon.supplies.default.idle`,
+`dungeon.writ.default.idle`. Not yet drawn: `dungeon.overbudget.default.idle`,
+`dungeon.campfire.default.idle`.

@@ -20,13 +20,17 @@
 library;
 
 import '../../../domain/event.dart';
-import '../../../domain/ids.dart';
+import '../../../domain/state.dart';
 import '../../config/balance.dart';
 import '../clock.dart';
 import '../game_event.dart';
+import '../game_event_stamp.dart';
 import '../game_state.dart';
 import '../game_values.dart';
 import '../reason_codes.dart';
+import 'month_end_rewards.dart';
+
+export '../game_event_stamp.dart';
 
 /// One adult in the household and the mode they play in.
 class PartyAdult {
@@ -55,17 +59,12 @@ class Party {
   Iterable<PartyAdult> get adventurers => adults.where((adult) => adult.inAdventure);
 }
 
-/// How the engine stamps the events it writes: this device, and fresh event
-/// ids (UUIDv7 in the app, so events written together keep their order).
-class GameEventStamp {
-  const GameEventStamp({required this.deviceId, this.newEventId = uuidv7});
-
-  final String deviceId;
-  final String Function() newEventId;
-}
-
-/// The month-end rewards (the spoils ritual's chest and boss fight). Not built
-/// yet; the engine already calls it on every evaluation.
+/// The month-end rewards (gold chests, Vault milestones), evaluated on every
+/// engine run. The default is `LedgerMonthEndRewards`.
+///
+/// Month-end rewards read closed months, so they need the whole ledger (and
+/// ideally its reduced [household] state, which the app already has); when
+/// [household] is null the implementation reduces the ledger itself.
 abstract interface class MonthEndRewards {
   List<GameEvent> evaluate(
     List<Event> newLedgerEvents,
@@ -73,10 +72,11 @@ abstract interface class MonthEndRewards {
     Clock clock, {
     required Party party,
     required GameEventStamp stamp,
+    HouseholdState? household,
   });
 }
 
-/// The placeholder until month-end rewards exist.
+/// Month-end rewards switched off (tests that only exercise daily rewards).
 class NoMonthEndRewards implements MonthEndRewards {
   const NoMonthEndRewards();
 
@@ -87,6 +87,7 @@ class NoMonthEndRewards implements MonthEndRewards {
     Clock clock, {
     required Party party,
     required GameEventStamp stamp,
+    HouseholdState? household,
   }) =>
       const [];
 }
@@ -94,7 +95,7 @@ class NoMonthEndRewards implements MonthEndRewards {
 class RewardEngine {
   const RewardEngine({
     this.lookbackDays = Balance.rewardLookbackDays,
-    this.monthEnd = const NoMonthEndRewards(),
+    this.monthEnd = const LedgerMonthEndRewards(),
   });
 
   /// How many days back activity is still rewarded.
@@ -104,13 +105,15 @@ class RewardEngine {
   /// The game events [newLedgerEvents] earn, given what [gameState] already
   /// holds. Any batch is safe to pass — even the whole log — because what is
   /// already rewarded is skipped and activity older than [lookbackDays] is
-  /// ignored.
+  /// ignored. Month-end rewards need the whole ledger, or its reduced
+  /// [household] state (see [MonthEndRewards]).
   List<GameEvent> evaluate(
     Iterable<Event> newLedgerEvents,
     GameState gameState,
     Clock clock, {
     required Party party,
     required GameEventStamp stamp,
+    HouseholdState? household,
   }) {
     final now = clock.now();
     final today = GameDay.fromInstant(now);
@@ -149,7 +152,7 @@ class RewardEngine {
     }
 
     run.out.addAll(monthEnd.evaluate(ledger, gameState, clock,
-        party: party, stamp: stamp));
+        party: party, stamp: stamp, household: household));
     return run.out;
   }
 

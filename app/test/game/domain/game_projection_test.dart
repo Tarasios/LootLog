@@ -191,6 +191,70 @@ void main() {
       expect(s.warnings, isEmpty);
     });
 
+    group('storehouse cap', () {
+      final base = Balance.storehouseCapacityByTier[0];
+
+      test('credits beyond the capacity are clamped and warn', () {
+        final s = projectGameState([
+          collected('m1', 'plot-1', mats({MaterialKind.ore: base - 10}),
+              when: at(0)),
+          collected('m2', 'plot-1',
+              mats({MaterialKind.ore: 25, MaterialKind.stone: 5}),
+              when: at(1)),
+        ]);
+        expect(s.hall.materials[MaterialKind.ore], base);
+        expect(s.hall.materials[MaterialKind.stone], 5);
+        expect(codes(s), contains(GameWarningCode.materialsCapped));
+      });
+
+      test('a completed storehouse raises the cap; one under construction '
+          'still holds the previous tier', () {
+        final t1 = Balance.storehouseCapacityByTier[1];
+        final t2 = Balance.storehouseCapacityByTier[2];
+        final s = projectGameState([
+          built('b1', 0, BuildingType.storehouse, when: at(0)),
+          built('b2', 0, BuildingType.storehouse,
+              tier: 2, when: at(10), completesAt: at(70)),
+          // During the upgrade: tier 1's capacity.
+          collected('m1', 'plot-0', mats({MaterialKind.lumber: t1 + 50}),
+              when: at(20)),
+        ]);
+        expect(s.hall.materials[MaterialKind.lumber], t1);
+        final later = projectGameState([
+          ...[
+            built('b1', 0, BuildingType.storehouse, when: at(0)),
+            built('b2', 0, BuildingType.storehouse,
+                tier: 2, when: at(10), completesAt: at(70)),
+          ],
+          collected('m1', 'plot-0', mats({MaterialKind.lumber: t2 + 50}),
+              when: at(80)),
+        ]);
+        expect(later.hall.materials[MaterialKind.lumber], t2);
+      });
+
+      test('trophies are never capped', () {
+        final s = projectGameState([
+          bossFight('f1', const Month(2026, 9),
+              when: at(0),
+              rewards: Loot(materials: mats({MaterialKind.trophy: base + 5}))),
+        ]);
+        expect(s.hall.materials[MaterialKind.trophy], base + 5);
+        expect(s.warnings, isEmpty);
+      });
+
+      test('the hall reports building tiers as of an instant', () {
+        final s = projectGameState([
+          built('b1', 0, BuildingType.forge, when: at(0)),
+          built('b2', 0, BuildingType.forge,
+              tier: 2, when: at(10), completesAt: at(70)),
+        ]);
+        expect(s.hall.completedTier(BuildingType.forge, at(30)), 1);
+        expect(s.hall.completedTier(BuildingType.forge, at(70)), 2);
+        expect(s.hall.completedTier(BuildingType.mine, at(70)), 0);
+        expect(s.hall.storageCapacityAt(at(70)), base);
+      });
+    });
+
     test('collecting from an unknown building still credits but warns', () {
       final s = projectGameState([
         collected('m1', 'plot-7', mats({MaterialKind.ore: 4}), when: at(0)),
