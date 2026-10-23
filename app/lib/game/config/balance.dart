@@ -95,6 +95,47 @@ abstract final class Balance {
   /// [maxFreezeTokens]: a full pouch never wastes a find.
   static const int tokenOverflowGems = 5;
 
+  // ---- Decorations from chests and milestones ---------------------------------
+
+  /// Chance (per mille) that a chest holds a decoration. The month-end spoils
+  /// chest always does.
+  static const Map<ChestType, int> chestDecorChancePermille = {
+    ChestType.wood: 350,
+    ChestType.party: 450,
+    ChestType.iron: 500,
+    ChestType.gold: 650,
+    ChestType.spoils: 1000,
+  };
+
+  /// Of a decoration drop: chance it is rare, then chance it is uncommon;
+  /// otherwise it is common.
+  static const Map<ChestType, int> chestRareChancePermille = {
+    ChestType.wood: 20,
+    ChestType.party: 40,
+    ChestType.iron: 50,
+    ChestType.gold: 100,
+    ChestType.spoils: 150,
+  };
+  static const Map<ChestType, int> chestUncommonChancePermille = {
+    ChestType.wood: 200,
+    ChestType.party: 300,
+    ChestType.iron: 300,
+    ChestType.gold: 400,
+    ChestType.spoils: 450,
+  };
+
+  /// Gems a duplicate decoration turns into, so no drop is ever wasted.
+  static const int duplicateDecorGems = 5;
+
+  /// Consecutive active days that unlock a title and an exclusive decoration.
+  static const List<int> streakMilestoneDays = [7, 30, 100];
+
+  static const Map<int, List<String>> streakMilestoneItemIds = {
+    7: ['streak_7_title', 'streak_7_item'],
+    30: ['streak_30_title', 'streak_30_item'],
+    100: ['streak_100_title', 'streak_100_item'],
+  };
+
   // ---- Plots --------------------------------------------------------------
 
   /// Hall plots unlocked before any `PlotUnlocked` event (indices

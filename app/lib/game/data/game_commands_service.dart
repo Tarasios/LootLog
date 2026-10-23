@@ -76,7 +76,13 @@ class GameCommandsService {
   ) => _serialized(() async {
     final state = projectGameState(await store.all());
     final result = command(
-      GameCommands(state: state, clock: clock, actorId: actorId, stamp: stamp),
+      GameCommands(
+        state: state,
+        clock: clock,
+        actorId: actorId,
+        stamp: stamp,
+        catalog: catalog,
+      ),
     );
     if (result.accepted && result.events.isNotEmpty) {
       await store.append(result.events);

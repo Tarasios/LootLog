@@ -20,6 +20,9 @@ import '../../config/balance.dart';
 import '../../config/narration.dart';
 import '../clock.dart';
 import '../content.dart';
+import '../decor/catalog.dart';
+import '../decor/chest_decor.dart';
+import '../decor/decor_values.dart';
 import '../game_event.dart';
 import '../game_event_stamp.dart';
 import '../game_rng.dart';
@@ -192,12 +195,17 @@ class GameCommands {
     required this.clock,
     required this.actorId,
     required this.stamp,
+    this.catalog = DecorCatalog.empty,
   });
 
   final GameState state;
   final Clock clock;
   final String actorId;
   final GameEventStamp stamp;
+
+  /// The decoration catalogue chests roll their decoration from. Empty (the
+  /// default) means chests hold gems and tokens only.
+  final DecorCatalog catalog;
 
   late final DateTime _now = clock.now();
   HallState get _hall => state.hall;
@@ -321,6 +329,12 @@ class GameCommands {
       tokens = 0;
       gems += Balance.tokenOverflowGems;
     }
+    final drop = rollChestDecor(rng, type, catalog,
+        alreadyOwned: (item) => item.placeableInTown
+            ? state.decor.townOwned.containsKey(item.id)
+            : state.decor.ownedCount(actorId, item.id) > 0);
+    gems += drop.duplicateGems;
+    final droppedItem = drop.item;
     return _accept([
       ChestOpened(
         eventId: env.id,
@@ -331,6 +345,18 @@ class GameCommands {
         chestId: chestId,
         contents: Loot(gems: gems, tokens: tokens),
       ),
+      if (droppedItem != null)
+        ItemAcquired(
+          eventId: stamp.newEventId(),
+          deviceId: stamp.deviceId,
+          actorId: actorId,
+          occurredAt: _now,
+          createdAt: _now,
+          acquisitionId: chestId,
+          itemId: droppedItem.id,
+          source: DecorSource.chest,
+          toTown: droppedItem.placeableInTown,
+        ),
     ]);
   }
 

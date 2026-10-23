@@ -14,6 +14,7 @@ import '../../ui/theme.dart';
 import '../assets/asset_catalog.dart';
 import '../assets/asset_key.dart';
 import '../config/balance.dart';
+import '../data/game_providers.dart';
 import '../domain/game_event.dart';
 import '../domain/game_state.dart';
 import '../domain/game_values.dart';
@@ -455,13 +456,20 @@ class InboxPanel extends ConsumerWidget {
     if (r == null || !r.accepted || !context.mounted) return;
     final opened = r.events.whereType<ChestOpened>().firstOrNull;
     if (opened == null) return;
+    final droppedItemId = r.events.whereType<ItemAcquired>().firstOrNull?.itemId;
+    final droppedItem = droppedItemId == null
+        ? null
+        : ref.read(decorCatalogProvider).value?.itemFor(droppedItemId);
     await showHallCelebration(
       context,
       sprite: GameAssetKeys.chest(type, open: true),
       title: data.voice.line('chestOpened',
               seed: opened.eventId,
               fill: {'chest': HallNames.chest(type).toLowerCase()}),
-      lines: ['Inside: ${HallNames.loot(opened.contents)}.'],
+      lines: [
+        'Inside: ${HallNames.loot(opened.contents)}.',
+        if (droppedItem != null) HallNames.decorFound(droppedItem),
+      ],
     );
   }
 

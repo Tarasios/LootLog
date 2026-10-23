@@ -11,10 +11,13 @@ import '../domain/event.dart';
 import '../domain/reducer.dart';
 import '../domain/state.dart';
 import '../features/settings/play_mode.dart';
+import '../game/data/catalog_loader.dart';
 import '../game/domain/clock.dart';
+import '../game/domain/decor/catalog.dart';
 import '../game/domain/game_projection.dart';
 import '../game/domain/party_sync.dart';
 import '../game/domain/rewards/reward_engine.dart';
+import '../game/domain/rewards/streak_milestones.dart';
 import 'db/database.dart';
 
 /// Whether this household may write ledger event types newer than the 1.0
@@ -52,12 +55,17 @@ class GameRewardRunner {
     required this.deviceId,
     this.clock = const SystemClock(),
     this.engine = const RewardEngine(),
-  });
+    Future<DecorCatalog> Function() loadCatalog = loadDecorCatalog,
+  }) : _loadCatalog = loadCatalog;
 
   final AppDatabase db;
   final String deviceId;
   final Clock clock;
   final RewardEngine engine;
+  final Future<DecorCatalog> Function() _loadCatalog;
+
+  /// The decoration catalogue, loaded on first use and kept.
+  DecorCatalog? _catalog;
 
   Future<int>? _running;
   bool _again = false;
@@ -111,8 +119,17 @@ class GameRewardRunner {
       // or out of the party. Idempotent; game log only.
       ...partyMembershipEvents(game, party, clock, stamp),
     ];
-    if (out.isEmpty) return 0;
-    await db.gameEventsDao.appendGameEvents(out);
-    return out.length;
+    if (out.isNotEmpty) await db.gameEventsDao.appendGameEvents(out);
+
+    // Streak milestones read the streaks the engine just extended. Granted
+    // once per person per milestone and never taken back.
+    final catalog = _catalog ??= await _loadCatalog();
+    final afterEngine = out.isEmpty
+        ? game
+        : projectGameState(await db.gameEventsDao.allGameEvents());
+    final milestones = const StreakMilestones()
+        .evaluate(afterEngine, party, catalog, clock, stamp);
+    if (milestones.isNotEmpty) await db.gameEventsDao.appendGameEvents(milestones);
+    return out.length + milestones.length;
   }
 }
