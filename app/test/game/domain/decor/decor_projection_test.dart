@@ -115,4 +115,50 @@ void main() {
     expect(state.decor.outfitOf('alex'), isNull);
     expect(state.decor.titleOf('alex'), isNull);
   });
+
+  test('a projected decor state cannot be mutated by callers', () {
+    final decor = projectGameState([acquired('alex', 'rug_round', acquisitionId: 'a')]).decor;
+    expect(() => decor.ownedByPerson['alex']!['rug_round'] = 9, throwsUnsupportedError);
+    expect(() => decor.ownedByPerson['sam'] = {}, throwsUnsupportedError);
+    expect(() => decor.townOwned['town_bench'] = 1, throwsUnsupportedError);
+    expect(() => decor.seenAcquisitionIds.add('x'), throwsUnsupportedError);
+  });
+
+  test('moving a room placement to the town needs a town copy', () {
+    final state = projectGameState([
+      acquired('alex', 'rug_round', acquisitionId: 'a'),
+      placed('alex', 'p1', 'rug_round'),
+      placed('alex', 'p1', 'rug_round', space: DecorSpace.town),
+    ]);
+    expect(state.warnings.map((warning) => warning.code), [GameWarningCode.decorNotOwned]);
+    expect(state.decor.placements['p1']!.space, DecorSpace.room);
+  });
+
+  test('a town placement re-placed into a room belongs to the actor', () {
+    final state = projectGameState([
+      acquired('alex', 'town_bench', acquisitionId: 'b', toTown: true),
+      acquired('sam', 'town_bench', acquisitionId: 'c'),
+      placed('alex', 'p1', 'town_bench', space: DecorSpace.town),
+      placed('sam', 'p1', 'town_bench'),
+    ]);
+    final placement = state.decor.placements['p1']!;
+    expect(placement.space, DecorSpace.room);
+    expect(placement.ownerId, 'sam');
+    expect(state.decor.townPlacements, isEmpty);
+  });
+
+  test('decor participates in GameState equality', () {
+    final base = projectGameState([acquired('alex', 'rug_round', acquisitionId: 'a')]);
+    final same = projectGameState([acquired('alex', 'rug_round', acquisitionId: 'a')]);
+    expect(base, same);
+    expect(base.copyWith(decor: base.decor.acquire(personId: 'alex', itemId: 'lamp_small', toTown: false)), isNot(base));
+  });
+
+  test('an unaffordable purchase clamps gems at zero with a warning', () {
+    final grant = gems('alex', 5);
+    final state = projectGameState([grant, claim('alex', grant.rewardId), purchased('alex', 'rug_round', 8)]);
+    expect(state.person('alex').gems, 0);
+    expect(state.warnings.map((warning) => warning.code), contains(GameWarningCode.gemsClamped));
+    expect(state.decor.ownedCount('alex', 'rug_round'), 1);
+  });
 }

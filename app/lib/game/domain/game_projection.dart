@@ -302,7 +302,11 @@ void _apply(_GameStateDraft draft, GameEvent event) {
     case ItemPlaced placement:
       final isTown = placement.space == DecorSpace.town;
       final existing = draft.decor.placements[placement.placementId];
-      final movingSameItem = existing != null && existing.itemId == placement.itemId;
+      // Only a move within the same space reuses the copy already placed; a
+      // placementId reused across spaces needs a free copy in the destination.
+      final movingSameItem = existing != null &&
+          existing.itemId == placement.itemId &&
+          existing.space == placement.space;
       final available = isTown
           ? draft.decor.townAvailableCount(placement.itemId)
           : draft.decor.availableCount(actor, placement.itemId);
@@ -314,7 +318,7 @@ void _apply(_GameStateDraft draft, GameEvent event) {
         placementId: placement.placementId,
         itemId: placement.itemId,
         space: placement.space,
-        ownerId: isTown ? '' : (existing?.ownerId ?? actor),
+        ownerId: isTown ? '' : (movingSameItem ? existing.ownerId : actor),
         column: placement.column,
         row: placement.row,
         rotation: placement.rotation,

@@ -97,7 +97,10 @@ class DecorState {
     }
     final personItems = {...?ownedByPerson[personId]};
     personItems[itemId] = (personItems[itemId] ?? 0) + 1;
-    return _copy(ownedByPerson: {...ownedByPerson, personId: personItems}, seenAcquisitionIds: seen);
+    return _copy(
+      ownedByPerson: {...ownedByPerson, personId: Map.unmodifiable(personItems)},
+      seenAcquisitionIds: seen,
+    );
   }
 
   DecorState place(Placement placement) => _copy(placements: {...placements, placement.placementId: placement});
