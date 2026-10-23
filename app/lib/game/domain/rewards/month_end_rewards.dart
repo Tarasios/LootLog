@@ -9,7 +9,9 @@
 ///   [Balance.goldChestMinLoggedDays] days that month — so skipping the log
 ///   never looks like staying under budget (rule 1).
 /// - Savings rewards (rule 8) read shares of a quest's goal and runs of
-///   consecutive saving months, never dollar amounts.
+///   consecutive saving months, never dollar amounts. Like the gold chest,
+///   they are bounded by the lookback: a milestone is paid only when crossed
+///   within it, so an old ledger's history is never paid out at once.
 /// - Ids are `<reasonCode>:<person>:<period>`; anything the game state has
 ///   seen is never granted again, and nothing is ever taken back (rule 3).
 /// - Only Adventure adults earn these; a Standard partner's absence never
@@ -62,6 +64,18 @@ class LedgerMonthEndRewards implements MonthEndRewards {
     }
     final oldest = closed.isEmpty ? current : closed.last;
 
+    // Vault milestones are paid only when crossed inside the window that
+    // starts with [oldest]: progress before it comes from the ledger as it
+    // stood at that month boundary (events by occurredAt), the same on every
+    // device. Anything crossed earlier is skipped for good, so the first run
+    // over an old ledger never pays out its history at once.
+    final windowStart = oldest.startInstantUtc();
+    HouseholdState? baseline;
+    HouseholdState before() => baseline ??= reduce(
+          [for (final e in ledger) if (e.occurredAt.isBefore(windowStart)) e],
+          asOf: windowStart,
+        );
+
     final out = <GameEvent>[];
     for (final adult in party.adventurers) {
       final who = adult.memberId;
@@ -91,21 +105,24 @@ class LedgerMonthEndRewards implements MonthEndRewards {
           SharedParty() => (q.contributions[who] ?? 0) > 0,
         };
         if (!funds) continue;
-        final pct = q.completed
-            ? 100
-            : (q.totalContributedCents * 100 ~/ q.targetCents).clamp(0, 100);
+        final pct = _pct(q);
         for (final mark in Balance.questMilestoneGems.keys.toList()..sort()) {
           if (pct < mark) continue;
+          final rewardId =
+              '${GameReasonCodes.vaultQuest}:$who:${q.questId}:$mark';
+          if (grants.seen(rewardId)) continue;
+          if (_pct(before().quests[q.questId]) >= mark) continue;
           grants.gems(
-            '${GameReasonCodes.vaultQuest}:$who:${q.questId}:$mark',
+            rewardId,
             Balance.questMilestoneGems[mark]!,
             GameReasonCodes.vaultQuest,
           );
         }
       }
 
-      // Vault: consecutive saving months. Only a run still alive within the
-      // lookback is paid, so an old ledger's history isn't paid out at once.
+      // Vault: consecutive saving months. A mark is paid only when the run
+      // reaches it in a month within the lookback; marks reached earlier are
+      // skipped for good.
       final saved = savingsAllocationMonths(ledger, who)
           .where((m) => m.isBefore(current))
           .toList()
@@ -120,6 +137,11 @@ class LedgerMonthEndRewards implements MonthEndRewards {
         }
         for (final mark in Balance.savingsStreakGems.keys.toList()..sort()) {
           if (length < mark) continue;
+          var reached = start;
+          for (var i = 1; i < mark; i++) {
+            reached = reached.next();
+          }
+          if (reached.isBefore(oldest)) continue;
           grants.gems(
             '${GameReasonCodes.vaultSavingsStreak}:$who:${start.toKey()}:$mark',
             Balance.savingsStreakGems[mark]!,
@@ -129,6 +151,13 @@ class LedgerMonthEndRewards implements MonthEndRewards {
       }
     }
     return out;
+  }
+
+  /// [q]'s progress as a whole percent of its goal (0 when absent).
+  static int _pct(QuestState? q) {
+    if (q == null || q.targetCents <= 0) return 0;
+    if (q.completed) return 100;
+    return (q.totalContributedCents * 100 ~/ q.targetCents).clamp(0, 100);
   }
 
   /// Whether one of [who]'s personal categories spent something in [month]
@@ -156,6 +185,8 @@ class _Grants {
   final Set<String> _seenRewards;
   final Set<String> _seenChests;
   final String _who;
+
+  bool seen(String rewardId) => _seenRewards.contains(rewardId);
 
   void chest(String chestId, ChestType type, String reasonCode) {
     if (!_seenChests.add(chestId)) return;
