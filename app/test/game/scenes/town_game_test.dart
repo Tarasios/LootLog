@@ -19,6 +19,7 @@ import 'package:lootlog/game/domain/town/town_view.dart';
 import 'package:lootlog/game/scenes/camera_controls.dart';
 import 'package:lootlog/game/scenes/dungeon/reveal.dart';
 import 'package:lootlog/game/scenes/pack_atlas.dart';
+import 'package:lootlog/game/scenes/scene_effects.dart';
 import 'package:lootlog/game/scenes/town/town_components.dart';
 import 'package:lootlog/game/scenes/town/town_game.dart';
 
@@ -328,4 +329,30 @@ void main() {
       expect(game.world.children.whereType<TownDecorComponent>(), isEmpty);
     },
   );
+
+  group('celebrating a log', () {
+    testWithGame<TownGame>('gems fly to the character with the real count', buildGame, (game) async {
+      await game.ready();
+      game.celebrateLog(const LogPulse(personId: 'alex', gems: 7, sequence: 1));
+      await game.ready();
+      expect(game.world.children.whereType<FlyingCoin>(), hasLength(TownGame.maxFlyingGems));
+      expect(game.world.children.whereType<FloatingNumber>().map((number) => number.text), ['+7']);
+    });
+
+    testWithGame<TownGame>('a gem-less log still sparkles', buildGame, (game) async {
+      await game.ready();
+      game.celebrateLog(const LogPulse(personId: 'alex', gems: 0, sequence: 1));
+      await game.ready();
+      expect(game.world.children.whereType<FlyingCoin>(), isEmpty);
+      expect(game.world.children.whereType<Sparkle>(), isNotEmpty);
+      expect(game.world.children.whereType<FloatingNumber>().map((number) => number.text), ['Logged!']);
+    });
+
+    testWithGame<TownGame>('someone with no house is skipped', buildGame, (game) async {
+      await game.ready();
+      game.celebrateLog(const LogPulse(personId: 'nobody', gems: 3, sequence: 1));
+      await game.ready();
+      expect(game.world.children.whereType<FloatingNumber>(), isEmpty);
+    });
+  });
 }

@@ -28,6 +28,7 @@ import 'package:lootlog/game/ui/game_home.dart';
 import 'package:lootlog/game/ui/hall_habits.dart';
 import 'package:lootlog/game/ui/hall_ledger_view.dart';
 import 'package:lootlog/game/ui/hall_voice.dart';
+import 'package:lootlog/game/ui/town/log_celebration.dart';
 import 'package:lootlog/ui/theme.dart';
 
 import '../domain/game_fixtures.dart';
@@ -175,6 +176,18 @@ final DecorCatalog kShippedCatalog = DecorCatalog.fromJson(
     jsonDecode(File('assets/game/catalog.json').readAsStringSync())
         as Map<String, dynamic>);
 
+/// Stands in for the ledger's count of this adult's purchases: [log] is a
+/// purchase being logged.
+class LoggedPurchases extends Notifier<int?> {
+  @override
+  int? build() => 0;
+
+  void log() => state = (state ?? 0) + 1;
+}
+
+final testLoggedPurchasesProvider =
+    NotifierProvider<LoggedPurchases, int?>(LoggedPurchases.new);
+
 /// The hall's provider overrides. [decorCatalog] is what the catalogue
 /// provider resolves to (default: the shipped one, already loaded); pass a
 /// not-yet-completed future to test the "still unpacking" state.
@@ -208,6 +221,8 @@ List<Override> hallOverrides({
     hallLedgerViewProvider.overrideWithValue(view ?? sampleView()),
     hallVoiceProvider.overrideWith((ref) async => diskVoice()),
     hallHabitsProvider.overrideWithValue(habits ?? FakeHabits()),
+    loggedPurchaseCountProvider
+        .overrideWith((ref) => ref.watch(testLoggedPurchasesProvider)),
     adventureTierProvider.overrideWith(() => tierNotifier ?? FixedTier(tier)),
     gameAssetRegistryProvider.overrideWith((ref) async {
       if (registryFails) throw StateError('asset manifest unreadable');

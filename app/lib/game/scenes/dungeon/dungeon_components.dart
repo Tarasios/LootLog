@@ -12,8 +12,11 @@ import 'package:flutter/material.dart';
 import '../../assets/asset_key.dart';
 import '../camera_controls.dart';
 import '../pack_atlas.dart';
+import '../scene_effects.dart';
 import '../town/town_components.dart' show KeyedSprite;
 import 'reveal.dart';
+
+export '../scene_effects.dart' show FloatingNumber, FlyingCoin;
 
 /// DawnBringer-16 colours used by the dungeon when a tile has no art, and
 /// for the HP bars, numbers and coins.
@@ -23,8 +26,8 @@ abstract final class DungeonColours {
   static const barBack = Color(0xFF140C1C);
   static const hp = Color(0xFFD04648);
   static const label = Color(0xFFDEEED6);
-  static const damage = Color(0xFFDAD45E);
-  static const tax = Color(0xFF8595A1);
+  static const damage = EffectColours.gold;
+  static const tax = EffectColours.grey;
 }
 
 /// The dungeon backdrop: a wall row over floor tiles.
@@ -136,44 +139,5 @@ class TargetComponent extends PositionComponent {
         MoveByEffect(Vector2(2, 0), EffectController(duration: 0.05)),
       ]),
     ]));
-  }
-}
-
-/// A number that floats up and fades: what landed in yellow, the tax in grey.
-class FloatingNumber extends TextComponent {
-  FloatingNumber({required String text, required Vector2 position, required Color colour})
-      : super(
-          text: text,
-          position: position,
-          anchor: Anchor.center,
-          priority: 10,
-          textRenderer: TextPaint(style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: colour)),
-        );
-
-  @override
-  Future<void> onLoad() async {
-    add(MoveByEffect(Vector2(0, -18), EffectController(duration: 0.9)));
-    add(RemoveEffect(delay: 1));
-  }
-}
-
-/// A coin flying from the hit to the war chest.
-class FlyingCoin extends CircleComponent {
-  FlyingCoin({required Vector2 from, required this.destination})
-      : super(
-          radius: 2,
-          position: from,
-          anchor: Anchor.center,
-          paint: Paint()..color = DungeonColours.damage,
-          priority: 11,
-        );
-
-  /// Where the coin lands (the war chest).
-  final Vector2 destination;
-
-  @override
-  Future<void> onLoad() async {
-    add(MoveToEffect(destination, EffectController(duration: 0.7, curve: Curves.easeIn)));
-    add(RemoveEffect(delay: 0.75));
   }
 }

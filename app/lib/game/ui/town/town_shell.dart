@@ -35,6 +35,8 @@ import '../hall_home_sections.dart' show HallHomeData;
 import '../hall_ledger_view.dart';
 import '../hall_status.dart';
 import '../hall_voice.dart';
+import '../logged_voice.dart';
+import 'log_celebration.dart';
 import 'town_bottom_bar.dart';
 import 'town_decorate_panel.dart';
 import 'town_inbox_sheet.dart';
@@ -91,6 +93,49 @@ class _TownShellState extends ConsumerState<TownShell> {
   /// buildings.
   bool _decorating = false;
   DecorItem? _picked;
+
+  /// The latest log the town celebrates, and a counter telling pulses apart.
+  LogPulse? _logPulse;
+  int _pulseSequence = 0;
+
+  /// Celebrates a log by this device's adult: gems flying to their house (a
+  /// sparkle when the log brought none) in the pixel tier, a short line in
+  /// the text tier. Display only.
+  void _celebrateLog({required int gems, required bool purchaseLogged}) {
+    final meId = ref.read(hallLedgerViewProvider).meId;
+    if (meId == null || meId.isEmpty || !mounted) return;
+    if (ref.read(adventureTierProvider) == AdventureTier.text) {
+      if (!purchaseLogged) return;
+      final voice = ref.read(loggedVoiceProvider).value ?? LoggedVoice.empty;
+      final today = GameDay.fromInstant(ref.read(gameClockProvider).now());
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text(voice.line(seed: '${today.toKey()}:${_pulseSequence++}'))),
+      );
+      return;
+    }
+    setState(
+      () => _logPulse = LogPulse(personId: meId, gems: gems, sequence: ++_pulseSequence),
+    );
+  }
+
+  void _listenForLogs() {
+    // The first game state is the baseline: only rewards granted after it
+    // are celebrated.
+    ref.listen(gameStateProvider, (previous, next) {
+      final before = previous?.value;
+      final after = next.value;
+      final meId = ref.read(hallLedgerViewProvider).meId;
+      if (before == null || after == null || meId == null) return;
+      final gems = newLoggingGems(before, after, meId);
+      if (gems > 0) _celebrateLog(gems: gems, purchaseLogged: false);
+    });
+    ref.listen(loggedPurchaseCountProvider, (previous, next) {
+      if (previous == null || next == null || next <= previous) return;
+      _celebrateLog(gems: 0, purchaseLogged: true);
+    });
+    // Load the lines before the first log needs one.
+    ref.watch(loggedVoiceProvider);
+  }
 
   Future<void> _placeInTown(TownCell cell) async {
     final picked = _picked;
@@ -155,6 +200,7 @@ class _TownShellState extends ConsumerState<TownShell> {
 
   @override
   Widget build(BuildContext context) {
+    _listenForLogs();
     final onOpenLedger = widget.onOpenLedger;
     final links = widget.links;
     final openers = widget.openers;
@@ -264,6 +310,7 @@ class _TownShellState extends ConsumerState<TownShell> {
                           catalog: catalog,
                           pictures: goalPictures,
                           onCellTap: _decorating ? (cell) => unawaited(_placeInTown(cell)) : null,
+                          logPulse: _logPulse,
                         ),
                 ),
                 Positioned(

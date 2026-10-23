@@ -18,7 +18,7 @@ import '../../domain/town/town_view.dart';
 import '../pack_atlas.dart';
 import 'town_game.dart';
 
-export 'town_game.dart' show TownsfolkEntry;
+export 'town_game.dart' show LogPulse, TownsfolkEntry;
 
 class TownSceneView extends StatefulWidget {
   const TownSceneView({
@@ -31,6 +31,7 @@ class TownSceneView extends StatefulWidget {
     this.catalog = DecorCatalog.empty,
     this.pictures = const {},
     this.onCellTap,
+    this.logPulse,
   });
 
   final TownView view;
@@ -50,6 +51,9 @@ class TownSceneView extends StatefulWidget {
   /// When set (decorating mode), every tap reports its cell here instead of
   /// resolving to a [TownTarget].
   final void Function(TownCell cell)? onCellTap;
+
+  /// The latest log to celebrate; a new [LogPulse.sequence] plays it once.
+  final LogPulse? logPulse;
 
   @override
   State<TownSceneView> createState() => _TownSceneViewState();
@@ -82,6 +86,10 @@ class _TownSceneViewState extends State<TownSceneView> {
     }
     if (!listEquals(oldWidget.townsfolk, widget.townsfolk)) {
       unawaited(_game.updateTownsfolk(widget.townsfolk));
+    }
+    final pulse = widget.logPulse;
+    if (pulse != null && pulse.sequence != oldWidget.logPulse?.sequence) {
+      _game.celebrateLog(pulse);
     }
   }
 

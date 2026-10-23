@@ -3,6 +3,7 @@
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flame/components.dart';
@@ -15,10 +16,22 @@ import '../../domain/town/town_layout.dart';
 import '../../domain/town/town_view.dart';
 import '../camera_controls.dart';
 import '../pack_atlas.dart';
+import '../scene_effects.dart';
 import 'town_components.dart';
 
 /// A dependent or pet who strolls the town, by name.
 typedef TownsfolkEntry = ({String name, bool isPet});
+
+/// One log to celebrate at [personId]'s house: [gems] earned by it (0 when
+/// the daily cap left it gem-less, which still sparkles). [sequence] tells
+/// two equal celebrations apart.
+class LogPulse {
+  const LogPulse({required this.personId, required this.gems, required this.sequence});
+
+  final String personId;
+  final int gems;
+  final int sequence;
+}
 
 class TownGame extends FlameGame {
   TownGame({
@@ -236,6 +249,41 @@ class TownGame extends FlameGame {
         for (final resident in _view.residents) HouseComponent(atlas, resident),
       ]);
     unawaited(world.addAll(_plotsAndHouses));
+  }
+
+  /// The most gems drawn flying for one log (the "+N" names the real count).
+  static const int maxFlyingGems = 5;
+
+  /// Celebrates a log at [pulse]'s person's character: gems fly in from
+  /// above with a floating "+N", or, for a gem-less log, a sparkle and
+  /// "Logged!". A person with no house in the town is skipped.
+  void celebrateLog(LogPulse pulse) {
+    if (!isLoaded) return;
+    final resident = _view.residents.where((resident) => resident.personId == pulse.personId).firstOrNull;
+    if (resident == null) return;
+    const footprint = TownLayout.footprint * kTileSize;
+    final character = cellPosition(resident.houseOrigin) + Vector2(footprint + kTileSize / 2, footprint - kTileSize / 2);
+    final label = character + Vector2(0, -kTileSize);
+    final effects = <Component>[];
+    if (pulse.gems > 0) {
+      final flying = math.min(pulse.gems, maxFlyingGems);
+      for (var gem = 0; gem < flying; gem++) {
+        effects.add(FlyingCoin(
+          from: character + Vector2((gem - (flying - 1) / 2) * 6, -3 * kTileSize),
+          destination: character,
+          colour: EffectColours.gem,
+          radius: 2.5,
+          delay: gem * 0.08,
+        ));
+      }
+      effects.add(FloatingNumber(text: '+${pulse.gems}', position: label, colour: EffectColours.gem));
+    } else {
+      for (final (index, offset) in [Vector2(-6, -4), Vector2(6, -6), Vector2(0, -10), Vector2(-3, 2)].indexed) {
+        effects.add(Sparkle(position: character + offset, delay: index * 0.1));
+      }
+      effects.add(FloatingNumber(text: 'Logged!', position: label, colour: EffectColours.sparkle));
+    }
+    unawaited(world.addAll(effects));
   }
 
   @override

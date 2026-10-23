@@ -21,18 +21,22 @@ you can replace any of them with better writing without guessing at intent.
   and `app/test/game/ui/dungeon/dungeon_voice_test.dart` guard the hall and
   dungeon files (8+ lines where required, nothing shames or blames).
 
-> **Retired files.** Sections 1 to 5 below (`purchase_logged.json`,
-> `overspend_support.json`, `ritual_celebrations.json`,
-> `streak_celebrations.json`, `camp_ambience.json`) fed the old dungeon-floor
-> dashboard, which Adventure no longer has: the town is the home. Nothing loads
-> those five files now. They stay in `app/assets/game/text/` so the lines can be
-> reused, but editing them changes nothing in the app. The live voice is in
-> `hall_lines.json` and `dungeon_lines.json`, listed from "Guild hall lines"
-> onward.
+> **Retired files.** Sections 2 to 5 below (`overspend_support.json`,
+> `ritual_celebrations.json`, `streak_celebrations.json`, `camp_ambience.json`)
+> fed the old dungeon-floor dashboard, which Adventure no longer has: the town
+> is the home. Nothing loads those four files now. They stay in
+> `app/assets/game/text/` so the lines can be reused, but editing them changes
+> nothing in the app. The live voice is `purchase_logged.json` (section 1),
+> `hall_lines.json` and `dungeon_lines.json` (from "Guild hall lines" onward).
 
 ## 1. `purchase_logged.json` — after a purchase is logged
 
-**Trigger:** immediately after any purchase is recorded.
+**Trigger:** in Adventure's text tier, right after this device's adult logs a
+purchase (the town's snackbar). The pixel town shows gems flying to the
+person's house instead, or a "Logged!" sparkle when the daily gem cap left
+the log gem-less. The town has no amount or merchant for the line, so
+`{amount}` and `{merchant}` are always dropped there. Checked by
+`app/test/game/ui/logged_voice_test.dart`.
 **Intended outcome:** a tiny hit of acknowledgment that makes logging feel
 quick and worth doing again tomorrow. Fast to read (one glance), warm, and
 proud of the *habit* rather than the spending itself. Never comment on

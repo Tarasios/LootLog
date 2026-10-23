@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,6 +11,7 @@ import 'package:lootlog/game/domain/decor/decor_values.dart';
 import 'package:lootlog/game/domain/game_event.dart';
 import 'package:lootlog/game/domain/game_event_store.dart';
 import 'package:lootlog/game/domain/game_state.dart';
+import 'package:lootlog/game/domain/reason_codes.dart';
 import 'package:lootlog/game/domain/town/town_view.dart';
 import 'package:lootlog/game/scenes/town/town_scene_view.dart';
 import 'package:lootlog/game/skin_prefs.dart';
@@ -16,6 +19,7 @@ import 'package:lootlog/game/ui/dungeon/dungeon_screen.dart';
 import 'package:lootlog/game/ui/game_home.dart';
 import 'package:lootlog/game/ui/hall_habits.dart';
 import 'package:lootlog/game/ui/hall_ledger_view.dart';
+import 'package:lootlog/game/ui/logged_voice.dart';
 import 'package:lootlog/game/ui/town/town_place_openers.dart';
 import 'package:lootlog/game/ui/town/town_shell.dart';
 
@@ -25,6 +29,9 @@ import '../hall_harness.dart'
         FakeHabits,
         FixedTier,
         before,
+        granted,
+        robin,
+        testLoggedPurchasesProvider,
         kShippedCatalog,
         sampleEvents,
         sampleView,
@@ -472,6 +479,105 @@ void main() {
       );
       expect(reconcile.onPressed, isNull);
       expect(find.textContaining('adopts the savings rules'), findsOneWidget);
+    });
+  });
+
+  group('celebrating a log', () {
+    TownSceneView scene(WidgetTester tester) =>
+        tester.widget<TownSceneView>(find.byKey(const ValueKey('town-scene')));
+
+    void logAPurchase(WidgetTester tester) =>
+        ProviderScope.containerOf(tester.element(find.byType(TownShell)))
+            .read(testLoggedPurchasesProvider.notifier)
+            .log();
+
+    Future<InMemoryGameEventStore> pumpLive(
+      WidgetTester tester, {
+      AdventureTier tier = AdventureTier.pixel,
+      List<GameEvent> events = const [],
+    }) async {
+      final store = (await tester.runAsync(() => storeWith(events)))!;
+      await pumpShell(tester, host(tier: tier, liveStore: store));
+      await pumpUi(tester);
+      return store;
+    }
+
+    Future<void> grantDailyLog(
+      WidgetTester tester,
+      InMemoryGameEventStore store, {
+      required String rewardId,
+    }) async {
+      await tester.runAsync(
+        () => store.append([
+          granted(
+            'r-$rewardId',
+            when: before(const Duration(minutes: 1)),
+            rewardId: rewardId,
+            gems: 5,
+            reasonCode: GameReasonCodes.dailyLog,
+          ),
+        ]),
+      );
+      await pumpUi(tester);
+    }
+
+    testWidgets("new logging gems fly to the logger's house", (tester) async {
+      final store = await pumpLive(tester);
+      expect(scene(tester).logPulse, isNull);
+      await grantDailyLog(tester, store, rewardId: 'log.daily:$robin:today');
+      final pulse = scene(tester).logPulse!;
+      expect(pulse.personId, robin);
+      expect(pulse.gems, 5);
+    });
+
+    testWidgets('rewards already waiting when the town opens are not replayed',
+        (tester) async {
+      await pumpLive(
+        tester,
+        events: [
+          granted(
+            'r0',
+            when: before(const Duration(hours: 1)),
+            rewardId: 'log.daily:$robin:today',
+            gems: 5,
+            reasonCode: GameReasonCodes.dailyLog,
+          ),
+        ],
+      );
+      expect(scene(tester).logPulse, isNull);
+    });
+
+    testWidgets('a log with no gems (daily cap) still sparkles', (tester) async {
+      await pumpLive(tester);
+      logAPurchase(tester);
+      await pumpUi(tester);
+      final pulse = scene(tester).logPulse!;
+      expect(pulse.personId, robin);
+      expect(pulse.gems, 0);
+    });
+
+    testWidgets('the text tier says a line from the logged-purchase file', (
+      tester,
+    ) async {
+      await pumpLive(tester, tier: AdventureTier.text);
+      logAPurchase(tester);
+      await pumpUi(tester);
+      final shown = tester
+          .widget<Text>(
+            find.descendant(
+              of: find.byType(SnackBar),
+              matching: find.byType(Text),
+            ),
+          )
+          .data!;
+      final shipped = LoggedVoice.parse(
+        File(kPurchaseLoggedAsset).readAsStringSync(),
+      );
+      final possible = {
+        for (var seed = 0; seed < 200; seed++) shipped.line(seed: seed),
+        for (final line in shipped.lines) LoggedVoice(lines: [line]).line(),
+      };
+      expect(possible, contains(shown));
     });
   });
 }
