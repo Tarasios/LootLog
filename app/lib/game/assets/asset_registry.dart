@@ -11,13 +11,15 @@
 /// Pure Dart, zero Flutter imports.
 library;
 
+import 'art_source.dart';
 import 'asset_key.dart';
+import 'sprite_region.dart';
 
 /// An immutable `key value -> filename` map with fallback-chain lookup.
 /// Filenames are relative to `assets/game/` and carry the `_<N>f` frame-count
 /// suffix the sprite renderer reads.
 class AssetRegistry {
-  const AssetRegistry(this.files);
+  const AssetRegistry(this.files, [this.regions = const {}]);
 
   /// No art at all: every key renders as text.
   static const empty = AssetRegistry({});
@@ -48,6 +50,9 @@ class AssetRegistry {
   /// Key value (`building.forge.t3.idle`) -> filename under `assets/game/`.
   final Map<String, String> files;
 
+  /// Key value -> a region of a bundled pack sheet.
+  final Map<String, SpriteRegion> regions;
+
   /// The first file on [key]'s [AssetKey.fallbackChain], or null when none of
   /// its keys has art (→ the text/ASCII card).
   String? fileFor(AssetKey key) {
@@ -58,12 +63,27 @@ class AssetRegistry {
     return null;
   }
 
-  /// Whether [key] resolves to any art.
-  bool hasArt(AssetKey key) => fileFor(key) != null;
+  /// The art for [key]: walking its fallback chain, the first key with an
+  /// artist file or a pack region wins, and at the same key a file beats a
+  /// region (an artist's PNG overrides the pack). Null -> the text card.
+  ArtSource? artFor(AssetKey key) {
+    for (final candidate in key.fallbackChain) {
+      final fileName = files[candidate.value];
+      if (fileName != null) return ArtFile(fileName);
+      final region = regions[candidate.value];
+      if (region != null) return ArtRegion(region);
+    }
+    return null;
+  }
+
+  /// Whether [key] resolves to any art (file or region).
+  bool hasArt(AssetKey key) => artFor(key) != null;
 
   /// This registry with [other]'s entries added, [other] winning on clashes.
-  AssetRegistry merge(AssetRegistry other) =>
-      AssetRegistry(Map.unmodifiable({...files, ...other.files}));
+  AssetRegistry merge(AssetRegistry other) => AssetRegistry(
+        Map.unmodifiable({...files, ...other.files}),
+        Map.unmodifiable({...regions, ...other.regions}),
+      );
 
   /// The directory prefix asset-manifest paths carry for game art.
   static const assetDir = 'assets/game/';
