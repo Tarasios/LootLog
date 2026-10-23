@@ -76,7 +76,7 @@ void main() {
     expect(placed.accepted, isTrue);
     final withBed = applyAll(owned, placed);
     expect(
-      commandsFor(withBed).placeItem(itemId: 'lamp_small', space: DecorSpace.room, column: 0, row: 1).rejection,
+      commandsFor(withBed).placeItem(itemId: 'lamp_small', space: DecorSpace.room, column: 1, row: 0).rejection,
       GameRejection.cellOccupied,
     );
     expect(

@@ -9,11 +9,12 @@ import 'package:lootlog/game/domain/game_values.dart';
 const packNames = ['tiny_town', 'tiny_dungeon', 'roguelike_indoors'];
 
 /// Non-building keys the town, dungeon and room scenes ask the packs for
-/// (the brief's Step 5 plus the Task 7 catalogue extras).
+/// (the brief's Step 5 plus the Task 7 catalogue extras). There is no water
+/// key: Tiny Town has no water tile, so the ground layer paints its solid
+/// water colour instead.
 const requiredKeys = [
   'town.ground.grass.idle',
   'town.ground.path.idle',
-  'town.ground.water.idle',
   'town.ground.square.idle',
   'town.tree.default.idle',
   'town.bush.default.idle',

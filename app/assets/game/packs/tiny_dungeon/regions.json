@@ -23,6 +23,8 @@
     "item.weapon.default.idle": [7, 8],
     "chest.wood.closed.idle": [5, 7],
     "chest.wood.open.idle": [7, 7],
-    "chest.gold.closed.idle": [6, 7]
+    "chest.gold.closed.idle": [6, 7],
+    "town.plot.locked.idle": [9, 3],
+    "town_decor.statue.default.idle": [0, 8]
   }
 }

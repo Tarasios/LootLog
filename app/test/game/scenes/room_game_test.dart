@@ -85,8 +85,8 @@ void main() {
   test('the room lists its placed items with the cells they cover', () {
     final view = roomWithBed();
     expect(view.items.single.item.id, 'bed_simple');
-    expect(view.items.single.cells, {(2, 1), (2, 2)});
-    expect(view.itemAt(2, 2)?.placement.placementId, 'p1');
+    expect(view.items.single.cells, {(2, 1), (3, 1)});
+    expect(view.itemAt(3, 1)?.placement.placementId, 'p1');
     expect(view.itemAt(5, 5), isNull);
   });
 
