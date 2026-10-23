@@ -36,11 +36,11 @@ class TutorialProgress {
   /// Decodes a stored value. 'true' (also the legacy boolean file) means
   /// completed; 'step:N' resumes at N; anything else reads as fresh.
   static TutorialProgress decode(String raw) {
-    final v = raw.trim();
-    if (v == 'true') return done;
-    if (v.startsWith('step:')) {
-      final n = int.tryParse(v.substring('step:'.length)) ?? 0;
-      return TutorialProgress(completed: false, stepIndex: n < 0 ? 0 : n);
+    final trimmed = raw.trim();
+    if (trimmed == 'true') return done;
+    if (trimmed.startsWith('step:')) {
+      final step = int.tryParse(trimmed.substring('step:'.length)) ?? 0;
+      return TutorialProgress(completed: false, stepIndex: step < 0 ? 0 : step);
     }
     return fresh;
   }
@@ -75,15 +75,15 @@ TutorialProgress nextProgressAfterDismissal({
 
 /// Loads the stored progress. A missing file (fresh install) reads as fresh.
 Future<TutorialProgress> loadTutorialProgress() async {
-  final f = await _tutorialFile();
-  if (!f.existsSync()) return TutorialProgress.fresh;
-  return TutorialProgress.decode(f.readAsStringSync());
+  final file = await _tutorialFile();
+  if (!file.existsSync()) return TutorialProgress.fresh;
+  return TutorialProgress.decode(file.readAsStringSync());
 }
 
 /// Persists [progress].
 Future<void> saveTutorialProgress(TutorialProgress progress) async {
-  final f = await _tutorialFile();
-  f.writeAsStringSync(progress.encode(), flush: true);
+  final file = await _tutorialFile();
+  file.writeAsStringSync(progress.encode(), flush: true);
 }
 
 /// Tracks tour progress. Starts as completed (assume seen) and flips once the

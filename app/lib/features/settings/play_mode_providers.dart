@@ -28,8 +28,8 @@ Future<void> setAdventureHome(HouseholdActions actions, AdventureHome home,
     _set(actions, adventureHomeKey(actions.meUserId), home.name, at);
 
 Future<void> _set(
-    HouseholdActions actions, String key, String value, DateTime? at) {
-  final now = (at ?? DateTime.now()).toUtc();
+    HouseholdActions actions, String key, String value, DateTime? occurredAt) {
+  final now = (occurredAt ?? DateTime.now()).toUtc();
   return actions.append(CosmeticSet(
     eventId: uuidv7(millisSinceEpoch: now.millisecondsSinceEpoch),
     deviceId: actions.deviceId,
@@ -48,9 +48,9 @@ Future<void> _set(
 Future<PlayMode?> loadLegacySkinMode() async {
   try {
     final dir = await getApplicationDocumentsDirectory();
-    final f = File(p.join(dir.path, 'app_skin.txt'));
-    if (!await f.exists()) return null;
-    return switch ((await f.readAsString()).trim()) {
+    final legacyFile = File(p.join(dir.path, 'app_skin.txt'));
+    if (!await legacyFile.exists()) return null;
+    return switch ((await legacyFile.readAsString()).trim()) {
       'classic' => PlayMode.standard,
       'adventure' => PlayMode.adventure,
       _ => null,
@@ -71,9 +71,9 @@ final playPrefsProvider = Provider<PlayPrefs?>((ref) {
   final setup = ref.watch(localSetupProvider);
   final log = ref.watch(eventLogProvider);
   final legacy = ref.watch(legacySkinModeProvider);
-  final me = setup.value?.meUserId;
-  if (me == null || !log.hasValue || legacy.isLoading) return null;
-  return resolvePlayPrefs(log.requireValue, me,
+  final meUserId = setup.value?.meUserId;
+  if (meUserId == null || !log.hasValue || legacy.isLoading) return null;
+  return resolvePlayPrefs(log.requireValue, meUserId,
       fallbackMode: legacy.value ?? PlayPrefs.defaults.mode);
 });
 

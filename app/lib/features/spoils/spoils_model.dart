@@ -168,8 +168,8 @@ class SpoilsRitual {
 
   /// Time left before defaults apply (never negative).
   Duration get timeRemaining {
-    final d = graceDeadline.difference(asOf);
-    return d.isNegative ? Duration.zero : d;
+    final remaining = graceDeadline.difference(asOf);
+    return remaining.isNegative ? Duration.zero : remaining;
   }
 
   /// Whole days (rounded down) left in the grace window.
@@ -207,54 +207,57 @@ SpoilsRitual? buildSpoilsRitual(
 
   // Step 1: variable recurring expenses active that month with no actual yet.
   final tallies = <VariableTally>[];
-  for (final r in state.recurringExpenses.values) {
-    if (r.kind != RecurringKind.variable) continue;
-    if (!r.activeIn(month)) continue;
-    if (state.variableActualFor(r.expenseId, month) != null) continue;
+  for (final expense in state.recurringExpenses.values) {
+    if (expense.kind != RecurringKind.variable) continue;
+    if (!expense.activeIn(month)) continue;
+    if (state.variableActualFor(expense.expenseId, month) != null) continue;
     tallies.add(
       VariableTally(
-        expenseId: r.expenseId,
-        name: r.name,
-        estimateCents: r.amountCents,
-        isShared: r.isShared,
-        ownerName: r.ownerUserId == null ? null : nameOf(r.ownerUserId!),
+        expenseId: expense.expenseId,
+        name: expense.name,
+        estimateCents: expense.amountCents,
+        isShared: expense.isShared,
+        ownerName: expense.ownerUserId == null
+            ? null
+            : nameOf(expense.ownerUserId!),
       ),
     );
   }
-  tallies.sort((a, b) => a.name.compareTo(b.name));
+  tallies.sort((first, second) => first.name.compareTo(second.name));
 
   // Quests this user can fund.
   final questOptions = <QuestOption>[];
-  for (final q in state.quests.values) {
-    if (q.completed || q.abandoned) continue;
-    final o = q.ownership;
+  for (final quest in state.quests.values) {
+    if (quest.completed || quest.abandoned) continue;
+    final ownership = quest.ownership;
     final mine =
-        o is SharedParty || (o is PersonalParty && o.userId == meUserId);
+        ownership is SharedParty ||
+        (ownership is PersonalParty && ownership.userId == meUserId);
     if (!mine) continue;
     questOptions.add(
       QuestOption(
-        questId: q.questId,
-        name: q.name,
-        balanceCents: q.balanceCents,
-        targetCents: q.targetCents,
-        totalContributedCents: q.totalContributedCents,
-        mainCategoryId: q.mainCategoryId,
+        questId: quest.questId,
+        name: quest.name,
+        balanceCents: quest.balanceCents,
+        targetCents: quest.targetCents,
+        totalContributedCents: quest.totalContributedCents,
+        mainCategoryId: quest.mainCategoryId,
       ),
     );
   }
-  questOptions.sort((a, b) => a.name.compareTo(b.name));
+  questOptions.sort((first, second) => first.name.compareTo(second.name));
 
   // My outstanding OVERBUDGETs, payable from any of my leftovers.
   final overbudgetOptions = <OverbudgetOption>[
-    for (final d in state.outstandingOverbudgetsFor(meUserId))
+    for (final debt in state.outstandingOverbudgetsFor(meUserId))
       OverbudgetOption(
-        sliceId: d.sliceId,
-        name: d.kind == DebtKind.provisions
-            ? '${state.recurringExpenses[d.sliceId.substring('provisions:'.length)]?.name ?? 'Bill'} top-up'
-            : state.slices[d.sliceId]?.name ?? d.sliceId,
-        outstandingCents: d.outstandingCents,
-        mainCategoryId: state.slices[d.sliceId]?.mainCategoryId,
-        provisions: d.kind == DebtKind.provisions,
+        sliceId: debt.sliceId,
+        name: debt.kind == DebtKind.provisions
+            ? '${state.recurringExpenses[debt.sliceId.substring('provisions:'.length)]?.name ?? 'Bill'} top-up'
+            : state.slices[debt.sliceId]?.name ?? debt.sliceId,
+        outstandingCents: debt.outstandingCents,
+        mainCategoryId: state.slices[debt.sliceId]?.mainCategoryId,
+        provisions: debt.kind == DebtKind.provisions,
       ),
   ];
 
@@ -268,54 +271,66 @@ SpoilsRitual? buildSpoilsRitual(
   final leftovers = <SliceLeftover>[];
   final groupFlows = <GroupFlow>[];
   final emergencyByFund = <String, int>{};
-  for (final cfg in state.slices.values) {
-    if (cfg.createdMonth.isAfter(month)) continue;
-    final sm = state.sliceMonth(cfg.sliceId, month);
+  for (final sliceConfig in state.slices.values) {
+    if (sliceConfig.createdMonth.isAfter(month)) continue;
+    final sliceMonth = state.sliceMonth(sliceConfig.sliceId, month);
 
-    if (cfg.emergencyFundId != null && cfg.emergencyContributionCents > 0) {
-      emergencyByFund[cfg.emergencyFundId!] =
-          (emergencyByFund[cfg.emergencyFundId!] ?? 0) +
-          cfg.emergencyContributionCents;
+    if (sliceConfig.emergencyFundId != null &&
+        sliceConfig.emergencyContributionCents > 0) {
+      emergencyByFund[sliceConfig.emergencyFundId!] =
+          (emergencyByFund[sliceConfig.emergencyFundId!] ?? 0) +
+          sliceConfig.emergencyContributionCents;
     }
 
-    if (cfg.isGroup) {
-      final leftover = sm?.leftoverCents ?? 0;
+    if (sliceConfig.isGroup) {
+      final leftover = sliceMonth?.leftoverCents ?? 0;
       if (leftover > 0) {
-        groupFlows.add(GroupFlow(name: cfg.name, leftoverCents: leftover));
+        groupFlows.add(
+          GroupFlow(name: sliceConfig.name, leftoverCents: leftover),
+        );
       }
       continue;
     }
-    if (cfg.ownerUserId != meUserId) continue;
-    if (sm == null || sm.resolved || sm.leftoverCents <= 0) continue;
+    if (sliceConfig.ownerUserId != meUserId) continue;
+    if (sliceMonth == null ||
+        sliceMonth.resolved ||
+        sliceMonth.leftoverCents <= 0) {
+      continue;
+    }
     leftovers.add(
       SliceLeftover(
-        sliceId: cfg.sliceId,
-        name: cfg.name,
-        leftoverCents: sm.leftoverCents,
-        poolTithePct: cfg.poolTithePct,
-        defaultPolicy: cfg.defaultLeftoverPolicy,
+        sliceId: sliceConfig.sliceId,
+        name: sliceConfig.name,
+        leftoverCents: sliceMonth.leftoverCents,
+        poolTithePct: sliceConfig.poolTithePct,
+        defaultPolicy: sliceConfig.defaultLeftoverPolicy,
         questOptions: questOptions,
         overbudgetOptions: overbudgetOptions,
-        priority: cfg.priority,
-        mainCategoryId: cfg.mainCategoryId,
-        petName: cfg.petId == null ? null : state.pets[cfg.petId]?.name,
+        priority: sliceConfig.priority,
+        mainCategoryId: sliceConfig.mainCategoryId,
+        petName: sliceConfig.petId == null
+            ? null
+            : state.pets[sliceConfig.petId]?.name,
         generalRatePct: generalRate,
         savings: generalRate == null
             ? TaxedBalance.zero
-            : TaxedBalance(sm.savingsCents, sm.savingsTaxPaidCents),
+            : TaxedBalance(
+                sliceMonth.savingsCents,
+                sliceMonth.savingsTaxPaidCents,
+              ),
       ),
     );
   }
-  leftovers.sort((a, b) => a.name.compareTo(b.name));
-  groupFlows.sort((a, b) => a.name.compareTo(b.name));
+  leftovers.sort((first, second) => first.name.compareTo(second.name));
+  groupFlows.sort((first, second) => first.name.compareTo(second.name));
 
   final emergencyContribs = <EmergencyContribLine>[
-    for (final e in emergencyByFund.entries)
+    for (final entry in emergencyByFund.entries)
       EmergencyContribLine(
-        fundName: state.emergencyFunds[e.key]?.name ?? 'Reserve',
-        amountCents: e.value,
+        fundName: state.emergencyFunds[entry.key]?.name ?? 'Reserve',
+        amountCents: entry.value,
       ),
-  ]..sort((a, b) => a.fundName.compareTo(b.fundName));
+  ]..sort((first, second) => first.fundName.compareTo(second.fundName));
 
   final ritual = SpoilsRitual(
     month: month,
@@ -344,8 +359,8 @@ class DraftAllocation {
   int amountCents,
   int poolTithePct,
 ) {
-  final t = Money.titheCents(amountCents, poolTithePct);
-  return (vaultCents: t.remainderCents, titheCents: t.titheCents);
+  final split = Money.titheCents(amountCents, poolTithePct);
+  return (vaultCents: split.remainderCents, titheCents: split.titheCents);
 }
 
 /// Splits an attack of [amountCents] from a category into the damage dealt to a
@@ -364,10 +379,10 @@ class DraftAllocation {
   if (matched) {
     return (damageCents: amountCents, titheCents: 0, matched: true);
   }
-  final t = Money.titheCents(amountCents, poolTithePct);
+  final split = Money.titheCents(amountCents, poolTithePct);
   return (
-    damageCents: t.remainderCents,
-    titheCents: t.titheCents,
+    damageCents: split.remainderCents,
+    titheCents: split.titheCents,
     matched: false,
   );
 }
@@ -398,21 +413,21 @@ previewOverbudgetPayment(
       targetMainCategoryId == sliceMainCategoryId;
   if (matched) {
     final pay = amountCents < outstandingCents ? amountCents : outstandingCents;
-    final t = Money.titheCents(amountCents - pay, poolTithePct);
+    final excessSplit = Money.titheCents(amountCents - pay, poolTithePct);
     return (
       payCents: pay,
       titheCents: 0,
-      toVaultCents: t.remainderCents,
-      excessTitheCents: t.titheCents,
+      toVaultCents: excessSplit.remainderCents,
+      excessTitheCents: excessSplit.titheCents,
       matched: true,
     );
   }
-  final t = Money.titheCents(amountCents, poolTithePct);
-  final damage = t.remainderCents;
+  final split = Money.titheCents(amountCents, poolTithePct);
+  final damage = split.remainderCents;
   final pay = damage < outstandingCents ? damage : outstandingCents;
   return (
     payCents: pay,
-    titheCents: t.titheCents,
+    titheCents: split.titheCents,
     toVaultCents: damage - pay,
     excessTitheCents: 0,
     matched: false,
@@ -433,8 +448,8 @@ previewOverbudgetPayment(
   final amount = amountCents < from.balanceCents
       ? amountCents
       : from.balanceCents;
-  final r = moveTaxed(from, amount, ratePct);
-  return (keepCents: r.delivered.balanceCents, taxCents: r.topUpCents);
+  final move = moveTaxed(from, amount, ratePct);
+  return (keepCents: move.delivered.balanceCents, taxCents: move.topUpCents);
 }
 
 /// The rate a month-end destination charges under the savings rules: saving in
@@ -479,21 +494,23 @@ previewSavingsOverbudget(
   final amount = amountCents < from.balanceCents
       ? amountCents
       : from.balanceCents;
-  final r = moveTaxed(from, amount, ratePct);
-  final got = r.delivered.balanceCents;
-  final pay = got < outstandingCents ? got : outstandingCents;
-  final excess = got - pay;
+  final move = moveTaxed(from, amount, ratePct);
+  final delivered = move.delivered.balanceCents;
+  final pay = delivered < outstandingCents ? delivered : outstandingCents;
+  final excess = delivered - pay;
   var toVault = 0;
   var excessTax = 0;
   if (excess > 0) {
-    final paid = got == 0 ? 0 : r.delivered.taxPaidCents * excess ~/ got;
-    final g = moveTaxed(TaxedBalance(excess, paid), excess, generalPct);
-    toVault = g.delivered.balanceCents;
-    excessTax = g.topUpCents;
+    final paid = delivered == 0
+        ? 0
+        : move.delivered.taxPaidCents * excess ~/ delivered;
+    final toGeneral = moveTaxed(TaxedBalance(excess, paid), excess, generalPct);
+    toVault = toGeneral.delivered.balanceCents;
+    excessTax = toGeneral.topUpCents;
   }
   return (
     payCents: pay,
-    titheCents: r.topUpCents,
+    titheCents: move.topUpCents,
     toVaultCents: toVault,
     excessTitheCents: excessTax,
     matched: ratePct == 0,

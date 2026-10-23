@@ -24,7 +24,7 @@ String _kindLabel(AccountKind kind) => switch (kind) {
       AccountKind.debt => 'Debt',
     };
 
-String _cadenceLabel(AccountCadence c) => switch (c) {
+String _cadenceLabel(AccountCadence cadence) => switch (cadence) {
       AccountCadence.daily => 'Daily',
       AccountCadence.monthly => 'Monthly',
       AccountCadence.quarterly => 'Quarterly',
@@ -53,12 +53,12 @@ class NetWorthScreen extends ConsumerWidget {
       );
     }
     final histories = {
-      for (final h in buildAccountHistories(events)) h.accountId: h,
+      for (final history in buildAccountHistories(events)) history.accountId: history,
     };
-    final nw = state.netWorth;
-    final accounts = nw.accounts.values.toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
-    final stale = nw.staleAccounts;
+    final netWorth = state.netWorth;
+    final accounts = netWorth.accounts.values.toList()
+      ..sort((first, second) => first.name.compareTo(second.name));
+    final stale = netWorth.staleAccounts;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Net worth')),
@@ -70,7 +70,7 @@ class NetWorthScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
-          _TotalCard(nw: nw),
+          _TotalCard(netWorth: netWorth),
           const SizedBox(height: AppSpacing.lg),
           if (stale.isNotEmpty) ...[
             _StaleBanner(accounts: stale),
@@ -81,13 +81,13 @@ class NetWorthScreen extends ConsumerWidget {
               padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
               child: Text('No accounts yet. Record a balance to begin.'),
             ),
-          for (final a in accounts)
+          for (final account in accounts)
             _AccountCard(
-              account: a,
-              history: histories[a.accountId],
+              account: account,
+              history: histories[account.accountId],
               onBalance: () =>
-                  _recordBalance(context, ref, accounts, presetId: a.accountId),
-              onTransfer: () => _recordTransfer(context, ref, a),
+                  _recordBalance(context, ref, accounts, presetId: account.accountId),
+              onTransfer: () => _recordTransfer(context, ref, account),
             ),
         ],
       ),
@@ -147,9 +147,9 @@ class NetWorthScreen extends ConsumerWidget {
 }
 
 class _TotalCard extends StatelessWidget {
-  const _TotalCard({required this.nw});
+  const _TotalCard({required this.netWorth});
 
-  final NetWorthState nw;
+  final NetWorthState netWorth;
 
   @override
   Widget build(BuildContext context) {
@@ -164,9 +164,9 @@ class _TotalCard extends StatelessWidget {
             Text('Total net worth', style: AppText.sectionLabel(context)),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              signedMoney(nw.totalCents),
+              signedMoney(netWorth.totalCents),
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: nw.totalCents >= 0 ? scheme.primary : scheme.error,
+                    color: netWorth.totalCents >= 0 ? scheme.primary : scheme.error,
                   ),
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -175,16 +175,16 @@ class _TotalCard extends StatelessWidget {
                 Expanded(
                   child: _Tally(
                     label: 'Assets',
-                    value: money(nw.assetsCents),
+                    value: money(netWorth.assetsCents),
                     color: scheme.primary,
                   ),
                 ),
                 Expanded(
                   child: _Tally(
                     label: 'Debts',
-                    value: nw.debtsCents == 0
+                    value: netWorth.debtsCents == 0
                         ? money(0)
-                        : '−${money(nw.debtsCents)}',
+                        : '−${money(netWorth.debtsCents)}',
                     color: scheme.error,
                   ),
                 ),
@@ -231,7 +231,7 @@ class _StaleBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final names = accounts.map((a) => a.name).join(', ');
+    final names = accounts.map((account) => account.name).join(', ');
     return Card(
       margin: EdgeInsets.zero,
       color: scheme.tertiaryContainer,
@@ -339,7 +339,7 @@ class _AccountCard extends StatelessWidget {
                   height: 40,
                   child: CustomPaint(
                     painter: _SparklinePainter(
-                      values: [for (final p in points) p.balanceCents],
+                      values: [for (final point in points) point.balanceCents],
                       color: scheme.primary,
                     ),
                   ),
@@ -399,13 +399,13 @@ class _SparklinePainter extends CustomPainter {
     if (values.length < 2) {
       // A single point: draw a flat baseline dot.
       if (values.length == 1) {
-        final p = Paint()..color = color;
-        canvas.drawCircle(Offset(size.width / 2, size.height / 2), 2, p);
+        final paint = Paint()..color = color;
+        canvas.drawCircle(Offset(size.width / 2, size.height / 2), 2, paint);
       }
       return;
     }
-    final minV = values.reduce((a, b) => a < b ? a : b);
-    final maxV = values.reduce((a, b) => a > b ? a : b);
+    final minV = values.reduce((first, second) => first < second ? first : second);
+    final maxV = values.reduce((first, second) => first > second ? first : second);
     final span = (maxV - minV) == 0 ? 1 : (maxV - minV);
     final dx = size.width / (values.length - 1);
     final path = Path();
@@ -484,9 +484,9 @@ class _BalanceSheetState extends State<_BalanceSheet> {
     final preset = widget.presetId == null
         ? null
         : widget.accounts
-            .where((a) => a.accountId == widget.presetId)
+            .where((account) => account.accountId == widget.presetId)
             .cast<AccountBalance?>()
-            .firstWhere((a) => true, orElse: () => null);
+            .firstWhere((account) => true, orElse: () => null);
     if (preset != null) {
       _accountId = preset.accountId;
       _name.text = preset.name;
@@ -519,9 +519,9 @@ class _BalanceSheetState extends State<_BalanceSheet> {
     setState(() {
       _accountId = id;
       if (id != null) {
-        final a = widget.accounts.firstWhere((a) => a.accountId == id);
-        _name.text = a.name;
-        _kind = a.kind;
+        final selected = widget.accounts.firstWhere((account) => account.accountId == id);
+        _name.text = selected.name;
+        _kind = selected.kind;
       }
     });
   }
@@ -552,9 +552,9 @@ class _BalanceSheetState extends State<_BalanceSheet> {
                 items: [
                   const DropdownMenuItem(
                       value: null, child: Text('New account…')),
-                  for (final a in widget.accounts)
+                  for (final account in widget.accounts)
                     DropdownMenuItem(
-                        value: a.accountId, child: Text(a.name)),
+                        value: account.accountId, child: Text(account.name)),
                 ],
                 onChanged: _selectExisting,
               ),
@@ -574,7 +574,7 @@ class _BalanceSheetState extends State<_BalanceSheet> {
                 ButtonSegment(value: AccountKind.debt, label: Text('Debt')),
               ],
               selected: {_kind},
-              onSelectionChanged: (s) => setState(() => _kind = s.first),
+              onSelectionChanged: (selection) => setState(() => _kind = selection.first),
             ),
             const SizedBox(height: AppSpacing.md),
             TextField(
@@ -600,14 +600,14 @@ class _BalanceSheetState extends State<_BalanceSheet> {
               _CadenceDropdown(
                 label: 'Compounding',
                 value: _accrualCadence,
-                onChanged: (c) => setState(() => _accrualCadence = c),
+                onChanged: (cadence) => setState(() => _accrualCadence = cadence),
               ),
             ],
             if (_kind == AccountKind.investment)
               _CadenceDropdown(
                 label: 'Update reminder',
                 value: _updateCadence,
-                onChanged: (c) => setState(() => _updateCadence = c),
+                onChanged: (cadence) => setState(() => _updateCadence = cadence),
               ),
             if (_kind == AccountKind.debt) ...[
               const SizedBox(height: AppSpacing.md),
@@ -675,11 +675,11 @@ class _CadenceDropdown extends StatelessWidget {
       initialValue: value,
       decoration: InputDecoration(labelText: label),
       items: [
-        for (final c in AccountCadence.values)
-          DropdownMenuItem(value: c, child: Text(_cadenceLabel(c))),
+        for (final cadence in AccountCadence.values)
+          DropdownMenuItem(value: cadence, child: Text(_cadenceLabel(cadence))),
       ],
-      onChanged: (c) {
-        if (c != null) onChanged(c);
+      onChanged: (cadence) {
+        if (cadence != null) onChanged(cadence);
       },
     );
   }
@@ -742,7 +742,7 @@ class _TransferSheetState extends State<_TransferSheet> {
                   label: Text('Withdraw')),
             ],
             selected: {_direction},
-            onSelectionChanged: (s) => setState(() => _direction = s.first),
+            onSelectionChanged: (selection) => setState(() => _direction = selection.first),
           ),
           const SizedBox(height: AppSpacing.md),
           TextField(

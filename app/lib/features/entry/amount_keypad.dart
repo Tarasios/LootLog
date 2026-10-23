@@ -87,7 +87,8 @@ class AmountKeypad extends StatelessWidget {
     Widget key(String label, VoidCallback onTap, {String? semantics}) =>
         _KeypadButton(label: label, onTap: onTap, semanticsLabel: semantics);
 
-    Widget digit(int d) => key('$d', () => onChanged(applyDigit(cents, d)));
+    Widget digit(int digitValue) =>
+        key('$digitValue', () => onChanged(applyDigit(cents, digitValue)));
 
     return Column(
       mainAxisSize: MainAxisSize.min,

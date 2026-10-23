@@ -113,14 +113,14 @@ class DashboardView extends StatelessWidget {
 
   List<Widget> _topFullWidth(BuildContext context) => [
         if (_isNewHousehold) _GetStartedCard(onGetStarted: callbacks.onGetStarted),
-        for (final d in model.overbudgets)
-          _OverbudgetBanner(card: d, onOpen: callbacks.onOpenSpoils),
+        for (final debt in model.overbudgets)
+          _OverbudgetBanner(card: debt, onOpen: callbacks.onOpenSpoils),
         if (model.spoils != null)
           _SpoilsBanner(ritual: model.spoils!, onOpen: callbacks.onOpenSpoils),
         if (model.advances.isNotEmpty)
           _AdvancesCard(advances: model.advances, callbacks: callbacks),
-        for (final v in model.vacations)
-          _VacationCard(vacation: v, onOpen: callbacks.onOpenVacations),
+        for (final vacation in model.vacations)
+          _VacationCard(vacation: vacation, onOpen: callbacks.onOpenVacations),
       ];
 
   /// The primary column: what you spend and what's coming.
@@ -199,8 +199,8 @@ class DashboardView extends StatelessWidget {
 /// A glossary term's plain (Classic) label, capitalized for a heading. The
 /// dashboard is the Classic surface; Adventure renders its own dashboard.
 String _plain(GlossaryTerm term) {
-  final s = term.classic;
-  return s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+  final classicTerm = term.classic;
+  return classicTerm.isEmpty ? classicTerm : classicTerm[0].toUpperCase() + classicTerm.substring(1);
 }
 
 /// Inserts a uniform vertical gap between a list of stacked cards.
@@ -368,8 +368,8 @@ class _ProportionBar extends StatelessWidget {
               tween: Tween(begin: 0, end: 1),
               duration: const Duration(milliseconds: 600),
               curve: Curves.easeOutCubic,
-              builder: (context, t, _) => Opacity(
-                opacity: t,
+              builder: (context, opacity, _) => Opacity(
+                opacity: opacity,
                 child: Container(height: height, color: fill),
               ),
             ),
@@ -469,7 +469,7 @@ class _SpoilsBanner extends StatelessWidget {
                   [
                     parts.join(' · '),
                     'defaults in ${days}d',
-                  ].where((s) => s.isNotEmpty).join(' — '),
+                  ].where((part) => part.isNotEmpty).join(' — '),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: scheme.onTertiaryContainer,
                       ),
@@ -496,7 +496,7 @@ class _AdvancesCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final forMe = advances.where((a) => a.canApprove).length;
+    final forMe = advances.where((advance) => advance.canApprove).length;
     return AppCard(
       color: forMe > 0 ? scheme.primaryContainer : null,
       child: Column(
@@ -519,9 +519,9 @@ class _AdvancesCard extends StatelessWidget {
                     ),
               ),
             ),
-          for (final a in advances)
+          for (final advance in advances)
             PendingAdvanceTile(
-              advance: a,
+              advance: advance,
               onApprove: callbacks.onApproveAdvance,
               onCancel: callbacks.onCancelAdvance,
             ),
@@ -571,9 +571,9 @@ class _VacationCard extends StatelessWidget {
                 .bodySmall
                 ?.copyWith(color: scheme.onSurfaceVariant),
           ),
-          for (final w in vacation.warnings)
+          for (final warning in vacation.warnings)
             Text(
-              w,
+              warning,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: scheme.error,
                     fontWeight: FontWeight.w600,
@@ -669,10 +669,10 @@ class _CategoriesCard extends StatelessWidget {
                   spacing: spacing,
                   runSpacing: spacing,
                   children: [
-                    for (final r in rings)
+                    for (final ring in rings)
                       SizedBox(
                         width: tileWidth,
-                        child: _CategoryTile(ring: r),
+                        child: _CategoryTile(ring: ring),
                       ),
                   ],
                 );
@@ -950,12 +950,12 @@ class _SpendBarChart extends StatelessWidget {
           ),
         ),
         barGroups: [
-          for (final p in timeline.points)
+          for (final point in timeline.points)
             BarChartGroupData(
-              x: p.day,
+              x: point.day,
               barRods: [
                 BarChartRodData(
-                  toY: p.cents.toDouble(),
+                  toY: point.cents.toDouble(),
                   width: 5,
                   color: scheme.primary,
                   borderRadius: const BorderRadius.vertical(
@@ -1082,7 +1082,7 @@ class _QuestTile extends StatelessWidget {
             padding: const EdgeInsets.only(top: AppSpacing.xs),
             child: Text(
               quest.contributors
-                  .map((c) => '${c.name} ${money(c.cents)}')
+                  .map((contribution) => '${contribution.name} ${money(contribution.cents)}')
                   .join('  ·  '),
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: scheme.onSurfaceVariant,
@@ -1154,17 +1154,17 @@ class _WarChestCard extends StatelessWidget {
                   ?.copyWith(color: scheme.onSurfaceVariant),
             ),
           ],
-          for (final w in card.pendingForMe) ...[
+          for (final writ in card.pendingForMe) ...[
             const SizedBox(height: AppSpacing.md),
-            _WithdrawalTile(card: w, callbacks: callbacks, needsMe: true),
+            _WithdrawalTile(card: writ, callbacks: callbacks, needsMe: true),
           ],
-          for (final w in card.otherPending) ...[
+          for (final writ in card.otherPending) ...[
             const SizedBox(height: AppSpacing.md),
-            _WithdrawalTile(card: w, callbacks: callbacks, needsMe: false),
+            _WithdrawalTile(card: writ, callbacks: callbacks, needsMe: false),
           ],
-          for (final r in card.ransacks) ...[
+          for (final ransack in card.ransacks) ...[
             const SizedBox(height: AppSpacing.md),
-            _RansackTile(ransack: r),
+            _RansackTile(ransack: ransack),
           ],
         ],
       ),
@@ -1403,9 +1403,9 @@ class _Sparkline extends StatelessWidget {
     ];
     var minY = spots.first.y;
     var maxY = spots.first.y;
-    for (final s in spots) {
-      if (s.y < minY) minY = s.y;
-      if (s.y > maxY) maxY = s.y;
+    for (final spot in spots) {
+      if (spot.y < minY) minY = spot.y;
+      if (spot.y > maxY) maxY = spot.y;
     }
     final pad = ((maxY - minY).abs() * 0.15).clamp(100, double.infinity);
 
@@ -1459,12 +1459,12 @@ class _UpcomingCard extends StatelessWidget {
               itemCount: items.length,
               separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
               itemBuilder: (context, i) {
-                final p = items[i];
-                final soon = p.daysUntilDue <= 7;
+                final item = items[i];
+                final soon = item.daysUntilDue <= 7;
                 final label = recurringDueLabel(
-                  isAnnual: p.isAnnual,
-                  dueDay: p.dueDay,
-                  dueMonth: p.dueMonth,
+                  isAnnual: item.isAnnual,
+                  dueDay: item.dueDay,
+                  dueMonth: item.dueMonth,
                 );
                 return Container(
                   width: 148,
@@ -1482,7 +1482,7 @@ class _UpcomingCard extends StatelessWidget {
                       Row(
                         children: [
                           Icon(
-                            p.isAnnual
+                            item.isAnnual
                                 ? Icons.event_repeat_outlined
                                 : Icons.calendar_today_outlined,
                             size: 14,
@@ -1491,7 +1491,7 @@ class _UpcomingCard extends StatelessWidget {
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
-                              p.name,
+                              item.name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context).textTheme.labelLarge,
@@ -1500,13 +1500,13 @@ class _UpcomingCard extends StatelessWidget {
                         ],
                       ),
                       Text(
-                        money(p.amountCents),
+                        money(item.amountCents),
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               fontFeatures: const [FontFeature.tabularFigures()],
                             ),
                       ),
                       Text(
-                        '$label · ${dueCountdown(p.daysUntilDue)}',
+                        '$label · ${dueCountdown(item.daysUntilDue)}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -1545,13 +1545,13 @@ class _MaintenanceCard extends StatelessWidget {
             title: _plain(Glossary.recurring),
             icon: Icons.build_outlined,
           ),
-          for (final m in items)
+          for (final item in items)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
               child: Row(
                 children: [
                   Icon(
-                    m.isShared ? Icons.groups_outlined : Icons.person_outline,
+                    item.isShared ? Icons.groups_outlined : Icons.person_outline,
                     size: 18,
                     color: scheme.onSurfaceVariant,
                   ),
@@ -1561,16 +1561,16 @@ class _MaintenanceCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          m.name,
+                          item.name,
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
                         Text(
                           [
-                            m.isVariable ? 'Variable' : 'Fixed',
-                            if (m.isShared)
+                            item.isVariable ? 'Variable' : 'Fixed',
+                            if (item.isShared)
                               'shared'
-                            else if (m.ownerName != null)
-                              m.ownerName!,
+                            else if (item.ownerName != null)
+                              item.ownerName!,
                           ].join(' · '),
                           style: Theme.of(context)
                               .textTheme
@@ -1580,7 +1580,7 @@ class _MaintenanceCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (m.awaitingTally)
+                  if (item.awaitingTally)
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.sm,
@@ -1600,7 +1600,7 @@ class _MaintenanceCard extends StatelessWidget {
                     )
                   else
                     Text(
-                      money(m.amountCents),
+                      money(item.amountCents),
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             fontFeatures: const [FontFeature.tabularFigures()],
                           ),
@@ -1634,7 +1634,7 @@ class _EmergencyFundsCard extends StatelessWidget {
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,
             children: [
-              for (final f in funds)
+              for (final fund in funds)
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.md,
@@ -1654,7 +1654,7 @@ class _EmergencyFundsCard extends StatelessWidget {
                               size: 16, color: scheme.error),
                           const SizedBox(width: AppSpacing.xs),
                           Text(
-                            f.name,
+                            fund.name,
                             style: Theme.of(context)
                                 .textTheme
                                 .titleSmall
@@ -1663,14 +1663,14 @@ class _EmergencyFundsCard extends StatelessWidget {
                         ],
                       ),
                       Text(
-                        money(f.balanceCents),
+                        money(fund.balanceCents),
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               fontFeatures: const [FontFeature.tabularFigures()],
                             ),
                       ),
-                      if (f.petName != null)
+                      if (fund.petName != null)
                         Text(
-                          f.petName!,
+                          fund.petName!,
                           style: Theme.of(context)
                               .textTheme
                               .labelSmall

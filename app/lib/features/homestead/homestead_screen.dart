@@ -90,7 +90,7 @@ class HomesteadScreen extends ConsumerWidget {
             labelText: 'What are you building?',
             helperText: 'e.g. Homestead, Town, The Ward',
           ),
-          onSubmitted: (v) => Navigator.of(context).pop(v.trim()),
+          onSubmitted: (value) => Navigator.of(context).pop(value.trim()),
         ),
         actions: [
           TextButton(
@@ -325,24 +325,24 @@ class _HomesteadStagesEditorState extends ConsumerState<HomesteadStagesEditor> {
   void initState() {
     super.initState();
     final stages = ref.read(homesteadConfigProvider).stages;
-    _drafts = [for (final s in stages) _draftOf(s)];
+    _drafts = [for (final stage in stages) _draftOf(stage)];
   }
 
-  _StageDraft _draftOf(HomesteadStage s) => _StageDraft(
-        name: TextEditingController(text: s.name),
+  _StageDraft _draftOf(HomesteadStage stage) => _StageDraft(
+        name: TextEditingController(text: stage.name),
         threshold: TextEditingController(
-            text: s.thresholdCents == 0
+            text: stage.thresholdCents == 0
                 ? '0'
-                : (s.thresholdCents % 100 == 0
-                    ? '${s.thresholdCents ~/ 100}'
-                    : (s.thresholdCents / 100).toStringAsFixed(2))),
-        spriteSha: s.customSpriteSha256,
+                : (stage.thresholdCents % 100 == 0
+                    ? '${stage.thresholdCents ~/ 100}'
+                    : (stage.thresholdCents / 100).toStringAsFixed(2))),
+        spriteSha: stage.customSpriteSha256,
       );
 
   @override
   void dispose() {
-    for (final d in _drafts) {
-      d.dispose();
+    for (final draft in _drafts) {
+      draft.dispose();
     }
     super.dispose();
   }
@@ -353,10 +353,10 @@ class _HomesteadStagesEditorState extends ConsumerState<HomesteadStagesEditor> {
     final maps = <Map<String, Object?>>[];
     var last = -1;
     for (var i = 0; i < _drafts.length; i++) {
-      final d = _drafts[i];
-      final name = d.name.text.trim();
+      final draft = _drafts[i];
+      final name = draft.name.text.trim();
       if (name.isEmpty) return (null, 'Stage ${i + 1} needs a name.');
-      final cents = i == 0 ? 0 : tryParseMoneyCents(d.threshold.text);
+      final cents = i == 0 ? 0 : tryParseMoneyCents(draft.threshold.text);
       if (cents == null) {
         return (null, 'Stage ${i + 1} needs a valid amount.');
       }
@@ -370,7 +370,7 @@ class _HomesteadStagesEditorState extends ConsumerState<HomesteadStagesEditor> {
       maps.add({
         'name': name,
         'thresholdCents': cents,
-        if (d.spriteSha != null) 'spriteSha256': d.spriteSha,
+        if (draft.spriteSha != null) 'spriteSha256': draft.spriteSha,
       });
     }
     if (maps.isEmpty) return (null, 'Keep at least one stage.');
@@ -468,7 +468,7 @@ class _HomesteadStagesEditorState extends ConsumerState<HomesteadStagesEditor> {
 
   Widget _stageCard(BuildContext context, int i) {
     final scheme = Theme.of(context).colorScheme;
-    final d = _drafts[i];
+    final draft = _drafts[i];
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Padding(
@@ -493,13 +493,13 @@ class _HomesteadStagesEditorState extends ConsumerState<HomesteadStagesEditor> {
               ],
             ),
             TextField(
-              controller: d.name,
+              controller: draft.name,
               decoration: const InputDecoration(labelText: 'Name'),
               textCapitalization: TextCapitalization.sentences,
             ),
             const SizedBox(height: AppSpacing.sm),
             TextField(
-              controller: d.threshold,
+              controller: draft.threshold,
               enabled: i > 0,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
@@ -517,7 +517,7 @@ class _HomesteadStagesEditorState extends ConsumerState<HomesteadStagesEditor> {
               children: [
                 Expanded(
                   child: Text(
-                    d.spriteSha == null
+                    draft.spriteSha == null
                         ? 'Default art slot'
                         : 'Custom stage art set',
                     style: Theme.of(context)
@@ -526,15 +526,15 @@ class _HomesteadStagesEditorState extends ConsumerState<HomesteadStagesEditor> {
                         ?.copyWith(color: scheme.onSurfaceVariant),
                   ),
                 ),
-                if (d.spriteSha != null) ...[
+                if (draft.spriteSha != null) ...[
                   _BlobSprite(
-                    sha256: d.spriteSha!,
+                    sha256: draft.spriteSha!,
                     fallback: const SizedBox.shrink(),
                   ),
                   IconButton(
                     tooltip: 'Remove art',
                     visualDensity: VisualDensity.compact,
-                    onPressed: () => setState(() => d.spriteSha = null),
+                    onPressed: () => setState(() => draft.spriteSha = null),
                     icon: const Icon(Icons.close, size: 18),
                   ),
                 ],
@@ -542,7 +542,7 @@ class _HomesteadStagesEditorState extends ConsumerState<HomesteadStagesEditor> {
                   onPressed: () async {
                     final sha = await pickAndIngestSprite(
                         ref, ScaffoldMessenger.of(context));
-                    if (sha != null) setState(() => d.spriteSha = sha);
+                    if (sha != null) setState(() => draft.spriteSha = sha);
                   },
                   child: const Text('Choose PNG'),
                 ),

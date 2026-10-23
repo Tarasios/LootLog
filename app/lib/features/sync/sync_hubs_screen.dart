@@ -153,18 +153,18 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
             const SizedBox(height: AppSpacing.xs),
             pairedAsync.when(
               loading: () => const LinearProgressIndicator(),
-              error: (e, _) => Text('Could not load hubs: $e'),
+              error: (error, _) => Text('Could not load hubs: $error'),
               data: (hubs) => hubs.isEmpty
                   ? const _EmptyHubs()
                   : Column(
                       children: [
-                        for (final h in hubs)
+                        for (final hub in hubs)
                           ListTile(
                             dense: true,
                             contentPadding: EdgeInsets.zero,
                             leading: const Icon(Icons.hub_outlined),
-                            title: Text(h.name.isEmpty ? h.hubId : h.name),
-                            subtitle: Text(h.baseUrl),
+                            title: Text(hub.name.isEmpty ? hub.hubId : hub.name),
+                            subtitle: Text(hub.baseUrl),
                           ),
                       ],
                     ),
@@ -176,8 +176,8 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
   }
 
   Widget _pairCard(SyncService service) {
-    final urlCtrl = TextEditingController();
-    final secretCtrl = TextEditingController();
+    final urlController = TextEditingController();
+    final secretController = TextEditingController();
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -192,7 +192,7 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
             ),
             const SizedBox(height: AppSpacing.sm),
             TextField(
-              controller: urlCtrl,
+              controller: urlController,
               decoration: const InputDecoration(
                 labelText: 'Address',
                 hintText: 'http://192.168.1.20:8787',
@@ -200,7 +200,7 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
             ),
             const SizedBox(height: AppSpacing.sm),
             TextField(
-              controller: secretCtrl,
+              controller: secretController,
               decoration: const InputDecoration(labelText: 'Pairing secret'),
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -211,8 +211,8 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
                 FilledButton.icon(
                   onPressed: _busy
                       ? null
-                      : () => _pair(service, urlCtrl.text.trim(),
-                          secretCtrl.text.trim()),
+                      : () => _pair(service, urlController.text.trim(),
+                          secretController.text.trim()),
                   icon: const Icon(Icons.link),
                   label: const Text('Pair'),
                 ),
@@ -328,8 +328,8 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
     try {
       final info = await service.startHub();
       setState(() => _hosted = info);
-    } on Object catch (e) {
-      _snack('Could not start hub: $e');
+    } on Object catch (error) {
+      _snack('Could not start hub: $error');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -355,8 +355,8 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
     try {
       await service.pair(url, secret);
       _snack('Paired and synced');
-    } on Object catch (e) {
-      _snack('Pairing failed: $e');
+    } on Object catch (error) {
+      _snack('Pairing failed: $error');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -374,8 +374,8 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
       final delivered =
           await _deliverExport(bytes, 'lootlog-backup.dbevents.zip');
       if (delivered) _snack('Exported full backup');
-    } on Object catch (e) {
-      _snack('Export failed: $e');
+    } on Object catch (error) {
+      _snack('Export failed: $error');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -392,11 +392,11 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
       final delivered =
           await _deliverExport(export.bytes, 'lootlog-changes.dbevents.zip');
       if (delivered) {
-        final n = export.eventCount + export.gameEventCount;
-        _snack('Exported $n new ${n == 1 ? 'event' : 'events'}');
+        final total = export.eventCount + export.gameEventCount;
+        _snack('Exported $total new ${total == 1 ? 'event' : 'events'}');
       }
-    } on Object catch (e) {
-      _snack('Export failed: $e');
+    } on Object catch (error) {
+      _snack('Export failed: $error');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -465,8 +465,8 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
       _snack("Import failed: this file isn't a valid LootLog backup.");
     } on FileSystemException {
       _snack('Import failed: could not read that file.');
-    } on Object catch (e) {
-      _snack('Import failed: $e');
+    } on Object catch (error) {
+      _snack('Import failed: $error');
     } finally {
       if (mounted) setState(() => _busy = false);
     }

@@ -96,8 +96,8 @@ class SettingsScreen extends ConsumerWidget {
               'data still syncs in full and shared savings always show.',
             ),
             value: ref.watch(showHouseholdBudgetsProvider),
-            onChanged: (v) => unawaited(
-              ref.read(showHouseholdBudgetsProvider.notifier).select(v),
+            onChanged: (value) => unawaited(
+              ref.read(showHouseholdBudgetsProvider.notifier).select(value),
             ),
           ),
           const _SectionHeader('Play mode'),
@@ -111,10 +111,10 @@ class SettingsScreen extends ConsumerWidget {
                 'instead of pixel art — works with no artwork at all',
               ),
               value: ref.watch(adventureTierProvider) == AdventureTier.text,
-              onChanged: (v) => unawaited(
+              onChanged: (value) => unawaited(
                 ref
                     .read(adventureTierProvider.notifier)
-                    .select(v ? AdventureTier.text : AdventureTier.pixel),
+                    .select(value ? AdventureTier.text : AdventureTier.pixel),
               ),
             ),
           const _SectionHeader('Rules'),
@@ -163,10 +163,10 @@ class SettingsScreen extends ConsumerWidget {
               'separate net-worth screen',
             ),
             value: settings.showNetWorth,
-            onChanged: (v) {
+            onChanged: (value) {
               final actions = ref.read(householdActionsProvider);
               unawaited(
-                actions?.changeSetting('showNetWorth', v) ??
+                actions?.changeSetting('showNetWorth', value) ??
                     Future<void>.value(),
               );
             },
@@ -197,10 +197,10 @@ class SettingsScreen extends ConsumerWidget {
               groupValue:
                   ref.watch(receiptStorageModeProvider).value ??
                   ReceiptStorageMode.keep,
-              onChanged: (v) => unawaited(
+              onChanged: (value) => unawaited(
                 ref
                     .read(receiptStorageModeProvider.notifier)
-                    .set(v ?? ReceiptStorageMode.keep),
+                    .set(value ?? ReceiptStorageMode.keep),
               ),
               child: const Column(
                 children: [
@@ -305,9 +305,9 @@ class SettingsScreen extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () {
-              final n = int.tryParse(controller.text.trim());
-              if (n != null && n >= min && n <= max) {
-                Navigator.of(context).pop(n);
+              final days = int.tryParse(controller.text.trim());
+              if (days != null && days >= min && days <= max) {
+                Navigator.of(context).pop(days);
               }
             },
             child: const Text('Save'),
@@ -369,7 +369,7 @@ class _PlayModeSection extends ConsumerWidget {
                 selected: {selected},
                 onSelectionChanged: actions == null
                     ? null
-                    : (s) => unawaited(save(actions, s.first)),
+                    : (selection) => unawaited(save(actions, selection.first)),
               ),
             ],
           ),

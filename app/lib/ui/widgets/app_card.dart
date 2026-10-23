@@ -31,7 +31,7 @@ class AppCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final light = Theme.of(context).brightness == Brightness.light;
-    final bg = color ?? scheme.surfaceContainerLow;
+    final background = color ?? scheme.surfaceContainerLow;
 
     Widget content = Padding(padding: padding, child: child);
     if (accent != null) {
@@ -45,7 +45,7 @@ class AppCard extends StatelessWidget {
     }
 
     return Material(
-      color: bg,
+      color: background,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: AppRadii.card,

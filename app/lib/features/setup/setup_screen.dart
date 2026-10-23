@@ -54,7 +54,7 @@ class SetupScreen extends ConsumerStatefulWidget {
 }
 
 class _SetupScreenState extends ConsumerState<SetupScreen> {
-  final _c = SetupController();
+  final _controller = SetupController();
   int _index = -1; // -1 == the welcome/join gate
   bool _busy = false;
   String? _finishError;
@@ -62,14 +62,14 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   @override
   void initState() {
     super.initState();
-    _c.addListener(_onChange);
+    _controller.addListener(_onChange);
     if (widget.debugJumpToSummary) _index = _Step.summary.index;
   }
 
   @override
   void dispose() {
-    _c.removeListener(_onChange);
-    _c.dispose();
+    _controller.removeListener(_onChange);
+    _controller.dispose();
     super.dispose();
   }
 
@@ -80,9 +80,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   bool get _canAdvance {
     if (_index < 0) return true;
     return switch (_step) {
-      _Step.party => _c.hasAdult && _c.meLocalId != null,
+      _Step.party => _controller.hasAdult && _controller.meLocalId != null,
       // The plan may not exceed anyone's income.
-      _Step.budget => !_c.anyOverAllocated,
+      _Step.budget => !_controller.anyOverAllocated,
       _ => true,
     };
   }
@@ -127,13 +127,13 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   }
 
   Widget _stepBody() => switch (_step) {
-        _Step.party => _PartyStep(c: _c, ref: ref),
-        _Step.income => _IncomeStep(c: _c),
-        _Step.accounts => _AccountsStep(c: _c),
-        _Step.expenses => _ExpensesStep(c: _c),
-        _Step.budget => _BudgetStep(c: _c),
-        _Step.goal => _GoalStep(c: _c),
-        _Step.summary => _SummaryStep(c: _c),
+        _Step.party => _PartyStep(controller: _controller, ref: ref),
+        _Step.income => _IncomeStep(controller: _controller),
+        _Step.accounts => _AccountsStep(controller: _controller),
+        _Step.expenses => _ExpensesStep(controller: _controller),
+        _Step.budget => _BudgetStep(controller: _controller),
+        _Step.goal => _GoalStep(controller: _controller),
+        _Step.summary => _SummaryStep(controller: _controller),
       };
 
   Widget _bottomBar() {
@@ -241,7 +241,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       _finishError = null;
     });
     try {
-      final input = _c.buildInput();
+      final input = _controller.buildInput();
       final db = ref.read(appDatabaseProvider);
       final plan = buildOnboardingEvents(
         input,
@@ -253,9 +253,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       // Saving the local setup flips isSetUpProvider and the router hands off
       // to the main shell.
       await db.localSetupDao.save(plan.localSetup);
-    } on Object catch (e) {
+    } on Object catch (error) {
       if (mounted) {
-        setState(() => _finishError = 'Could not save your setup: $e');
+        setState(() => _finishError = 'Could not save your setup: $error');
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -266,7 +266,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   /// neutrally until a mode is chosen; the finish speaks that mode.
   bool get _meAdventure =>
       // No adult yet reads as the default mode (Adventure).
-      _c.modeOf(_c.meLocalId ?? '') == PlayMode.adventure;
+      _controller.modeOf(_controller.meLocalId ?? '') == PlayMode.adventure;
 
   Future<void> _celebrate() async {
     final adventure = _meAdventure;
@@ -299,9 +299,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
 // ---------------------------------------------------------------------------
 
 class _PartyStep extends StatelessWidget {
-  const _PartyStep({required this.c, required this.ref});
+  const _PartyStep({required this.controller, required this.ref});
 
-  final SetupController c;
+  final SetupController controller;
   final WidgetRef ref;
 
   @override
@@ -316,8 +316,8 @@ class _PartyStep extends StatelessWidget {
         ),
         for (final role in DraftRole.values) ...[
           _RoleSection(role: role),
-          for (final m in c.members.where((m) => m.role == role))
-            _MemberTile(c: c, ref: ref, member: m),
+          for (final member in controller.members.where((member) => member.role == role))
+            _MemberTile(controller: controller, ref: ref, member: member),
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton.icon(
@@ -328,18 +328,18 @@ class _PartyStep extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
         ],
-        if (c.adults.length > 1) ...[
+        if (controller.adults.length > 1) ...[
           const Divider(),
           Text('Which adult is this device?',
               style: AppText.sectionLabel(context)),
           const SizedBox(height: AppSpacing.sm),
-          for (final a in c.adults)
+          for (final adult in controller.adults)
             RadioListTile<String>(
               contentPadding: EdgeInsets.zero,
-              value: a.localId,
-              groupValue: c.meLocalId,
-              title: Text(a.name),
-              onChanged: (v) => v == null ? null : c.setMe(v),
+              value: adult.localId,
+              groupValue: controller.meLocalId,
+              title: Text(adult.name),
+              onChanged: (value) => value == null ? null : controller.setMe(value),
             ),
         ],
       ],
@@ -349,15 +349,15 @@ class _PartyStep extends StatelessWidget {
   Future<void> _editMember(BuildContext context, DraftRole role,
       {DraftMember? existing}) async {
     final result = await showMemberEditor(context, ref,
-        role: role, existing: existing, adults: c.adults);
+        role: role, existing: existing, adults: controller.adults);
     if (result == null) return;
     if (existing == null) {
-      c.addMember(role, result.name,
+      controller.addMember(role, result.name,
           descriptionText: result.description,
           spriteSha256: result.sprite,
           fundedByUserId: result.fundedBy);
     } else {
-      c.updateMember(existing.localId,
+      controller.updateMember(existing.localId,
           name: result.name,
           descriptionText: result.description,
           spriteSha256: result.sprite,
@@ -380,8 +380,8 @@ class _RoleSection extends StatelessWidget {
 }
 
 class _MemberTile extends StatelessWidget {
-  const _MemberTile({required this.c, required this.ref, required this.member});
-  final SetupController c;
+  const _MemberTile({required this.controller, required this.ref, required this.member});
+  final SetupController controller;
   final WidgetRef ref;
   final DraftMember member;
 
@@ -404,9 +404,9 @@ class _MemberTile extends StatelessWidget {
             icon: const Icon(Icons.edit_outlined),
             onPressed: () async {
               final result = await showMemberEditor(context, ref,
-                  role: member.role, existing: member, adults: c.adults);
+                  role: member.role, existing: member, adults: controller.adults);
               if (result != null) {
-                c.updateMember(member.localId,
+                controller.updateMember(member.localId,
                     name: result.name,
                     descriptionText: result.description,
                     spriteSha256: result.sprite,
@@ -416,7 +416,7 @@ class _MemberTile extends StatelessWidget {
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
-            onPressed: () => c.removeMember(member.localId),
+            onPressed: () => controller.removeMember(member.localId),
           ),
         ],
       ),
@@ -429,8 +429,8 @@ class _MemberTile extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _IncomeStep extends StatelessWidget {
-  const _IncomeStep({required this.c});
-  final SetupController c;
+  const _IncomeStep({required this.controller});
+  final SetupController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -441,13 +441,13 @@ class _IncomeStep extends StatelessWidget {
           'Set each adult\'s usual monthly income. It carries forward every '
           'month until you change it. Zero is fine — enter it and move on.',
         ),
-        for (final a in c.adults)
+        for (final adult in controller.adults)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
             child: _MoneyField(
-              label: '${a.name}\'s monthly income',
-              cents: c.incomeOf(a.localId),
-              onChanged: (v) => c.setIncome(a.localId, v),
+              label: '${adult.name}\'s monthly income',
+              cents: controller.incomeOf(adult.localId),
+              onChanged: (value) => controller.setIncome(adult.localId, value),
             ),
           ),
       ],
@@ -460,8 +460,8 @@ class _IncomeStep extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _AccountsStep extends StatelessWidget {
-  const _AccountsStep({required this.c});
-  final SetupController c;
+  const _AccountsStep({required this.controller});
+  final SetupController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -472,16 +472,16 @@ class _AccountsStep extends StatelessWidget {
           'Optional: track savings, investments, and debts for your net-worth '
           'screen. These never touch your budget — they just get watched.',
         ),
-        for (var i = 0; i < c.accounts.length; i++)
+        for (var i = 0; i < controller.accounts.length; i++)
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: Icon(_accountIcon(c.accounts[i].kind)),
-            title: Text(c.accounts[i].name),
+            leading: Icon(_accountIcon(controller.accounts[i].kind)),
+            title: Text(controller.accounts[i].name),
             subtitle: Text(
-                '${c.accounts[i].kind.name} · ${money(c.accounts[i].balanceCents)}'),
+                '${controller.accounts[i].kind.name} · ${money(controller.accounts[i].balanceCents)}'),
             trailing: IconButton(
               icon: const Icon(Icons.delete_outline),
-              onPressed: () => c.removeAccount(i),
+              onPressed: () => controller.removeAccount(i),
             ),
           ),
         const SizedBox(height: AppSpacing.sm),
@@ -489,8 +489,8 @@ class _AccountsStep extends StatelessWidget {
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
             onPressed: () async {
-              final a = await showAccountEditor(context);
-              if (a != null) c.addAccount(a);
+              final account = await showAccountEditor(context);
+              if (account != null) controller.addAccount(account);
             },
             icon: const Icon(Icons.add),
             label: const Text('Add account'),
@@ -506,8 +506,8 @@ class _AccountsStep extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ExpensesStep extends StatelessWidget {
-  const _ExpensesStep({required this.c});
-  final SetupController c;
+  const _ExpensesStep({required this.controller});
+  final SetupController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -520,15 +520,15 @@ class _ExpensesStep extends StatelessWidget {
           'adult. Bills that change month to month (like utilities) can use an '
           'estimate — you enter the real amount at month end.',
         ),
-        for (var i = 0; i < c.fixedExpenses.length; i++)
+        for (var i = 0; i < controller.fixedExpenses.length; i++)
           _expenseTile(context, i),
         const SizedBox(height: AppSpacing.sm),
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
             onPressed: () async {
-              final e = await showExpenseEditor(context, c);
-              if (e != null) c.addFixedExpense(e);
+              final expense = await showExpenseEditor(context, controller);
+              if (expense != null) controller.addFixedExpense(expense);
             },
             icon: const Icon(Icons.add),
             label: const Text('Add bill'),
@@ -539,16 +539,16 @@ class _ExpensesStep extends StatelessWidget {
   }
 
   Widget _expenseTile(BuildContext context, int i) {
-    final e = c.fixedExpenses[i];
-    final owner = e.shared ? 'Group' : (c.memberById(e.ownerLocalId ?? '')?.name ?? 'Personal');
+    final expense = controller.fixedExpenses[i];
+    final owner = expense.shared ? 'Group' : (controller.memberById(expense.ownerLocalId ?? '')?.name ?? 'Personal');
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: const Icon(Icons.autorenew),
-      title: Text(e.name),
+      title: Text(expense.name),
       subtitle: Text(
-        '$owner · ${money(e.amountCents)}'
-        '${e.kind == RecurringKind.variable ? ' est.' : ''} · '
-        '${e.cadence == RecurringCadence.annual ? 'annual' : 'monthly'}',
+        '$owner · ${money(expense.amountCents)}'
+        '${expense.kind == RecurringKind.variable ? ' est.' : ''} · '
+        '${expense.cadence == RecurringCadence.annual ? 'annual' : 'monthly'}',
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -557,13 +557,13 @@ class _ExpensesStep extends StatelessWidget {
             icon: const Icon(Icons.edit_outlined),
             onPressed: () async {
               final edited =
-                  await showExpenseEditor(context, c, existing: e);
-              if (edited != null) c.updateFixedExpense(i, edited);
+                  await showExpenseEditor(context, controller, existing: expense);
+              if (edited != null) controller.updateFixedExpense(i, edited);
             },
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
-            onPressed: () => c.removeFixedExpense(i),
+            onPressed: () => controller.removeFixedExpense(i),
           ),
         ],
       ),
@@ -576,8 +576,8 @@ class _ExpensesStep extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _BudgetStep extends StatelessWidget {
-  const _BudgetStep({required this.c});
-  final SetupController c;
+  const _BudgetStep({required this.controller});
+  final SetupController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -587,13 +587,13 @@ class _BudgetStep extends StatelessWidget {
       children: [
         _Banner(
           icon: Icons.savings_outlined,
-          text: 'Total monthly income: ${money(c.totalIncomeCents)}',
+          text: 'Total monthly income: ${money(controller.totalIncomeCents)}',
         ),
         const _StepIntro(
           'Fund group categories first, propose the split, then give each adult '
           'personal categories until their leftover counter reaches zero.',
         ),
-        if (c.anyOverAllocated)
+        if (controller.anyOverAllocated)
           _Banner(
             icon: Icons.warning_amber_outlined,
             text: 'A plan exceeds someone\'s income — trim limits below '
@@ -601,14 +601,14 @@ class _BudgetStep extends StatelessWidget {
           ),
         _mainCategoriesCard(context),
         Text('Group categories', style: AppText.sectionLabel(context)),
-        for (var i = 0; i < c.categories.length; i++)
-          if (c.categories[i].group) _categoryTile(context, i),
+        for (var i = 0; i < controller.categories.length; i++)
+          if (controller.categories[i].group) _categoryTile(context, i),
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
             onPressed: () async {
-              final cat = await showCategoryEditor(context, c, group: true);
-              if (cat != null) c.addCategory(cat);
+              final category = await showCategoryEditor(context, controller, group: true);
+              if (category != null) controller.addCategory(category);
             },
             icon: const Icon(Icons.add),
             label: const Text('Add group category'),
@@ -617,12 +617,12 @@ class _BudgetStep extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         _Banner(
           icon: Icons.groups_outlined,
-          text: 'Group burden (funded by shares): ${money(c.groupBurdenCents)}',
+          text: 'Group burden (funded by shares): ${money(controller.groupBurdenCents)}',
         ),
-        if (c.adults.length > 1) _sharesCard(context),
+        if (controller.adults.length > 1) _sharesCard(context),
         const Divider(height: AppSpacing.xl),
         Text('Personal categories', style: AppText.sectionLabel(context)),
-        for (final a in c.adults) _adultBudget(context, a, scheme),
+        for (final adult in controller.adults) _adultBudget(context, adult, scheme),
       ],
     );
   }
@@ -642,13 +642,13 @@ class _BudgetStep extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleSmall),
                 ),
                 TextButton(
-                  onPressed: () => showMainCategoriesEditor(context, c),
+                  onPressed: () => showMainCategoriesEditor(context, controller),
                   child: const Text('Customize'),
                 ),
               ],
             ),
             Text(
-              c.mainCategories.map((m) => m.name).join(' · '),
+              controller.mainCategories.map((mainCategory) => mainCategory.name).join(' · '),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
@@ -659,7 +659,7 @@ class _BudgetStep extends StatelessWidget {
   }
 
   Widget _sharesCard(BuildContext context) {
-    final shares = c.effectiveShares();
+    final shares = controller.effectiveShares();
     return Card(
       margin: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       child: Padding(
@@ -675,24 +675,24 @@ class _BudgetStep extends StatelessWidget {
                 ),
                 TextButton(
                   onPressed: () async {
-                    final s = await showSharesEditor(context, c);
-                    if (s != null) c.setShares(s);
+                    final editedShares = await showSharesEditor(context, controller);
+                    if (editedShares != null) controller.setShares(editedShares);
                   },
-                  child: Text(c.shares == null ? 'Even (edit)' : 'Custom (edit)'),
+                  child: Text(controller.shares == null ? 'Even (edit)' : 'Custom (edit)'),
                 ),
               ],
             ),
-            for (final a in c.adults)
+            for (final adult in controller.adults)
               Text(
-                  '${a.name}: ${(shares[a.localId] ?? 0) / 10}%'),
+                  '${adult.name}: ${(shares[adult.localId] ?? 0) / 10}%'),
           ],
         ),
       ),
     );
   }
 
-  Widget _adultBudget(BuildContext context, DraftMember a, ColorScheme scheme) {
-    final alloc = c.allocationFor(a.localId);
+  Widget _adultBudget(BuildContext context, DraftMember adult, ColorScheme scheme) {
+    final alloc = controller.allocationFor(adult.localId);
     final left = alloc.unallocatedCents;
     final color = left == 0
         ? scheme.primary
@@ -707,7 +707,7 @@ class _BudgetStep extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                    child: Text(a.name,
+                    child: Text(adult.name,
                         style: Theme.of(context).textTheme.titleMedium)),
                 Text(
                   left == 0
@@ -727,24 +727,24 @@ class _BudgetStep extends StatelessWidget {
                   color: scheme.onSurfaceVariant),
             ),
             const SizedBox(height: AppSpacing.xs),
-            for (var i = 0; i < c.categories.length; i++)
-              if (!c.categories[i].group &&
-                  c.categories[i].ownerLocalId == a.localId)
+            for (var i = 0; i < controller.categories.length; i++)
+              if (!controller.categories[i].group &&
+                  controller.categories[i].ownerLocalId == adult.localId)
                 _categoryTile(context, i, dense: true),
             Wrap(
               spacing: AppSpacing.sm,
               children: [
                 TextButton.icon(
                   onPressed: () async {
-                    final cat = await showCategoryEditor(context, c,
-                        group: false, ownerLocalId: a.localId);
-                    if (cat != null) c.addCategory(cat);
+                    final category = await showCategoryEditor(context, controller,
+                        group: false, ownerLocalId: adult.localId);
+                    if (category != null) controller.addCategory(category);
                   },
                   icon: const Icon(Icons.add),
                   label: const Text('Add category'),
                 ),
                 TextButton.icon(
-                  onPressed: () => c.splitEvenlyFor(a.localId),
+                  onPressed: () => controller.splitEvenlyFor(adult.localId),
                   icon: const Icon(Icons.balance_outlined),
                   label: const Text('Split evenly'),
                 ),
@@ -757,32 +757,32 @@ class _BudgetStep extends StatelessWidget {
   }
 
   Widget _categoryTile(BuildContext context, int i, {bool dense = false}) {
-    final cat = c.categories[i];
+    final category = controller.categories[i];
     return ListTile(
       dense: dense,
       contentPadding: EdgeInsets.zero,
       leading: dense ? null : const Icon(Icons.pie_chart_outline),
-      title: Text(cat.name),
-      subtitle: Text(cat.tithePct > 0
-          ? '${money(cat.limitCents)} · ${cat.tithePct}% '
+      title: Text(category.name),
+      subtitle: Text(category.tithePct > 0
+          ? '${money(category.limitCents)} · ${category.tithePct}% '
               '${Glossary.carryTax.classic}'
-          : money(cat.limitCents)),
+          : money(category.limitCents)),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
             icon: const Icon(Icons.edit_outlined),
             onPressed: () async {
-              final edited = await showCategoryEditor(context, c,
-                  group: cat.group,
-                  ownerLocalId: cat.ownerLocalId,
-                  existing: cat);
-              if (edited != null) c.updateCategory(i, edited);
+              final edited = await showCategoryEditor(context, controller,
+                  group: category.group,
+                  ownerLocalId: category.ownerLocalId,
+                  existing: category);
+              if (edited != null) controller.updateCategory(i, edited);
             },
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
-            onPressed: () => c.removeCategory(i),
+            onPressed: () => controller.removeCategory(i),
           ),
         ],
       ),
@@ -795,12 +795,12 @@ class _BudgetStep extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _GoalStep extends StatelessWidget {
-  const _GoalStep({required this.c});
-  final SetupController c;
+  const _GoalStep({required this.controller});
+  final SetupController controller;
 
   @override
   Widget build(BuildContext context) {
-    final q = c.firstQuest;
+    final firstQuest = controller.firstQuest;
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
@@ -808,11 +808,11 @@ class _GoalStep extends StatelessWidget {
           'Pick a first savings goal. Optional, but '
           'goals are what make the whole thing sing. Fund it at month close.',
         ),
-        if (q == null)
+        if (firstQuest == null)
           OutlinedButton.icon(
             onPressed: () async {
-              final quest = await showGoalEditor(context, c);
-              if (quest != null) c.setFirstQuest(quest);
+              final quest = await showGoalEditor(context, controller);
+              if (quest != null) controller.setFirstQuest(quest);
             },
             icon: const Icon(Icons.flag_outlined),
             label: const Text('Choose a first goal'),
@@ -821,17 +821,17 @@ class _GoalStep extends StatelessWidget {
           Card(
             child: ListTile(
               leading: const Icon(Icons.flag),
-              title: Text(q.name),
+              title: Text(firstQuest.name),
               subtitle: Text(
-                  'Target ${money(q.targetCents)} · ${q.shared ? 'shared' : 'personal'}'),
+                  'Target ${money(firstQuest.targetCents)} · ${firstQuest.shared ? 'shared' : 'personal'}'),
               trailing: IconButton(
                 icon: const Icon(Icons.delete_outline),
-                onPressed: () => c.setFirstQuest(null),
+                onPressed: () => controller.setFirstQuest(null),
               ),
             ),
           ),
         const Divider(height: AppSpacing.xl),
-        Text(c.adults.length > 1 ? 'Who wants to play?' : 'Play the game?',
+        Text(controller.adults.length > 1 ? 'Who wants to play?' : 'Play the game?',
             style: AppText.sectionLabel(context)),
         const SizedBox(height: AppSpacing.xs),
         Text(
@@ -841,9 +841,9 @@ class _GoalStep extends StatelessWidget {
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
-        for (final adult in c.adults) ...[
+        for (final adult in controller.adults) ...[
           const SizedBox(height: AppSpacing.sm),
-          if (c.adults.length > 1) Text(adult.name),
+          if (controller.adults.length > 1) Text(adult.name),
           SegmentedButton<PlayMode>(
             segments: const [
               ButtonSegment(
@@ -857,8 +857,8 @@ class _GoalStep extends StatelessWidget {
                 icon: Icon(Icons.dashboard_outlined),
               ),
             ],
-            selected: {c.modeOf(adult.localId)},
-            onSelectionChanged: (s) => c.setModeFor(adult.localId, s.first),
+            selected: {controller.modeOf(adult.localId)},
+            onSelectionChanged: (selection) => controller.setModeFor(adult.localId, selection.first),
           ),
         ],
       ],
@@ -871,8 +871,8 @@ class _GoalStep extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _SummaryStep extends StatelessWidget {
-  const _SummaryStep({required this.c});
-  final SetupController c;
+  const _SummaryStep({required this.controller});
+  final SetupController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -883,26 +883,26 @@ class _SummaryStep extends StatelessWidget {
             style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: AppSpacing.md),
         _summaryRow(context, Icons.groups_outlined, 'Members',
-            '${c.adults.length} adult(s), ${c.members.length - c.adults.length} others'),
+            '${controller.adults.length} adult(s), ${controller.members.length - controller.adults.length} others'),
         _summaryRow(context, Icons.payments_outlined, 'Total income',
-            '${money(c.totalIncomeCents)}/mo'),
+            '${money(controller.totalIncomeCents)}/mo'),
         _summaryRow(context, Icons.trending_up, 'Tracked accounts',
-            '${c.accounts.length}'),
+            '${controller.accounts.length}'),
         _summaryRow(context, Icons.autorenew, 'Fixed expenses',
-            '${c.fixedExpenses.length}'),
+            '${controller.fixedExpenses.length}'),
         _summaryRow(context, Icons.pie_chart_outline, 'Budget categories',
-            '${c.categories.length}'),
+            '${controller.categories.length}'),
         _summaryRow(context, Icons.flag_outlined, 'First goal',
-            c.firstQuest?.name ?? 'none yet'),
+            controller.firstQuest?.name ?? 'none yet'),
         _summaryRow(
             context,
             Icons.videogame_asset_outlined,
             'Mode',
             [
-              for (final a in c.adults)
+              for (final adult in controller.adults)
                 [
-                  if (c.adults.length > 1) '${a.name}:',
-                  if (c.modeOf(a.localId) == PlayMode.adventure)
+                  if (controller.adults.length > 1) '${adult.name}:',
+                  if (controller.modeOf(adult.localId) == PlayMode.adventure)
                     'Adventure'
                   else
                     'Standard',
@@ -1032,8 +1032,8 @@ class _MoneyFieldState extends State<_MoneyField> {
         labelText: widget.label,
         prefixText: '\$',
       ),
-      onChanged: (v) {
-        final trimmed = v.trim();
+      onChanged: (value) {
+        final trimmed = value.trim();
         if (trimmed.isEmpty) {
           widget.onChanged(0);
           return;
@@ -1070,8 +1070,8 @@ Future<MemberDraftResult?> showMemberEditor(
   DraftMember? existing,
   List<DraftMember> adults = const [],
 }) {
-  final nameCtrl = TextEditingController(text: existing?.name ?? '');
-  final descCtrl = TextEditingController(text: existing?.descriptionText ?? '');
+  final nameController = TextEditingController(text: existing?.name ?? '');
+  final descriptionController = TextEditingController(text: existing?.descriptionText ?? '');
   String? sprite = existing?.spriteSha256;
   String? fundedBy = existing?.fundedByUserId;
 
@@ -1086,23 +1086,23 @@ Future<MemberDraftResult?> showMemberEditor(
         bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + AppSpacing.lg,
       ),
       child: StatefulBuilder(
-        builder: (sheetCtx, setSheet) => SingleChildScrollView(
+        builder: (sheetContext, setSheet) => SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text('${existing == null ? 'New' : 'Edit'} ${_roleWord(role)}',
-                  style: Theme.of(sheetCtx).textTheme.titleLarge),
+                  style: Theme.of(sheetContext).textTheme.titleLarge),
               const SizedBox(height: AppSpacing.lg),
               TextField(
-                controller: nameCtrl,
+                controller: nameController,
                 autofocus: true,
                 textCapitalization: TextCapitalization.words,
                 decoration: const InputDecoration(labelText: 'Name'),
               ),
               const SizedBox(height: AppSpacing.md),
               TextField(
-                controller: descCtrl,
+                controller: descriptionController,
                 minLines: 2,
                 maxLines: 4,
                 textCapitalization: TextCapitalization.sentences,
@@ -1126,7 +1126,7 @@ Future<MemberDraftResult?> showMemberEditor(
                       ),
                     TextButton(
                       onPressed: () async {
-                        final sha = await _pickSprite(ref, sheetCtx);
+                        final sha = await _pickSprite(ref, sheetContext);
                         if (sha != null) setSheet(() => sprite = sha);
                       },
                       child: const Text('Choose PNG'),
@@ -1148,19 +1148,19 @@ Future<MemberDraftResult?> showMemberEditor(
                   items: [
                     const DropdownMenuItem(
                         value: null, child: Text('The group')),
-                    for (final a in adults)
-                      DropdownMenuItem(value: a.localId, child: Text(a.name)),
+                    for (final adult in adults)
+                      DropdownMenuItem(value: adult.localId, child: Text(adult.name)),
                   ],
-                  onChanged: (v) => setSheet(() => fundedBy = v),
+                  onChanged: (value) => setSheet(() => fundedBy = value),
                 ),
               ],
               const SizedBox(height: AppSpacing.md),
               FilledButton(
                 onPressed: () {
-                  final name = nameCtrl.text.trim();
+                  final name = nameController.text.trim();
                   if (name.isEmpty) return;
-                  final desc = descCtrl.text.trim();
-                  Navigator.of(sheetCtx).pop(MemberDraftResult(
+                  final desc = descriptionController.text.trim();
+                  Navigator.of(sheetContext).pop(MemberDraftResult(
                     name: name,
                     description: desc.isEmpty ? null : desc,
                     sprite: sprite,
@@ -1188,8 +1188,8 @@ Future<String?> _pickSprite(WidgetRef ref, BuildContext context) async {
     final bytes = await file.readAsBytes();
     final ingested = await ingestSprite(bytes, ref.read(blobStoreProvider));
     return ingested.sha256;
-  } on SpriteRejected catch (e) {
-    messenger.showSnackBar(SnackBar(content: Text('Sprite rejected: ${e.message}')));
+  } on SpriteRejected catch (error) {
+    messenger.showSnackBar(SnackBar(content: Text('Sprite rejected: ${error.message}')));
   } on Object {
     messenger.showSnackBar(
         const SnackBar(content: Text('Could not read that image')));
@@ -1198,19 +1198,19 @@ Future<String?> _pickSprite(WidgetRef ref, BuildContext context) async {
 }
 
 Future<DraftAccount?> showAccountEditor(BuildContext context) {
-  final nameCtrl = TextEditingController();
-  final balanceCtrl = TextEditingController();
-  final aprCtrl = TextEditingController();
-  final minCtrl = TextEditingController();
+  final nameController = TextEditingController();
+  final balanceController = TextEditingController();
+  final aprController = TextEditingController();
+  final minimumPaymentController = TextEditingController();
   var kind = AccountKind.savings;
   const accrual = AccountCadence.monthly;
   var update = AccountCadence.quarterly;
 
-  int centsOf(TextEditingController c) {
-    final t = c.text.trim();
-    if (t.isEmpty) return 0;
+  int centsOf(TextEditingController textController) {
+    final trimmed = textController.text.trim();
+    if (trimmed.isEmpty) return 0;
     try {
-      return Money.parse(t).cents;
+      return Money.parse(trimmed).cents;
     } on FormatException {
       return 0;
     }
@@ -1227,13 +1227,13 @@ Future<DraftAccount?> showAccountEditor(BuildContext context) {
         bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + AppSpacing.lg,
       ),
       child: StatefulBuilder(
-        builder: (sheetCtx, setSheet) => SingleChildScrollView(
+        builder: (sheetContext, setSheet) => SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text('New account',
-                  style: Theme.of(sheetCtx).textTheme.titleLarge),
+                  style: Theme.of(sheetContext).textTheme.titleLarge),
               const SizedBox(height: AppSpacing.md),
               SegmentedButton<AccountKind>(
                 segments: const [
@@ -1243,17 +1243,17 @@ Future<DraftAccount?> showAccountEditor(BuildContext context) {
                   ButtonSegment(value: AccountKind.debt, label: Text('Debt')),
                 ],
                 selected: {kind},
-                onSelectionChanged: (s) => setSheet(() => kind = s.first),
+                onSelectionChanged: (selection) => setSheet(() => kind = selection.first),
               ),
               const SizedBox(height: AppSpacing.md),
               TextField(
-                controller: nameCtrl,
+                controller: nameController,
                 autofocus: true,
                 decoration: const InputDecoration(labelText: 'Name'),
               ),
               const SizedBox(height: AppSpacing.sm),
               TextField(
-                controller: balanceCtrl,
+                controller: balanceController,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
@@ -1268,7 +1268,7 @@ Future<DraftAccount?> showAccountEditor(BuildContext context) {
               if (kind == AccountKind.savings || kind == AccountKind.debt) ...[
                 const SizedBox(height: AppSpacing.sm),
                 TextField(
-                  controller: aprCtrl,
+                  controller: aprController,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(
@@ -1280,7 +1280,7 @@ Future<DraftAccount?> showAccountEditor(BuildContext context) {
               if (kind == AccountKind.debt) ...[
                 const SizedBox(height: AppSpacing.sm),
                 TextField(
-                  controller: minCtrl,
+                  controller: minimumPaymentController,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(
@@ -1295,19 +1295,19 @@ Future<DraftAccount?> showAccountEditor(BuildContext context) {
                 _CadenceDropdown(
                   label: 'Update cadence',
                   value: update,
-                  onChanged: (v) => setSheet(() => update = v),
+                  onChanged: (value) => setSheet(() => update = value),
                 ),
               ],
               const SizedBox(height: AppSpacing.lg),
               FilledButton(
                 onPressed: () {
-                  final name = nameCtrl.text.trim();
+                  final name = nameController.text.trim();
                   if (name.isEmpty) return;
-                  final aprPct = double.tryParse(aprCtrl.text.trim()) ?? 0;
-                  Navigator.of(sheetCtx).pop(DraftAccount(
+                  final aprPct = double.tryParse(aprController.text.trim()) ?? 0;
+                  Navigator.of(sheetContext).pop(DraftAccount(
                     name: name,
                     kind: kind,
-                    balanceCents: centsOf(balanceCtrl),
+                    balanceCents: centsOf(balanceController),
                     aprBps: (kind == AccountKind.savings ||
                             kind == AccountKind.debt)
                         ? (aprPct * 100).round()
@@ -1319,7 +1319,7 @@ Future<DraftAccount?> showAccountEditor(BuildContext context) {
                     updateCadence:
                         kind == AccountKind.investment ? update : null,
                     minPaymentCents:
-                        kind == AccountKind.debt ? centsOf(minCtrl) : null,
+                        kind == AccountKind.debt ? centsOf(minimumPaymentController) : null,
                   ));
                 },
                 child: const Text('Add account'),
@@ -1333,27 +1333,27 @@ Future<DraftAccount?> showAccountEditor(BuildContext context) {
 }
 
 Future<DraftFixedExpense?> showExpenseEditor(
-    BuildContext context, SetupController c,
+    BuildContext context, SetupController controller,
     {DraftFixedExpense? existing}) {
-  final nameCtrl = TextEditingController(text: existing?.name ?? '');
-  final amountCtrl = TextEditingController(
+  final nameController = TextEditingController(text: existing?.name ?? '');
+  final amountController = TextEditingController(
       text: existing == null ? '' : Money(existing.amountCents).format());
-  final dayCtrl = TextEditingController(text: '${existing?.dueDay ?? 1}');
+  final dueDayController = TextEditingController(text: '${existing?.dueDay ?? 1}');
   var shared = existing?.shared ?? true;
   String? owner = existing?.ownerLocalId ??
-      (c.adults.isNotEmpty ? c.adults.first.localId : null);
+      (controller.adults.isNotEmpty ? controller.adults.first.localId : null);
   var kind = existing?.kind ?? RecurringKind.fixed;
   var cadence = existing?.cadence ?? RecurringCadence.monthly;
   var dueMonth = existing?.dueMonth ?? 1;
   // Labels follow this device's adult's chosen mode (Adventure by default).
-  final me = c.meLocalId;
-  final adventure = me == null || c.modeOf(me) == PlayMode.adventure;
+  final meLocalId = controller.meLocalId;
+  final adventure = meLocalId == null || controller.modeOf(meLocalId) == PlayMode.adventure;
 
   int centsOf() {
-    final t = amountCtrl.text.trim();
-    if (t.isEmpty) return 0;
+    final trimmed = amountController.text.trim();
+    if (trimmed.isEmpty) return 0;
     try {
-      return Money.parse(t).cents;
+      return Money.parse(trimmed).cents;
     } on FormatException {
       return 0;
     }
@@ -1370,16 +1370,16 @@ Future<DraftFixedExpense?> showExpenseEditor(
         bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + AppSpacing.lg,
       ),
       child: StatefulBuilder(
-        builder: (sheetCtx, setSheet) => SingleChildScrollView(
+        builder: (sheetContext, setSheet) => SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(existing == null ? 'New bill' : 'Edit bill',
-                  style: Theme.of(sheetCtx).textTheme.titleLarge),
+                  style: Theme.of(sheetContext).textTheme.titleLarge),
               const SizedBox(height: AppSpacing.md),
               TextField(
-                controller: nameCtrl,
+                controller: nameController,
                 autofocus: true,
                 decoration: const InputDecoration(labelText: 'Name'),
               ),
@@ -1398,19 +1398,19 @@ Future<DraftFixedExpense?> showExpenseEditor(
                   ),
                 ],
                 selected: {kind},
-                onSelectionChanged: (s) => setSheet(() => kind = s.first),
+                onSelectionChanged: (selection) => setSheet(() => kind = selection.first),
               ),
               if (kind == RecurringKind.variable) ...[
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   Glossary.variableBill.helper,
-                  style: Theme.of(sheetCtx).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(sheetCtx).colorScheme.onSurfaceVariant),
+                  style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(sheetContext).colorScheme.onSurfaceVariant),
                 ),
               ],
               const SizedBox(height: AppSpacing.sm),
               TextField(
-                controller: amountCtrl,
+                controller: amountController,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
@@ -1424,13 +1424,13 @@ Future<DraftFixedExpense?> showExpenseEditor(
                 title: const Text('Group expense'),
                 subtitle: const Text('Split across the household; off = one adult'),
                 value: shared,
-                onChanged: (v) => setSheet(() => shared = v),
+                onChanged: (value) => setSheet(() => shared = value),
               ),
-              if (!shared && c.adults.length > 1)
+              if (!shared && controller.adults.length > 1)
                 _OwnerDropdown(
-                  adults: c.adults,
+                  adults: controller.adults,
                   value: owner,
-                  onChanged: (v) => setSheet(() => owner = v),
+                  onChanged: (value) => setSheet(() => owner = value),
                 ),
               const SizedBox(height: AppSpacing.sm),
               SegmentedButton<RecurringCadence>(
@@ -1441,25 +1441,25 @@ Future<DraftFixedExpense?> showExpenseEditor(
                       value: RecurringCadence.annual, label: Text('Annual')),
                 ],
                 selected: {cadence},
-                onSelectionChanged: (s) => setSheet(() => cadence = s.first),
+                onSelectionChanged: (selection) => setSheet(() => cadence = selection.first),
               ),
               if (cadence == RecurringCadence.annual) ...[
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   'Annual bills accrue 1/12 each month off the top, so the '
                   'year is fully reserved by the time it comes due.',
-                  style: Theme.of(sheetCtx).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(sheetCtx).colorScheme.onSurfaceVariant),
+                  style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(sheetContext).colorScheme.onSurfaceVariant),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 _MonthDropdown(
                   value: dueMonth,
-                  onChanged: (v) => setSheet(() => dueMonth = v),
+                  onChanged: (value) => setSheet(() => dueMonth = value),
                 ),
               ],
               const SizedBox(height: AppSpacing.sm),
               TextField(
-                controller: dayCtrl,
+                controller: dueDayController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'Due day of month (1–31)',
@@ -1469,11 +1469,11 @@ Future<DraftFixedExpense?> showExpenseEditor(
               const SizedBox(height: AppSpacing.lg),
               FilledButton(
                 onPressed: () {
-                  final name = nameCtrl.text.trim();
+                  final name = nameController.text.trim();
                   if (name.isEmpty) return;
-                  final day = (int.tryParse(dayCtrl.text.trim()) ?? 1)
+                  final day = (int.tryParse(dueDayController.text.trim()) ?? 1)
                       .clamp(1, 31);
-                  Navigator.of(sheetCtx).pop(DraftFixedExpense(
+                  Navigator.of(sheetContext).pop(DraftFixedExpense(
                     name: name,
                     shared: shared,
                     ownerLocalId: shared ? null : owner,
@@ -1497,23 +1497,23 @@ Future<DraftFixedExpense?> showExpenseEditor(
 
 Future<DraftCategory?> showCategoryEditor(
   BuildContext context,
-  SetupController c, {
+  SetupController controller, {
   required bool group,
   String? ownerLocalId,
   DraftCategory? existing,
 }) {
-  final nameCtrl = TextEditingController(text: existing?.name ?? '');
-  final limitCtrl = TextEditingController(
+  final nameController = TextEditingController(text: existing?.name ?? '');
+  final limitController = TextEditingController(
       text: existing == null ? '' : Money(existing.limitCents).format());
-  final titheCtrl = TextEditingController(text: '${existing?.tithePct ?? 0}');
-  String mainCat = existing?.mainCategoryId ?? c.mainCategories.first.id;
+  final titheController = TextEditingController(text: '${existing?.tithePct ?? 0}');
+  String mainCat = existing?.mainCategoryId ?? controller.mainCategories.first.id;
   final petOwners = <String>{...?existing?.petOwnerIds};
 
   int centsOf() {
-    final t = limitCtrl.text.trim();
-    if (t.isEmpty) return 0;
+    final trimmed = limitController.text.trim();
+    if (trimmed.isEmpty) return 0;
     try {
-      return Money.parse(t).cents;
+      return Money.parse(trimmed).cents;
     } on FormatException {
       return 0;
     }
@@ -1530,7 +1530,7 @@ Future<DraftCategory?> showCategoryEditor(
         bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + AppSpacing.lg,
       ),
       child: StatefulBuilder(
-        builder: (sheetCtx, setSheet) => SingleChildScrollView(
+        builder: (sheetContext, setSheet) => SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1539,16 +1539,16 @@ Future<DraftCategory?> showCategoryEditor(
                   existing == null
                       ? '${group ? 'Group' : 'Personal'} category'
                       : 'Edit category',
-                  style: Theme.of(sheetCtx).textTheme.titleLarge),
+                  style: Theme.of(sheetContext).textTheme.titleLarge),
               const SizedBox(height: AppSpacing.md),
               TextField(
-                controller: nameCtrl,
+                controller: nameController,
                 autofocus: true,
                 decoration: const InputDecoration(labelText: 'Name'),
               ),
               const SizedBox(height: AppSpacing.sm),
               TextField(
-                controller: limitCtrl,
+                controller: limitController,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
@@ -1559,15 +1559,15 @@ Future<DraftCategory?> showCategoryEditor(
                 initialValue: mainCat,
                 decoration: const InputDecoration(labelText: 'Main category'),
                 items: [
-                  for (final m in c.mainCategories)
-                    DropdownMenuItem(value: m.id, child: Text(m.name)),
+                  for (final mainCategory in controller.mainCategories)
+                    DropdownMenuItem(value: mainCategory.id, child: Text(mainCategory.name)),
                 ],
-                onChanged: (v) => setSheet(() => mainCat = v ?? mainCat),
+                onChanged: (value) => setSheet(() => mainCat = value ?? mainCat),
               ),
               if (!group) ...[
                 const SizedBox(height: AppSpacing.sm),
                 TextField(
-                  controller: titheCtrl,
+                  controller: titheController,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                     labelText: 'Carry tax % (0–100)',
@@ -1576,27 +1576,27 @@ Future<DraftCategory?> showCategoryEditor(
                   ),
                 ),
               ],
-              if (group && c.pets.isNotEmpty) ...[
+              if (group && controller.pets.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),
                 Text('Belongs to pets (optional)',
-                    style: Theme.of(sheetCtx).textTheme.labelLarge),
+                    style: Theme.of(sheetContext).textTheme.labelLarge),
                 Text(
                   'Pick every pet this budget covers — they share it '
                   'equally, each paid from that pet\'s funding source.',
-                  style: Theme.of(sheetCtx).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(sheetCtx).colorScheme.onSurfaceVariant),
+                  style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(sheetContext).colorScheme.onSurfaceVariant),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Wrap(
                   spacing: AppSpacing.sm,
                   children: [
-                    for (final p in c.pets)
+                    for (final pet in controller.pets)
                       FilterChip(
-                        label: Text(p.name),
-                        selected: petOwners.contains(p.localId),
-                        onSelected: (on) => setSheet(() => on
-                            ? petOwners.add(p.localId)
-                            : petOwners.remove(p.localId)),
+                        label: Text(pet.name),
+                        selected: petOwners.contains(pet.localId),
+                        onSelected: (selected) => setSheet(() => selected
+                            ? petOwners.add(pet.localId)
+                            : petOwners.remove(pet.localId)),
                       ),
                   ],
                 ),
@@ -1604,9 +1604,9 @@ Future<DraftCategory?> showCategoryEditor(
               const SizedBox(height: AppSpacing.lg),
               FilledButton(
                 onPressed: () {
-                  final name = nameCtrl.text.trim();
+                  final name = nameController.text.trim();
                   if (name.isEmpty) return;
-                  Navigator.of(sheetCtx).pop(DraftCategory(
+                  Navigator.of(sheetContext).pop(DraftCategory(
                     name: name,
                     limitCents: centsOf(),
                     group: group,
@@ -1614,7 +1614,7 @@ Future<DraftCategory?> showCategoryEditor(
                     mainCategoryId: mainCat,
                     petOwnerIds:
                         group ? List.unmodifiable(petOwners) : const [],
-                    tithePct: (int.tryParse(titheCtrl.text.trim()) ?? 0)
+                    tithePct: (int.tryParse(titheController.text.trim()) ?? 0)
                         .clamp(0, 100),
                   ));
                 },
@@ -1630,8 +1630,8 @@ Future<DraftCategory?> showCategoryEditor(
 
 /// Rename existing main categories or add new ones. Changes live in the
 /// controller and become `MainCategorySet` events at finish.
-Future<void> showMainCategoriesEditor(BuildContext context, SetupController c) {
-  final addCtrl = TextEditingController();
+Future<void> showMainCategoriesEditor(BuildContext context, SetupController controller) {
+  final newNameController = TextEditingController();
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -1643,34 +1643,34 @@ Future<void> showMainCategoriesEditor(BuildContext context, SetupController c) {
         bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + AppSpacing.lg,
       ),
       child: StatefulBuilder(
-        builder: (sheetCtx, setSheet) => SingleChildScrollView(
+        builder: (sheetContext, setSheet) => SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text('Main categories',
-                  style: Theme.of(sheetCtx).textTheme.titleLarge),
+                  style: Theme.of(sheetContext).textTheme.titleLarge),
               const SizedBox(height: AppSpacing.xs),
               Text(
                 'The big buckets your reports and savings goals group by. Rename '
                 'any of them, or add your own.',
-                style: Theme.of(sheetCtx).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(sheetCtx).colorScheme.onSurfaceVariant),
+                style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(sheetContext).colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: AppSpacing.md),
-              for (final m in c.mainCategories)
+              for (final mainCategory in controller.mainCategories)
                 _MainCategoryRow(
-                  key: ValueKey(m.id),
-                  category: m,
+                  key: ValueKey(mainCategory.id),
+                  category: mainCategory,
                   onRenamed: (name) =>
-                      setSheet(() => c.renameMainCategory(m.id, name)),
+                      setSheet(() => controller.renameMainCategory(mainCategory.id, name)),
                 ),
               const SizedBox(height: AppSpacing.md),
               Row(
                 children: [
                   Expanded(
                     child: TextField(
-                      controller: addCtrl,
+                      controller: newNameController,
                       decoration:
                           const InputDecoration(labelText: 'New main category'),
                     ),
@@ -1678,11 +1678,11 @@ Future<void> showMainCategoriesEditor(BuildContext context, SetupController c) {
                   const SizedBox(width: AppSpacing.sm),
                   FilledButton(
                     onPressed: () {
-                      final name = addCtrl.text.trim();
+                      final name = newNameController.text.trim();
                       if (name.isEmpty) return;
                       setSheet(() {
-                        c.addMainCategory(name);
-                        addCtrl.clear();
+                        controller.addMainCategory(name);
+                        newNameController.clear();
                       });
                     },
                     child: const Text('Add'),
@@ -1749,42 +1749,42 @@ class _MainCategoryRowState extends State<_MainCategoryRow> {
 }
 
 Future<Map<String, int>?> showSharesEditor(
-    BuildContext context, SetupController c) {
+    BuildContext context, SetupController controller) {
   final ctrls = {
-    for (final a in c.adults)
-      a.localId: TextEditingController(
-        text: ((c.effectiveShares()[a.localId] ?? 0) / 10).toStringAsFixed(1),
+    for (final adult in controller.adults)
+      adult.localId: TextEditingController(
+        text: ((controller.effectiveShares()[adult.localId] ?? 0) / 10).toStringAsFixed(1),
       ),
   };
   return showModalBottomSheet<Map<String, int>>(
     context: context,
     isScrollControlled: true,
-    builder: (sheetCtx) => Padding(
+    builder: (sheetContext) => Padding(
       padding: EdgeInsets.only(
         left: AppSpacing.lg,
         right: AppSpacing.lg,
         top: AppSpacing.lg,
-        bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + AppSpacing.lg,
+        bottom: MediaQuery.of(sheetContext).viewInsets.bottom + AppSpacing.lg,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text('Share split (%)',
-              style: Theme.of(sheetCtx).textTheme.titleLarge),
+              style: Theme.of(sheetContext).textTheme.titleLarge),
           const SizedBox(height: AppSpacing.sm),
           const Text('Shares fund group costs off the top. They should add to '
               '100%.'),
           const SizedBox(height: AppSpacing.md),
-          for (final a in c.adults)
+          for (final adult in controller.adults)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
               child: TextField(
-                controller: ctrls[a.localId],
+                controller: ctrls[adult.localId],
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
-                    labelText: a.name, suffixText: '%'),
+                    labelText: adult.name, suffixText: '%'),
               ),
             ),
           const SizedBox(height: AppSpacing.md),
@@ -1792,7 +1792,7 @@ Future<Map<String, int>?> showSharesEditor(
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () => Navigator.of(sheetCtx).pop(<String, int>{}),
+                  onPressed: () => Navigator.of(sheetContext).pop(<String, int>{}),
                   child: const Text('Reset to even'),
                 ),
               ),
@@ -1801,14 +1801,14 @@ Future<Map<String, int>?> showSharesEditor(
                 child: FilledButton(
                   onPressed: () {
                     final result = <String, int>{
-                      for (final a in c.adults)
-                        a.localId: ((double.tryParse(
-                                        ctrls[a.localId]!.text.trim()) ??
+                      for (final adult in controller.adults)
+                        adult.localId: ((double.tryParse(
+                                        ctrls[adult.localId]!.text.trim()) ??
                                     0) *
                                 10)
                             .round(),
                     };
-                    Navigator.of(sheetCtx).pop(result);
+                    Navigator.of(sheetContext).pop(result);
                   },
                   child: const Text('Save'),
                 ),
@@ -1818,26 +1818,26 @@ Future<Map<String, int>?> showSharesEditor(
         ],
       ),
     ),
-  ).then((v) {
+  ).then((shares) {
     // An empty map is the "reset to even" sentinel.
-    if (v == null) return null;
-    return v.isEmpty ? null : v;
+    if (shares == null) return null;
+    return shares.isEmpty ? null : shares;
   });
 }
 
-Future<DraftQuest?> showGoalEditor(BuildContext context, SetupController c) {
-  final nameCtrl = TextEditingController();
-  final targetCtrl = TextEditingController();
-  final descCtrl = TextEditingController();
+Future<DraftQuest?> showGoalEditor(BuildContext context, SetupController controller) {
+  final nameController = TextEditingController();
+  final targetController = TextEditingController();
+  final descriptionController = TextEditingController();
   var shared = true;
-  String? owner = c.adults.isNotEmpty ? c.adults.first.localId : null;
+  String? owner = controller.adults.isNotEmpty ? controller.adults.first.localId : null;
   const mainCat = 'savings';
 
   int centsOf() {
-    final t = targetCtrl.text.trim();
-    if (t.isEmpty) return 0;
+    final trimmed = targetController.text.trim();
+    if (trimmed.isEmpty) return 0;
     try {
-      return Money.parse(t).cents;
+      return Money.parse(trimmed).cents;
     } on FormatException {
       return 0;
     }
@@ -1854,23 +1854,23 @@ Future<DraftQuest?> showGoalEditor(BuildContext context, SetupController c) {
         bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + AppSpacing.lg,
       ),
       child: StatefulBuilder(
-        builder: (sheetCtx, setSheet) => SingleChildScrollView(
+        builder: (sheetContext, setSheet) => SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text('First goal',
-                  style: Theme.of(sheetCtx).textTheme.titleLarge),
+                  style: Theme.of(sheetContext).textTheme.titleLarge),
               const SizedBox(height: AppSpacing.md),
               TextField(
-                controller: nameCtrl,
+                controller: nameController,
                 autofocus: true,
                 decoration: const InputDecoration(
                     labelText: 'Goal name', hintText: 'e.g. Canoe'),
               ),
               const SizedBox(height: AppSpacing.sm),
               TextField(
-                controller: targetCtrl,
+                controller: targetController,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
@@ -1882,17 +1882,17 @@ Future<DraftQuest?> showGoalEditor(BuildContext context, SetupController c) {
                 title: const Text('Shared goal'),
                 subtitle: const Text('Any adult can fund it'),
                 value: shared,
-                onChanged: (v) => setSheet(() => shared = v),
+                onChanged: (value) => setSheet(() => shared = value),
               ),
-              if (!shared && c.adults.length > 1)
+              if (!shared && controller.adults.length > 1)
                 _OwnerDropdown(
-                  adults: c.adults,
+                  adults: controller.adults,
                   value: owner,
-                  onChanged: (v) => setSheet(() => owner = v),
+                  onChanged: (value) => setSheet(() => owner = value),
                 ),
               const SizedBox(height: AppSpacing.sm),
               TextField(
-                controller: descCtrl,
+                controller: descriptionController,
                 minLines: 2,
                 maxLines: 3,
                 decoration: const InputDecoration(
@@ -1903,10 +1903,10 @@ Future<DraftQuest?> showGoalEditor(BuildContext context, SetupController c) {
               const SizedBox(height: AppSpacing.lg),
               FilledButton(
                 onPressed: () {
-                  final name = nameCtrl.text.trim();
+                  final name = nameController.text.trim();
                   if (name.isEmpty) return;
-                  final desc = descCtrl.text.trim();
-                  Navigator.of(sheetCtx).pop(DraftQuest(
+                  final desc = descriptionController.text.trim();
+                  Navigator.of(sheetContext).pop(DraftQuest(
                     name: name,
                     targetCents: centsOf(),
                     shared: shared,
@@ -1942,8 +1942,8 @@ class _OwnerDropdown extends StatelessWidget {
       initialValue: value,
       decoration: const InputDecoration(labelText: 'Owner'),
       items: [
-        for (final a in adults)
-          DropdownMenuItem(value: a.localId, child: Text(a.name)),
+        for (final adult in adults)
+          DropdownMenuItem(value: adult.localId, child: Text(adult.name)),
       ],
       onChanged: onChanged,
     );
@@ -1967,10 +1967,10 @@ class _CadenceDropdown extends StatelessWidget {
       initialValue: value,
       decoration: InputDecoration(labelText: label),
       items: [
-        for (final v in AccountCadence.values)
-          DropdownMenuItem(value: v, child: Text(v.name)),
+        for (final cadence in AccountCadence.values)
+          DropdownMenuItem(value: cadence, child: Text(cadence.name)),
       ],
-      onChanged: (v) => v == null ? null : onChanged(v),
+      onChanged: (value) => value == null ? null : onChanged(value),
     );
   }
 }
@@ -1986,35 +1986,35 @@ class _MonthDropdown extends StatelessWidget {
       initialValue: value,
       decoration: const InputDecoration(labelText: 'Due month'),
       items: [
-        for (var m = 1; m <= 12; m++)
-          DropdownMenuItem(value: m, child: Text(monthLabel(2026, m).split(' ').first)),
+        for (var monthNumber = 1; monthNumber <= 12; monthNumber++)
+          DropdownMenuItem(value: monthNumber, child: Text(monthLabel(2026, monthNumber).split(' ').first)),
       ],
-      onChanged: (v) => v == null ? null : onChanged(v),
+      onChanged: (value) => value == null ? null : onChanged(value),
     );
   }
 }
 
 // ---- role helpers ---------------------------------------------------------
 
-String _roleWord(DraftRole r) => switch (r) {
+String _roleWord(DraftRole role) => switch (role) {
       DraftRole.adult => 'adult',
       DraftRole.dependent => 'dependent',
       DraftRole.pet => 'pet',
     };
 
-String _rolePlural(DraftRole r) => switch (r) {
+String _rolePlural(DraftRole role) => switch (role) {
       DraftRole.adult => 'Adults',
       DraftRole.dependent => 'Dependents',
       DraftRole.pet => 'Pets',
     };
 
-IconData _roleIcon(DraftRole r) => switch (r) {
+IconData _roleIcon(DraftRole role) => switch (role) {
       DraftRole.adult => Icons.person_outline,
       DraftRole.dependent => Icons.child_care_outlined,
       DraftRole.pet => Icons.pets_outlined,
     };
 
-IconData _accountIcon(AccountKind k) => switch (k) {
+IconData _accountIcon(AccountKind kind) => switch (kind) {
       AccountKind.savings => Icons.savings_outlined,
       AccountKind.investment => Icons.show_chart,
       AccountKind.debt => Icons.credit_card,

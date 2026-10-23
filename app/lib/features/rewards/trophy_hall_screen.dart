@@ -34,13 +34,13 @@ class TrophyHallScreen extends ConsumerWidget {
     final adventure = ref.watch(isAdventureProvider);
     final questNames = <String, String>{
       if (state != null)
-        for (final q in state.quests.values) q.questId: q.name,
+        for (final quest in state.quests.values) quest.questId: quest.name,
     };
 
     final trophies =
-        granted.where((r) => r.kind == RewardKind.trophy).toList();
-    final titles = granted.where((r) => r.kind == RewardKind.title).toList();
-    final badges = granted.where((r) => r.kind == RewardKind.badge).toList();
+        granted.where((reward) => reward.kind == RewardKind.trophy).toList();
+    final titles = granted.where((reward) => reward.kind == RewardKind.title).toList();
+    final badges = granted.where((reward) => reward.kind == RewardKind.badge).toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Trophy hall')),
@@ -138,10 +138,10 @@ class _RewardsPanel extends StatelessWidget {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (final r in rewards)
+                for (final reward in rewards)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Text('★ ${_describe(r)}', style: monoStyle(context)),
+                    child: Text('★ ${_describe(reward)}', style: monoStyle(context)),
                   ),
               ],
             ),
@@ -150,9 +150,9 @@ class _RewardsPanel extends StatelessWidget {
 
   /// A display label reconstructed from the synced reward's deterministic
   /// [GameRewardGranted.sourceRef].
-  String _describe(GameRewardGranted r) {
-    final ref = r.sourceRef;
-    if (r.kind == RewardKind.trophy) {
+  String _describe(GameRewardGranted reward) {
+    final ref = reward.sourceRef;
+    if (reward.kind == RewardKind.trophy) {
       final name = questNames[ref];
       if (!adventure) return name == null ? 'Goal reached' : '$name reached';
       return name == null ? 'Boss vanquished' : '$name vanquished';
@@ -161,9 +161,9 @@ class _RewardsPanel extends StatelessWidget {
       return '${ref.substring('daily:'.length)}-day logging streak';
     }
     if (ref.startsWith('ritual:')) {
-      final n = ref.substring('ritual:'.length);
-      return n == '1' ? 'First on-time ritual' : '$n on-time rituals in a row';
+      final ritualMonth = ref.substring('ritual:'.length);
+      return ritualMonth == '1' ? 'First on-time ritual' : '$ritualMonth on-time rituals in a row';
     }
-    return r.rewardId;
+    return reward.rewardId;
   }
 }

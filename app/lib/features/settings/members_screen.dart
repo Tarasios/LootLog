@@ -30,11 +30,11 @@ class MembersScreen extends ConsumerWidget {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     final members = state.members.values.toList()
-      ..sort((a, b) {
+      ..sort((first, second) {
         // Active first, then by role (adult, dependent, pet), then name.
-        if (a.active != b.active) return a.active ? -1 : 1;
-        final r = a.role.index.compareTo(b.role.index);
-        return r != 0 ? r : a.name.compareTo(b.name);
+        if (first.active != second.active) return first.active ? -1 : 1;
+        final byRole = first.role.index.compareTo(second.role.index);
+        return byRole != 0 ? byRole : first.name.compareTo(second.name);
       });
     return Scaffold(
       appBar: AppBar(title: const Text('Members')),
@@ -62,15 +62,15 @@ class MembersScreen extends ConsumerWidget {
               itemCount: members.length,
               separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (context, i) {
-                final m = members[i];
+                final member = members[i];
                 return ListTile(
-                  leading: Icon(_iconFor(m.role)),
-                  title: Text(m.name),
-                  subtitle: Text(_subtitle(m)),
-                  trailing: m.active
+                  leading: Icon(_iconFor(member.role)),
+                  title: Text(member.name),
+                  subtitle: Text(_subtitle(member)),
+                  trailing: member.active
                       ? null
                       : const Chip(label: Text('Retired')),
-                  onTap: () => _edit(context, ref, existing: m),
+                  onTap: () => _edit(context, ref, existing: member),
                 );
               },
             ),
@@ -89,11 +89,11 @@ class MembersScreen extends ConsumerWidget {
     MemberRole.pet => 'Pet',
   };
 
-  static String _subtitle(MemberState m) {
-    final sprite = m.customSpriteSha256 == null
+  static String _subtitle(MemberState member) {
+    final sprite = member.customSpriteSha256 == null
         ? 'Default sprite'
         : 'Custom sprite';
-    return '${_roleLabel(m.role)} · $sprite';
+    return '${_roleLabel(member.role)} · $sprite';
   }
 
   Future<void> _edit(
@@ -112,7 +112,7 @@ class MembersScreen extends ConsumerWidget {
     final adults =
         (ref.read(householdStateProvider).value?.members.values ??
                 const <MemberState>[])
-            .where((m) => m.isAdult && m.active)
+            .where((member) => member.isAdult && member.active)
             .toList();
 
     final saved = await showModalBottomSheet<bool>(
@@ -164,7 +164,7 @@ class MembersScreen extends ConsumerWidget {
                     ),
                   ],
                   selected: {role},
-                  onSelectionChanged: (s) => setSheet(() => role = s.first),
+                  onSelectionChanged: (selection) => setSheet(() => role = selection.first),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
@@ -192,13 +192,13 @@ class MembersScreen extends ConsumerWidget {
                         value: null,
                         child: Text('The group'),
                       ),
-                      for (final a in adults)
+                      for (final adult in adults)
                         DropdownMenuItem(
-                          value: a.memberId,
-                          child: Text(a.name),
+                          value: adult.memberId,
+                          child: Text(adult.name),
                         ),
                     ],
-                    onChanged: (v) => setSheet(() => fundedBy = v),
+                    onChanged: (value) => setSheet(() => fundedBy = value),
                   ),
                 ],
                 const SizedBox(height: AppSpacing.md),
@@ -253,7 +253,7 @@ class MembersScreen extends ConsumerWidget {
                       'Turn off to retire (history is kept)',
                     ),
                     value: active,
-                    onChanged: (v) => setSheet(() => active = v),
+                    onChanged: (value) => setSheet(() => active = value),
                   ),
                 const SizedBox(height: AppSpacing.lg),
                 FilledButton(

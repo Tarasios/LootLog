@@ -10,7 +10,7 @@ import '../../domain/state.dart';
 import '../../domain/value_types.dart';
 import '../../ui/glossary.dart';
 
-String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+String _cap(String text) => text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);
 
 /// The kind of a war-chest ledger line, for iconography and grouping.
 enum ChestEntryKind {
@@ -52,22 +52,22 @@ List<ChestEntry> buildWarChestLedger(
 
   // Slice tithes: each Discretionary leftover line pays its slice's pool tithe.
   // Uses the slice's current tithe %, matching the reducer's read-time policy.
-  for (final e in events.whereType<LeftoverAllocated>()) {
-    final cfg = state.slices[e.sliceId];
-    if (cfg == null) continue;
-    for (final a in e.allocations) {
-      if (a.destination is Discretionary) {
+  for (final event in events.whereType<LeftoverAllocated>()) {
+    final sliceConfig = state.slices[event.sliceId];
+    if (sliceConfig == null) continue;
+    for (final allocation in event.allocations) {
+      if (allocation.destination is Discretionary) {
         final tithe = Money.titheCents(
-          a.amountCents,
-          cfg.poolTithePct,
+          allocation.amountCents,
+          sliceConfig.poolTithePct,
         ).titheCents;
         if (tithe > 0) {
           entries.add(
             ChestEntry(
               kind: ChestEntryKind.sliceTithe,
-              label: '${cfg.name} savings cut (${e.month.toKey()})',
+              label: '${sliceConfig.name} savings cut (${event.month.toKey()})',
               amountCents: tithe,
-              occurredAt: e.occurredAt,
+              occurredAt: event.occurredAt,
             ),
           );
         }
@@ -78,117 +78,117 @@ List<ChestEntry> buildWarChestLedger(
   // Dissolution tithes: on each abandoned quest, the tithe taken off the
   // pre-abandon balance (funded − drawn).
   final funded = <String, int>{};
-  for (final e in events.whereType<LeftoverAllocated>()) {
-    for (final a in e.allocations) {
-      final d = a.destination;
-      if (d is QuestDestination) {
-        funded[d.questId] = (funded[d.questId] ?? 0) + a.amountCents;
+  for (final event in events.whereType<LeftoverAllocated>()) {
+    for (final allocation in event.allocations) {
+      final destination = allocation.destination;
+      if (destination is QuestDestination) {
+        funded[destination.questId] = (funded[destination.questId] ?? 0) + allocation.amountCents;
       }
     }
   }
   final drawn = <String, int>{};
-  for (final p in state.purchases.values) {
-    if (p.voided) continue;
-    final t = p.target;
-    if (t is QuestCharge) {
-      drawn[t.questId] = (drawn[t.questId] ?? 0) + p.amountCents;
+  for (final purchase in state.purchases.values) {
+    if (purchase.voided) continue;
+    final target = purchase.target;
+    if (target is QuestCharge) {
+      drawn[target.questId] = (drawn[target.questId] ?? 0) + purchase.amountCents;
     }
   }
-  for (final e in events.whereType<QuestAbandoned>()) {
-    final q = state.quests[e.questId];
-    final pre = (funded[e.questId] ?? 0) - (drawn[e.questId] ?? 0);
-    if (pre <= 0) continue;
+  for (final event in events.whereType<QuestAbandoned>()) {
+    final quest = state.quests[event.questId];
+    final balanceBefore = (funded[event.questId] ?? 0) - (drawn[event.questId] ?? 0);
+    if (balanceBefore <= 0) continue;
     final tithe = Money.titheCents(
-      pre,
+      balanceBefore,
       state.settings.dissolutionTithePct,
     ).titheCents;
     if (tithe > 0) {
       entries.add(
         ChestEntry(
           kind: ChestEntryKind.dissolutionTithe,
-          label: '${q?.name ?? 'Goal'} cancellation fee',
+          label: '${quest?.name ?? 'Goal'} cancellation fee',
           amountCents: tithe,
-          occurredAt: e.occurredAt,
+          occurredAt: event.occurredAt,
         ),
       );
     }
   }
 
   // Group-slice leftovers flow entirely to the chest, once the month is closed.
-  for (final sm in state.sliceMonths.values) {
-    if (!sm.isGroup || !sm.resolved || sm.leftoverCents <= 0) continue;
-    final cfg = state.slices[sm.sliceId];
+  for (final sliceMonth in state.sliceMonths.values) {
+    if (!sliceMonth.isGroup || !sliceMonth.resolved || sliceMonth.leftoverCents <= 0) continue;
+    final sliceConfig = state.slices[sliceMonth.sliceId];
     entries.add(
       ChestEntry(
         kind: ChestEntryKind.groupLeftover,
-        label: '${cfg?.name ?? 'Group'} leftover (${sm.month.toKey()})',
-        amountCents: sm.leftoverCents,
-        occurredAt: sm.month.endInstantUtc(),
+        label: '${sliceConfig?.name ?? 'Group'} leftover (${sliceMonth.month.toKey()})',
+        amountCents: sliceMonth.leftoverCents,
+        occurredAt: sliceMonth.month.endInstantUtc(),
       ),
     );
   }
 
   // Direct contributions from a vault.
-  for (final e in events.whereType<PoolContributionMade>()) {
+  for (final event in events.whereType<PoolContributionMade>()) {
     entries.add(
       ChestEntry(
         kind: ChestEntryKind.contribution,
-        label: '${nameOf(e.fromUserId)} contribution',
-        amountCents: e.amountCents,
-        occurredAt: e.occurredAt,
+        label: '${nameOf(event.fromUserId)} contribution',
+        amountCents: event.amountCents,
+        occurredAt: event.occurredAt,
       ),
     );
   }
 
   // Tax refunds (royal rebate).
-  for (final e in events.whereType<TaxRefundRecorded>()) {
+  for (final event in events.whereType<TaxRefundRecorded>()) {
     entries.add(
       ChestEntry(
         kind: ChestEntryKind.taxRefund,
-        label: e.note == null || e.note!.isEmpty
+        label: event.note == null || event.note!.isEmpty
             ? 'Tax refund'
-            : 'Tax refund — ${e.note}',
-        amountCents: e.amountCents,
-        occurredAt: e.occurredAt,
+            : 'Tax refund — ${event.note}',
+        amountCents: event.amountCents,
+        occurredAt: event.occurredAt,
       ),
     );
   }
 
   // Approved withdrawals (writs), as outflows.
-  for (final w in state.withdrawals.values) {
-    if (w.status != WithdrawalStatus.approved) continue;
+  for (final withdrawal in state.withdrawals.values) {
+    if (withdrawal.status != WithdrawalStatus.approved) continue;
     entries.add(
       ChestEntry(
         kind: ChestEntryKind.withdrawal,
-        label: 'Withdrawal — ${w.purpose}',
-        amountCents: -w.amountCents,
-        occurredAt: _proposalInstant(events, w.proposalId),
+        label: 'Withdrawal — ${withdrawal.purpose}',
+        amountCents: -withdrawal.amountCents,
+        occurredAt: _proposalInstant(events, withdrawal.proposalId),
       ),
     );
   }
 
   // Ransacks: emergency overflow drawn from the chest.
-  for (final r in state.ransacks) {
-    final fund = state.emergencyFunds[r.fundId];
+  for (final ransack in state.ransacks) {
+    final fund = state.emergencyFunds[ransack.fundId];
     entries.add(
       ChestEntry(
         kind: ChestEntryKind.ransack,
         label: '${_cap(Glossary.ransack.label(isAdventure: isAdventure))} — '
-            '${fund?.name ?? r.fundId}',
-        amountCents: -r.excessCents,
-        occurredAt: r.occurredAt,
+            '${fund?.name ?? ransack.fundId}',
+        amountCents: -ransack.excessCents,
+        occurredAt: ransack.occurredAt,
       ),
     );
   }
 
-  entries.sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+  entries.sort((first, second) => second.occurredAt.compareTo(first.occurredAt));
   return entries;
 }
 
 DateTime _proposalInstant(Iterable<Event> events, String proposalId) {
-  for (final e in events) {
-    if (e is PoolWithdrawalProposed && e.proposalId == proposalId) {
-      return e.occurredAt;
+  for (final event in events) {
+    if (event is PoolWithdrawalProposed && event.proposalId == proposalId) {
+      return event.occurredAt;
     }
   }
   return DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);

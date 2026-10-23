@@ -73,8 +73,8 @@ class _SavingsRulesCardState extends ConsumerState<SavingsRulesCard> {
           ),
           FilledButton(
             onPressed: () {
-              final n = tryParsePercent(controller.text);
-              if (n != null) Navigator.of(context).pop(n);
+              final percent = tryParsePercent(controller.text);
+              if (percent != null) Navigator.of(context).pop(percent);
             },
             child: const Text('Save'),
           ),
@@ -181,4 +181,5 @@ class _SavingsRulesCardState extends ConsumerState<SavingsRulesCard> {
   }
 }
 
-String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+String _cap(String text) =>
+    text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);

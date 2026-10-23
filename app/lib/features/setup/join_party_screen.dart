@@ -73,8 +73,8 @@ class _JoinPartyScreenState extends ConsumerState<JoinPartyScreen> {
       await client.pair(url, secret);
       await client.syncOnce();
       setState(() => _paired = true);
-    } on Object catch (e) {
-      setState(() => _error = 'Could not pair: $e');
+    } on Object catch (error) {
+      setState(() => _error = 'Could not pair: $error');
     } finally {
       client.close();
       if (mounted) setState(() => _busy = false);
@@ -109,9 +109,9 @@ class _JoinPartyScreenState extends ConsumerState<JoinPartyScreen> {
   }
 
   Future<void> _claim(MemberState adult, HouseholdState state) async {
-    final adults = state.members.values.where((m) => m.isAdult && m.active);
+    final adults = state.members.values.where((member) => member.isAdult && member.active);
     final other = adults.firstWhere(
-      (m) => m.memberId != adult.memberId,
+      (member) => member.memberId != adult.memberId,
       orElse: () => adult,
     );
     final setup = LocalSetup(
@@ -205,8 +205,8 @@ class _JoinPartyScreenState extends ConsumerState<JoinPartyScreen> {
     final state = ref.watch(householdStateProvider).value;
     final adults = state == null
         ? const <MemberState>[]
-        : (state.members.values.where((m) => m.isAdult && m.active).toList()
-          ..sort((a, b) => a.name.compareTo(b.name)));
+        : (state.members.values.where((member) => member.isAdult && member.active).toList()
+          ..sort((first, second) => first.name.compareTo(second.name)));
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
@@ -230,13 +230,13 @@ class _JoinPartyScreenState extends ConsumerState<JoinPartyScreen> {
             ),
           )
         else
-          for (final a in adults)
+          for (final adult in adults)
             Card(
               child: ListTile(
                 leading: const Icon(Icons.person_outline),
-                title: Text(a.name),
+                title: Text(adult.name),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => _claim(a, state!),
+                onTap: () => _claim(adult, state!),
               ),
             ),
       ],

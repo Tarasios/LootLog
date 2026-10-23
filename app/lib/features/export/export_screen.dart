@@ -82,7 +82,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
   }
 
   Map<String, String> _memberNames(HouseholdState state) => {
-        for (final m in state.members.values) m.memberId: m.name,
+        for (final member in state.members.values) member.memberId: member.name,
       };
 
   @override
@@ -225,8 +225,8 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
       messenger.showSnackBar(
         SnackBar(content: Text('Exported to ${location.path}')),
       );
-    } on Object catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
+    } on Object catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text('Export failed: $error')));
     } finally {
       if (mounted) setState(() => _exporting = false);
     }

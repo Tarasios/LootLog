@@ -17,7 +17,7 @@ bool memberEditChanged(
   String? descriptionText,
   String? fundedByUserId,
 }) {
-  String norm(String? s) => (s ?? '').trim();
+  String norm(String? text) => (text ?? '').trim();
   return existing.name != name ||
       existing.role != role ||
       existing.active != active ||

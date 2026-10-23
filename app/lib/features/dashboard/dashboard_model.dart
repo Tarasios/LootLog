@@ -35,8 +35,8 @@ class MonthHero {
   /// full once anything is spent.
   double get spentFraction {
     if (incomeCents <= 0) return spentCents > 0 ? 1 : 0;
-    final f = spentCents / incomeCents;
-    return f < 0 ? 0 : (f > 1 ? 1 : f);
+    final fraction = spentCents / incomeCents;
+    return fraction < 0 ? 0 : (fraction > 1 ? 1 : fraction);
   }
 }
 
@@ -110,16 +110,16 @@ class SliceRing {
   bool get overspent => overspendCents > 0;
 
   int get remainingCents {
-    final r = effectiveLimitCents - spentCents;
-    return r < 0 ? 0 : r;
+    final remaining = effectiveLimitCents - spentCents;
+    return remaining < 0 ? 0 : remaining;
   }
 
   /// Consumed fraction for the ring (0..1); a zero-limit slice reads full once
   /// anything is spent.
   double get fraction {
     if (effectiveLimitCents <= 0) return spentCents > 0 ? 1 : 0;
-    final f = spentCents / effectiveLimitCents;
-    return f < 0 ? 0 : (f > 1 ? 1 : f);
+    final fraction = spentCents / effectiveLimitCents;
+    return fraction < 0 ? 0 : (fraction > 1 ? 1 : fraction);
   }
 
   int get pctSpent => (fraction * 100).round();
@@ -226,8 +226,8 @@ class QuestCard {
 
   double get progress {
     if (targetCents <= 0) return 1;
-    final f = totalContributedCents / targetCents;
-    return f < 0 ? 0 : (f > 1 ? 1 : f);
+    final fraction = totalContributedCents / targetCents;
+    return fraction < 0 ? 0 : (fraction > 1 ? 1 : fraction);
   }
 
   int get pctComplete => (progress * 100).round();
@@ -356,8 +356,8 @@ class OpenVacationCard {
 
   double get fraction {
     if (budgetCents <= 0) return spentCents > 0 ? 1 : 0;
-    final f = spentCents / budgetCents;
-    return f < 0 ? 0 : (f > 1 ? 1 : f);
+    final fraction = spentCents / budgetCents;
+    return fraction < 0 ? 0 : (fraction > 1 ? 1 : fraction);
   }
 }
 
@@ -468,99 +468,111 @@ DashboardModel buildDashboardModel(
   // With the household-visibility toggle off, other adults' personal budgets
   // stay off this device's dashboard (shared/group ones always show).
   final rings = <SliceRing>[];
-  for (final cfg in state.slices.values) {
-    if (cfg.createdMonth.isAfter(month)) continue;
-    if (!includeOtherAdults && !cfg.isGroup && cfg.ownerUserId != meUserId) {
+  for (final sliceConfig in state.slices.values) {
+    if (sliceConfig.createdMonth.isAfter(month)) continue;
+    if (!includeOtherAdults &&
+        !sliceConfig.isGroup &&
+        sliceConfig.ownerUserId != meUserId) {
       continue;
     }
-    final sm = state.sliceMonth(cfg.sliceId, month);
+    final sliceMonth = state.sliceMonth(sliceConfig.sliceId, month);
     rings.add(
       SliceRing(
-        sliceId: cfg.sliceId,
-        name: cfg.name,
-        isGroup: cfg.isGroup,
-        spentCents: sm == null
+        sliceId: sliceConfig.sliceId,
+        name: sliceConfig.name,
+        isGroup: sliceConfig.isGroup,
+        spentCents: sliceMonth == null
             ? 0
-            : sm.spentCents - sm.coveredCents - sm.fromSavingsCents,
+            : sliceMonth.spentCents -
+                  sliceMonth.coveredCents -
+                  sliceMonth.fromSavingsCents,
         effectiveLimitCents:
-            sm?.effectiveLimitCents ?? cfg.baseEffectiveLimitCents,
-        overspendCents: sm?.overspendCents ?? 0,
-        lockedCents: sm?.lockedCents ?? 0,
-        savingsCents: sm?.savingsCents ?? 0,
-        mine: !cfg.isGroup && cfg.ownerUserId == meUserId,
-        ownerName: cfg.isGroup ? null : nameOf(cfg.ownerUserId ?? ''),
-        petName: petName(cfg.petId),
-        mainCategoryColorArgb: mainColor(cfg.mainCategoryId),
+            sliceMonth?.effectiveLimitCents ??
+            sliceConfig.baseEffectiveLimitCents,
+        overspendCents: sliceMonth?.overspendCents ?? 0,
+        lockedCents: sliceMonth?.lockedCents ?? 0,
+        savingsCents: sliceMonth?.savingsCents ?? 0,
+        mine: !sliceConfig.isGroup && sliceConfig.ownerUserId == meUserId,
+        ownerName: sliceConfig.isGroup
+            ? null
+            : nameOf(sliceConfig.ownerUserId ?? ''),
+        petName: petName(sliceConfig.petId),
+        mainCategoryColorArgb: mainColor(sliceConfig.mainCategoryId),
       ),
     );
   }
-  rings.sort((a, b) {
+  rings.sort((first, second) {
     // My personal slices first, then my partner's, then group slices; name ties.
-    int rank(SliceRing r) => r.isGroup ? 2 : (r.mine ? 0 : 1);
-    final c = rank(a).compareTo(rank(b));
-    return c != 0 ? c : a.name.compareTo(b.name);
+    int rank(SliceRing ring) => ring.isGroup ? 2 : (ring.mine ? 0 : 1);
+    final comparison = rank(first).compareTo(rank(second));
+    return comparison != 0 ? comparison : first.name.compareTo(second.name);
   });
 
   // ---- Equipment maintenance --------------------------------------------
   final maintenance = <MaintenanceItem>[];
-  for (final r in state.recurringExpenses.values) {
-    final activeNow = r.activeIn(month);
-    final activeClosed = r.activeIn(closed);
+  for (final expense in state.recurringExpenses.values) {
+    final activeNow = expense.activeIn(month);
+    final activeClosed = expense.activeIn(closed);
     if (!activeNow && !activeClosed) continue;
-    final actualThis = state.variableActualFor(r.expenseId, month);
-    final amount = r.kind == RecurringKind.variable
-        ? (actualThis ?? r.amountCents)
-        : r.amountCents;
+    final actualThis = state.variableActualFor(expense.expenseId, month);
+    final amount = expense.kind == RecurringKind.variable
+        ? (actualThis ?? expense.amountCents)
+        : expense.amountCents;
     final awaiting =
-        r.kind == RecurringKind.variable &&
+        expense.kind == RecurringKind.variable &&
         activeClosed &&
-        state.variableActualFor(r.expenseId, closed) == null;
+        state.variableActualFor(expense.expenseId, closed) == null;
     maintenance.add(
       MaintenanceItem(
-        name: r.name,
-        kind: r.kind,
+        name: expense.name,
+        kind: expense.kind,
         amountCents: amount,
-        isShared: r.isShared,
+        isShared: expense.isShared,
         awaitingTally: awaiting,
-        ownerName: r.ownerUserId == null ? null : nameOf(r.ownerUserId!),
+        ownerName: expense.ownerUserId == null
+            ? null
+            : nameOf(expense.ownerUserId!),
       ),
     );
   }
-  maintenance.sort((a, b) => a.name.compareTo(b.name));
+  maintenance.sort((first, second) => first.name.compareTo(second.name));
 
   // ---- Upcoming payments strip ------------------------------------------
   // Household-local "today" drives the due-date countdown.
   final localNow = now.add(vancouverUtcOffset(now));
   final upcoming = <UpcomingPayment>[];
-  for (final r in state.recurringExpenses.values) {
-    if (!r.activeIn(month)) continue;
+  for (final expense in state.recurringExpenses.values) {
+    if (!expense.activeIn(month)) continue;
     upcoming.add(
       UpcomingPayment(
-        name: r.name,
-        amountCents: r.amountCents,
-        isAnnual: r.isAnnual,
-        isShared: r.isShared,
-        dueDay: r.dueDay,
-        dueMonth: r.dueMonth,
-        daysUntilDue: r.daysUntilDue(localNow),
+        name: expense.name,
+        amountCents: expense.amountCents,
+        isAnnual: expense.isAnnual,
+        isShared: expense.isShared,
+        dueDay: expense.dueDay,
+        dueMonth: expense.dueMonth,
+        daysUntilDue: expense.daysUntilDue(localNow),
       ),
     );
   }
-  upcoming.sort((a, b) {
-    final c = a.daysUntilDue.compareTo(b.daysUntilDue);
-    return c != 0 ? c : a.name.compareTo(b.name);
+  upcoming.sort((first, second) {
+    final comparison = first.daysUntilDue.compareTo(second.daysUntilDue);
+    return comparison != 0 ? comparison : first.name.compareTo(second.name);
   });
 
   // ---- Vault + projected spoils -----------------------------------------
   var projLeftover = 0;
   var projVault = 0;
-  for (final cfg in state.slices.values) {
-    if (cfg.isGroup || cfg.ownerUserId != meUserId) continue;
-    final sm = state.sliceMonth(cfg.sliceId, month);
-    final leftover = sm?.leftoverCents ?? 0;
+  for (final sliceConfig in state.slices.values) {
+    if (sliceConfig.isGroup || sliceConfig.ownerUserId != meUserId) continue;
+    final sliceMonth = state.sliceMonth(sliceConfig.sliceId, month);
+    final leftover = sliceMonth?.leftoverCents ?? 0;
     if (leftover <= 0) continue;
     projLeftover += leftover;
-    projVault += Money.titheCents(leftover, cfg.poolTithePct).remainderCents;
+    projVault += Money.titheCents(
+      leftover,
+      sliceConfig.poolTithePct,
+    ).remainderCents;
   }
   final vault = VaultCard(
     balanceCents: state.vaultOf(meUserId),
@@ -571,45 +583,50 @@ DashboardModel buildDashboardModel(
 
   // ---- Quests ------------------------------------------------------------
   final quests = <QuestCard>[];
-  for (final q in state.quests.values) {
-    if (q.abandoned) continue;
+  for (final quest in state.quests.values) {
+    if (quest.abandoned) continue;
     final contributors = <ContributorShare>[
-      for (final e in q.contributions.entries)
-        if (e.value != 0)
-          ContributorShare(name: nameOf(e.key) ?? 'Someone', cents: e.value),
-    ]..sort((a, b) => b.cents.compareTo(a.cents));
+      for (final entry in quest.contributions.entries)
+        if (entry.value != 0)
+          ContributorShare(
+            name: nameOf(entry.key) ?? 'Someone',
+            cents: entry.value,
+          ),
+    ]..sort((first, second) => second.cents.compareTo(first.cents));
     quests.add(
       QuestCard(
-        questId: q.questId,
-        name: q.name,
-        targetCents: q.targetCents,
-        balanceCents: q.balanceCents,
-        totalContributedCents: q.totalContributedCents,
-        completed: q.completed,
-        isShared: q.ownership is SharedParty,
+        questId: quest.questId,
+        name: quest.name,
+        targetCents: quest.targetCents,
+        balanceCents: quest.balanceCents,
+        totalContributedCents: quest.totalContributedCents,
+        completed: quest.completed,
+        isShared: quest.ownership is SharedParty,
         contributors: contributors,
       ),
     );
   }
-  quests.sort((a, b) {
+  quests.sort((first, second) {
     // In-progress before completed; then by remaining-to-target.
-    final c = (a.completed ? 1 : 0).compareTo(b.completed ? 1 : 0);
-    if (c != 0) return c;
-    return a.name.compareTo(b.name);
+    final comparison = (first.completed ? 1 : 0).compareTo(
+      second.completed ? 1 : 0,
+    );
+    if (comparison != 0) return comparison;
+    return first.name.compareTo(second.name);
   });
 
   // ---- War chest ---------------------------------------------------------
   final pendingForMe = <WithdrawalCard>[];
   final otherPending = <WithdrawalCard>[];
-  for (final w in state.withdrawals.values) {
-    if (w.status != WithdrawalStatus.pending) continue;
-    final mineToApprove = w.byUserId != meUserId;
+  for (final withdrawal in state.withdrawals.values) {
+    if (withdrawal.status != WithdrawalStatus.pending) continue;
+    final mineToApprove = withdrawal.byUserId != meUserId;
     final card = WithdrawalCard(
-      proposalId: w.proposalId,
-      byUserName: nameOf(w.byUserId) ?? 'Someone',
-      amountCents: w.amountCents,
-      purpose: w.purpose,
-      destinationLabel: switch (w.destination) {
+      proposalId: withdrawal.proposalId,
+      byUserName: nameOf(withdrawal.byUserId) ?? 'Someone',
+      amountCents: withdrawal.amountCents,
+      purpose: withdrawal.purpose,
+      destinationLabel: switch (withdrawal.destination) {
         UserVaultDestination(:final userId) =>
           '${nameOf(userId) ?? 'someone'}’s ${Glossary.vaultLabel(isAdventure: false, savingsRules: savingsRules)}',
         ExternalDestination() => 'external',
@@ -619,14 +636,14 @@ DashboardModel buildDashboardModel(
     (mineToApprove ? pendingForMe : otherPending).add(card);
   }
   final ransacks = <RansackCard>[
-    for (final r in state.ransacks)
+    for (final ransack in state.ransacks)
       RansackCard(
-        fundName: state.emergencyFunds[r.fundId]?.name ?? 'a reserve',
-        excessCents: r.excessCents,
-        purpose: r.purpose,
-        occurredAt: r.occurredAt,
+        fundName: state.emergencyFunds[ransack.fundId]?.name ?? 'a reserve',
+        excessCents: ransack.excessCents,
+        purpose: ransack.purpose,
+        occurredAt: ransack.occurredAt,
       ),
-  ]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+  ]..sort((first, second) => second.occurredAt.compareTo(first.occurredAt));
   final goal = state.warChest.goal;
   final warChest = WarChestCard(
     balanceCents: state.warChest.balanceCents,
@@ -640,30 +657,32 @@ DashboardModel buildDashboardModel(
 
   // ---- Emergency funds ---------------------------------------------------
   final funds = <EmergencyFundCard>[
-    for (final f in state.emergencyFunds.values)
+    for (final fund in state.emergencyFunds.values)
       EmergencyFundCard(
-        name: f.name,
-        balanceCents: f.balanceCents,
-        petName: petName(f.petId),
+        name: fund.name,
+        balanceCents: fund.balanceCents,
+        petName: petName(fund.petId),
       ),
-  ]..sort((a, b) => a.name.compareTo(b.name));
+  ]..sort((first, second) => first.name.compareTo(second.name));
 
   // ---- Month spend timeline ---------------------------------------------
   final daysInMonth = DateTime.utc(month.year, month.month + 1, 0).day;
   final byDay = List<int>.filled(daysInMonth + 1, 0);
-  for (final p in state.purchases.values) {
-    if (p.voided || p.month != month) continue;
-    final local = p.occurredAt.add(vancouverUtcOffset(p.occurredAt));
-    final d = local.day.clamp(1, daysInMonth);
-    byDay[d] += p.amountCents;
+  for (final purchase in state.purchases.values) {
+    if (purchase.voided || purchase.month != month) continue;
+    final local = purchase.occurredAt.add(
+      vancouverUtcOffset(purchase.occurredAt),
+    );
+    final dayOfMonth = local.day.clamp(1, daysInMonth);
+    byDay[dayOfMonth] += purchase.amountCents;
   }
   var total = 0;
   var maxDay = 0;
   final points = <SpendPoint>[];
-  for (var d = 1; d <= daysInMonth; d++) {
-    total += byDay[d];
-    if (byDay[d] > maxDay) maxDay = byDay[d];
-    points.add(SpendPoint(day: d, cents: byDay[d]));
+  for (var day = 1; day <= daysInMonth; day++) {
+    total += byDay[day];
+    if (byDay[day] > maxDay) maxDay = byDay[day];
+    points.add(SpendPoint(day: day, cents: byDay[day]));
   }
   final timeline = SpendTimeline(
     month: month,
@@ -692,19 +711,21 @@ DashboardModel buildDashboardModel(
   // ---- Outstanding overspending to repay ----------------------------------
   final overbudgets =
       <OverbudgetCard>[
-        for (final d in state.outstandingOverbudgets)
-          if (includeOtherAdults || d.ownerUserId == meUserId)
+        for (final debt in state.outstandingOverbudgets)
+          if (includeOtherAdults || debt.ownerUserId == meUserId)
             OverbudgetCard(
-              sliceId: d.sliceId,
-              categoryName: state.slices[d.sliceId]?.name ?? d.sliceId,
-              outstandingCents: d.outstandingCents,
-              accruedCents: d.accruedCents,
-              mine: d.ownerUserId == meUserId,
-              ownerName: nameOf(d.ownerUserId),
+              sliceId: debt.sliceId,
+              categoryName: state.slices[debt.sliceId]?.name ?? debt.sliceId,
+              outstandingCents: debt.outstandingCents,
+              accruedCents: debt.accruedCents,
+              mine: debt.ownerUserId == meUserId,
+              ownerName: nameOf(debt.ownerUserId),
             ),
-      ]..sort((a, b) {
-        final c = (a.mine ? 0 : 1).compareTo(b.mine ? 0 : 1);
-        return c != 0 ? c : a.categoryName.compareTo(b.categoryName);
+      ]..sort((first, second) {
+        final comparison = (first.mine ? 0 : 1).compareTo(second.mine ? 0 : 1);
+        return comparison != 0
+            ? comparison
+            : first.categoryName.compareTo(second.categoryName);
       });
 
   return DashboardModel(
@@ -728,14 +749,14 @@ DashboardModel buildDashboardModel(
     ),
     savingsRules: savingsRules,
     vacations: [
-      for (final v in state.openVacations)
+      for (final vacation in state.openVacations)
         OpenVacationCard(
-          vacationId: v.vacationId,
-          name: v.name,
-          spentCents: v.totalSpentCents,
-          budgetCents: v.totalLimitCents,
-          allowanceLabel: dailyAllowanceLabel(v),
-          warnings: vacationWarnings(v),
+          vacationId: vacation.vacationId,
+          name: vacation.name,
+          spentCents: vacation.totalSpentCents,
+          budgetCents: vacation.totalLimitCents,
+          allowanceLabel: dailyAllowanceLabel(vacation),
+          warnings: vacationWarnings(vacation),
         ),
     ],
     spoils: buildSpoilsRitual(

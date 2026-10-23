@@ -36,7 +36,7 @@ class _PurchaseList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final purchases = state.purchases.values.toList()
-      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+      ..sort((first, second) => second.occurredAt.compareTo(first.occurredAt));
 
     if (purchases.isEmpty) {
       return Center(
@@ -58,23 +58,23 @@ class _PurchaseList extends StatelessWidget {
       itemCount: purchases.length,
       separatorBuilder: (_, _) => const Divider(height: 1),
       itemBuilder: (context, i) {
-        final p = purchases[i];
+        final purchase = purchases[i];
         return ListTile(
           title: Text(
-            p.merchant ?? _targetName(state, p.target),
-            style: p.voided
+            purchase.merchant ?? _targetName(state, purchase.target),
+            style: purchase.voided
                 ? const TextStyle(decoration: TextDecoration.lineThrough)
                 : null,
           ),
-          subtitle: Text(isoDay(p.occurredAt)),
+          subtitle: Text(isoDay(purchase.occurredAt)),
           trailing: Text(
-            formatMoney(p.amountCents),
+            formatMoney(purchase.amountCents),
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  decoration: p.voided ? TextDecoration.lineThrough : null,
+                  decoration: purchase.voided ? TextDecoration.lineThrough : null,
                 ),
           ),
           onTap: () =>
-              showPurchaseDetailSheet(context, purchaseId: p.purchaseId),
+              showPurchaseDetailSheet(context, purchaseId: purchase.purchaseId),
         );
       },
     );

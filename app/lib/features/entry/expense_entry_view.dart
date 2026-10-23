@@ -65,8 +65,9 @@ class _ExpenseEntryViewState extends State<ExpenseEntryView> {
   String? _note;
   late DateTime _occurredAt = widget.now ?? DateTime.now();
 
-  bool get _sharedRelevant =>
-      widget.groups.any((g) => g.choices.any((c) => c.supportsShared));
+  bool get _sharedRelevant => widget.groups.any(
+    (group) => group.choices.any((choice) => choice.supportsShared),
+  );
 
   bool get _isToday {
     final now = widget.now ?? DateTime.now();
@@ -126,7 +127,7 @@ class _ExpenseEntryViewState extends State<ExpenseEntryView> {
           controller: controller,
           autofocus: true,
           textCapitalization: TextCapitalization.words,
-          onSubmitted: (v) => Navigator.pop(context, v),
+          onSubmitted: (value) => Navigator.pop(context, value),
         ),
         actions: [
           TextButton(
@@ -226,7 +227,7 @@ class _ExpenseEntryViewState extends State<ExpenseEntryView> {
                     'Split with the other adults by the household share table',
                 avatar: const Icon(Icons.people_alt_outlined, size: 18),
                 selected: _shared,
-                onSelected: (v) => setState(() => _shared = v),
+                onSelected: (value) => setState(() => _shared = value),
               ),
             ),
           _optionChip(
@@ -236,7 +237,7 @@ class _ExpenseEntryViewState extends State<ExpenseEntryView> {
             onTap: () => _editText(
               title: 'Merchant',
               initial: _merchant,
-              onSaved: (v) => setState(() => _merchant = v),
+              onSaved: (value) => setState(() => _merchant = value),
             ),
           ),
           _optionChip(
@@ -246,7 +247,7 @@ class _ExpenseEntryViewState extends State<ExpenseEntryView> {
             onTap: () => _editText(
               title: 'Note',
               initial: _note,
-              onSaved: (v) => setState(() => _note = v),
+              onSaved: (value) => setState(() => _note = value),
             ),
           ),
           _optionChip(
@@ -282,17 +283,18 @@ class _ExpenseEntryViewState extends State<ExpenseEntryView> {
   /// Everyday spending targets show immediately; the vault and quests are
   /// rarer, deliberate moves and stay behind "More targets" so the everyday
   /// screen reads as "which budget did this come from".
-  static bool _isAdvanced(ChargeGroup g) =>
-      g.kind == ChargeGroupKind.vault || g.kind == ChargeGroupKind.quest;
+  static bool _isAdvanced(ChargeGroup group) =>
+      group.kind == ChargeGroupKind.vault ||
+      group.kind == ChargeGroupKind.quest;
 
   Widget _chargeArea(BuildContext context) {
     final primary = [
-      for (final g in widget.groups)
-        if (!_isAdvanced(g)) g,
+      for (final group in widget.groups)
+        if (!_isAdvanced(group)) group,
     ];
     final advanced = [
-      for (final g in widget.groups)
-        if (_isAdvanced(g)) g,
+      for (final group in widget.groups)
+        if (_isAdvanced(group)) group,
     ];
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(
@@ -317,7 +319,7 @@ class _ExpenseEntryViewState extends State<ExpenseEntryView> {
                 icon: const Icon(Icons.unfold_more),
                 label: Text(
                   'More targets '
-                  '(${advanced.map((g) => g.label.toLowerCase()).join(', ')})',
+                  '(${advanced.map((group) => group.label.toLowerCase()).join(', ')})',
                 ),
               ),
             ),
@@ -360,20 +362,20 @@ class _ChargeChip extends StatelessWidget {
   final ChargeChoice choice;
   final VoidCallback onTap;
 
-  ({Color bg, Color fg}) _colors(ColorScheme s) {
+  ({Color bg, Color fg}) _colors(ColorScheme scheme) {
     switch (choice.kind) {
       case ChargeGroupKind.personalSlice:
-        return (bg: s.primaryContainer, fg: s.onPrimaryContainer);
+        return (bg: scheme.primaryContainer, fg: scheme.onPrimaryContainer);
       case ChargeGroupKind.groupSlice:
-        return (bg: s.tertiaryContainer, fg: s.onTertiaryContainer);
+        return (bg: scheme.tertiaryContainer, fg: scheme.onTertiaryContainer);
       case ChargeGroupKind.vault:
-        return (bg: s.secondaryContainer, fg: s.onSecondaryContainer);
+        return (bg: scheme.secondaryContainer, fg: scheme.onSecondaryContainer);
       case ChargeGroupKind.quest:
-        return (bg: s.surfaceContainerHighest, fg: s.onSurface);
+        return (bg: scheme.surfaceContainerHighest, fg: scheme.onSurface);
       case ChargeGroupKind.emergency:
-        return (bg: s.errorContainer, fg: s.onErrorContainer);
+        return (bg: scheme.errorContainer, fg: scheme.onErrorContainer);
       case ChargeGroupKind.vacation:
-        return (bg: s.tertiaryContainer, fg: s.onTertiaryContainer);
+        return (bg: scheme.tertiaryContainer, fg: scheme.onTertiaryContainer);
     }
   }
 
@@ -397,9 +399,9 @@ class _ChargeChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final c = _colors(scheme);
+    final colors = _colors(scheme);
     return Material(
-      color: c.bg,
+      color: colors.bg,
       borderRadius: AppRadii.card,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -418,7 +420,7 @@ class _ChargeChip extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(_icon, size: 18, color: c.fg),
+                    Icon(_icon, size: 18, color: colors.fg),
                     const SizedBox(width: AppSpacing.xs),
                     Flexible(
                       child: Text(
@@ -426,7 +428,7 @@ class _ChargeChip extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: c.fg,
+                          color: colors.fg,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -441,7 +443,7 @@ class _ChargeChip extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: c.fg.withValues(alpha: 0.85),
+                        color: colors.fg.withValues(alpha: 0.85),
                       ),
                     ),
                   ),

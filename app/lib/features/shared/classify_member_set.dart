@@ -21,17 +21,17 @@ enum MemberSetChange {
   updated,
 }
 
-/// Classifies [e] against [prev], the last `MemberSet` seen for the same
+/// Classifies [event] against [prev], the last `MemberSet` seen for the same
 /// member. Callers keep their own `memberId -> MemberSet` map and their own
 /// wording; only the decision logic is shared.
-MemberSetChange classifyMemberSet(MemberSet e, MemberSet? prev) {
-  if (!e.active) return MemberSetChange.retired;
+MemberSetChange classifyMemberSet(MemberSet event, MemberSet? prev) {
+  if (!event.active) return MemberSetChange.retired;
   if (prev == null) return MemberSetChange.added;
-  final onlyPortraitChanged = prev.customSpriteSha256 != e.customSpriteSha256 &&
-      prev.name == e.name &&
-      prev.role == e.role &&
-      prev.active == e.active &&
-      prev.descriptionText == e.descriptionText;
+  final onlyPortraitChanged = prev.customSpriteSha256 != event.customSpriteSha256 &&
+      prev.name == event.name &&
+      prev.role == event.role &&
+      prev.active == event.active &&
+      prev.descriptionText == event.descriptionText;
   return onlyPortraitChanged
       ? MemberSetChange.portraitOnly
       : MemberSetChange.updated;
