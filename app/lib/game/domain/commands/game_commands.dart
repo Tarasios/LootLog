@@ -128,6 +128,36 @@ enum GameRejection {
 
   /// Not in any party.
   notInParty,
+
+  /// No catalogue item has that id.
+  unknownItem,
+
+  /// The item is not in today's shop.
+  notInShopToday,
+
+  /// The person has no available copy of the item.
+  itemNotOwned,
+
+  /// Another item already covers one of the cells.
+  cellOccupied,
+
+  /// The item would stick out of the room or off the town's free grass.
+  outOfBounds,
+
+  /// Room items go in rooms, town decorations and statues in town.
+  wrongSpace,
+
+  /// No such placement.
+  unknownPlacement,
+
+  /// Only a room's owner rearranges it.
+  notYourRoom,
+
+  /// Only outfits and titles can be worn.
+  notEquippable,
+
+  /// The starter set was already handed out.
+  starterAlreadyClaimed,
 }
 
 /// What a command decided: the events to append, or why not.

@@ -415,4 +415,13 @@ abstract final class Balance {
     6: 30,
     12: 60,
   };
+
+  // ---- Daily shop -----------------------------------------------------------
+
+  /// Items in the daily shop.
+  static const int shopSlotCount = 6;
+
+  /// The first slot always holds an item at or under this price, so there is
+  /// a small win every day.
+  static const int shopCheapMaxPriceGems = 10;
 }

@@ -214,6 +214,16 @@
     "ritualIncomplete": "Finish all four ritual steps to summon the boss.",
     "bossAlreadyFought": "This month's boss has already been faced.",
     "alreadyInParty": "Already in the party.",
-    "notInParty": "Not in the party right now."
+    "notInParty": "Not in the party right now.",
+    "unknownItem": "That item isn't in the catalogue.",
+    "notInShopToday": "That one has left the shop. A new set arrives tomorrow.",
+    "itemNotOwned": "You don't have a spare one of those yet. The shop or a chest might.",
+    "cellOccupied": "Something's already there. Try a free spot.",
+    "outOfBounds": "That doesn't quite fit there. Try a spot with a bit more room.",
+    "wrongSpace": "That one belongs somewhere else. Rooms take furniture, the town takes garden pieces and statues.",
+    "unknownPlacement": "That piece isn't on display any more.",
+    "notYourRoom": "This is someone else's room. Yours is waiting for you.",
+    "notEquippable": "Only outfits and titles can be worn.",
+    "starterAlreadyClaimed": "Your starter set is already home."
   }
 }
