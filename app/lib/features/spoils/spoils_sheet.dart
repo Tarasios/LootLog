@@ -16,6 +16,7 @@ import '../../ui/format.dart';
 import '../../ui/glossary.dart';
 import '../../ui/theme.dart';
 import 'spoils_model.dart';
+import 'spoils_move.dart';
 
 /// A recorded variable actual, part of the confirmed result.
 class TallyResult {
@@ -135,7 +136,7 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
   }
 
   List<Allocation> _allocationsFor(SliceLeftover leftover) => [
-    ..._allowanceAllocations(leftover),
+    ...allocationsForChoice(leftover, _choiceFor(leftover)),
     ..._savingsAllocations(leftover),
   ];
 
@@ -163,54 +164,17 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
     ];
   }
 
-  List<Allocation> _allowanceAllocations(SliceLeftover leftover) {
+  /// The sheet's selection for [leftover] as the shared month-end choice.
+  SpoilsChoice _choiceFor(SliceLeftover leftover) => SpoilsChoice(
     switch (_dest[leftover.sliceId]!) {
-      case _Destination.carry:
-        return [
-          Allocation(
-            destination: const CarryInSlice(),
-            amountCents: leftover.leftoverCents,
-          ),
-        ];
-      case _Destination.discretionary:
-        return [
-          Allocation(
-            destination: const Discretionary(),
-            amountCents: leftover.leftoverCents,
-          ),
-        ];
-      case _Destination.quest:
-        final questId = _questChoice[leftover.sliceId];
-        return [
-          Allocation(
-            destination: questId == null
-                ? const Discretionary()
-                : QuestDestination(questId),
-            amountCents: leftover.leftoverCents,
-          ),
-        ];
-      case _Destination.overbudget:
-        final option = _chosenOverbudget(leftover);
-        if (option == null) {
-          return [
-            Allocation(
-              destination: const Discretionary(),
-              amountCents: leftover.leftoverCents,
-            ),
-          ];
-        }
-        // The whole leftover goes in as one payment. The reducer tithes it
-        // (unless the categories match), pays no more than the outstanding
-        // debt, and hands whatever is left to the pouch — so the OVERBUDGET
-        // never takes more than it needs.
-        return [
-          Allocation(
-            destination: OverbudgetPayment(option.sliceId),
-            amountCents: leftover.leftoverCents,
-          ),
-        ];
-    }
-  }
+      _Destination.overbudget => SpoilsMove.debt,
+      _Destination.carry => SpoilsMove.carry,
+      _Destination.quest => SpoilsMove.goal,
+      _Destination.discretionary => SpoilsMove.bank,
+    },
+    questId: _questChoice[leftover.sliceId],
+    overbudgetSliceId: _overbudgetChoice[leftover.sliceId],
+  );
 
   void _confirm() {
     final tallies = <TallyResult>[

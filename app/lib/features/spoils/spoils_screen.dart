@@ -83,7 +83,7 @@ Future<void> openSpoilsRitual(BuildContext context, WidgetRef ref) async {
           onConfirm: (result) async {
             final navigator = Navigator.of(context);
             navigator.pop();
-            await _apply(actions, ritual, result);
+            await applySpoilsResult(actions, ritual, result);
             // Close the floor with the month's report — the ritual summary.
             if (navigator.mounted) {
               await ReportScreen.open(
@@ -98,7 +98,9 @@ Future<void> openSpoilsRitual(BuildContext context, WidgetRef ref) async {
   );
 }
 
-Future<void> _apply(
+/// Writes a confirmed ritual: variable actuals first, then one allocation per
+/// category. The one path every month-end surface uses.
+Future<void> applySpoilsResult(
   HouseholdActions actions,
   SpoilsRitual ritual,
   SpoilsResult result,

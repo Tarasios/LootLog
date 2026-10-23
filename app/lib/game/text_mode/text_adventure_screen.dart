@@ -17,7 +17,7 @@ import '../../features/entry/expense_entry_screen.dart';
 import '../../features/household_context.dart';
 import '../../features/report/report_screen.dart';
 import '../../features/spoils/spoils_model.dart';
-import '../../features/spoils/spoils_sheet.dart';
+import '../../features/spoils/spoils_screen.dart' show applySpoilsResult;
 import '../adapter.dart';
 import '../narrative.dart';
 import '../skin_prefs.dart';
@@ -117,33 +117,11 @@ Future<void> openTextBattle(BuildContext context, WidgetRef ref) async {
       onDismiss: () => Navigator.of(context).maybePop(),
       onConfirm: (result) async {
         Navigator.of(context).pop();
-        await _apply(actions, ritual, result);
+        await applySpoilsResult(actions, ritual, result);
         if (navigator.mounted) {
           await ReportScreen.open(navigator.context, initialMonth: ritual.month);
         }
       },
     ),
   ));
-}
-
-Future<void> _apply(
-  HouseholdActions actions,
-  SpoilsRitual ritual,
-  SpoilsResult result,
-) async {
-  for (final tally in result.tallies) {
-    await actions.recordVariableActual(
-      expenseId: tally.expenseId,
-      month: ritual.month,
-      actualCents: tally.actualCents,
-    );
-  }
-  for (final allocation in result.allocations) {
-    await actions.allocateLeftover(
-      forUserId: ritual.forUserId,
-      month: ritual.month,
-      sliceId: allocation.sliceId,
-      allocations: allocation.allocations,
-    );
-  }
 }
