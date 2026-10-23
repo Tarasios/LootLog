@@ -188,4 +188,35 @@ void main() {
       expect(game.world.children.whereType<Villager>(), isEmpty);
     },
   );
+
+  testWithGame<TownGame>(
+    'the gate glows while the dungeon is open, and stops when it closes',
+    buildGame,
+    (game) async {
+      await game.ready();
+      expect(game.world.children.whereType<GateGlow>(), isEmpty);
+      await game.updateView(
+        TownView.from(GameState.initial(), _adults, _now, dungeonOpen: true),
+      );
+      await game.ready();
+      final glow = game.world.children.whereType<GateGlow>().single;
+      final gateCentre =
+          cellPosition(TownLayout.standard.gate) + Vector2.all(kTileSize / 2);
+      expect(glow.position, gateCentre);
+      await game.updateView(sampleView());
+      await game.ready();
+      expect(game.world.children.whereType<GateGlow>(), isEmpty);
+    },
+  );
+
+  testWithGame<TownGame>(
+    'an open dungeon glows from the first frame',
+    () => buildGame(
+      view: TownView.from(GameState.initial(), _adults, _now, dungeonOpen: true),
+    ),
+    (game) async {
+      await game.ready();
+      expect(game.world.children.whereType<GateGlow>(), hasLength(1));
+    },
+  );
 }

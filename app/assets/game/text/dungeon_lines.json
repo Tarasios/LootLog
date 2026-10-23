@@ -1,0 +1,14 @@
+{
+  "gateOpen": ["The dungeon gate stands open. Last month's leftovers are yours to wield."],
+  "gateClosed": ["The gate is sealed until the month turns. Keep logging — every coin you don't spend becomes a weapon."],
+  "upkeep": ["The gatekeeper tallies the upkeep before you descend."],
+  "weaponReady": ["{name} gleams with {amount}. Where will you strike?"],
+  "hitGoal": ["{amount} lands on {target}!", "{target} staggers — {amount} closer!"],
+  "hitDebt": ["{amount} strikes the OVERBUDGET on {target}!"],
+  "taxFlies": ["{amount} flies to the war chest."],
+  "bank": ["{amount} goes into your pouch for later."],
+  "carry": ["{amount} stays with {name} for next month."],
+  "bossFalls": ["{target} falls! The goal is yours."],
+  "victory": ["The party climbs back to town with the spoils."],
+  "noLeftovers": ["Nothing left over this month — and that's fine. Every budget did its job."]
+}

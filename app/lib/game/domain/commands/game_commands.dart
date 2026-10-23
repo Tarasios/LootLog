@@ -130,6 +130,9 @@ enum GameRejection {
   /// The month's boss has been fought.
   bossAlreadyFought,
 
+  /// The month-end dungeon was already finished: its spoils are home.
+  ritualAlreadyFinished,
+
   /// Already in that party.
   alreadyInParty,
 
@@ -626,6 +629,46 @@ class GameCommands {
       ));
     }
     return _accept(events);
+  }
+
+  /// The month-end dungeon was completed for [month]: the spoils chest, plus
+  /// bonus gems for on-time rituals and hero gear. Cosmetic loot only — the
+  /// money moved through the ledger's own allocations before this runs.
+  GameCommandResult finishMonthRitual(Month month, {required int onTimeRitualMonths}) {
+    final chestId = spoilsChestId(actorId, month);
+    if (_me.seenChestIds.contains(chestId)) {
+      return _reject(GameRejection.ritualAlreadyFinished);
+    }
+    final cappedMonths = onTimeRitualMonths.clamp(0, Balance.ritualBonusMaxOnTimeMonths);
+    final bonusGems = cappedMonths * Balance.ritualBonusGemsPerOnTimeMonth +
+        _me.hero.power * Balance.ritualBonusGemsPerHeroPower;
+    return _accept([
+      ChestGranted(
+        eventId: stamp.newEventId(),
+        deviceId: stamp.deviceId,
+        actorId: actorId,
+        occurredAt: _now,
+        createdAt: _now,
+        chestId: chestId,
+        chestType: ChestType.spoils,
+        reasonCode: GameReasonCodes.ritualSpoils,
+      ),
+      if (bonusGems > 0)
+        RewardGranted(
+          eventId: stamp.newEventId(),
+          deviceId: stamp.deviceId,
+          actorId: actorId,
+          occurredAt: _now,
+          createdAt: _now,
+          rewardId: '${GameReasonCodes.ritualBonus}:$actorId:${month.toKey()}',
+          kind: 'gems',
+          gems: bonusGems,
+          materials: const MaterialBundle.empty(),
+          tokens: 0,
+          reasonCode: GameReasonCodes.ritualBonus,
+          sourceLedgerEventIds: const [],
+        ),
+    ]);
   }
 
   // ---- Party --------------------------------------------------------------------

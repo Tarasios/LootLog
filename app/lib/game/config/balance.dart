@@ -428,6 +428,15 @@ abstract final class Balance {
   /// ritual is what earns it, never the fight's outcome).
   static final Loot bossWinRewards = Loot(materials: _m(trophy: 1));
 
+  // ---- Month-end ritual bonus (cosmetic loot only) ---------------------------
+
+  /// Gems per consecutive on-time month-end ritual, capped.
+  static const int ritualBonusGemsPerOnTimeMonth = 3;
+  static const int ritualBonusMaxOnTimeMonths = 6;
+
+  /// Gems per point of hero gear power.
+  static const int ritualBonusGemsPerHeroPower = 1;
+
   // ---- Month-end and Vault rewards -----------------------------------------
 
   /// How many closed months back month-end rewards are still granted

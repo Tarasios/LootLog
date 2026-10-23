@@ -459,6 +459,7 @@ shortfalls at buildings and expeditions.
 | `ritualStepOutOfOrder` | Take the steps in order. One at a time. |
 | `ritualIncomplete` | Finish all four ritual steps to summon the boss. |
 | `bossAlreadyFought` | This month's boss has already been faced. |
+| `ritualAlreadyFinished` | This month's spoils are already home. |
 | `alreadyInParty` | Already in the party. |
 | `notInParty` | Not in the party right now. |
 | `unknownItem` | That item isn't in the catalogue. |
@@ -477,3 +478,30 @@ shortfalls at buildings and expeditions.
 Plain labels, not narrative: `reasons` names why an inbox reward or chest
 was earned (by reward reason code), and `bossNames` names each seasonal
 boss key.
+
+## Month-end dungeon lines (`dungeon_lines.json`)
+
+Adventure-only: shown in the month-end dungeon below the town gate, where
+each category's leftover is a weapon aimed at a goal boss, an OVERBUDGET or
+savings. Every amount in a line is the real split, computed by the ledger
+and filled in by the screen; the lines only frame it. Picks are seeded by
+the category and month so a line is stable on screen. Placeholders:
+`{name}` (the category), `{amount}` (a money amount), `{target}` (a goal or
+the category carrying an OVERBUDGET).
+`app/test/game/ui/dungeon/dungeon_voice_test.dart` checks every set is
+present and that nothing shames or blames.
+
+| Set | Trigger | Intended outcome |
+|-----|---------|------------------|
+| `gateOpen` | The dungeon opens with a month-end ritual waiting | Invite: last month's leftovers are something to use, not a test |
+| `gateClosed` | The gate is tapped while no ritual is waiting | Explain when it opens and that logging now fills the next one |
+| `upkeep` | The entrance step: recording what variable bills came to | Calm bookkeeping before the fun; differences never punish |
+| `weaponReady` | A category's leftover is the next weapon | Make the leftover feel like a reward to aim |
+| `hitGoal` | A leftover lands on a savings goal | Celebrate progress toward the goal |
+| `hitDebt` | A leftover strikes an OVERBUDGET | Paying it down is a win, never a scolding |
+| `taxFlies` | Part of a move goes to the war chest on the way | Show the cut plainly, as the party's shared fund growing |
+| `bank` | A leftover goes to the person's own savings | Saving for later is a fine choice |
+| `carry` | A leftover stays in its category | Keeping it for next month is a fine choice |
+| `bossFalls` | A goal is fully funded | The big celebration: the goal is reached |
+| `victory` | Every weapon has been used | Wrap up warmly before returning to town |
+| `noLeftovers` | No category had anything left over | Reassure: an exactly-spent month is a month that worked |

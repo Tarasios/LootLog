@@ -38,6 +38,7 @@ void main() {
       GameReasonCodes.streakToken,
       GameReasonCodes.caravan,
       GameReasonCodes.ritualSpoils,
+      GameReasonCodes.ritualBonus,
       GameReasonCodes.monthGold,
       GameReasonCodes.vaultQuest,
       GameReasonCodes.vaultSavingsStreak,

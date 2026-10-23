@@ -202,6 +202,29 @@ class ReadyBubble extends CircleComponent {
   }
 }
 
+/// The pulsing yellow glow behind the dungeon gate while a month-end ritual
+/// waits below.
+class GateGlow extends CircleComponent {
+  GateGlow({required Vector2 position})
+    : super(
+        radius: kTileSize * 0.75,
+        position: position,
+        anchor: Anchor.center,
+        paint: Paint()..color = const Color(0x99DAD45E),
+        priority: 1,
+      );
+
+  @override
+  Future<void> onLoad() async {
+    add(
+      ScaleEffect.to(
+        Vector2.all(1.3),
+        EffectController(duration: 0.8, alternate: true, infinite: true),
+      ),
+    );
+  }
+}
+
 /// A resident's house with their character (Adventure) or the parked supply
 /// wagon (Standard) beside it, and their name underneath.
 class HouseComponent extends PositionComponent {

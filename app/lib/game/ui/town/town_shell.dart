@@ -20,6 +20,8 @@ import '../../skin_prefs.dart';
 import '../building_sheet.dart';
 import '../decor/room_screen.dart';
 import '../decor/shop_screen.dart';
+import '../dungeon/dungeon_providers.dart';
+import '../dungeon/dungeon_screen.dart';
 import '../game_home.dart';
 import '../hall_common.dart';
 import '../hall_ledger_view.dart';
@@ -41,6 +43,7 @@ Widget buildTownShell(
   openers: const TownPlaceOpeners(
     openShop: ShopScreen.open,
     openRoom: RoomScreen.open,
+    openDungeon: DungeonScreen.open,
   ),
 );
 
@@ -129,6 +132,7 @@ class _TownShellState extends ConsumerState<TownShell> {
     final townsfolk = ref.watch(townsfolkProvider);
     final registryLoad = ref.watch(gameAssetRegistryProvider);
     final clock = ref.watch(gameClockProvider);
+    final dungeonOpen = ref.watch(monthEndBattleProvider) != null;
 
     void openTarget(TownTarget target) => switch (target) {
       PlotTarget(:final plotIndex) => showBuildingSheet(
@@ -180,14 +184,19 @@ class _TownShellState extends ConsumerState<TownShell> {
       child: HallTicker(
         builder: (context) {
           final now = clock.now();
-          final townView = TownView.from(game, [
-            for (final adult in ledgerView.adults)
-              TownAdult(
-                memberId: adult.memberId,
-                name: adult.name,
-                inAdventure: adult.inAdventure,
-              ),
-          ], now);
+          final townView = TownView.from(
+            game,
+            [
+              for (final adult in ledgerView.adults)
+                TownAdult(
+                  memberId: adult.memberId,
+                  name: adult.name,
+                  inAdventure: adult.inAdventure,
+                ),
+            ],
+            now,
+            dungeonOpen: dungeonOpen,
+          );
           return Scaffold(
             body: Stack(
               children: [

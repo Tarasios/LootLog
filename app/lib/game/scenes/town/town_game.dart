@@ -41,6 +41,7 @@ class TownGame extends FlameGame {
   final CameraControls cameraControls;
   TownView _view;
   final List<Component> _plotsAndHouses = [];
+  GateGlow? _gateGlow;
 
   /// Every key the scene can draw, for preloading.
   static Iterable<AssetKey> keysFor(TownView view) sync* {
@@ -115,7 +116,23 @@ class TownGame extends FlameGame {
       await _addTownsfolk();
     }
     _addPlotsAndHouses();
+    _syncGateGlow();
     _syncCamera();
+  }
+
+  /// Lights the gate while the dungeon is open, and puts the light out when
+  /// it closes.
+  void _syncGateGlow() {
+    if (_view.dungeonOpen && _gateGlow == null) {
+      final glow = GateGlow(
+        position: cellPosition(_view.layout.gate) + Vector2.all(kTileSize / 2),
+      );
+      _gateGlow = glow;
+      unawaited(world.addAll([glow]));
+    } else if (!_view.dungeonOpen && _gateGlow != null) {
+      _gateGlow!.removeFromParent();
+      _gateGlow = null;
+    }
   }
 
   /// One villager per dependent or pet, two tiles apart along the main path
@@ -166,6 +183,7 @@ class TownGame extends FlameGame {
     }
     _plotsAndHouses.clear();
     _addPlotsAndHouses();
+    _syncGateGlow();
   }
 
   void _addPlotsAndHouses() {

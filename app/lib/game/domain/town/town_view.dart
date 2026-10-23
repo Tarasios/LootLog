@@ -127,17 +127,26 @@ class TownResident {
 }
 
 class TownView {
-  const TownView({required this.plots, required this.residents, this.layout = TownLayout.standard});
+  const TownView({
+    required this.plots,
+    required this.residents,
+    this.layout = TownLayout.standard,
+    this.dungeonOpen = false,
+  });
 
   final List<TownPlotView> plots;
   final List<TownResident> residents;
   final TownLayout layout;
+
+  /// A month-end ritual is waiting below the gate, so the gate glows.
+  final bool dungeonOpen;
 
   static TownView from(
     GameState game,
     List<TownAdult> adults,
     DateTime now, {
     TownLayout layout = TownLayout.standard,
+    bool dungeonOpen = false,
   }) {
     final plots = <TownPlotView>[
       for (var index = 0; index < layout.plotOrigins.length; index++)
@@ -156,6 +165,7 @@ class TownView {
       plots: List.unmodifiable(plots),
       residents: List.unmodifiable(residents),
       layout: layout,
+      dungeonOpen: dungeonOpen,
     );
   }
 
@@ -188,11 +198,12 @@ class TownView {
   bool operator ==(Object other) =>
       other is TownView &&
       other.layout == layout &&
+      other.dungeonOpen == dungeonOpen &&
       _sameItems(other.plots, plots) &&
       _sameItems(other.residents, residents);
 
   @override
-  int get hashCode => Object.hash(layout, Object.hashAll(plots), Object.hashAll(residents));
+  int get hashCode => Object.hash(layout, dungeonOpen, Object.hashAll(plots), Object.hashAll(residents));
 
   static bool _sameItems<T>(List<T> first, List<T> second) {
     if (first.length != second.length) return false;

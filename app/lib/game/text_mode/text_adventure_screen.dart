@@ -15,15 +15,13 @@ import '../../data/actions.dart';
 import '../../data/providers.dart';
 import '../../features/entry/expense_entry_screen.dart';
 import '../../features/household_context.dart';
-import '../../features/report/report_screen.dart';
+import '../../features/settings/visibility_prefs.dart';
 import '../../features/spoils/spoils_model.dart';
-import '../../features/spoils/spoils_screen.dart' show applySpoilsResult;
 import '../adapter.dart';
 import '../narrative.dart';
 import '../skin_prefs.dart';
+import '../ui/dungeon/dungeon_screen.dart' show textTierBattle;
 import 'text_adventure_view.dart';
-import 'text_battle.dart';
-import '../../features/settings/visibility_prefs.dart';
 
 /// The narrative/encouragement asset bundle (loaded once). Cosmetic strings
 /// only — they decorate the log, never the numbers.
@@ -96,32 +94,21 @@ class TextAdventureScreen extends ConsumerWidget {
   }
 }
 
-/// Opens the turn-based text battle for the pending month close, applies the
-/// player's chosen moves as events (via the same actions the classic sheet
-/// uses), and closes the floor with its report. A no-op when nothing is due.
+/// Opens the turn-based text battle for the pending month close. The battle
+/// and its commit (the shared spoils path, then the spoils chest and the
+/// month's report) live with the dungeon: [textTierBattle]. A no-op when
+/// nothing is due.
 Future<void> openTextBattle(BuildContext context, WidgetRef ref) async {
   final state = ref.read(householdStateProvider).value;
   final meUserId = ref.read(meUserIdProvider);
   final names = ref.read(userNamesProvider);
-  final actions = ref.read(householdActionsProvider);
-  if (state == null || meUserId == null || actions == null) return;
+  if (state == null || meUserId == null || ref.read(householdActionsProvider) == null) return;
 
   final ritual =
       buildSpoilsRitual(state, meUserId: meUserId, userNames: names);
   if (ritual == null) return;
 
-  final navigator = Navigator.of(context);
-  await navigator.push<void>(MaterialPageRoute(
-    builder: (context) => TextBattleView(
-      ritual: ritual,
-      onDismiss: () => Navigator.of(context).maybePop(),
-      onConfirm: (result) async {
-        Navigator.of(context).pop();
-        await applySpoilsResult(actions, ritual, result);
-        if (navigator.mounted) {
-          await ReportScreen.open(navigator.context, initialMonth: ritual.month);
-        }
-      },
-    ),
+  await Navigator.of(context).push<void>(MaterialPageRoute(
+    builder: (routeContext) => textTierBattle(routeContext, ritual),
   ));
 }

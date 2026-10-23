@@ -2,15 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/features/settings/play_mode_switch.dart';
+import 'package:lootlog/game/battle/month_end_battle.dart';
+import 'package:lootlog/game/domain/decor/catalog.dart';
 import 'package:lootlog/game/domain/decor/decor_values.dart';
 import 'package:lootlog/game/domain/game_event.dart';
 import 'package:lootlog/game/domain/game_event_store.dart';
+import 'package:lootlog/game/domain/town/town_view.dart';
+import 'package:lootlog/game/scenes/town/town_scene_view.dart';
 import 'package:lootlog/game/skin_prefs.dart';
+import 'package:lootlog/game/ui/dungeon/dungeon_screen.dart';
 import 'package:lootlog/game/ui/game_home.dart';
 import 'package:lootlog/game/ui/town/town_place_openers.dart';
 import 'package:lootlog/game/ui/town/town_shell.dart';
 
-import 'package:lootlog/game/domain/decor/catalog.dart';
+import '../../../features/spoils/spoils_fixtures.dart';
 import '../hall_harness.dart'
     show FixedTier, before, kShippedCatalog, sampleEvents, storeWith;
 import 'town_test_overrides.dart';
@@ -33,9 +38,11 @@ Widget host({
   TownPlaceOpeners openers = const TownPlaceOpeners(),
   AdventureTierNotifier? tierNotifier,
   DecorCatalog catalog = DecorCatalog.empty,
+  MonthEndBattle? battle,
 }) => ProviderScope(
   overrides: townTestOverrides(
     tier: tier,
+    battle: battle,
     catalog: catalog,
     tierNotifier: tierNotifier,
     liveStore: liveStore,
@@ -120,6 +127,36 @@ void main() {
     );
     await tester.tap(find.byTooltip('Text mode'));
     expect(tier.toggles, 1);
+  });
+
+  group('the dungeon gate', () {
+    TownSceneView scene(WidgetTester tester) =>
+        tester.widget<TownSceneView>(find.byKey(const ValueKey('town-scene')));
+
+    testWidgets('with no ritual waiting the gate is not lit', (tester) async {
+      await pumpShell(tester, host(tier: AdventureTier.pixel));
+      expect(scene(tester).view.dungeonOpen, isFalse);
+    });
+
+    testWidgets('with a pending ritual the gate glows and opens the dungeon', (
+      tester,
+    ) async {
+      final (household, ritual) = ritualFixture();
+      await pumpShell(
+        tester,
+        host(
+          tier: AdventureTier.pixel,
+          battle: MonthEndBattle.from(ritual, household),
+          openers: const TownPlaceOpeners(openDungeon: DungeonScreen.open),
+        ),
+      );
+      expect(scene(tester).view.dungeonOpen, isTrue);
+      // The gate sits off-screen at the default zoom, so hand the scene's
+      // tap result straight to the shell.
+      scene(tester).onTarget(const GateTarget());
+      await pumpUi(tester);
+      expect(find.byType(DungeonScreen), findsOneWidget);
+    });
   });
 
   testWidgets('Shop without a shop yet explains what is coming', (

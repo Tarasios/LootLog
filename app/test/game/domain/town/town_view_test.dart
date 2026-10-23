@@ -106,5 +106,14 @@ void main() {
       expect(renamed, isNot(base));
       expect(switched, isNot(base));
     });
+
+    test('the dungeon gate opening makes the view differ', () {
+      final closed = TownView.from(GameState.initial(), adults, startedAt);
+      final open = TownView.from(GameState.initial(), adults, startedAt, dungeonOpen: true);
+      expect(closed.dungeonOpen, isFalse);
+      expect(open.dungeonOpen, isTrue);
+      expect(open, isNot(closed));
+      expect(open, TownView.from(GameState.initial(), adults, startedAt, dungeonOpen: true));
+    });
   });
 }

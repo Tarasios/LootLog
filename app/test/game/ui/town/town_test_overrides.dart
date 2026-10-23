@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/game/assets/asset_registry.dart';
+import 'package:lootlog/game/battle/month_end_battle.dart';
 import 'package:lootlog/game/data/game_providers.dart';
 import 'package:lootlog/game/domain/clock.dart';
 import 'package:lootlog/game/domain/decor/catalog.dart';
@@ -23,6 +24,7 @@ import 'package:lootlog/game/domain/game_projection.dart';
 import 'package:lootlog/game/domain/game_state.dart';
 import 'package:lootlog/game/scenes/town/town_game.dart' show TownsfolkEntry;
 import 'package:lootlog/game/skin_prefs.dart';
+import 'package:lootlog/game/ui/dungeon/dungeon_providers.dart';
 import 'package:lootlog/game/ui/hall_ledger_view.dart';
 import 'package:lootlog/game/ui/town/town_townsfolk.dart';
 
@@ -31,7 +33,8 @@ import '../hall_harness.dart';
 /// The hall harness overrides plus [game] (default: the lived-in sample hall;
 /// or, with a [liveStore], the state projected live from that log so commands
 /// show up),
-/// no townsfolk (unless given), and [registry] (default: [AssetRegistry.empty], so every
+/// no townsfolk (unless given), [battle] as the month-end battle (default:
+/// none, so the gate is closed), and [registry] (default: [AssetRegistry.empty], so every
 /// sprite is a labelled placeholder and no image is decoded).
 ///
 /// The decoration catalogue defaults to [DecorCatalog.empty] so the shell
@@ -48,6 +51,7 @@ List<Override> townTestOverrides({
   DecorCatalog catalog = DecorCatalog.empty,
   HallLedgerView? view,
   GameCommandsService? service,
+  MonthEndBattle? battle,
 }) {
   final state = game ?? projectGameState(sampleEvents());
   return [
@@ -64,6 +68,7 @@ List<Override> townTestOverrides({
     if (liveStore == null)
       gameStateProvider.overrideWith((ref) => Stream.value(state)),
     townsfolkProvider.overrideWithValue(townsfolk),
+    monthEndBattleProvider.overrideWithValue(battle),
   ];
 }
 
@@ -161,8 +166,10 @@ class TownTestHarness {
     AdventureTierNotifier? tierNotifier,
     bool registryFails = false,
     AssetRegistry registry = AssetRegistry.empty,
+    MonthEndBattle? battle,
   }) => townTestOverrides(
     tier: tier,
+    battle: battle,
     tierNotifier: tierNotifier,
     registry: registry,
     registryFails: registryFails,

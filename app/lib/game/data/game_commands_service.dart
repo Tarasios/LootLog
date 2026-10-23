@@ -187,6 +187,18 @@ class GameCommandsService {
     return run((c) => c.fightBoss(month, loggedDays: days));
   }
 
+  /// Finishes [month]'s month-end dungeon: the spoils chest and the on-time
+  /// bonus ([onTimeRitualMonths] is read from the ledger by the caller).
+  Future<GameCommandResult> finishMonthRitual(
+    Month month, {
+    required int onTimeRitualMonths,
+  }) => run(
+    (commands) => commands.finishMonthRitual(
+      month,
+      onTimeRitualMonths: onTimeRitualMonths,
+    ),
+  );
+
   // ---- Party ---------------------------------------------------------------------------
 
   /// Joins the household party. (The reward runner already keeps membership
