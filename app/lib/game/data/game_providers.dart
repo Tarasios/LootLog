@@ -6,6 +6,8 @@
 /// - [gameStateProvider]: the projection, re-emitted after every append
 ///   (local commands, reward runs, sync merges).
 /// - [gameClockProvider]: the game's clock (overridden in tests).
+/// - [decorCatalogProvider] / [todaysShopProvider]: the decoration catalogue
+///   and today's shop rotation.
 /// - [gameCommandsServiceProvider]: this device's adult's
 ///   [GameCommandsService] (null until local setup exists).
 ///
@@ -18,10 +20,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/actions.dart';
 import '../../data/providers.dart';
 import '../domain/clock.dart';
+import '../domain/decor/catalog.dart';
+import '../domain/decor/shop_rotation.dart';
 import '../domain/game_event_stamp.dart';
 import '../domain/game_event_store.dart';
 import '../domain/game_projection.dart';
 import '../domain/game_state.dart';
+import '../domain/game_values.dart';
+import 'catalog_loader.dart';
 import 'drift_game_event_store.dart';
 import 'game_commands_service.dart';
 
@@ -56,6 +62,7 @@ final gameCommandsServiceProvider = Provider<GameCommandsService?>(
       clock: ref.watch(gameClockProvider),
       stamp: GameEventStamp(deviceId: ref.watch(deviceIdProvider)),
       ledger: db.eventsDao.allEvents,
+      catalog: ref.watch(decorCatalogProvider).value ?? DecorCatalog.empty,
     );
   },
   dependencies: [
@@ -64,5 +71,21 @@ final gameCommandsServiceProvider = Provider<GameCommandsService?>(
     gameEventStoreProvider,
     deviceIdProvider,
     gameClockProvider,
+    decorCatalogProvider,
   ],
 );
+
+/// The decoration catalogue (empty until loaded, or if the file is broken).
+final decorCatalogProvider = FutureProvider<DecorCatalog>(
+  (ref) => loadDecorCatalog(),
+);
+
+/// Today's shop items, the same on every device. Empty until the catalogue
+/// loads.
+final todaysShopProvider = Provider<List<DecorItem>>((ref) {
+  final catalog = ref.watch(decorCatalogProvider).value ?? DecorCatalog.empty;
+  return ShopRotation.forDay(
+    catalog,
+    GameDay.fromInstant(ref.watch(gameClockProvider).now()),
+  );
+}, dependencies: [decorCatalogProvider, gameClockProvider]);

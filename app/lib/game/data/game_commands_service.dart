@@ -17,7 +17,10 @@ library;
 import '../../domain/event.dart';
 import '../../domain/time.dart';
 import '../domain/clock.dart';
+import '../domain/commands/decor_commands.dart';
 import '../domain/commands/game_commands.dart';
+import '../domain/decor/catalog.dart';
+import '../domain/decor/decor_values.dart';
 import '../domain/game_event_stamp.dart';
 import '../domain/game_event_store.dart';
 import '../domain/game_projection.dart';
@@ -34,6 +37,7 @@ class GameCommandsService {
     required this.stamp,
     this.clock = const SystemClock(),
     this.ledger,
+    this.catalog = DecorCatalog.empty,
   });
 
   /// Where game events are read from and appended to.
@@ -52,26 +56,53 @@ class GameCommandsService {
   /// boss fight's logged-day count). Null treats those counts as zero.
   final Future<List<Event>> Function()? ledger;
 
+  /// The decoration catalogue the decoration commands look items up in.
+  final DecorCatalog catalog;
+
   Future<void> _tail = Future.value();
+
+  /// Queues [body] behind every earlier call, so [run] and [runDecor] share
+  /// one line and each call sees the previous call's events.
+  Future<T> _serialized<T>(Future<T> Function() body) {
+    final result = _tail.then((_) => body());
+    _tail = result.then((_) {}, onError: (Object _) {});
+    return result;
+  }
 
   /// Runs [command] against the current state and appends its events when
   /// accepted. Serialized: each call sees the previous call's events.
   Future<GameCommandResult> run(
-      GameCommandResult Function(GameCommands commands) command) {
-    final result = _tail.then((_) async {
-      final state = projectGameState(await store.all());
-      final r = command(GameCommands(
+    GameCommandResult Function(GameCommands commands) command,
+  ) => _serialized(() async {
+    final state = projectGameState(await store.all());
+    final result = command(
+      GameCommands(state: state, clock: clock, actorId: actorId, stamp: stamp),
+    );
+    if (result.accepted && result.events.isNotEmpty) {
+      await store.append(result.events);
+    }
+    return result;
+  });
+
+  /// Like [run], for the decoration commands.
+  Future<GameCommandResult> runDecor(
+    GameCommandResult Function(DecorCommands commands) command,
+  ) => _serialized(() async {
+    final state = projectGameState(await store.all());
+    final result = command(
+      DecorCommands(
         state: state,
         clock: clock,
         actorId: actorId,
         stamp: stamp,
-      ));
-      if (r.accepted && r.events.isNotEmpty) await store.append(r.events);
-      return r;
-    });
-    _tail = result.then((_) {}, onError: (Object _) {});
+        catalog: catalog,
+      ),
+    );
+    if (result.accepted && result.events.isNotEmpty) {
+      await store.append(result.events);
+    }
     return result;
-  }
+  });
 
   // ---- Hall ----------------------------------------------------------------
 
@@ -111,8 +142,7 @@ class GameCommandsService {
   Future<GameCommandResult> customizeHero({
     required String field,
     required String value,
-  }) =>
-      run((c) => c.customizeHero(field: field, value: value));
+  }) => run((c) => c.customizeHero(field: field, value: value));
 
   // ---- Expeditions ---------------------------------------------------------------
 
@@ -135,8 +165,9 @@ class GameCommandsService {
   /// logged-day count read from the ledger.
   Future<GameCommandResult> fightBoss(Month month) async {
     final read = ledger;
-    final days =
-        read == null ? 0 : loggedDaysInMonth(await read(), actorId, month);
+    final days = read == null
+        ? 0
+        : loggedDaysInMonth(await read(), actorId, month);
     return run((c) => c.fightBoss(month, loggedDays: days));
   }
 
@@ -148,4 +179,41 @@ class GameCommandsService {
 
   /// Leaves the party.
   Future<GameCommandResult> leaveParty() => run((c) => c.leaveParty());
+
+  // ---- Decoration ------------------------------------------------------------------------
+
+  /// Buys [itemId] from today's shop.
+  Future<GameCommandResult> buyItem(String itemId) =>
+      runDecor((commands) => commands.buyItem(itemId));
+
+  /// Claims the one-time starter furniture set.
+  Future<GameCommandResult> claimStarterSet() =>
+      runDecor((commands) => commands.claimStarterSet());
+
+  /// Places an owned [itemId] at a cell of [space].
+  Future<GameCommandResult> placeItem({
+    required String itemId,
+    required DecorSpace space,
+    required int column,
+    required int row,
+    int rotation = 0,
+    String? placementId,
+  }) => runDecor(
+    (commands) => commands.placeItem(
+      itemId: itemId,
+      space: space,
+      column: column,
+      row: row,
+      rotation: rotation,
+      placementId: placementId,
+    ),
+  );
+
+  /// Takes a placed item back into the inventory.
+  Future<GameCommandResult> storePlacement(String placementId) =>
+      runDecor((commands) => commands.storePlacement(placementId));
+
+  /// Equips an owned outfit piece on this device's adult's hero.
+  Future<GameCommandResult> equipItem(String itemId) =>
+      runDecor((commands) => commands.equipItem(itemId));
 }
