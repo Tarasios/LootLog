@@ -27,20 +27,24 @@ ChestDecorDrop rollChestDecor(
   DecorCatalog catalog, {
   required bool Function(DecorItem item) alreadyOwned,
 }) {
-  if (!rng.chance(Balance.chestDecorChancePermille[chestType] ?? 0)) return ChestDecorDrop.nothing;
+  if (!rng.chance(Balance.chestDecorChancePermille[chestType] ?? 0))
+    return ChestDecorDrop.nothing;
   final rarityRoll = rng.nextInt(1000);
   final rareCutoff = Balance.chestRareChancePermille[chestType] ?? 0;
-  final uncommonCutoff = rareCutoff + (Balance.chestUncommonChancePermille[chestType] ?? 0);
+  final uncommonCutoff =
+      rareCutoff + (Balance.chestUncommonChancePermille[chestType] ?? 0);
   final rarity = rarityRoll < rareCutoff
       ? DecorRarity.rare
       : rarityRoll < uncommonCutoff
-          ? DecorRarity.uncommon
-          : DecorRarity.common;
+      ? DecorRarity.uncommon
+      : DecorRarity.common;
   var pool = catalog.chestPool(rarity);
   if (pool.isEmpty) pool = catalog.chestPool(DecorRarity.common);
   if (pool.isEmpty) return ChestDecorDrop.nothing;
-  final sorted = [...pool]..sort((first, second) => first.id.compareTo(second.id));
+  final sorted = [...pool]
+    ..sort((first, second) => first.id.compareTo(second.id));
   final item = rng.pick(sorted);
-  if (alreadyOwned(item)) return const ChestDecorDrop(duplicateGems: Balance.duplicateDecorGems);
+  if (alreadyOwned(item))
+    return const ChestDecorDrop(duplicateGems: Balance.duplicateDecorGems);
   return ChestDecorDrop(item: item);
 }

@@ -10,7 +10,9 @@ import 'package:lootlog/game/ui/game_home.dart';
 import 'package:lootlog/game/ui/town/town_place_openers.dart';
 import 'package:lootlog/game/ui/town/town_shell.dart';
 
-import '../hall_harness.dart' show FixedTier, before, sampleEvents, storeWith;
+import 'package:lootlog/game/domain/decor/catalog.dart';
+import '../hall_harness.dart'
+    show FixedTier, before, kShippedCatalog, sampleEvents, storeWith;
 import 'town_test_overrides.dart';
 
 /// Counts toggles instead of writing the tier file.
@@ -30,9 +32,11 @@ Widget host({
   bool registryFails = false,
   TownPlaceOpeners openers = const TownPlaceOpeners(),
   AdventureTierNotifier? tierNotifier,
+  DecorCatalog catalog = DecorCatalog.empty,
 }) => ProviderScope(
   overrides: townTestOverrides(
     tier: tier,
+    catalog: catalog,
     tierNotifier: tierNotifier,
     liveStore: liveStore,
     registryFails: registryFails,
@@ -264,7 +268,12 @@ void main() {
       final store = await tester.runAsync(() => storeWith(sampleEvents()));
       await pumpShell(
         tester,
-        host(tier: AdventureTier.pixel, liveStore: store),
+        // Items so chests can be opened, but no starter set to claim.
+        host(
+          tier: AdventureTier.pixel,
+          liveStore: store,
+          catalog: DecorCatalog(kShippedCatalog.items),
+        ),
       );
       await tester.tap(find.text('Inbox'));
       await pumpUi(tester);

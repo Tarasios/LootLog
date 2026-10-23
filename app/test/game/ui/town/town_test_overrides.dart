@@ -59,10 +59,10 @@ List<Override> townTestOverrides({
       tierNotifier: tierNotifier,
       view: view,
       service: service,
+      decorCatalog: Future.value(catalog),
     ),
     if (liveStore == null)
       gameStateProvider.overrideWith((ref) => Stream.value(state)),
-    decorCatalogProvider.overrideWith((ref) async => catalog),
     townsfolkProvider.overrideWithValue(townsfolk),
   ];
 }

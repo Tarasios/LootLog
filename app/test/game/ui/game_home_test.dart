@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/domain/time.dart';
+import 'package:lootlog/game/domain/decor/catalog.dart';
 import 'package:lootlog/game/domain/game_event.dart';
 import 'package:lootlog/game/domain/game_values.dart';
 import 'package:lootlog/game/game_sprite.dart';
@@ -139,6 +142,27 @@ void main() {
     await tester.tap(find.text('Huzzah!'));
     await settle(tester);
     expect(find.text('Wood chest'), findsNothing);
+  });
+
+  testWidgets('the Open button waits, labelled, until the decorations have '
+      'loaded', (tester) async {
+    final store = await storeWith(sampleEvents());
+    final catalogLoading = Completer<DecorCatalog>();
+    await pumpHall(tester,
+        store: store, decorCatalog: catalogLoading.future);
+    expect(find.widgetWithText(FilledButton, 'Open'), findsNothing);
+    final waiting = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Unpacking…'));
+    expect(waiting.onPressed, isNull);
+
+    catalogLoading.complete(kShippedCatalog);
+    await settle(tester);
+    expect(find.widgetWithText(FilledButton, 'Unpacking…'), findsNothing);
+    expect(
+        tester
+            .widget<FilledButton>(find.widgetWithText(FilledButton, 'Open'))
+            .onPressed,
+        isNotNull);
   });
 
   testWidgets('claiming a reward credits it and says so', (tester) async {

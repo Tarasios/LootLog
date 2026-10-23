@@ -10,6 +10,7 @@ import 'package:lootlog/features/settings/play_mode.dart';
 import 'package:lootlog/features/settings/play_mode_providers.dart';
 import 'package:lootlog/features/shell/home_gate.dart';
 import 'package:lootlog/features/shell/loading_screen.dart';
+import 'package:lootlog/game/domain/decor/catalog.dart';
 import 'package:lootlog/game/domain/game_event_store.dart';
 import 'package:lootlog/game/skin_prefs.dart';
 import 'package:lootlog/game/ui/game_home.dart';
@@ -49,7 +50,12 @@ Future<void> pumpGate(
     overrides: [
       playPrefsProvider.overrideWithValue(prefs),
       // The hall over an empty in-memory game log, no database needed.
-      ...hallOverrides(store: InMemoryGameEventStore(), tier: tier),
+      ...hallOverrides(
+        store: InMemoryGameEventStore(),
+        tier: tier,
+        // No catalogue: no starter set welcome dialog over the gate.
+        decorCatalog: Future.value(DecorCatalog.empty),
+      ),
       townsfolkProvider.overrideWithValue(const []),
     ],
     child: MaterialApp(

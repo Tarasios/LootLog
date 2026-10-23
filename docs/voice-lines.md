@@ -442,6 +442,7 @@ shortfalls at buildings and expeditions.
 | `nothingToCollect` | Nothing ready yet. Check back in a little while. |
 | `storehouseFull` | The Storehouse is full. Spend some materials or upgrade the Storehouse to make room. |
 | `unknownChest` | That chest has already been opened. |
+| `catalogNotReady` | The chest is still being unpacked. Give it a moment and try again. |
 | `unknownReward` | That reward has already been claimed. |
 | `unknownGearSlot` | That gear slot doesn't exist. |
 | `unknownGearType` | That slot doesn't take that kind of gear. |

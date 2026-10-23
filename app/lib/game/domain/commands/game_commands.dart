@@ -78,6 +78,10 @@ enum GameRejection {
   /// No such chest waits unopened for the actor.
   unknownChest,
 
+  /// The decoration catalogue has not loaded yet, so a chest opened now
+  /// would lose its decoration for good. Try again in a moment.
+  catalogNotReady,
+
   /// No such reward waits unclaimed for the actor.
   unknownReward,
 

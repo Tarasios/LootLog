@@ -56,6 +56,9 @@ class GameRewardRunner {
     this.clock = const SystemClock(),
     this.engine = const RewardEngine(),
     Future<DecorCatalog> Function() loadCatalog = loadDecorCatalog,
+    // A private field can't be a named constructor parameter, so this can't be
+    // an initializing formal.
+    // ignore: prefer_initializing_formals
   }) : _loadCatalog = loadCatalog;
 
   final AppDatabase db;
@@ -123,7 +126,14 @@ class GameRewardRunner {
 
     // Streak milestones read the streaks the engine just extended. Granted
     // once per person per milestone and never taken back.
-    final catalog = _catalog ??= await _loadCatalog();
+    // An empty catalogue (not loaded, or unreadable) is never kept: skip the
+    // milestones this run and look again next run.
+    var catalog = _catalog;
+    if (catalog == null) {
+      final loaded = await _loadCatalog();
+      if (loaded.items.isEmpty) return out.length;
+      catalog = _catalog = loaded;
+    }
     final afterEngine = out.isEmpty
         ? game
         : projectGameState(await db.gameEventsDao.allGameEvents());

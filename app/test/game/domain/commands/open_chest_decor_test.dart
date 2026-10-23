@@ -102,4 +102,23 @@ void main() {
     final withDuplicate = (second.events.single as ChestOpened).contents.gems;
     expect(withDuplicate, plainGems + Balance.duplicateDecorGems);
   });
+
+  test('the gems and tokens are the same with or without a decoration drop', () {
+    final chestId = 'ritual.spoils:alex:2026-09';
+    GameCommandResult open(DecorCatalog withCatalog) => GameCommands(
+          state: stateWithUnopenedChest(ChestType.spoils, chestId: chestId),
+          clock: FixedClock(DateTime.utc(2026, 10, 2)),
+          actorId: 'alex',
+          stamp: GameEventStamp(deviceId: 'device', newEventId: () => 'same-chest-event'),
+          catalog: withCatalog,
+        ).openChest(chestId);
+
+    final plain = open(DecorCatalog.empty);
+    final withDrop = open(catalog);
+    expect(withDrop.events.whereType<ItemAcquired>(), hasLength(1), reason: 'a real, non-duplicate drop');
+    final plainLoot = (plain.events.single as ChestOpened).contents;
+    final dropLoot = (withDrop.events.first as ChestOpened).contents;
+    expect(dropLoot.gems, plainLoot.gems);
+    expect(dropLoot.tokens, plainLoot.tokens);
+  });
 }

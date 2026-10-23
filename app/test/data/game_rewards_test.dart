@@ -226,6 +226,24 @@ void main() {
       expect(await acquiredItems(), isEmpty);
     });
 
+    test('an empty catalogue is not kept: milestones come on a later run',
+        () async {
+      var loads = 0;
+      final milestoneRunner = GameRewardRunner(
+        db: db,
+        deviceId: 'dev',
+        loadCatalog: () async => ++loads == 1 ? DecorCatalog.empty : catalog,
+      );
+      await logDays(7);
+      await milestoneRunner.run();
+      expect(await acquiredItems(), isEmpty);
+
+      await milestoneRunner.run();
+      expect(await acquiredItems(),
+          unorderedEquals(['streak_7_title', 'streak_7_item']));
+      expect(loads, 2);
+    });
+
     test('a catalogue that fails to load never breaks the reward run',
         () async {
       final milestoneRunner = GameRewardRunner(

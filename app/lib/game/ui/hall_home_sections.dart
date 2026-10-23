@@ -391,6 +391,10 @@ class InboxPanel extends ConsumerWidget {
         final t = a.grantedAt.compareTo(b.grantedAt);
         return t != 0 ? t : a.rewardId.compareTo(b.rewardId);
       });
+    // A chest opened before the decoration catalogue loads would lose its
+    // decoration for good (the roll is stored in the event), so wait.
+    final decorsReady =
+        ref.watch(decorCatalogProvider).value?.items.isNotEmpty ?? false;
     if (chests.isEmpty && rewards.isEmpty) {
       return HallSection(
         title: 'Inbox',
@@ -417,8 +421,10 @@ class InboxPanel extends ConsumerWidget {
                   label: HallNames.chest(c.value), scale: 1),
               title: HallNames.chest(c.value),
               subtitle: _chestReason(c.key),
-              action: 'Open',
-              onPressed: () => _open(context, ref, c.key, c.value),
+              action: decorsReady ? 'Open' : 'Unpacking…',
+              onPressed: decorsReady
+                  ? () => _open(context, ref, c.key, c.value)
+                  : null,
             ),
           for (final r in rewards.take(maxRewardRows))
             _InboxRow(
@@ -524,7 +530,7 @@ class _InboxRow extends StatelessWidget {
   final String title;
   final String subtitle;
   final String action;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) => Padding(

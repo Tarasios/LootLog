@@ -127,8 +127,18 @@ class GameCommandsService {
   // ---- Chests and rewards ----------------------------------------------------
 
   /// Opens a waiting chest; the [ChestOpened] event holds what it rolled.
-  Future<GameCommandResult> openChest(String chestId) =>
-      run((c) => c.openChest(chestId));
+  ///
+  /// Refused until the decoration catalogue has loaded: the roll is stored in
+  /// the event for good, so opening a chest without it would silently lose
+  /// the chest's decoration.
+  Future<GameCommandResult> openChest(String chestId) {
+    if (catalog.items.isEmpty) {
+      return Future.value(
+        const GameCommandResult.rejected(GameRejection.catalogNotReady),
+      );
+    }
+    return run((c) => c.openChest(chestId));
+  }
 
   /// Claims a waiting reward.
   Future<GameCommandResult> claimReward(String rewardId) =>
