@@ -18,6 +18,7 @@ import '../../scenes/room/room_game.dart';
 import '../../scenes/room/room_scene_view.dart';
 import '../hall_common.dart';
 import '../hall_ledger_view.dart';
+import 'goal_pictures.dart';
 import 'inventory_tray.dart';
 import 'wardrobe_sheet.dart';
 
@@ -133,7 +134,9 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
       personId: widget.personId,
       ownerName: ownerName,
       viewerId: viewerId,
+      goalPictures: ref.watch(goalPictureShasProvider),
     );
+    final goalPictures = ref.watch(goalPictureImagesProvider).value ?? const {};
 
     return AdventureSpriteScope(
       child: Scaffold(
@@ -170,6 +173,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
                       key: const ValueKey('room-scene'),
                       view: view,
                       registry: registryLoad.value ?? AssetRegistry.bundled,
+                      pictures: goalPictures,
                       onDrop: (item, column, row) {
                         if (_editing) unawaited(_place(item, column, row));
                       },

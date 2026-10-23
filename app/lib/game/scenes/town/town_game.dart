@@ -3,12 +3,14 @@
 library;
 
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 
 import '../../assets/asset_catalog.dart';
 import '../../assets/asset_key.dart';
+import '../../domain/decor/catalog.dart';
 import '../../domain/town/town_layout.dart';
 import '../../domain/town/town_view.dart';
 import '../camera_controls.dart';
@@ -24,6 +26,8 @@ class TownGame extends FlameGame {
     required TownView view,
     this.ambientLife = true,
     this.townsfolk = const [],
+    this.catalog = DecorCatalog.empty,
+    this.pictures = const {},
   }) : _view = view,
        cameraControls = CameraControls(
          worldWidth: view.layout.columns * kTileSize,
@@ -33,6 +37,14 @@ class TownGame extends FlameGame {
   final PackAtlas atlas;
   final bool ambientLife;
 
+  /// Names and art of the placed decorations; a placement the catalogue does
+  /// not know is not drawn.
+  DecorCatalog catalog;
+
+  /// Decoded goal pictures by sha256; a statue whose picture is absent is
+  /// drawn as the plain statue.
+  Map<String, ui.Image> pictures;
+
   final List<Villager> _townsfolkVillagers = [];
 
   /// Dependents and pets who stroll beside the default villagers (only with
@@ -41,10 +53,11 @@ class TownGame extends FlameGame {
   final CameraControls cameraControls;
   TownView _view;
   final List<Component> _plotsAndHouses = [];
+  final List<Component> _decorations = [];
   GateGlow? _gateGlow;
 
   /// Every key the scene can draw, for preloading.
-  static Iterable<AssetKey> keysFor(TownView view) sync* {
+  static Iterable<AssetKey> keysFor(TownView view, [DecorCatalog catalog = DecorCatalog.empty]) sync* {
     yield* const [
       AssetKey('town', 'ground', 'grass'),
       AssetKey('town', 'ground', 'path'),
@@ -68,11 +81,15 @@ class TownGame extends FlameGame {
         yield GameAssetKeys.building(buildingType, plot.tier);
       }
     }
+    for (final placement in view.townPlacements) {
+      final item = catalog.itemFor(placement.itemId);
+      if (item != null) yield item.assetKey;
+    }
   }
 
   @override
   Future<void> onLoad() async {
-    await atlas.preload(keysFor(_view));
+    await atlas.preload(keysFor(_view, catalog));
     final tile = Vector2.all(kTileSize);
     world.add(GroundLayer(atlas, _view.layout));
     for (final cell in _view.layout.treeCells) {
@@ -116,6 +133,7 @@ class TownGame extends FlameGame {
       await _addTownsfolk();
     }
     _addPlotsAndHouses();
+    _addDecorations();
     _syncGateGlow();
     _syncCamera();
   }
@@ -174,16 +192,41 @@ class TownGame extends FlameGame {
     await _addTownsfolk();
   }
 
-  /// Replaces the plots and houses with [view]'s.
-  Future<void> updateView(TownView view) async {
+  /// Replaces the plots, houses and decorations with [view]'s (and the goal
+  /// pictures and catalogue with [newPictures] and [newCatalog], when given).
+  Future<void> updateView(
+    TownView view, {
+    Map<String, ui.Image>? newPictures,
+    DecorCatalog? newCatalog,
+  }) async {
     _view = view;
-    await atlas.preload(keysFor(view));
-    for (final component in _plotsAndHouses) {
+    if (newPictures != null) pictures = newPictures;
+    if (newCatalog != null) catalog = newCatalog;
+    await atlas.preload(keysFor(view, catalog));
+    for (final component in [..._plotsAndHouses, ..._decorations]) {
       component.removeFromParent();
     }
     _plotsAndHouses.clear();
+    _decorations.clear();
     _addPlotsAndHouses();
+    _addDecorations();
     _syncGateGlow();
+  }
+
+  void _addDecorations() {
+    for (final placement in _view.townPlacements) {
+      final item = catalog.itemFor(placement.itemId);
+      if (item == null) continue;
+      final cell = TownCell(placement.column, placement.row);
+      final questId = questIdOfTrophy(item.id);
+      final picture = questId == null ? null : pictures[_view.goalPictures[questId]];
+      _decorations.add(
+        picture == null
+            ? TownDecorComponent(atlas: atlas, assetKey: item.assetKey, label: item.name, cell: cell)
+            : TownStatuePicture(picture: picture, cell: cell),
+      );
+    }
+    unawaited(world.addAll(_decorations));
   }
 
   void _addPlotsAndHouses() {

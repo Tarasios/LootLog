@@ -17,6 +17,8 @@
 /// - Only Adventure adults earn these; a Standard partner's absence never
 ///   changes anyone else's (rule 7).
 ///
+/// Goal trophies and statues are granted by `GoalTrophies`, called from here.
+///
 /// The spoils chest is not granted here: finishing the ritual's boss fight
 /// grants it (`GameCommands.fightBoss`).
 ///
@@ -35,6 +37,7 @@ import '../game_state.dart';
 import '../game_values.dart';
 import '../ledger_inputs.dart';
 import '../reason_codes.dart';
+import 'goal_trophies.dart';
 import 'reward_engine.dart';
 
 class LedgerMonthEndRewards implements MonthEndRewards {
@@ -150,6 +153,18 @@ class LedgerMonthEndRewards implements MonthEndRewards {
         }
       }
     }
+
+    // Goal trophies and statues: the keepsake for each goal reached in the
+    // window, once per goal.
+    out.addAll(const GoalTrophies().evaluate(
+      ledger: ledger,
+      now: hh,
+      atWindowStart: before(),
+      state: state,
+      party: party,
+      clock: clock,
+      stamp: stamp,
+    ));
     return out;
   }
 

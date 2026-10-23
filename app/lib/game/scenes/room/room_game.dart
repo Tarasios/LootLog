@@ -2,6 +2,7 @@
 library;
 
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
@@ -21,11 +22,15 @@ class RoomItemView {
     required this.placement,
     required this.item,
     required this.cells,
+    this.pictureSha256,
   });
 
   final Placement placement;
   final DecorItem item;
   final Set<(int, int)> cells;
+
+  /// The picture of the goal this trophy celebrates, when it has one.
+  final String? pictureSha256;
 }
 
 /// Everything the room scene and screen need to show one person's room.
@@ -54,6 +59,7 @@ class RoomView {
     required String personId,
     required String ownerName,
     required String viewerId,
+    Map<String, String> goalPictures = const {},
   }) {
     final items = <RoomItemView>[
       for (final placement in game.decor.placementsInRoom(personId))
@@ -67,6 +73,7 @@ class RoomView {
               placement.row,
               placement.rotation,
             ),
+            pictureSha256: _goalPictureOf(item, goalPictures),
           ),
     ];
     final outfitId = game.decor.outfitOf(personId);
@@ -83,6 +90,13 @@ class RoomView {
     );
   }
 
+  /// [goalPictures] (questId → sha256) is the picture of a custom trophy's
+  /// goal; plain trophies and other furniture have none.
+  static String? _goalPictureOf(DecorItem item, Map<String, String> goalPictures) {
+    final questId = questIdOfTrophy(item.id);
+    return questId == null ? null : goalPictures[questId];
+  }
+
   /// The placed item covering ([column], [row]), if any.
   RoomItemView? itemAt(int column, int row) {
     for (final itemView in items) {
@@ -93,8 +107,11 @@ class RoomView {
 }
 
 class RoomGame extends FlameGame {
-  RoomGame({required this.atlas, required this.view})
-    : cameraControls = CameraControls(
+  RoomGame({
+    required this.atlas,
+    required this.view,
+    this.pictures = const {},
+  }) : cameraControls = CameraControls(
         worldWidth: kRoomTileColumns * kTileSize,
         worldHeight: kRoomTileRows * kTileSize,
       );
@@ -104,6 +121,10 @@ class RoomGame extends FlameGame {
 
   /// The room currently drawn.
   RoomView view;
+
+  /// Decoded goal pictures by sha256; a trophy whose picture is absent is
+  /// drawn on its stand.
+  Map<String, ui.Image> pictures;
   final List<Component> _contents = [];
 
   Iterable<AssetKey> _keys(RoomView view) => [
@@ -121,9 +142,11 @@ class RoomGame extends FlameGame {
     _syncCamera();
   }
 
-  /// Swaps the placed items and character for those of [view].
-  Future<void> updateView(RoomView newView) async {
+  /// Swaps the placed items and character for those of [newView], with the
+  /// goal [newPictures] when given.
+  Future<void> updateView(RoomView newView, {Map<String, ui.Image>? newPictures}) async {
     view = newView;
+    if (newPictures != null) pictures = newPictures;
     await atlas.preload(_keys(newView));
     for (final component in _contents) {
       component.removeFromParent();
@@ -135,8 +158,7 @@ class RoomGame extends FlameGame {
   void _addContents() {
     _contents
       ..addAll([
-        for (final itemView in view.items)
-          RoomItemComponent(atlas: atlas, itemView: itemView),
+        for (final itemView in view.items) _componentFor(itemView),
       ])
       ..add(
         RoomCharacter(
@@ -146,6 +168,13 @@ class RoomGame extends FlameGame {
         ),
       );
     unawaited(world.addAll(_contents));
+  }
+
+  PositionComponent _componentFor(RoomItemView itemView) {
+    final picture = pictures[itemView.pictureSha256];
+    return picture == null
+        ? RoomItemComponent(atlas: atlas, itemView: itemView)
+        : RoomTrophyPicture(picture: picture, itemView: itemView);
   }
 
   @override

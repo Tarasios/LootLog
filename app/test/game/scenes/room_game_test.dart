@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flame/cache.dart';
 import 'package:flame_test/flame_test.dart';
@@ -9,6 +10,7 @@ import 'package:lootlog/game/domain/decor/catalog.dart';
 import 'package:lootlog/game/domain/decor/decor_values.dart';
 import 'package:lootlog/game/domain/game_event.dart';
 import 'package:lootlog/game/domain/game_projection.dart';
+import 'package:lootlog/game/scenes/dungeon/reveal.dart';
 import 'package:lootlog/game/scenes/pack_atlas.dart';
 import 'package:lootlog/game/scenes/room/room_components.dart';
 import 'package:lootlog/game/scenes/room/room_game.dart';
@@ -71,6 +73,14 @@ RoomView roomWithBed({String viewerId = 'alex'}) {
   );
 }
 
+late ui.Image picture;
+
+Future<ui.Image> tinyPicture() async {
+  final recorder = ui.PictureRecorder();
+  ui.Canvas(recorder).drawRect(const ui.Rect.fromLTWH(0, 0, 4, 4), ui.Paint());
+  return recorder.endRecording().toImage(4, 4);
+}
+
 void main() {
   test('the room lists its placed items with the cells they cover', () {
     final view = roomWithBed();
@@ -129,4 +139,78 @@ void main() {
       expect(game.world.children.whereType<RoomCharacter>(), hasLength(1));
     },
   );
+
+  group('goal trophies', () {
+    RoomView roomWithTrophy(String itemId, {Map<String, String> goalPictures = const {}}) {
+      final game = projectGameState([
+        ItemAcquired(
+          eventId: 't1',
+          deviceId: 'd',
+          actorId: 'alex',
+          occurredAt: instant,
+          createdAt: instant,
+          acquisitionId: 'trophy:canoe',
+          itemId: itemId,
+          source: DecorSource.trophy,
+        ),
+        ItemPlaced(
+          eventId: 't2',
+          deviceId: 'd',
+          actorId: 'alex',
+          occurredAt: instant,
+          createdAt: instant,
+          placementId: 'shelf',
+          itemId: itemId,
+          space: DecorSpace.room,
+          column: 3,
+          row: 2,
+        ),
+      ]);
+      return RoomView.from(
+        game,
+        catalog,
+        personId: 'alex',
+        ownerName: 'Alex',
+        viewerId: 'alex',
+        goalPictures: goalPictures,
+      );
+    }
+
+    setUpAll(() async => picture = await tinyPicture());
+
+    test('a custom trophy carries its goal picture; a plain one never does', () {
+      final custom = roomWithTrophy(trophyItemId('canoe'), goalPictures: const {'canoe': 'sha-canoe'});
+      expect(custom.items.single.pictureSha256, 'sha-canoe');
+      expect(roomWithTrophy(trophyItemId('canoe')).items.single.pictureSha256, isNull);
+      expect(roomWithTrophy('trophy_cup', goalPictures: const {'canoe': 'sha-canoe'}).items.single.pictureSha256,
+          isNull);
+    });
+
+    testWithGame<RoomGame>(
+      'a custom trophy draws its picture instead of the stand',
+      () => RoomGame(
+        atlas: PackAtlas(AssetRegistry.empty, Images(prefix: 'assets/game/')),
+        view: roomWithTrophy(trophyItemId('canoe'), goalPictures: const {'canoe': 'sha-canoe'}),
+        pictures: {'sha-canoe': picture},
+      ),
+      (game) async {
+        await game.ready();
+        expect(game.world.descendants().whereType<RevealedPicture>(), hasLength(1));
+        expect(game.world.children.whereType<RoomItemComponent>(), isEmpty);
+      },
+    );
+
+    testWithGame<RoomGame>(
+      'a custom trophy whose picture has not loaded keeps the stand',
+      () => RoomGame(
+        atlas: PackAtlas(AssetRegistry.empty, Images(prefix: 'assets/game/')),
+        view: roomWithTrophy(trophyItemId('canoe'), goalPictures: const {'canoe': 'sha-canoe'}),
+      ),
+      (game) async {
+        await game.ready();
+        expect(game.world.descendants().whereType<RevealedPicture>(), isEmpty);
+        expect(game.world.children.whereType<RoomItemComponent>(), hasLength(1));
+      },
+    );
+  });
 }

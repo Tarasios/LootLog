@@ -11,6 +11,7 @@ import '../../assets/asset_key.dart';
 import '../../domain/town/town_layout.dart';
 import '../../domain/town/town_view.dart';
 import '../camera_controls.dart';
+import '../goal_picture_frame.dart';
 import '../pack_atlas.dart';
 
 Vector2 cellPosition(TownCell cell) =>
@@ -121,6 +122,27 @@ class KeyedSprite extends PositionComponent {
       ),
     );
   }
+}
+
+/// A decoration (bench, lamp post, plain statue) standing on one grass or
+/// statue cell, labelled when it has no art.
+class TownDecorComponent extends KeyedSprite {
+  TownDecorComponent({
+    required super.atlas,
+    required super.assetKey,
+    required super.label,
+    required TownCell cell,
+  }) : super(
+         position: cellPosition(cell),
+         size: Vector2.all(kTileSize),
+         priority: 2,
+       );
+}
+
+/// A goal statue showing its goal's own picture in a thin frame.
+class TownStatuePicture extends GoalPictureFrame {
+  TownStatuePicture({required super.picture, required TownCell cell})
+    : super(position: cellPosition(cell), size: Vector2.all(kTileSize));
 }
 
 /// What stands on one hall plot, plus scaffolding and the ready bubble. The

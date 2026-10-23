@@ -443,6 +443,10 @@ abstract final class Balance {
   /// (bounds the catch-up over an existing ledger).
   static const int monthEndLookbackMonths = 2;
 
+  /// A reached goal earns a custom trophy (its own picture) when it took at
+  /// least this many month-end rituals — consistency, never a dollar amount.
+  static const int customTrophyMinRituals = 2;
+
   /// The gold chest is a bonus for a personal category that ended a closed
   /// month at or under its limit — but only for someone who logged on at
   /// least this many days that month, so not logging never looks like

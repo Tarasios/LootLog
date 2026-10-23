@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../../assets/asset_key.dart';
 import '../../domain/decor/room_grid.dart';
 import '../camera_controls.dart';
+import '../goal_picture_frame.dart';
 import '../pack_atlas.dart';
 import '../town/town_components.dart' show KeyedSprite;
 import 'room_game.dart';
@@ -79,6 +80,21 @@ class RoomItemComponent extends KeyedSprite {
       _turned(view) ? view.item.footprintRows : view.item.footprintColumns;
   static int _height(RoomItemView view) =>
       _turned(view) ? view.item.footprintColumns : view.item.footprintRows;
+}
+
+/// A custom trophy: the goal's own picture in a thin frame, offset by the
+/// wall border like any placed item.
+class RoomTrophyPicture extends GoalPictureFrame {
+  RoomTrophyPicture({required super.picture, required this.itemView})
+    : super(
+        position: Vector2(
+          (itemView.placement.column + 1) * kTileSize,
+          (itemView.placement.row + 1) * kTileSize,
+        ),
+        size: Vector2.all(kTileSize),
+      );
+
+  final RoomItemView itemView;
 }
 
 /// The room owner's character in their worn outfit, standing near the door.

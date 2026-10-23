@@ -3,6 +3,8 @@
 /// ladder tier 3).
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -12,12 +14,16 @@ import '../../assets/asset_registry.dart';
 import '../../assets/game_asset_scope.dart';
 import '../../data/game_providers.dart';
 import '../../domain/commands/decor_commands.dart' show starterAcquisitionId;
+import '../../domain/decor/catalog.dart';
+import '../../domain/decor/decor_values.dart';
 import '../../domain/game_state.dart';
 import '../../domain/game_values.dart';
+import '../../domain/town/town_layout.dart' show TownCell;
 import '../../domain/town/town_view.dart';
 import '../../scenes/town/town_scene_view.dart';
 import '../../skin_prefs.dart';
 import '../building_sheet.dart';
+import '../decor/goal_pictures.dart';
 import '../decor/room_screen.dart';
 import '../decor/shop_screen.dart';
 import '../dungeon/dungeon_providers.dart';
@@ -27,6 +33,7 @@ import '../hall_common.dart';
 import '../hall_ledger_view.dart';
 import '../hall_status.dart';
 import 'town_bottom_bar.dart';
+import 'town_decorate_panel.dart';
 import 'town_inbox_sheet.dart';
 import 'town_place_openers.dart';
 import 'town_top_bar.dart';
@@ -77,6 +84,32 @@ class _TownShellState extends ConsumerState<TownShell> {
   /// per visit (the claim is idempotent anyway).
   bool _starterClaimScheduled = false;
 
+  /// "Decorate town" mode: taps place the picked item instead of opening
+  /// buildings.
+  bool _decorating = false;
+  DecorItem? _picked;
+
+  Future<void> _placeInTown(TownCell cell) async {
+    final picked = _picked;
+    if (picked == null) return;
+    await runHallCommand(
+      context,
+      ref,
+      (service) => service.placeItem(
+        itemId: picked.id,
+        space: DecorSpace.town,
+        column: cell.column,
+        row: cell.row,
+      ),
+    );
+    if (mounted) setState(() => _picked = null);
+  }
+
+  void _toggleDecorating() => setState(() {
+    _decorating = !_decorating;
+    _picked = null;
+  });
+
   /// Gives a player the starter furniture they have not yet received, once the
   /// catalogue and their game state have loaded. Quiet: never blocks the
   /// scene, and a refusal (already claimed) shows nothing.
@@ -125,7 +158,9 @@ class _TownShellState extends ConsumerState<TownShell> {
     final textTier = ref.watch(adventureTierProvider) == AdventureTier.text;
     if (textTier) return GameHome(onOpenLedger: onOpenLedger, links: links);
 
-    ref.watch(decorCatalogProvider);
+    final catalog = ref.watch(decorCatalogProvider).value ?? DecorCatalog.empty;
+    final goalPictureShas = ref.watch(goalPictureShasProvider);
+    final goalPictures = ref.watch(goalPictureImagesProvider).value ?? const {};
     final game = ref.watch(gameStateProvider).value ?? GameState.initial();
     final ledgerView = ref.watch(hallLedgerViewProvider);
     _claimStarterSetWhenReady(game, ledgerView.meId);
@@ -196,6 +231,7 @@ class _TownShellState extends ConsumerState<TownShell> {
             ],
             now,
             dungeonOpen: dungeonOpen,
+            goalPictures: goalPictureShas,
           );
           return Scaffold(
             body: Stack(
@@ -211,6 +247,9 @@ class _TownShellState extends ConsumerState<TownShell> {
                           onTarget: openTarget,
                           ambientLife: widget.ambientLife,
                           townsfolk: townsfolk,
+                          catalog: catalog,
+                          pictures: goalPictures,
+                          onCellTap: _decorating ? (cell) => unawaited(_placeInTown(cell)) : null,
                         ),
                 ),
                 Positioned(
@@ -226,6 +265,20 @@ class _TownShellState extends ConsumerState<TownShell> {
                       tokens: me.freezeTokens,
                     ),
                     actions: [
+                      PopupMenuButton<String>(
+                        key: const ValueKey('town-menu'),
+                        tooltip: 'Town menu',
+                        icon: const Icon(Icons.park),
+                        onSelected: (_) => _toggleDecorating(),
+                        itemBuilder: (_) => [
+                          PopupMenuItem<String>(
+                            value: 'decorate',
+                            child: Text(
+                              _decorating ? 'Done decorating' : 'Decorate town',
+                            ),
+                          ),
+                        ],
+                      ),
                       IconButton(
                         tooltip: 'Text mode',
                         icon: const Icon(Icons.notes),
@@ -237,6 +290,17 @@ class _TownShellState extends ConsumerState<TownShell> {
                     ],
                   ),
                 ),
+                if (_decorating)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: TownDecoratePanel(
+                      personId: ledgerView.meId ?? '',
+                      picked: _picked,
+                      onPick: (item) => setState(() => _picked = item),
+                    ),
+                  ),
               ],
             ),
             bottomNavigationBar: TownBottomBar(

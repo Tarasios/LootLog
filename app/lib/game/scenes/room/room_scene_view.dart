@@ -3,6 +3,7 @@
 library;
 
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flame/cache.dart';
 import 'package:flame/game.dart';
@@ -23,12 +24,16 @@ class RoomSceneView extends StatefulWidget {
     required this.registry,
     required this.onCellTap,
     required this.onDrop,
+    this.pictures = const {},
   });
 
   final RoomView view;
   final AssetRegistry registry;
   final void Function(int column, int row) onCellTap;
   final void Function(DecorItem item, int column, int row) onDrop;
+
+  /// Decoded goal pictures by sha256, for custom trophies.
+  final Map<String, ui.Image> pictures;
 
   /// The largest whole zoom at which the whole room (walls included) fits a
   /// [viewport], never below the camera's minimum.
@@ -47,13 +52,15 @@ class _RoomSceneViewState extends State<RoomSceneView> {
   late final RoomGame _game = RoomGame(
     atlas: PackAtlas(widget.registry, Images(prefix: 'assets/game/')),
     view: widget.view,
+    pictures: widget.pictures,
   );
 
   @override
   void didUpdateWidget(RoomSceneView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.view, widget.view)) {
-      unawaited(_game.updateView(widget.view));
+    if (!identical(oldWidget.view, widget.view) ||
+        !identical(oldWidget.pictures, widget.pictures)) {
+      unawaited(_game.updateView(widget.view, newPictures: widget.pictures));
     }
   }
 

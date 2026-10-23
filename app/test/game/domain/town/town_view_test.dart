@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lootlog/game/domain/decor/decor_values.dart';
 import 'package:lootlog/game/domain/game_event.dart';
 import 'package:lootlog/game/domain/game_projection.dart';
 import 'package:lootlog/game/domain/game_state.dart';
@@ -114,6 +115,48 @@ void main() {
       expect(open.dungeonOpen, isTrue);
       expect(open, isNot(closed));
       expect(open, TownView.from(GameState.initial(), adults, startedAt, dungeonOpen: true));
+    });
+    GameState gameWithBenchAt(int column) => projectGameState([
+          ItemAcquired(
+            eventId: 'b1',
+            deviceId: 'device',
+            actorId: 'alex',
+            occurredAt: startedAt,
+            createdAt: startedAt,
+            acquisitionId: 'shop:bench',
+            itemId: 'town_bench',
+            source: DecorSource.shop,
+            toTown: true,
+          ),
+          ItemPlaced(
+            eventId: 'b2',
+            deviceId: 'device',
+            actorId: 'alex',
+            occurredAt: startedAt,
+            createdAt: startedAt,
+            placementId: 'bench-spot',
+            itemId: 'town_bench',
+            space: DecorSpace.town,
+            column: column,
+            row: 6,
+          ),
+        ]);
+
+    test('placed town decorations are listed and make the view differ', () {
+      final empty = TownView.from(GameState.initial(), adults, startedAt);
+      final withBench = TownView.from(gameWithBenchAt(4), adults, startedAt);
+      expect(withBench.townPlacements.single.itemId, 'town_bench');
+      expect(empty.townPlacements, isEmpty);
+      expect(withBench, isNot(empty));
+      expect(TownView.from(gameWithBenchAt(5), adults, startedAt), isNot(withBench));
+      expect(TownView.from(gameWithBenchAt(4), adults, startedAt), withBench);
+    });
+
+    test('a goal picture arriving makes the view differ', () {
+      final base = TownView.from(gameWithBenchAt(4), adults, startedAt);
+      final pictured = TownView.from(gameWithBenchAt(4), adults, startedAt, goalPictures: const {'canoe': 'sha'});
+      expect(pictured.goalPictures, {'canoe': 'sha'});
+      expect(pictured, isNot(base));
     });
   });
 }

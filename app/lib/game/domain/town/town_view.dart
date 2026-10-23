@@ -3,6 +3,7 @@
 /// household roster on every build; never stored. Pure Dart.
 library;
 
+import '../decor/decor_state.dart' show Placement;
 import '../game_state.dart';
 import '../game_values.dart';
 import '../hall_rules.dart';
@@ -132,6 +133,8 @@ class TownView {
     required this.residents,
     this.layout = TownLayout.standard,
     this.dungeonOpen = false,
+    this.townPlacements = const [],
+    this.goalPictures = const {},
   });
 
   final List<TownPlotView> plots;
@@ -141,12 +144,20 @@ class TownView {
   /// A month-end ritual is waiting below the gate, so the gate glows.
   final bool dungeonOpen;
 
+  /// Decorations and statues standing in the town, in a stable order.
+  final List<Placement> townPlacements;
+
+  /// questId → picture sha256 of the reached goals whose statues may show
+  /// their own picture.
+  final Map<String, String> goalPictures;
+
   static TownView from(
     GameState game,
     List<TownAdult> adults,
     DateTime now, {
     TownLayout layout = TownLayout.standard,
     bool dungeonOpen = false,
+    Map<String, String> goalPictures = const {},
   }) {
     final plots = <TownPlotView>[
       for (var index = 0; index < layout.plotOrigins.length; index++)
@@ -166,6 +177,10 @@ class TownView {
       residents: List.unmodifiable(residents),
       layout: layout,
       dungeonOpen: dungeonOpen,
+      townPlacements: List.unmodifiable(
+        game.decor.townPlacements..sort((first, second) => first.placementId.compareTo(second.placementId)),
+      ),
+      goalPictures: Map.unmodifiable(goalPictures),
     );
   }
 
@@ -200,10 +215,27 @@ class TownView {
       other.layout == layout &&
       other.dungeonOpen == dungeonOpen &&
       _sameItems(other.plots, plots) &&
-      _sameItems(other.residents, residents);
+      _sameItems(other.residents, residents) &&
+      _sameItems(other.townPlacements, townPlacements) &&
+      _samePictures(other.goalPictures, goalPictures);
 
   @override
-  int get hashCode => Object.hash(layout, dungeonOpen, Object.hashAll(plots), Object.hashAll(residents));
+  int get hashCode => Object.hash(
+        layout,
+        dungeonOpen,
+        Object.hashAll(plots),
+        Object.hashAll(residents),
+        Object.hashAll(townPlacements),
+        Object.hashAll(goalPictures.entries.map((entry) => Object.hash(entry.key, entry.value))),
+      );
+
+  static bool _samePictures(Map<String, String> first, Map<String, String> second) {
+    if (first.length != second.length) return false;
+    for (final entry in first.entries) {
+      if (second[entry.key] != entry.value) return false;
+    }
+    return true;
+  }
 
   static bool _sameItems<T>(List<T> first, List<T> second) {
     if (first.length != second.length) return false;

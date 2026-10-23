@@ -3,6 +3,7 @@
 library;
 
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flame/cache.dart';
 import 'package:flame/game.dart';
@@ -11,6 +12,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../assets/asset_registry.dart';
+import '../../domain/decor/catalog.dart';
+import '../../domain/town/town_layout.dart' show TownCell;
 import '../../domain/town/town_view.dart';
 import '../pack_atlas.dart';
 import 'town_game.dart';
@@ -25,6 +28,9 @@ class TownSceneView extends StatefulWidget {
     required this.onTarget,
     this.ambientLife = true,
     this.townsfolk = const [],
+    this.catalog = DecorCatalog.empty,
+    this.pictures = const {},
+    this.onCellTap,
   });
 
   final TownView view;
@@ -34,6 +40,16 @@ class TownSceneView extends StatefulWidget {
 
   /// Dependents and pets who stroll the town.
   final List<TownsfolkEntry> townsfolk;
+
+  /// Names and art of the placed decorations.
+  final DecorCatalog catalog;
+
+  /// Decoded goal pictures by sha256, for statues.
+  final Map<String, ui.Image> pictures;
+
+  /// When set (decorating mode), every tap reports its cell here instead of
+  /// resolving to a [TownTarget].
+  final void Function(TownCell cell)? onCellTap;
 
   @override
   State<TownSceneView> createState() => _TownSceneViewState();
@@ -45,14 +61,24 @@ class _TownSceneViewState extends State<TownSceneView> {
     view: widget.view,
     ambientLife: widget.ambientLife,
     townsfolk: widget.townsfolk,
+    catalog: widget.catalog,
+    pictures: widget.pictures,
   );
   int _zoomAtPinchStart = 3;
 
   @override
   void didUpdateWidget(TownSceneView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.view != widget.view) {
-      unawaited(_game.updateView(widget.view));
+    if (oldWidget.view != widget.view ||
+        !identical(oldWidget.pictures, widget.pictures) ||
+        !identical(oldWidget.catalog, widget.catalog)) {
+      unawaited(
+        _game.updateView(
+          widget.view,
+          newPictures: widget.pictures,
+          newCatalog: widget.catalog,
+        ),
+      );
     }
     if (!listEquals(oldWidget.townsfolk, widget.townsfolk)) {
       unawaited(_game.updateTownsfolk(widget.townsfolk));
@@ -90,6 +116,11 @@ class _TownSceneViewState extends State<TownSceneView> {
             constraints.maxWidth,
             constraints.maxHeight,
           );
+          final onCellTap = widget.onCellTap;
+          if (onCellTap != null) {
+            onCellTap(cell);
+            return;
+          }
           final target = widget.view.targetAt(cell);
           if (target != null) widget.onTarget(target);
         },
