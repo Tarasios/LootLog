@@ -657,4 +657,100 @@ void main() {
       expect(a.compareTo(b), lessThan(0));
     });
   });
+
+  group('activity events', () {
+    final at = DateTime.utc(2026, 10, 3, 18);
+    Event roundTrip(Event e) => Event.fromJson(e.toJson());
+
+    test('a no-spend check-in round-trips', () {
+      final e = NoSpendCheckedIn(
+        eventId: 'e1',
+        deviceId: 'd',
+        userId: 'u1',
+        occurredAt: at,
+        createdAt: at,
+      );
+      expect(e.type, 'NoSpendCheckIn');
+      expect(roundTrip(e).toJson(), e.toJson());
+      expect(roundTrip(e), isA<NoSpendCheckedIn>());
+    });
+
+    test('a completed reconcile round-trips with its week', () {
+      final e = ReconcileCompleted(
+        eventId: 'e1',
+        deviceId: 'd',
+        userId: 'u1',
+        occurredAt: at,
+        createdAt: at,
+        weekStart: const CalendarDay(2026, 9, 28),
+      );
+      expect(e.payload(), {'weekStart': '2026-09-28'});
+      final back = roundTrip(e) as ReconcileCompleted;
+      expect(back.weekStart, const CalendarDay(2026, 9, 28));
+    });
+
+    test('an amended purchase names the purchase it replaces', () {
+      final e = PurchaseAdded(
+        eventId: 'e1',
+        deviceId: 'd',
+        userId: 'u1',
+        occurredAt: at,
+        createdAt: at,
+        purchaseId: 'p2',
+        target: const VaultCharge(),
+        amountCents: 500,
+        amendsPurchaseId: 'p1',
+      );
+      expect(e.payload()['amendsPurchaseId'], 'p1');
+      expect((roundTrip(e) as PurchaseAdded).amendsPurchaseId, 'p1');
+    });
+
+    test('a plain purchase keeps its exact wire shape', () {
+      final e = PurchaseAdded(
+        eventId: 'e1',
+        deviceId: 'd',
+        userId: 'u1',
+        occurredAt: at,
+        createdAt: at,
+        purchaseId: 'p1',
+        target: const VaultCharge(),
+        amountCents: 500,
+      );
+      expect(e.payload().containsKey('amendsPurchaseId'), isFalse);
+      expect((roundTrip(e) as PurchaseAdded).amendsPurchaseId, isNull);
+    });
+
+    test('the reducer ignores activity events', () {
+      final purchase = PurchaseAdded(
+        eventId: 'e0',
+        deviceId: 'd',
+        userId: 'u1',
+        occurredAt: at,
+        createdAt: at,
+        purchaseId: 'p1',
+        target: const VaultCharge(),
+        amountCents: 500,
+      );
+      final base = reduce([purchase], asOf: at);
+      final withActivity = reduce([
+        purchase,
+        NoSpendCheckedIn(
+            eventId: 'e1',
+            deviceId: 'd',
+            userId: 'u1',
+            occurredAt: at,
+            createdAt: at),
+        ReconcileCompleted(
+            eventId: 'e2',
+            deviceId: 'd',
+            userId: 'u1',
+            occurredAt: at,
+            createdAt: at,
+            weekStart: const CalendarDay(2026, 9, 28)),
+      ], asOf: at);
+      expect(withActivity.vaultCents, base.vaultCents);
+      expect(withActivity.warChest.balanceCents, base.warChest.balanceCents);
+      expect(withActivity.purchases.length, base.purchases.length);
+    });
+  });
 }

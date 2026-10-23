@@ -100,6 +100,12 @@ value spellings parseable forever, and add a case to the update-safety test.
   four such types. That's why **Settings → Rules → Category savings** tells
   the household to update every device before adopting, and the rules stay
   off for existing households until someone adopts them.
+- **Later ledger types ride the same opt-in.** `NoSpendCheckIn` and
+  `ReconcileCompleted` are only written once the household has adopted the
+  savings rules (`householdAcceptsNewEventTypes` in
+  `app/lib/data/game_rewards.dart`); until then the check-in and reconcile
+  actions refuse. Guild-hall game events need no gate: they live in their own
+  log, which older devices never request.
 - **Test:** `app/test/domain/event_test.dart` ("forward compatibility") checks
   decoding, byte-identical re-encoding, and that the reducer ignores the event.
 

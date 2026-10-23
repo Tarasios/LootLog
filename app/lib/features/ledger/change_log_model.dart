@@ -300,6 +300,14 @@ List<ChangeLogEntry> buildChangeLog(
           'Earned a reward',
           detail: e.rewardId,
         ),
+      NoSpendCheckedIn() => entry(
+          ChangeLogKind.purchase,
+          'Checked in: nothing spent today',
+        ),
+      ReconcileCompleted() => entry(
+          ChangeLogKind.governance,
+          'Reconciled the week of ${e.weekStart.toKey()}',
+        ),
       // Written by a newer version of LootLog; kept and synced untouched.
       UnknownEvent() => entry(
           ChangeLogKind.config,

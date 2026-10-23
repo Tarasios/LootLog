@@ -9,6 +9,7 @@
 /// [ReceiptAttached] / [ReceiptDetached].
 library;
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,6 +24,7 @@ import '../game/rewards/rewards.dart';
 import 'blobs/blob_store.dart';
 import 'blobs/media_ingest.dart';
 import 'db/database.dart';
+import 'game_rewards.dart';
 import 'providers.dart';
 
 /// Sentinel distinguishing "leave this optional field unchanged" from
@@ -43,6 +45,7 @@ final householdActionsProvider = Provider<HouseholdActions?>(
       blobs: ref.watch(blobStoreProvider),
       deviceId: ref.watch(deviceIdProvider),
       meUserId: setup.meUserId,
+      gameRewards: ref.watch(gameRewardRunnerProvider),
     );
   },
   dependencies: [
@@ -50,7 +53,22 @@ final householdActionsProvider = Provider<HouseholdActions?>(
     appDatabaseProvider,
     blobStoreProvider,
     deviceIdProvider,
+    gameRewardRunnerProvider,
   ],
+);
+
+/// The guild hall's reward runner for this device. Shared by local writes and
+/// sync merges so their runs coalesce instead of racing.
+final gameRewardRunnerProvider = Provider<GameRewardRunner?>(
+  (ref) {
+    final setup = ref.watch(localSetupProvider).value;
+    if (setup == null) return null;
+    return GameRewardRunner(
+      db: ref.watch(appDatabaseProvider),
+      deviceId: ref.watch(deviceIdProvider),
+    );
+  },
+  dependencies: [localSetupProvider, appDatabaseProvider, deviceIdProvider],
 );
 
 /// Appends the events behind the entry, detail, and OCR-confirm flows.
@@ -60,12 +78,16 @@ class HouseholdActions {
     required this.blobs,
     required this.deviceId,
     required this.meUserId,
+    this.gameRewards,
   });
 
   final AppDatabase db;
   final BlobStore blobs;
   final String deviceId;
   final String meUserId;
+
+  /// Runs after every write; null leaves game rewards out (tests, tools).
+  final GameRewardRunner? gameRewards;
 
   /// `shared` is only meaningful for personal-slice and vault charges; force it
   /// off elsewhere so [PurchaseAdded]'s invariant is never violated.
@@ -98,7 +120,7 @@ class HouseholdActions {
       taxDeductible: taxDeductible,
       note: note,
     );
-    await db.eventsDao.appendEvents([event]);
+    await _commit([event]);
     // Logging a purchase can extend a daily streak — grant any newly-earned
     // cosmetic rewards (idempotent, cosmetic-only).
     await grantPendingRewards();
@@ -108,7 +130,7 @@ class HouseholdActions {
   /// Voids a purchase (a correction that keeps the original for audit).
   Future<void> voidPurchase(String purchaseId) async {
     final now = DateTime.now().toUtc();
-    await db.eventsDao.appendEvents([
+    await _commit([
       PurchaseVoided(
         eventId: uuidv7(),
         deviceId: deviceId,
@@ -172,6 +194,7 @@ class HouseholdActions {
         taxDeductible: identical(taxDeductible, _unset)
             ? old.taxDeductible
             : taxDeductible as bool?,
+        amendsPurchaseId: old.purchaseId,
       ),
       for (final r in old.receipts)
         ReceiptAttached(
@@ -186,7 +209,7 @@ class HouseholdActions {
           sizeBytes: r.sizeBytes,
         ),
     ];
-    await db.eventsDao.appendEvents(events);
+    await _commit(events);
     return newId;
   }
 
@@ -201,7 +224,7 @@ class HouseholdActions {
         ? await ingestReceiptPdf(bytes, blobs)
         : await ingestReceiptImage(bytes, blobs);
     final now = DateTime.now().toUtc();
-    await db.eventsDao.appendEvents([
+    await _commit([
       ReceiptAttached(
         eventId: uuidv7(),
         deviceId: deviceId,
@@ -228,7 +251,7 @@ class HouseholdActions {
     required int actualCents,
   }) async {
     final now = DateTime.now().toUtc();
-    await db.eventsDao.appendEvents([
+    await _commit([
       VariableExpenseRecorded(
         eventId: uuidv7(),
         deviceId: deviceId,
@@ -252,7 +275,7 @@ class HouseholdActions {
     required List<Allocation> allocations,
   }) async {
     final now = DateTime.now().toUtc();
-    await db.eventsDao.appendEvents([
+    await _commit([
       LeftoverAllocated(
         eventId: uuidv7(),
         deviceId: deviceId,
@@ -274,7 +297,7 @@ class HouseholdActions {
   /// is only meaningful when [meUserId] is not the proposer.
   Future<void> approveWithdrawal(String proposalId) async {
     final now = DateTime.now().toUtc();
-    await db.eventsDao.appendEvents([
+    await _commit([
       PoolWithdrawalApproved(
         eventId: uuidv7(),
         deviceId: deviceId,
@@ -290,7 +313,7 @@ class HouseholdActions {
   /// Cancels (declines) a pending war-chest writ.
   Future<void> cancelWithdrawal(String proposalId) async {
     final now = DateTime.now().toUtc();
-    await db.eventsDao.appendEvents([
+    await _commit([
       PoolWithdrawalCancelled(
         eventId: uuidv7(),
         deviceId: deviceId,
@@ -306,7 +329,7 @@ class HouseholdActions {
   /// until garbage collection finds it unreferenced).
   Future<void> detachReceipt(String purchaseId, String sha256) async {
     final now = DateTime.now().toUtc();
-    await db.eventsDao.appendEvents([
+    await _commit([
       ReceiptDetached(
         eventId: uuidv7(),
         deviceId: deviceId,
@@ -322,7 +345,57 @@ class HouseholdActions {
   // ---- Configuration & governance (settings / setup / quests / chest) -----
 
   /// Appends a single [event], stamping nothing — callers build the whole event.
-  Future<void> append(Event event) => db.eventsDao.appendEvents([event]);
+  Future<void> append(Event event) => _commit([event]);
+
+  /// Every local ledger write lands here: append, then start the guild hall's
+  /// reward engine catching up (idempotent, game events only). Not awaited:
+  /// rewards never slow down or fail a write.
+  Future<void> _commit(List<Event> events) async {
+    await db.eventsDao.appendEvents(events);
+    final rewards = gameRewards;
+    if (rewards != null) unawaited(rewards.run());
+  }
+
+  /// Whether this household may record the newer event types (no-spend
+  /// check-ins, reconciles). See [householdAcceptsNewEventTypes].
+  Future<bool> acceptsNewEventTypes() async =>
+      householdAcceptsNewEventTypes(reduce(await db.eventsDao.allEvents()));
+
+  /// "Nothing spent today": counts today as an active day without a purchase.
+  /// Returns false (and records nothing) until the household accepts newer
+  /// event types — older devices could not sync it.
+  Future<bool> checkInNoSpend() async {
+    if (!await acceptsNewEventTypes()) return false;
+    final now = DateTime.now().toUtc();
+    await _commit([
+      NoSpendCheckedIn(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+      ),
+    ]);
+    return true;
+  }
+
+  /// Marks the Monday-to-Sunday week containing [day] as reconciled. Returns
+  /// false (and records nothing) until the household accepts newer event types.
+  Future<bool> completeReconcile(CalendarDay day) async {
+    if (!await acceptsNewEventTypes()) return false;
+    final now = DateTime.now().toUtc();
+    await _commit([
+      ReconcileCompleted(
+        eventId: uuidv7(),
+        deviceId: deviceId,
+        userId: meUserId,
+        occurredAt: now,
+        createdAt: now,
+        weekStart: day.weekStart,
+      ),
+    ]);
+    return true;
+  }
 
   /// Records any cosmetic rewards the household has newly earned — defeated-quest
   /// trophies and habit-streak titles/badges — as [GameRewardGranted] events so

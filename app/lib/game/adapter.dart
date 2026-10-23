@@ -607,6 +607,8 @@ List<LogEntry> buildAdventureLog(
       case SettingChanged():
       case CosmeticSet():
       case GameRewardGranted():
+      case NoSpendCheckedIn():
+      case ReconcileCompleted():
       case UnknownEvent():
       case ShortfallCovered():
       case AllowanceAdvanceProposed():

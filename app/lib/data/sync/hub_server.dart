@@ -23,6 +23,7 @@ library;
 // Blob IO here is intentionally async; the sync isolate never blocks the UI.
 // ignore_for_file: avoid_slow_async_io
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -46,11 +47,17 @@ class HubServer {
     required this.blobs,
     String? hubId,
     String? pairingSecret,
+    this.onEventsMerged,
   })  : _pinnedHubId = hubId,
         _pinnedPairingSecret = pairingSecret;
 
   final AppDatabase db;
   final BlobStore blobs;
+
+  /// Called (not awaited) after a device's pushed events — ledger or game —
+  /// are merged here: the hub device's own after-merge work, such as catching
+  /// up game rewards.
+  final Future<void> Function()? onEventsMerged;
   final String? _pinnedHubId;
   final String? _pinnedPairingSecret;
 
@@ -145,6 +152,7 @@ class HubServer {
     ];
     await db.eventsDao.appendEvents(events);
     final maxSeq = await db.hubHostDao.assignSeqs();
+    if (events.isNotEmpty) unawaited(onEventsMerged?.call());
     return _json(200, {'accepted': events.length, 'maxSeq': maxSeq});
   }
 
@@ -182,6 +190,7 @@ class HubServer {
     }
     await db.gameEventsDao.appendGameEvents(events);
     final maxSeq = await db.gameSyncDao.assignHostedSeqs();
+    if (events.isNotEmpty) unawaited(onEventsMerged?.call());
     return _json(200, {'accepted': events.length, 'maxSeq': maxSeq});
   }
 

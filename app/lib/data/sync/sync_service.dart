@@ -14,6 +14,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/sync/sync_status.dart';
+import '../actions.dart';
 import '../blobs/blob_store.dart';
 import '../blobs/receipt_offload.dart';
 import '../db/database.dart';
@@ -77,6 +78,7 @@ class SyncService {
     required this.deviceName,
     required this.onStatus,
     this.offload,
+    this.afterMerge,
   }) : _client = SyncClient(
           db: db,
           blobs: blobs,
@@ -96,6 +98,11 @@ class SyncService {
   /// unavailable (tests, or a caller that opts out).
   final ReceiptOffloadStore? offload;
 
+  /// Runs after events from elsewhere are merged into the logs (a sync pull, a
+  /// push into this device's hub, a file import) — e.g. catching up game
+  /// rewards. Must not throw.
+  final Future<void> Function()? afterMerge;
+
   final SyncClient _client;
   HttpServer? _httpServer;
   Timer? _timer;
@@ -108,7 +115,7 @@ class SyncService {
   /// details. Binds all interfaces so phones on the LAN can reach it.
   Future<HostedHubInfo> startHub({int port = 8787}) async {
     await stopHub();
-    final hub = HubServer(db: db, blobs: blobs);
+    final hub = HubServer(db: db, blobs: blobs, onEventsMerged: afterMerge);
     final server = await hub.serve(host: InternetAddress.anyIPv4, port: port);
     _httpServer = server;
     return HostedHubInfo(
@@ -141,6 +148,9 @@ class SyncService {
     }
     onStatus(SyncStatus.syncing);
     final result = await _client.syncOnce();
+    if (result.hubs.any((h) => h.pulled > 0 || h.gamePulled > 0)) {
+      await afterMerge?.call();
+    }
     if (result.allOk) {
       await maybeOffloadReceipts();
     }
@@ -268,6 +278,7 @@ class SyncService {
     await saveImportedBlobs(prepared.archive, blobs);
     await db.eventsDao.appendEvents(prepared.archive.events);
     await db.gameEventsDao.appendGameEvents(prepared.archive.gameEvents);
+    await afterMerge?.call();
     return prepared.preview;
   }
 
@@ -353,6 +364,7 @@ final syncServiceProvider = Provider<SyncService?>((ref) {
     deviceName: setup.me.name,
     onStatus: (s) => ref.read(liveSyncStatusProvider.notifier).set(s),
     offload: ref.watch(receiptOffloadStoreProvider),
+    afterMerge: ref.watch(gameRewardRunnerProvider)?.run,
   );
   ref.onDispose(service.dispose);
   return service;
@@ -361,4 +373,5 @@ final syncServiceProvider = Provider<SyncService?>((ref) {
   appDatabaseProvider,
   blobStoreProvider,
   receiptOffloadStoreProvider,
+  gameRewardRunnerProvider,
 ]);

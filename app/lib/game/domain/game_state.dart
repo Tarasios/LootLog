@@ -242,9 +242,16 @@ class PendingReward {
 /// A person's logging streak, derived from the set of covered household-local
 /// days (logged, checked in, or frozen).
 class StreakState {
-  const StreakState([this.coveredDays = const {}]);
+  const StreakState([this.coveredDays = const {}, this.frozenDays = const {}]);
 
   final Set<GameDay> coveredDays;
+
+  /// The covered days a freeze token covered. Never overlaps a logged day: a
+  /// freeze for a day that is already covered is ignored.
+  final Set<GameDay> frozenDays;
+
+  /// The days the person actually showed up (logged or checked in).
+  Set<GameDay> get loggedDays => coveredDays.difference(frozenDays);
 
   /// The most recent covered day, or null if none.
   GameDay? get lastDay => coveredDays.isEmpty
@@ -266,7 +273,9 @@ class StreakState {
 
   @override
   bool operator ==(Object other) =>
-      other is StreakState && _setEq(other.coveredDays, coveredDays);
+      other is StreakState &&
+      _setEq(other.coveredDays, coveredDays) &&
+      _setEq(other.frozenDays, frozenDays);
 
   @override
   int get hashCode => coveredDays.length;

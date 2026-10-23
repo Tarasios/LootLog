@@ -128,3 +128,91 @@ class Month implements Comparable<Month> {
   @override
   String toString() => 'Month(${toKey()})';
 }
+
+/// A calendar date in the household timezone — the unit of daily habits
+/// (active days, streaks) and of Monday-to-Sunday weeks. The game layer
+/// knows it as `GameDay`.
+class CalendarDay implements Comparable<CalendarDay> {
+  const CalendarDay(this.year, this.month, this.day)
+    : assert(month >= 1 && month <= 12, 'month must be 1..12'),
+      assert(day >= 1 && day <= 31, 'day must be 1..31');
+
+  /// Parses a `"yyyy-MM-dd"` key such as `"2026-03-07"`.
+  factory CalendarDay.parse(String key) {
+    final parts = key.split('-');
+    if (parts.length != 3) {
+      throw FormatException('Not a day key: $key');
+    }
+    final d = DateTime.utc(
+      int.parse(parts[0]),
+      int.parse(parts[1]),
+      int.parse(parts[2]),
+    );
+    final parsed = CalendarDay(d.year, d.month, d.day);
+    if (parsed.toKey() != key) {
+      throw FormatException('Day out of range: $key');
+    }
+    return parsed;
+  }
+
+  /// The household-timezone date of an [instant].
+  factory CalendarDay.fromInstant(DateTime instant) {
+    final u = instant.toUtc();
+    final local = u.add(vancouverUtcOffset(u));
+    return CalendarDay(local.year, local.month, local.day);
+  }
+
+  final int year;
+  final int month;
+  final int day;
+
+  /// UTC midnight of this date — DST-free, so day arithmetic is exact.
+  DateTime get _utc => DateTime.utc(year, month, day);
+
+  static CalendarDay _of(DateTime utc) =>
+      CalendarDay(utc.year, utc.month, utc.day);
+
+  /// The `"yyyy-MM-dd"` key.
+  String toKey() =>
+      '${year.toString().padLeft(4, '0')}-'
+      '${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
+
+  /// ISO weekday: Monday = 1 … Sunday = 7.
+  int get weekday => _utc.weekday;
+
+  /// The Monday that starts this date's Monday-to-Sunday week.
+  CalendarDay get weekStart => addDays(1 - weekday);
+
+  CalendarDay addDays(int days) => _of(_utc.add(Duration(days: days)));
+
+  CalendarDay next() => addDays(1);
+
+  CalendarDay previous() => addDays(-1);
+
+  /// Whole days from this date to [other] (negative when [other] is earlier).
+  int daysUntil(CalendarDay other) => other._utc.difference(_utc).inDays;
+
+  @override
+  int compareTo(CalendarDay other) => _utc.compareTo(other._utc);
+
+  bool operator <(CalendarDay other) => compareTo(other) < 0;
+
+  bool operator <=(CalendarDay other) => compareTo(other) <= 0;
+
+  bool operator >(CalendarDay other) => compareTo(other) > 0;
+
+  bool operator >=(CalendarDay other) => compareTo(other) >= 0;
+
+  @override
+  bool operator ==(Object other) =>
+      other is CalendarDay &&
+      other.year == year &&
+      other.month == month &&
+      other.day == day;
+
+  @override
+  int get hashCode => Object.hash(year, month, day);
+
+  @override
+  String toString() => 'CalendarDay(${toKey()})';
+}
