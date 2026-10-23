@@ -167,9 +167,9 @@ class HallState {
   @override
   bool operator ==(Object other) =>
       other is HallState &&
-      _mapEq(other.plots, plots) &&
+      _mapsEqual(other.plots, plots) &&
       other.materials == materials &&
-      _mapEq(other.lastCollectedAt, lastCollectedAt);
+      _mapsEqual(other.lastCollectedAt, lastCollectedAt);
 
   @override
   int get hashCode => Object.hash(plots.length, materials);
@@ -203,8 +203,8 @@ class HeroState {
   @override
   bool operator ==(Object other) =>
       other is HeroState &&
-      _mapEq(other.cosmetics, cosmetics) &&
-      _mapEq(other.gear, gear);
+      _mapsEqual(other.cosmetics, cosmetics) &&
+      _mapsEqual(other.gear, gear);
 
   @override
   int get hashCode => Object.hash(cosmetics.length, gear.length);
@@ -274,8 +274,8 @@ class StreakState {
   @override
   bool operator ==(Object other) =>
       other is StreakState &&
-      _setEq(other.coveredDays, coveredDays) &&
-      _setEq(other.frozenDays, frozenDays);
+      _setsEqual(other.coveredDays, coveredDays) &&
+      _setsEqual(other.frozenDays, frozenDays);
 
   @override
   int get hashCode => coveredDays.length;
@@ -325,7 +325,7 @@ class ExpeditionReport {
       other is ExpeditionReport &&
       other.region == region &&
       other.loot == loot &&
-      _listEq(other.reportLines, reportLines) &&
+      _listsEqual(other.reportLines, reportLines) &&
       other.returnedAt == returnedAt;
 
   @override
@@ -367,7 +367,7 @@ class RitualProgress {
 
   @override
   bool operator ==(Object other) =>
-      other is RitualProgress && _setEq(other.steps, steps) && other.boss == boss;
+      other is RitualProgress && _setsEqual(other.steps, steps) && other.boss == boss;
 
   @override
   int get hashCode => Object.hash(steps.length, boss);
@@ -462,15 +462,15 @@ class PersonState {
       other.hero == hero &&
       other.gems == gems &&
       other.freezeTokens == freezeTokens &&
-      _mapEq(other.unopenedChests, unopenedChests) &&
-      _mapEq(other.unclaimedRewards, unclaimedRewards) &&
+      _mapsEqual(other.unopenedChests, unopenedChests) &&
+      _mapsEqual(other.unclaimedRewards, unclaimedRewards) &&
       other.streak == streak &&
       other.activeExpedition == activeExpedition &&
       other.lastExpedition == lastExpedition &&
-      _mapEq(other.ritual, ritual) &&
+      _mapsEqual(other.ritual, ritual) &&
       other.partyId == partyId &&
-      _setEq(other.seenRewardIds, seenRewardIds) &&
-      _setEq(other.seenChestIds, seenChestIds);
+      _setsEqual(other.seenRewardIds, seenRewardIds) &&
+      _setsEqual(other.seenChestIds, seenChestIds);
 
   @override
   int get hashCode => Object.hash(personId, gems, freezeTokens, partyId);
@@ -535,8 +535,8 @@ class GameState {
   bool operator ==(Object other) =>
       other is GameState &&
       other.hall == hall &&
-      _mapEq(other.people, people) &&
-      _listEq(other.warnings, warnings);
+      _mapsEqual(other.people, people) &&
+      _listsEqual(other.warnings, warnings);
 
   @override
   int get hashCode => Object.hash(hall, people.length, warnings.length);
@@ -546,7 +546,7 @@ class GameState {
       'pool: ${hall.materials}, warnings: $warnings)';
 }
 
-bool _mapEq<K, V>(Map<K, V> first, Map<K, V> second) {
+bool _mapsEqual<K, V>(Map<K, V> first, Map<K, V> second) {
   if (identical(first, second)) return true;
   if (first.length != second.length) return false;
   for (final entry in first.entries) {
@@ -555,10 +555,10 @@ bool _mapEq<K, V>(Map<K, V> first, Map<K, V> second) {
   return true;
 }
 
-bool _setEq<T>(Set<T> first, Set<T> second) =>
+bool _setsEqual<T>(Set<T> first, Set<T> second) =>
     identical(first, second) || (first.length == second.length && first.containsAll(second));
 
-bool _listEq<T>(List<T> first, List<T> second) {
+bool _listsEqual<T>(List<T> first, List<T> second) {
   if (identical(first, second)) return true;
   if (first.length != second.length) return false;
   for (var i = 0; i < first.length; i++) {

@@ -10,7 +10,7 @@ import '../../domain/state.dart';
 import '../../domain/value_types.dart';
 import '../../ui/glossary.dart';
 
-String _cap(String text) => text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);
+String _capitalize(String text) => text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);
 
 /// The kind of a war-chest ledger line, for iconography and grouping.
 enum ChestEntryKind {
@@ -173,7 +173,7 @@ List<ChestEntry> buildWarChestLedger(
     entries.add(
       ChestEntry(
         kind: ChestEntryKind.ransack,
-        label: '${_cap(Glossary.ransack.label(isAdventure: isAdventure))} — '
+        label: '${_capitalize(Glossary.ransack.label(isAdventure: isAdventure))} — '
             '${fund?.name ?? ransack.fundId}',
         amountCents: -ransack.excessCents,
         occurredAt: ransack.occurredAt,

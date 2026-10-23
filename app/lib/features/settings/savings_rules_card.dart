@@ -56,7 +56,7 @@ class _SavingsRulesCardState extends ConsumerState<SavingsRulesCard> {
     final result = await showDialog<int>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('${_cap(Glossary.generalSavings.classic)} tax'),
+        title: Text('${_capitalize(Glossary.generalSavings.classic)} tax'),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -96,10 +96,10 @@ class _SavingsRulesCardState extends ConsumerState<SavingsRulesCard> {
       final rate = rules.generalRateFor(now);
       return ListTile(
         leading: const Icon(Icons.savings_outlined),
-        title: Text(_cap(Glossary.categorySavings.classic)),
+        title: Text(_capitalize(Glossary.categorySavings.classic)),
         subtitle: Text(
           'Active since ${monthLabel(rules.fromMonth.year, rules.fromMonth.month)}'
-          ' · ${_cap(Glossary.generalSavings.classic)} tax $rate%\n'
+          ' · ${_capitalize(Glossary.generalSavings.classic)} tax $rate%\n'
           '${Glossary.generalSavings.helper}',
         ),
         isThreeLine: true,
@@ -122,7 +122,7 @@ class _SavingsRulesCardState extends ConsumerState<SavingsRulesCard> {
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
-                    _cap(Glossary.categorySavings.classic),
+                    _capitalize(Glossary.categorySavings.classic),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
@@ -181,5 +181,5 @@ class _SavingsRulesCardState extends ConsumerState<SavingsRulesCard> {
   }
 }
 
-String _cap(String text) =>
+String _capitalize(String text) =>
     text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);

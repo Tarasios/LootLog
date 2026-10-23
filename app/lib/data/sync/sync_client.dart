@@ -356,7 +356,7 @@ class SyncClient {
     );
   }
 
-  Future<_Res> _send(String method, Uri uri,
+  Future<_HubResponse> _send(String method, Uri uri,
       {String? token, Map<String, dynamic>? body}) async {
     final request = await _http.openUrl(method, uri);
     if (token != null) request.headers.set('authorization', 'Bearer $token');
@@ -366,10 +366,10 @@ class SyncClient {
     }
     final resp = await request.close();
     final text = await resp.transform(utf8.decoder).join();
-    return _Res(resp.statusCode, text, const []);
+    return _HubResponse(resp.statusCode, text, const []);
   }
 
-  Future<_Res> _sendBytes(String method, Uri uri,
+  Future<_HubResponse> _sendBytes(String method, Uri uri,
       {String? token, List<int>? bytes}) async {
     final request = await _http.openUrl(method, uri);
     if (token != null) request.headers.set('authorization', 'Bearer $token');
@@ -382,7 +382,7 @@ class SyncClient {
     await for (final chunk in resp) {
       out.addAll(chunk);
     }
-    return _Res(resp.statusCode, '', out);
+    return _HubResponse(resp.statusCode, '', out);
   }
 
   String _hostLabel(String baseUrl) {
@@ -391,8 +391,8 @@ class SyncClient {
   }
 }
 
-class _Res {
-  const _Res(this.status, this.text, this.bytes);
+class _HubResponse {
+  const _HubResponse(this.status, this.text, this.bytes);
   final int status;
   final String text;
   final List<int> bytes;

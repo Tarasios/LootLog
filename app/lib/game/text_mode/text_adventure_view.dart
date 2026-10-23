@@ -199,7 +199,7 @@ class TextAdventureView extends StatelessWidget {
     );
   }
 
-  Widget _kv(BuildContext context, String label, String value, {bool subtle = false}) {
+  Widget _keyValueRow(BuildContext context, String label, String value, {bool subtle = false}) {
     final scheme = Theme.of(context).colorScheme;
     return Row(
       children: [

@@ -271,7 +271,7 @@ List<ActivityItem> buildActivityFeed(
           eventId: event.eventId,
           kind: ActivityKind.income,
           userId: event.userId,
-          title: '${Glossary.cap(supplies)} logged for ${who(event.forUserId)}',
+          title: '${Glossary.capitalize(supplies)} logged for ${who(event.forUserId)}',
           subtitle: monthLabel(event.month.year, event.month.month),
           amountCents: event.amountCents,
           occurredAt: event.occurredAt,

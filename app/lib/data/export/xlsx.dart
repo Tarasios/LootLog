@@ -156,7 +156,7 @@ String _workbookXml(XlsxWorkbook workbook) {
   final sheets = StringBuffer();
   for (var i = 0; i < workbook.sheets.length; i++) {
     sheets.write(
-      '<sheet name="${_attr(workbook.sheets[i].name)}" '
+      '<sheet name="${_escapeXmlAttribute(workbook.sheets[i].name)}" '
       'sheetId="${i + 1}" r:id="rId${i + 1}"/>',
     );
   }
@@ -209,13 +209,13 @@ String _rowXml(int rowNum, List<XlsxCell> cells) {
     final ref = '${_columnName(column)}$rowNum';
     final style = cell.bold ? ' s="1"' : '';
     if (cell.isNumber) {
-      buffer.write('<c r="$ref"$style><v>${_text(cell.value)}</v></c>');
+      buffer.write('<c r="$ref"$style><v>${_escapeXmlText(cell.value)}</v></c>');
     } else if (cell.value.isEmpty) {
       buffer.write('<c r="$ref"$style/>');
     } else {
       buffer.write(
         '<c r="$ref"$style t="inlineStr">'
-        '<is><t xml:space="preserve">${_text(cell.value)}</t></is></c>',
+        '<is><t xml:space="preserve">${_escapeXmlText(cell.value)}</t></is></c>',
       );
     }
   }
@@ -236,11 +236,11 @@ String _columnName(int index) {
 }
 
 /// Escapes XML text content (`&`, `<`, `>`).
-String _text(String value) => value
+String _escapeXmlText(String value) => value
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;');
 
 /// Escapes an XML attribute value (text plus quotes).
-String _attr(String value) =>
-    _text(value).replaceAll('"', '&quot;').replaceAll("'", '&apos;');
+String _escapeXmlAttribute(String value) =>
+    _escapeXmlText(value).replaceAll('"', '&quot;').replaceAll("'", '&apos;');

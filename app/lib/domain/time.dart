@@ -167,9 +167,9 @@ class CalendarDay implements Comparable<CalendarDay> {
   final int day;
 
   /// UTC midnight of this date — DST-free, so day arithmetic is exact.
-  DateTime get _utc => DateTime.utc(year, month, day);
+  DateTime get _utcMidnight => DateTime.utc(year, month, day);
 
-  static CalendarDay _of(DateTime utc) =>
+  static CalendarDay _fromUtcDate(DateTime utc) =>
       CalendarDay(utc.year, utc.month, utc.day);
 
   /// The `"yyyy-MM-dd"` key.
@@ -178,22 +178,25 @@ class CalendarDay implements Comparable<CalendarDay> {
       '${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
 
   /// ISO weekday: Monday = 1 … Sunday = 7.
-  int get weekday => _utc.weekday;
+  int get weekday => _utcMidnight.weekday;
 
   /// The Monday that starts this date's Monday-to-Sunday week.
   CalendarDay get weekStart => addDays(1 - weekday);
 
-  CalendarDay addDays(int days) => _of(_utc.add(Duration(days: days)));
+  CalendarDay addDays(int days) =>
+      _fromUtcDate(_utcMidnight.add(Duration(days: days)));
 
   CalendarDay next() => addDays(1);
 
   CalendarDay previous() => addDays(-1);
 
   /// Whole days from this date to [other] (negative when [other] is earlier).
-  int daysUntil(CalendarDay other) => other._utc.difference(_utc).inDays;
+  int daysUntil(CalendarDay other) =>
+      other._utcMidnight.difference(_utcMidnight).inDays;
 
   @override
-  int compareTo(CalendarDay other) => _utc.compareTo(other._utc);
+  int compareTo(CalendarDay other) =>
+      _utcMidnight.compareTo(other._utcMidnight);
 
   bool operator <(CalendarDay other) => compareTo(other) < 0;
 

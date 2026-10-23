@@ -46,7 +46,7 @@ class SpoilsResult {
 /// leftover so the allocation always sums exactly. The overbudget choice is
 /// the one two-line case: it pays exactly what the debt needs and converts
 /// the rest to discretionary, still summing to the whole leftover.
-enum _Dest { overbudget, carry, quest, discretionary }
+enum _Destination { overbudget, carry, quest, discretionary }
 
 class SpoilsSheetView extends StatefulWidget {
   const SpoilsSheetView({
@@ -85,11 +85,11 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
   /// starts selected — the debt must be dealt with, and skipping it is an
   /// explicit choice. Otherwise the slice's configured default policy leads,
   /// so a quick confirm mirrors what the reducer would do anyway.
-  late final Map<String, _Dest> _dest = {
+  late final Map<String, _Destination> _dest = {
     for (final leftover in widget.ritual.sliceLeftovers)
       leftover.sliceId: leftover.overbudgetOptions.isNotEmpty
-          ? _Dest.overbudget
-          : _destOf(leftover.defaultPolicy),
+          ? _Destination.overbudget
+          : _destinationOf(leftover.defaultPolicy),
   };
 
   /// Chosen quest per slice when the destination is a quest.
@@ -107,15 +107,15 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
 
   /// Savings rules only: where each category's savings go at month end. Null
   /// (the default) keeps them saved, untouched and untaxed.
-  late final Map<String, _Dest?> _savingsDest = {
+  late final Map<String, _Destination?> _savingsDest = {
     for (final leftover in widget.ritual.sliceLeftovers) leftover.sliceId: null,
   };
 
-  static _Dest _destOf(LeftoverDestination destination) => switch (destination) {
-    CarryInSlice() => _Dest.carry,
-    QuestDestination() => _Dest.quest,
-    Discretionary() => _Dest.discretionary,
-    OverbudgetPayment() => _Dest.overbudget,
+  static _Destination _destinationOf(LeftoverDestination destination) => switch (destination) {
+    CarryInSlice() => _Destination.carry,
+    QuestDestination() => _Destination.quest,
+    Discretionary() => _Destination.discretionary,
+    OverbudgetPayment() => _Destination.overbudget,
   };
 
   static String? _defaultQuest(SliceLeftover leftover) {
@@ -148,10 +148,10 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
     final quest = _questChoice[leftover.sliceId];
     final debt = _chosenOverbudget(leftover);
     final LeftoverDestination? target = switch (dest) {
-      _Dest.discretionary => const Discretionary(),
-      _Dest.quest => quest == null ? null : QuestDestination(quest),
-      _Dest.overbudget => debt == null ? null : OverbudgetPayment(debt.sliceId),
-      _Dest.carry => null,
+      _Destination.discretionary => const Discretionary(),
+      _Destination.quest => quest == null ? null : QuestDestination(quest),
+      _Destination.overbudget => debt == null ? null : OverbudgetPayment(debt.sliceId),
+      _Destination.carry => null,
     };
     if (target == null) return const [];
     return [
@@ -165,21 +165,21 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
 
   List<Allocation> _allowanceAllocations(SliceLeftover leftover) {
     switch (_dest[leftover.sliceId]!) {
-      case _Dest.carry:
+      case _Destination.carry:
         return [
           Allocation(
             destination: const CarryInSlice(),
             amountCents: leftover.leftoverCents,
           ),
         ];
-      case _Dest.discretionary:
+      case _Destination.discretionary:
         return [
           Allocation(
             destination: const Discretionary(),
             amountCents: leftover.leftoverCents,
           ),
         ];
-      case _Dest.quest:
+      case _Destination.quest:
         final questId = _questChoice[leftover.sliceId];
         return [
           Allocation(
@@ -189,7 +189,7 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
             amountCents: leftover.leftoverCents,
           ),
         ];
-      case _Dest.overbudget:
+      case _Destination.overbudget:
         final option = _chosenOverbudget(leftover);
         if (option == null) {
           return [
@@ -533,9 +533,9 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
                             isAdventure: widget.isAdventure,
                           ),
                   ),
-                  selected: dest == _Dest.overbudget,
+                  selected: dest == _Destination.overbudget,
                   onSelected: (_) =>
-                      setState(() => _dest[leftover.sliceId] = _Dest.overbudget),
+                      setState(() => _dest[leftover.sliceId] = _Destination.overbudget),
                 ),
               ChoiceChip(
                 label: Text(
@@ -545,30 +545,30 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
                             : 'Save in ${leftover.name}')
                       : 'Carry in category',
                 ),
-                selected: dest == _Dest.carry,
+                selected: dest == _Destination.carry,
                 onSelected: (_) =>
-                    setState(() => _dest[leftover.sliceId] = _Dest.carry),
+                    setState(() => _dest[leftover.sliceId] = _Destination.carry),
               ),
               if (leftover.questOptions.isNotEmpty)
                 ChoiceChip(
                   label: Text(
                     Glossary.attackQuest.label(isAdventure: widget.isAdventure),
                   ),
-                  selected: dest == _Dest.quest,
+                  selected: dest == _Destination.quest,
                   onSelected: (_) =>
-                      setState(() => _dest[leftover.sliceId] = _Dest.quest),
+                      setState(() => _dest[leftover.sliceId] = _Destination.quest),
                 ),
               ChoiceChip(
                 label: Text(
                   leftover.savingsRules
-                      ? _cap(_generalNoun)
+                      ? _capitalize(_generalNoun)
                       : (widget.isAdventure
                             ? 'Discretionary'
                             : 'Personal spending'),
                 ),
-                selected: dest == _Dest.discretionary,
+                selected: dest == _Destination.discretionary,
                 onSelected: (_) =>
-                    setState(() => _dest[leftover.sliceId] = _Dest.discretionary),
+                    setState(() => _dest[leftover.sliceId] = _Destination.discretionary),
               ),
             ],
           ),
@@ -578,7 +578,7 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
             _savingsRow(context, leftover),
           if (leftover.priority == SlicePriority.fun &&
               leftover.overbudgetOptions.isNotEmpty &&
-              dest != _Dest.overbudget)
+              dest != _Destination.overbudget)
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.xs),
               child: _previewText(
@@ -608,7 +608,7 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
     final scheme = Theme.of(context).colorScheme;
     final dest = _dest[leftover.sliceId]!;
     switch (dest) {
-      case _Dest.overbudget:
+      case _Destination.overbudget:
         final option = _chosenOverbudget(leftover);
         if (option == null) {
           return _previewText(
@@ -680,13 +680,13 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
               ),
           ],
         );
-      case _Dest.carry:
+      case _Destination.carry:
         return _previewText(
           context,
           Icons.trending_up,
           '${money(leftover.leftoverCents)} raises next month’s limit for ${leftover.name}.',
         );
-      case _Dest.discretionary:
+      case _Destination.discretionary:
         final preview = previewDiscretionary(leftover.leftoverCents, leftover.poolTithePct);
         final dest = widget.isAdventure ? 'gold pouch' : 'personal spending';
         return _previewText(
@@ -695,7 +695,7 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
           '${money(preview.vaultCents)} to $dest, '
           '${Glossary.sharedSavingsCut(money(preview.titheCents), leftover.poolTithePct, isAdventure: widget.isAdventure)}.',
         );
-      case _Dest.quest:
+      case _Destination.quest:
         final questId = _questChoice[leftover.sliceId];
         QuestOption? chosenQuest;
         for (final option in leftover.questOptions) {
@@ -796,7 +796,7 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
     SliceLeftover leftover,
     TaxedBalance from,
     int amount,
-    _Dest dest, {
+    _Destination dest, {
     String prefix = '',
   }) {
     final scheme = Theme.of(context).colorScheme;
@@ -804,21 +804,21 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
     String withTax(String lead, int tax) =>
         tax > 0 ? '$prefix$lead, ${_taxPhrase(tax)}.' : '$prefix$lead, no tax.';
     switch (dest) {
-      case _Dest.carry:
+      case _Destination.carry:
         final preview = previewMove(from, amount, leftover.poolTithePct);
         return _previewText(
           context,
           Icons.savings_outlined,
           withTax('${money(preview.keepCents)} saved in ${leftover.name}', preview.taxCents),
         );
-      case _Dest.discretionary:
+      case _Destination.discretionary:
         final preview = previewMove(from, amount, general);
         return _previewText(
           context,
           Icons.account_balance_wallet_outlined,
           withTax('${money(preview.keepCents)} to $_generalNoun', preview.taxCents),
         );
-      case _Dest.quest:
+      case _Destination.quest:
         final questId = _questChoice[leftover.sliceId];
         QuestOption? chosenQuest;
         for (final option in leftover.questOptions) {
@@ -872,7 +872,7 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
             ),
           ],
         );
-      case _Dest.overbudget:
+      case _Destination.overbudget:
         final option = _chosenOverbudget(leftover);
         if (option == null) {
           return _previewText(
@@ -949,7 +949,7 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
   Widget _savingsRow(BuildContext context, SliceLeftover leftover) {
     final scheme = Theme.of(context).colorScheme;
     final dest = _savingsDest[leftover.sliceId];
-    final noun = _cap(
+    final noun = _capitalize(
       Glossary.categorySavings.label(isAdventure: widget.isAdventure),
     );
     return Container(
@@ -979,9 +979,9 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
               ),
               ChoiceChip(
                 label: Text('Move to $_generalNoun'),
-                selected: dest == _Dest.discretionary,
+                selected: dest == _Destination.discretionary,
                 onSelected: (_) => setState(
-                  () => _savingsDest[leftover.sliceId] = _Dest.discretionary,
+                  () => _savingsDest[leftover.sliceId] = _Destination.discretionary,
                 ),
               ),
               if (leftover.questOptions.isNotEmpty)
@@ -989,9 +989,9 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
                   label: Text(
                     Glossary.attackQuest.label(isAdventure: widget.isAdventure),
                   ),
-                  selected: dest == _Dest.quest,
+                  selected: dest == _Destination.quest,
                   onSelected: (_) =>
-                      setState(() => _savingsDest[leftover.sliceId] = _Dest.quest),
+                      setState(() => _savingsDest[leftover.sliceId] = _Destination.quest),
                 ),
               if (leftover.overbudgetOptions.isNotEmpty)
                 ChoiceChip(
@@ -1000,9 +1000,9 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
                       isAdventure: widget.isAdventure,
                     ),
                   ),
-                  selected: dest == _Dest.overbudget,
+                  selected: dest == _Destination.overbudget,
                   onSelected: (_) => setState(
-                    () => _savingsDest[leftover.sliceId] = _Dest.overbudget,
+                    () => _savingsDest[leftover.sliceId] = _Destination.overbudget,
                   ),
                 ),
             ],
@@ -1100,4 +1100,4 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
   }
 }
 
-String _cap(String text) => text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);
+String _capitalize(String text) => text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);

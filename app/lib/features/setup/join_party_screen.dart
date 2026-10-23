@@ -48,7 +48,7 @@ class _JoinPartyScreenState extends ConsumerState<JoinPartyScreen> {
     super.dispose();
   }
 
-  Future<void> _pair() async {
+  Future<void> _pairWithHub() async {
     final name = _deviceName.text.trim();
     final url = _url.text.trim();
     final secret = _secret.text.trim();
@@ -101,7 +101,7 @@ class _JoinPartyScreenState extends ConsumerState<JoinPartyScreen> {
       _notice = null;
     });
     if (_deviceName.text.trim().isNotEmpty) {
-      await _pair();
+      await _pairWithHub();
     } else {
       setState(() => _notice =
           'Scanned! Now give this device a name and tap Pair & sync.');
@@ -190,7 +190,7 @@ class _JoinPartyScreenState extends ConsumerState<JoinPartyScreen> {
           const SizedBox(height: AppSpacing.sm),
         ],
         FilledButton.icon(
-          onPressed: _busy ? null : _pair,
+          onPressed: _busy ? null : _pairWithHub,
           icon: _busy
               ? const SizedBox(
                   width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))

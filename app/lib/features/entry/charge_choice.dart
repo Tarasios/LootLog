@@ -138,7 +138,7 @@ List<ChargeGroup> buildChargeGroups(
   }
   funds.sort((first, second) => first.label.compareTo(second.label));
 
-  final vaultTitle = Glossary.cap(
+  final vaultTitle = Glossary.capitalize(
     Glossary.vaultLabel(
       isAdventure: isAdventure,
       savingsRules: state.savingsRules != null,

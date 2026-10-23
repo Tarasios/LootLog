@@ -85,7 +85,7 @@ class _PurchaseList extends StatelessWidget {
       case SliceCharge(:final sliceId):
         return state.slices[sliceId]?.name ?? 'Budget';
       case VaultCharge():
-        return Glossary.cap(
+        return Glossary.capitalize(
           Glossary.vaultLabel(
             isAdventure: false,
             savingsRules: state.savingsRules != null,

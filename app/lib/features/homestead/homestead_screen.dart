@@ -147,7 +147,7 @@ class _HomesteadPanel extends StatelessWidget {
           Text(view.currentStage.name,
               style: monoStyle(context, weight: FontWeight.w800)),
           const SizedBox(height: AppSpacing.xs),
-          Text('${Glossary.cap(chestLabel)}: ${money(view.balanceCents)}',
+          Text('${Glossary.capitalize(chestLabel)}: ${money(view.balanceCents)}',
               style: monoStyle(context, color: scheme.onSurfaceVariant)),
           const SizedBox(height: AppSpacing.sm),
           Text(
@@ -508,7 +508,7 @@ class _HomesteadStagesEditorState extends ConsumerState<HomesteadStagesEditor> {
                 prefixText: r'$ ',
                 helperText: i == 0
                     ? 'The first stage always starts at \$0.'
-                    : '${Glossary.cap(Glossary.warChest.label(isAdventure: ref.watch(isAdventureProvider)))} '
+                    : '${Glossary.capitalize(Glossary.warChest.label(isAdventure: ref.watch(isAdventureProvider)))} '
                         'balance that unlocks this stage.',
               ),
             ),

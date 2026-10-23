@@ -102,7 +102,7 @@ class HubServer {
 
       final authed = await _authorized(request);
       if (!authed) {
-        return _json(401, {'error': 'unauthorized'});
+        return _jsonResponse(401, {'error': 'unauthorized'});
       }
 
       if (_isPath(segments, ['events'])) {
@@ -119,9 +119,9 @@ class HubServer {
         if (method == 'GET') return await _handleGetBlob(sha, head: false);
         if (method == 'HEAD') return await _handleGetBlob(sha, head: true);
       }
-      return _json(404, {'error': 'not found'});
+      return _jsonResponse(404, {'error': 'not found'});
     } on FormatException catch (error) {
-      return _json(400, {'error': 'bad request', 'detail': error.message});
+      return _jsonResponse(400, {'error': 'bad request', 'detail': error.message});
     }
   }
 
@@ -130,22 +130,22 @@ class HubServer {
   Future<Response> _handlePair(Request request) async {
     final body = await _readJson(request);
     if (body['pairingSecret'] != pairingSecret) {
-      return _json(403, {'error': 'bad pairing secret'});
+      return _jsonResponse(403, {'error': 'bad pairing secret'});
     }
     final deviceName = (body['deviceName'] as String?)?.trim();
     if (deviceName == null || deviceName.isEmpty) {
-      return _json(400, {'error': 'deviceName required'});
+      return _jsonResponse(400, {'error': 'deviceName required'});
     }
     final token = uuidv7();
     await db.hubHostDao.issueToken(token, deviceName);
-    return _json(200, PairResult(hubId: hubId, deviceToken: token).toJson());
+    return _jsonResponse(200, PairResult(hubId: hubId, deviceToken: token).toJson());
   }
 
   Future<Response> _handlePostEvents(Request request) async {
     final body = await _readJson(request);
     final list = body['events'];
     if (list is! List) {
-      return _json(400, {'error': 'events must be a list'});
+      return _jsonResponse(400, {'error': 'events must be a list'});
     }
     final events = <Event>[
       for (final item in list) Event.fromJson((item as Map).cast<String, dynamic>()),
@@ -153,7 +153,7 @@ class HubServer {
     await db.eventsDao.appendEvents(events);
     final maxSeq = await db.hubHostDao.assignSeqs();
     if (events.isNotEmpty) unawaited(onEventsMerged?.call());
-    return _json(200, {'accepted': events.length, 'maxSeq': maxSeq});
+    return _jsonResponse(200, {'accepted': events.length, 'maxSeq': maxSeq});
   }
 
   Future<Response> _handleGetEvents(Request request) async {
@@ -164,7 +164,7 @@ class HubServer {
         int.tryParse(request.url.queryParameters['limit'] ?? '500') ?? 500;
     final page = await db.hubHostDao.eventsAfter(after, limit: limit);
     final maxSeq = await db.hubHostDao.maxSeq();
-    return _json(
+    return _jsonResponse(
       200,
       EventPage(events: page.events, cursor: page.cursor, maxSeq: maxSeq)
           .toJson(),
@@ -175,7 +175,7 @@ class HubServer {
     final body = await _readJson(request);
     final list = body['events'];
     if (list is! List) {
-      return _json(400, {'error': 'events must be a list'});
+      return _jsonResponse(400, {'error': 'events must be a list'});
     }
     final List<GameEvent> events;
     try {
@@ -186,12 +186,12 @@ class HubServer {
     } on TypeError catch (error) {
       // A structurally broken envelope (missing or mistyped field). Unknown
       // types and values are fine — they decode as UnknownGameEvent.
-      return _json(400, {'error': 'bad game event', 'detail': '$error'});
+      return _jsonResponse(400, {'error': 'bad game event', 'detail': '$error'});
     }
     await db.gameEventsDao.appendGameEvents(events);
     final maxSeq = await db.gameSyncDao.assignHostedSeqs();
     if (events.isNotEmpty) unawaited(onEventsMerged?.call());
-    return _json(200, {'accepted': events.length, 'maxSeq': maxSeq});
+    return _jsonResponse(200, {'accepted': events.length, 'maxSeq': maxSeq});
   }
 
   Future<Response> _handleGetGameEvents(Request request) async {
@@ -202,7 +202,7 @@ class HubServer {
         int.tryParse(request.url.queryParameters['limit'] ?? '500') ?? 500;
     final page = await db.gameSyncDao.hostedAfter(after, limit: limit);
     final maxSeq = await db.gameSyncDao.maxHostedSeq();
-    return _json(
+    return _jsonResponse(
       200,
       GameEventPage(events: page.events, cursor: page.cursor, maxSeq: maxSeq)
           .toJson(),
@@ -211,19 +211,19 @@ class HubServer {
 
   Future<Response> _handlePutBlob(Request request, String sha) async {
     if (!_isSha256(sha)) {
-      return _json(400, {'error': 'blob name must be a sha256'});
+      return _jsonResponse(400, {'error': 'blob name must be a sha256'});
     }
     final bytes = await request.read().expand((chunk) => chunk).toList();
     if (bytes.length > kMaxBlobBytes) {
-      return _json(413, {'error': 'blob exceeds 20MB cap'});
+      return _jsonResponse(413, {'error': 'blob exceeds 20MB cap'});
     }
     final actual = sha256.convert(bytes).toString();
     if (actual != sha.toLowerCase()) {
       // A tampered or corrupt blob: bytes do not match the claimed hash.
-      return _json(400, {'error': 'hash mismatch', 'expected': sha, 'actual': actual});
+      return _jsonResponse(400, {'error': 'hash mismatch', 'expected': sha, 'actual': actual});
     }
     await blobs.save(bytes);
-    return _json(200, {'sha256': actual});
+    return _jsonResponse(200, {'sha256': actual});
   }
 
   Future<Response> _handleGetBlob(String sha, {required bool head}) async {
@@ -264,7 +264,7 @@ class HubServer {
     return decoded.cast<String, dynamic>();
   }
 
-  Response _json(int status, Map<String, dynamic> body) => Response(
+  Response _jsonResponse(int status, Map<String, dynamic> body) => Response(
         status,
         body: jsonEncode(body),
         headers: {'content-type': 'application/json'},

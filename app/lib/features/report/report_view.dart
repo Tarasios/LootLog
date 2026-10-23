@@ -236,9 +236,9 @@ class _TableCard extends StatelessWidget {
         TableRow(
           children: [
             Text('Category', style: labelStyle),
-            _num(context, 'Budget', header: true),
-            _num(context, 'Spent', header: true),
-            _num(context, 'Left', header: true),
+            _numberCell(context, 'Budget', header: true),
+            _numberCell(context, 'Spent', header: true),
+            _numberCell(context, 'Left', header: true),
           ],
         ),
         for (final row in rows)
@@ -248,12 +248,12 @@ class _TableCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
                 child: Text(row.name),
               ),
-              _num(context, money(row.budgetedCents)),
-              _num(context, money(row.spentCents),
+              _numberCell(context, money(row.budgetedCents)),
+              _numberCell(context, money(row.spentCents),
                   color: row.overspent
                       ? Theme.of(context).colorScheme.error
                       : null),
-              _num(context, money(row.leftoverCents)),
+              _numberCell(context, money(row.leftoverCents)),
             ],
           ),
         TableRow(
@@ -268,16 +268,16 @@ class _TableCard extends StatelessWidget {
               child: Text('Total',
                   style: TextStyle(fontWeight: FontWeight.w700)),
             ),
-            _num(context, money(report.totalBudgetedCents), bold: true),
-            _num(context, money(report.totalSpentCents), bold: true),
-            _num(context, money(report.totalLeftoverCents), bold: true),
+            _numberCell(context, money(report.totalBudgetedCents), bold: true),
+            _numberCell(context, money(report.totalSpentCents), bold: true),
+            _numberCell(context, money(report.totalLeftoverCents), bold: true),
           ],
         ),
       ],
     );
   }
 
-  Widget _num(BuildContext context, String text,
+  Widget _numberCell(BuildContext context, String text,
       {bool header = false, bool bold = false, Color? color}) {
     final base = header
         ? Theme.of(context)

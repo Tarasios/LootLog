@@ -52,35 +52,35 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         children: [
           const _SectionHeader('Household'),
-          _nav(
+          _navigationTile(
             context,
             Icons.groups_outlined,
             'Members',
             'Adults, dependents, and pets',
             const MembersScreen(),
           ),
-          _nav(
+          _navigationTile(
             context,
             Icons.payments_outlined,
             'Income',
             'Each member\'s monthly income',
             const IncomeScreen(),
           ),
-          _nav(
+          _navigationTile(
             context,
             Icons.autorenew,
             'Recurring expenses',
             'Regular bills and subscriptions, charged off the top',
             const RecurringScreen(),
           ),
-          _nav(
+          _navigationTile(
             context,
             Icons.pie_chart_outline,
             'Budget categories',
             'Limits, savings cut, and how leftovers are handled',
             const CategoryListScreen(),
           ),
-          _nav(
+          _navigationTile(
             context,
             Icons.emergency_outlined,
             'Emergency funds',
@@ -234,21 +234,21 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ],
           if (isDesktop)
-            _nav(
+            _navigationTile(
               context,
               Icons.folder_copy_outlined,
               'Receipt library',
               'Mirror receipts to a folder',
               const ReceiptLibraryScreen(),
             ),
-          _nav(
+          _navigationTile(
             context,
             Icons.receipt_long_outlined,
             'Tax center',
             'Deductible totals and package export',
             const TaxCenterScreen(),
           ),
-          _nav(
+          _navigationTile(
             context,
             Icons.table_view_outlined,
             'Export',
@@ -260,7 +260,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _nav(
+  Widget _navigationTile(
     BuildContext context,
     IconData icon,
     String title,

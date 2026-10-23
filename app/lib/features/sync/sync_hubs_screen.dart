@@ -211,7 +211,7 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
                 FilledButton.icon(
                   onPressed: _busy
                       ? null
-                      : () => _pair(service, urlController.text.trim(),
+                      : () => _pairWithHub(service, urlController.text.trim(),
                           secretController.text.trim()),
                   icon: const Icon(Icons.link),
                   label: const Text('Pair'),
@@ -240,7 +240,7 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
       _snack("That QR code isn't a LootLog pairing code.");
       return;
     }
-    await _pair(service, parsed.url, parsed.pairingSecret);
+    await _pairWithHub(service, parsed.url, parsed.pairingSecret);
   }
 
   Widget _backupCard(SyncService service) {
@@ -346,7 +346,7 @@ class _SyncHubsScreenState extends ConsumerState<SyncHubsScreen> {
     }
   }
 
-  Future<void> _pair(SyncService service, String url, String secret) async {
+  Future<void> _pairWithHub(SyncService service, String url, String secret) async {
     if (url.isEmpty || secret.isEmpty) {
       _snack('Enter both an address and a pairing secret');
       return;

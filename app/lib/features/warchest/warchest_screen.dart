@@ -21,7 +21,7 @@ import 'advance_model.dart';
 import 'pending_advance_tile.dart';
 import 'warchest_model.dart';
 
-String _cap(String text) => text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);
+String _capitalize(String text) => text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);
 
 /// This device's name for an adult's own pool: "general savings" (Classic on
 /// the savings rules), "personal spending" (Classic before them) or "gold
@@ -45,7 +45,7 @@ class WarChestScreen extends ConsumerWidget {
     }
     // Classic speaks plain language; Adventure keeps the war-chest flavor.
     final adventure = ref.watch(isAdventureProvider);
-    final title = _cap(Glossary.warChest.label(isAdventure: adventure));
+    final title = _capitalize(Glossary.warChest.label(isAdventure: adventure));
     final ledger = buildWarChestLedger(
       state,
       events,

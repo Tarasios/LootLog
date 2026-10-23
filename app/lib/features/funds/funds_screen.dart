@@ -26,7 +26,7 @@ import '../vacation/vacation_screen.dart';
 import '../warchest/advance_model.dart';
 import '../warchest/warchest_screen.dart';
 
-String _cap(String text) =>
+String _capitalize(String text) =>
     text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);
 
 class FundsScreen extends ConsumerWidget {
@@ -70,13 +70,13 @@ class FundsScreen extends ConsumerWidget {
       (sum, fund) => sum + fund.balanceCents,
     );
     final fundsLabel =
-        '${_cap(Glossary.emergencyFund.label(isAdventure: adventure))}s';
+        '${_capitalize(Glossary.emergencyFund.label(isAdventure: adventure))}s';
 
     // ---- Vacations --------------------------------------------------------
     final open = state.openVacations;
     final closedCount = state.vacations.length - open.length;
     final vacationsLabel =
-        '${_cap(Glossary.vacation.label(isAdventure: adventure))}s';
+        '${_capitalize(Glossary.vacation.label(isAdventure: adventure))}s';
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
@@ -92,7 +92,7 @@ class FundsScreen extends ConsumerWidget {
         ],
         _HubCard(
           icon: Icons.account_balance_outlined,
-          title: _cap(Glossary.warChest.label(isAdventure: adventure)),
+          title: _capitalize(Glossary.warChest.label(isAdventure: adventure)),
           trailing: money(chest.balanceCents),
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute<void>(builder: (_) => const WarChestScreen()),
