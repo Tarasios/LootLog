@@ -18,6 +18,23 @@ import '../game_sprite.dart' show spriteFrameCount;
 class PackAtlas {
   PackAtlas(this.registry, this.images);
 
+  /// An atlas over [sharedImages], as the scenes use.
+  factory PackAtlas.shared(AssetRegistry registry) => PackAtlas(registry, sharedImages);
+
+  /// The decoded sheets every scene shares. Art never changes while the app
+  /// runs, so a sheet one scene decoded is never decoded again by the next.
+  static final Images sharedImages = Images(prefix: 'assets/game/');
+
+  /// Decodes every sheet and file [registry] names into [sharedImages]; the
+  /// returned future completes once they are all loaded (or skipped as
+  /// missing). Scenes opened afterwards find their art already decoded, so
+  /// they draw on their first frames: goldens await this inside
+  /// `tester.runAsync` instead of waiting fixed real-time delays.
+  static Future<void> warmUp(AssetRegistry registry) => PackAtlas.shared(registry)._preloadPaths({
+        ...registry.files.values,
+        for (final region in registry.regions.values) region.sheetPath,
+      });
+
   final AssetRegistry registry;
 
   /// Flame's image cache, with prefix `assets/game/`.
@@ -41,11 +58,12 @@ class PackAtlas {
   /// the scene. Bytes are read and decoded here rather than through
   /// `Images.load`, which leaves a bad cache entry and an unhandled async
   /// error behind when a file is missing.
-  Future<void> preload(Iterable<AssetKey> keys) async {
-    final paths = <String>{
-      for (final key in keys)
-        if (_imagePathFor(key) case final String path) path,
-    };
+  Future<void> preload(Iterable<AssetKey> keys) => _preloadPaths({
+        for (final key in keys)
+          if (_imagePathFor(key) case final String path) path,
+      });
+
+  Future<void> _preloadPaths(Set<String> paths) async {
     for (final path in paths) {
       if (_loadedPaths.contains(path)) continue;
       try {

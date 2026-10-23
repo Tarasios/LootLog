@@ -5,7 +5,6 @@ library;
 import 'dart:async';
 import 'dart:ui' as ui;
 
-import 'package:flame/cache.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/widgets.dart';
 
@@ -50,7 +49,7 @@ class RoomSceneView extends StatefulWidget {
 
 class _RoomSceneViewState extends State<RoomSceneView> {
   late final RoomGame _game = RoomGame(
-    atlas: PackAtlas(widget.registry, Images(prefix: 'assets/game/')),
+    atlas: PackAtlas.shared(widget.registry),
     view: widget.view,
     pictures: widget.pictures,
   );

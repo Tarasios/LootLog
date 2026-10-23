@@ -5,7 +5,6 @@ library;
 import 'dart:async';
 import 'dart:ui' as ui;
 
-import 'package:flame/cache.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/gestures.dart';
@@ -61,7 +60,7 @@ class TownSceneView extends StatefulWidget {
 
 class _TownSceneViewState extends State<TownSceneView> {
   late final TownGame _game = TownGame(
-    atlas: PackAtlas(widget.registry, Images(prefix: 'assets/game/')),
+    atlas: PackAtlas.shared(widget.registry),
     view: widget.view,
     ambientLife: widget.ambientLife,
     townsfolk: widget.townsfolk,

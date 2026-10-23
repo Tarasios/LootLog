@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/game/assets/game_asset_scope.dart';
 import 'package:lootlog/game/battle/month_end_battle.dart';
+import 'package:lootlog/game/scenes/pack_atlas.dart';
 import 'package:lootlog/game/skin_prefs.dart';
 import 'package:lootlog/game/ui/dungeon/dungeon_providers.dart';
 import 'package:lootlog/game/ui/dungeon/dungeon_screen.dart';
@@ -22,6 +23,9 @@ void main() {
     final registry = (await tester.runAsync(loadGameAssetRegistry))!;
     final harness = (await tester.runAsync(TownTestHarness.create))!;
     final (household, ritual) = ritualFixture();
+    // Decode the art for real first (bounded); the scene then finds it
+    // ready and draws within a few frames of the test clock.
+    await tester.runAsync(() => PackAtlas.warmUp(registry).timeout(const Duration(seconds: 30)));
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -36,10 +40,7 @@ void main() {
         child: const MaterialApp(debugShowCheckedModeBanner: false, home: DungeonScreen()),
       ),
     );
-    // The scene decodes its sheets on real time; the game loop draws on the
-    // test clock. Alternate until the first frames are on screen.
-    for (var round = 0; round < 6; round++) {
-      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
+    for (var frame = 0; frame < 6; frame++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
     await expectLater(find.byType(DungeonScreen), matchesGoldenFile('goldens/dungeon_battle_phone.png'));

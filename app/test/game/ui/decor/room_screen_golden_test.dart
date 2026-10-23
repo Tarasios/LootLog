@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/game/assets/game_asset_scope.dart';
 import 'package:lootlog/game/domain/decor/decor_values.dart';
+import 'package:lootlog/game/scenes/pack_atlas.dart';
 import 'package:lootlog/game/skin_prefs.dart';
 import 'package:lootlog/game/ui/decor/room_screen.dart';
 
@@ -36,6 +37,9 @@ void main() {
       }
       await harness.service.equipItem('outfit_traveller');
       final registry = (await tester.runAsync(loadGameAssetRegistry))!;
+      // Decode the art for real first (bounded); the scene then finds it
+      // ready and draws within a few frames of the test clock.
+      await tester.runAsync(() => PackAtlas.warmUp(registry).timeout(const Duration(seconds: 30)));
       await tester.pumpWidget(
         ProviderScope(
           overrides: harness.overrides(
@@ -48,12 +52,7 @@ void main() {
           ),
         ),
       );
-      // The scene decodes its sheets on real time; the game loop draws on
-      // the test clock. Alternate until the first frames are on screen.
-      for (var round = 0; round < 6; round++) {
-        await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 150)),
-        );
+      for (var frame = 0; frame < 6; frame++) {
         await tester.pump(const Duration(milliseconds: 100));
       }
       await expectLater(

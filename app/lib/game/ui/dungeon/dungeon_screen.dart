@@ -14,7 +14,6 @@ library;
 import 'dart:async';
 import 'dart:ui' as ui;
 
-import 'package:flame/cache.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -149,7 +148,7 @@ class _DungeonScreenState extends ConsumerState<DungeonScreen> {
     final catalog = ref.read(decorCatalogProvider).value ?? DecorCatalog.empty;
     final outfitId = game.decor.outfitOf(meId);
     setState(() => _game = DungeonGame(
-          atlas: PackAtlas(registry, Images(prefix: 'assets/game/')),
+          atlas: PackAtlas.shared(registry),
           bosses: battle.bosses,
           debts: battle.debts,
           heroKey: (outfitId == null ? null : catalog.itemFor(outfitId)?.assetKey) ?? const AssetKey('hero', 'body'),
