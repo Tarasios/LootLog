@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/domain/reducer.dart';
+import 'package:lootlog/domain/ritual_order.dart';
 import 'package:lootlog/domain/time.dart';
 import 'package:lootlog/domain/value_types.dart';
 import 'package:lootlog/features/spoils/spoils_move.dart';
@@ -18,7 +19,8 @@ void main() {
     final (household, ritual) = ritualFixture();
     final battle = MonthEndBattle.from(ritual, household)!;
     expect(battle.weapons, isNotEmpty);
-    expect(battle.weapons.map((weapon) => weapon.sliceId), ritual.sliceLeftovers.map((leftover) => leftover.sliceId));
+    expect(battle.weapons.map((weapon) => weapon.sliceId),
+        inRitualOrder(ritual.sliceLeftovers).map((leftover) => leftover.sliceId));
     for (final weapon in battle.weapons) {
       expect(weapon.valueCents, weapon.leftover.leftoverCents);
     }
@@ -171,6 +173,58 @@ void main() {
       final same = leftoverAgainst(weapon.leftover, bosses: const [], debts: const []);
       expect(same.questOptions.single.totalContributedCents, weapon.leftover.questOptions.single.totalContributedCents);
       expect(same.leftoverCents, weapon.leftover.leftoverCents);
+    });
+  });
+
+  group("the battle follows the reducer's ritual order", () {
+    const september = Month(2026, 9);
+    const payFun = SpoilsChoice(SpoilsMove.debt, overbudgetSliceId: 'fun');
+
+    test('fun categories come first, then important, then necessities, by id', () {
+      final ordered = [
+        (priority: SlicePriority.necessity, sliceId: 'a'),
+        (priority: SlicePriority.important, sliceId: 'c'),
+        (priority: SlicePriority.fun, sliceId: 'z'),
+        (priority: SlicePriority.important, sliceId: 'b'),
+      ]..sort(compareRitualOrder);
+      expect(ordered.map((entry) => entry.sliceId), ['z', 'b', 'c', 'a']);
+    });
+
+    test('a matched and a non-matching leftover paying one debt: summed previews equal the reducer', () {
+      final ledger = mixedPairOneDebtLedger();
+      final household = reduce(ledger.events, asOf: ritualInstant);
+      final ritual = ritualOn(household)!;
+      expect(ritual.sliceLeftovers.map((leftover) => leftover.sliceId), ['arcade', 'snacks'], reason: 'by name');
+      final battle = MonthEndBattle.from(ritual, household)!;
+      expect(battle.weapons.map((weapon) => weapon.sliceId), ['snacks', 'arcade'], reason: 'fun resolves first');
+      expect(battle.debts.single.outstandingCents, 5000);
+
+      // Play the battle the way the dungeon does: each weapon previewed
+      // against what the earlier ones left.
+      var debts = battle.debts;
+      var taxCents = 0;
+      var toPersonalCents = 0;
+      for (final weapon in battle.weapons) {
+        final preview = previewSpoilsChoice(leftoverAgainst(weapon.leftover, bosses: battle.bosses, debts: debts), payFun);
+        taxCents += preview.taxCents;
+        toPersonalCents += preview.toPersonalCents;
+        debts = [for (final debt in debts) debt.afterLanding(preview.landsCents)];
+      }
+
+      // Written in name order, as a sheet might: the reducer reorders anyway.
+      for (final leftover in ritual.sliceLeftovers) {
+        ledger.allocate('alex', leftover.sliceId, september, allocationsForChoice(leftover, payFun));
+      }
+      final after = reduce(ledger.events, asOf: ritualInstant);
+
+      expect(debts.single.outstandingCents, 0);
+      expect(after.outstandingOverbudgetsFor('alex'), isEmpty);
+      expect(taxCents, after.warChest.balanceCents - household.warChest.balanceCents);
+      expect(toPersonalCents, after.vaultOf('alex') - household.vaultOf('alex'));
+      // Snacks' $30 pays $24 after the 20% general rate; Arcade's matched $40
+      // pays the last $26 untaxed and its $14 excess pays 20% on the way.
+      expect(taxCents, 600 + 280);
+      expect(toPersonalCents, 1120);
     });
   });
 }

@@ -5,6 +5,7 @@
 /// Pure Dart, zero Flutter imports.
 library;
 
+import '../../domain/ritual_order.dart';
 import '../../domain/state.dart';
 import '../../domain/value_types.dart';
 import '../../features/spoils/spoils_model.dart';
@@ -80,10 +81,13 @@ class DebtMonster {
 
 /// [leftover] with its goal and debt options showing where [bosses] and
 /// [debts] stand now, after earlier weapons in this battle hit them. The
-/// allocations land in the ledger in turn order, so previewing a later
-/// weapon against these current amounts matches what the reducer does; the
-/// ritual's own options still carry the amounts from before the battle.
-/// Options the battle does not track are left as they are.
+/// battle's weapons come in the reducer's ritual order ([compareRitualOrder]:
+/// fun first, then important, then necessities, by category id), which is
+/// the order the ledger applies their allocations in whatever order they were
+/// written; so previewing each weapon against these current amounts matches
+/// what the reducer does. The ritual's own options still carry the amounts
+/// from before the battle. Options the battle does not track are left as
+/// they are.
 SliceLeftover leftoverAgainst(
   SliceLeftover leftover, {
   required List<GoalBoss> bosses,
@@ -132,6 +136,15 @@ SliceLeftover leftoverAgainst(
   );
 }
 
+/// [leftovers] in the order the reducer resolves them.
+List<SliceLeftover> inRitualOrder(List<SliceLeftover> leftovers) => [...leftovers]
+  ..sort(
+    (first, second) => compareRitualOrder(
+      (priority: first.priority, sliceId: first.sliceId),
+      (priority: second.priority, sliceId: second.sliceId),
+    ),
+  );
+
 class MonthEndBattle {
   const MonthEndBattle({
     required this.ritual,
@@ -163,8 +176,9 @@ class MonthEndBattle {
     }
     return MonthEndBattle(
       ritual: ritual,
+      // The reducer's order, so each turn previews what the ledger will do.
       weapons: List.unmodifiable([
-        for (final leftover in ritual.sliceLeftovers)
+        for (final leftover in inRitualOrder(ritual.sliceLeftovers))
           BattleWeapon(leftover: leftover, defaultChoice: defaultSpoilsChoice(leftover)),
       ]),
       bosses: List.unmodifiable(bosses.values),

@@ -30,7 +30,11 @@ class TestLedger {
   /// [since] is when the category starts budgeting; later than [setupInstant]
   /// keeps earlier months' leftovers from filling the owner's vault.
   void category(String sliceId,
-          {required String owner, int limitCents = 50000, String? mainCategoryId, DateTime? since}) =>
+          {required String owner,
+          int limitCents = 50000,
+          String? mainCategoryId,
+          DateTime? since,
+          SlicePriority priority = SlicePriority.important}) =>
       events.add(BudgetSliceSet(
         eventId: _nextId(),
         deviceId: 'd',
@@ -45,6 +49,7 @@ class TestLedger {
         defaultLeftoverPolicy: const Discretionary(),
         taxDeductibleByDefault: false,
         mainCategoryId: mainCategoryId,
+        priority: priority,
       ));
 
   void quest(String questId, int targetCents,
@@ -220,3 +225,19 @@ TestLedger twoLeftoversOneDebtLedger() => TestLedger()
   ..buy('alex', 'fun', 25000, dayOf(2026, 9, 10))
   ..buy('alex', 'food', 37000, dayOf(2026, 9, 12))
   ..buy('alex', 'hygiene', 6000, dayOf(2026, 9, 14));
+
+/// Under the savings rules (20% general rate from September): Fun
+/// (Entertainment) overspent by $50 with an empty vault, so an OVERBUDGET
+/// stands. Arcade (Entertainment, important) has $40 left and matches the
+/// debt; Snacks (Food, fun priority) has $30 left and does not. By name
+/// Arcade comes first; the reducer resolves Snacks (fun) first.
+TestLedger mixedPairOneDebtLedger() => TestLedger()
+  ..adult('alex')
+  ..setting('savingsRules', {'fromMonth': '2026-09', 'generalTithePct': 20})
+  ..category('fun', owner: 'alex', limitCents: 20000, mainCategoryId: 'entertainment', since: dayOf(2026, 9, 1))
+  ..category('arcade', owner: 'alex', limitCents: 10000, mainCategoryId: 'entertainment', since: dayOf(2026, 9, 1))
+  ..category('snacks',
+      owner: 'alex', limitCents: 10000, mainCategoryId: 'food', since: dayOf(2026, 9, 1), priority: SlicePriority.fun)
+  ..buy('alex', 'fun', 25000, dayOf(2026, 9, 10))
+  ..buy('alex', 'arcade', 6000, dayOf(2026, 9, 12))
+  ..buy('alex', 'snacks', 7000, dayOf(2026, 9, 14));
