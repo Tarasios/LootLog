@@ -95,7 +95,7 @@ void main() {
     await pumpOpener(
       tester,
       adventure: true,
-      onOpen: (context, ref) => ledgerHallLinks(ref, () {}).divideLeftovers!(context, const Month(2026, 9)),
+      onOpen: (context, ref) => ledgerHallLinks(() {}).divideLeftovers!(context, const Month(2026, 9)),
     );
     expect(find.byType(DungeonScreen), findsOneWidget);
     expect(find.byType(SpoilsSheetView), findsNothing);

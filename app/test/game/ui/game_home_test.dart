@@ -14,6 +14,7 @@ import 'package:lootlog/game/ui/decor/room_screen.dart';
 import 'package:lootlog/game/ui/decor/shop_screen.dart';
 import 'package:lootlog/game/ui/dungeon/dungeon_screen.dart';
 import 'package:lootlog/game/ui/game_home.dart';
+import 'package:lootlog/game/ui/habit_actions.dart';
 import 'package:lootlog/game/ui/town/town_decor_text_screen.dart';
 
 import 'hall_harness.dart';
@@ -23,6 +24,12 @@ List<String> visibleText(WidgetTester tester) => [
       for (final w in tester.widgetList<Text>(find.byType(Text)))
         w.data ?? w.textSpan?.toPlainText() ?? '',
     ];
+
+/// Habit actions whose ledger write fails.
+class ThrowingHabits extends FakeHabits {
+  @override
+  Future<bool> checkInNoSpend() async => throw StateError('disk full');
+}
 
 void main() {
   testWidgets('the hall home renders every section in the text tier with no '
@@ -129,6 +136,19 @@ void main() {
     expect(habits.checkIns, 1);
     expect(find.text('Today already counts'), findsOneWidget);
     expect(find.byType(SnackBar), findsOneWidget);
+  });
+
+  testWidgets('a check-in that fails says so calmly and is ready to retry',
+      (tester) async {
+    await pumpHall(tester,
+        store: await storeWith(const []), habits: ThrowingHabits());
+    await tester.tap(find.text('No spend today'));
+    await settle(tester);
+    final button = tester.widget<OutlinedButton>(find.ancestor(
+        of: find.text('No spend today'),
+        matching: find.byWidgetPredicate((w) => w is OutlinedButton)));
+    expect(button.onPressed, isNotNull);
+    expect(find.text(kHabitSaveFailedNote), findsOneWidget);
   });
 
   testWidgets('a covered day disables the check-in', (tester) async {

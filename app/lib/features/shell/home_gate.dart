@@ -30,7 +30,7 @@ Widget _appShell(VoidCallback? onOpenHall) => AppShell(onOpenHall: onOpenHall);
 
 /// The ledger screens the guild hall links into: quick entry, and one
 /// screen per spoils-ritual step (the ritual's real work happens there).
-HallLinks ledgerHallLinks(WidgetRef ref, VoidCallback openLedger) => HallLinks(
+HallLinks ledgerHallLinks(VoidCallback openLedger) => HallLinks(
       logPurchase: ExpenseEntryScreen.open,
       reconcileMonth: (context, month) => openLedger(),
       reviewMonth: (context, month) =>
@@ -54,7 +54,7 @@ class HomeGate extends ConsumerWidget {
   final LedgerBuilder ledgerBuilder;
 
   /// The hall's links into the ledger. Injectable for tests.
-  final HallLinks Function(WidgetRef ref, VoidCallback openLedger) hallLinks;
+  final HallLinks Function(VoidCallback openLedger) hallLinks;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -72,7 +72,7 @@ class HomeGate extends ConsumerWidget {
         return buildTownShell(
           context,
           onOpenLedger: openLedger,
-          links: hallLinks(ref, openLedger),
+          links: hallLinks(openLedger),
         );
       case HomeDestination.ledger:
         // The hall is pushed over the ledger; its ledger button pops back.
@@ -80,7 +80,7 @@ class HomeGate extends ConsumerWidget {
               builder: (routeContext) => buildTownShell(
                 routeContext,
                 onOpenLedger: navigator.pop,
-                links: hallLinks(ref, navigator.pop),
+                links: hallLinks(navigator.pop),
               ),
             )));
     }

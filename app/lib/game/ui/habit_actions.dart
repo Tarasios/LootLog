@@ -19,6 +19,11 @@ const String kHabitsUnavailableNote =
     'Check-ins and weekly reconciles switch on once your household adopts '
     'the savings rules in Settings (update every device first).';
 
+/// Said when a habit could not be written (a failed ledger write): calm, and
+/// the button is ready for another try.
+const String kHabitSaveFailedNote =
+    "That didn't save just now. Nothing is lost, so please try again.";
+
 /// How one habit action reads right now.
 class HabitActionView {
   const HabitActionView({
@@ -102,12 +107,18 @@ class _NoSpendCheckInState extends ConsumerState<NoSpendCheckIn> {
     final messenger = ScaffoldMessenger.maybeOf(context);
     if (habits == null) return;
     setState(() => _busy = true);
-    final recorded = await habits.checkInNoSpend();
+    final bool recorded;
+    try {
+      recorded = await habits.checkInNoSpend();
+    } on Object {
+      messenger?.showSnackBar(const SnackBar(content: Text(kHabitSaveFailedNote)));
+      return;
+    } finally {
+      // A failed write never leaves the button stuck busy.
+      if (mounted) setState(() => _busy = false);
+    }
     if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _checkedIn = recorded;
-    });
+    setState(() => _checkedIn = recorded);
     messenger?.showSnackBar(
       SnackBar(
         content: Text(
@@ -193,12 +204,17 @@ class _WeeklyReconcileState extends ConsumerState<WeeklyReconcile> {
     }
     if (choice != 'done') return;
     setState(() => _busy = true);
-    final recorded = await habits.completeReconcile(widget.data.today);
+    final bool recorded;
+    try {
+      recorded = await habits.completeReconcile(widget.data.today);
+    } on Object {
+      messenger?.showSnackBar(const SnackBar(content: Text(kHabitSaveFailedNote)));
+      return;
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
     if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _reconciled = recorded;
-    });
+    setState(() => _reconciled = recorded);
     messenger?.showSnackBar(
       SnackBar(
         content: Text(
