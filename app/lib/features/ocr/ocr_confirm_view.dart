@@ -2,7 +2,8 @@
 ///
 /// Confirm-only OCR: a scan may *prefill* the amount, date, and merchant and the
 /// receipt is shown pre-attached, but nothing is created until the user presses
-/// Confirm. The amount is the focused, editable field and must be > 0; a charge
+/// Confirm. When the scan found nothing usable, a plain status line says why
+/// (the scanner failed, no text, or no total) and the keypad stays ready. The amount is the focused, editable field and must be > 0; a charge
 /// target must be chosen. The screen wrapper turns [OcrConfirmResult] into an
 /// appended purchase and attaches the receipt blob.
 library;
@@ -10,10 +11,11 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../data/ocr/receipt_parse.dart';
+import '../../data/ocr/receipt_scan_outcome.dart';
 import '../../ui/theme.dart';
 import '../entry/amount_keypad.dart';
 import '../entry/charge_choice.dart';
+import 'scan_issue_copy.dart';
 
 /// The confirmed, user-approved purchase fields from the OCR flow.
 class OcrConfirmResult {
@@ -34,7 +36,7 @@ class OcrConfirmView extends StatefulWidget {
   const OcrConfirmView({
     super.key,
     required this.groups,
-    required this.scan,
+    required this.outcome,
     required this.onConfirm,
     this.receiptThumbnail,
     this.onClose,
@@ -42,7 +44,8 @@ class OcrConfirmView extends StatefulWidget {
   });
 
   final List<ChargeGroup> groups;
-  final ReceiptScan scan;
+  /// What the scan found, including why it found nothing usable.
+  final ReceiptScanOutcome outcome;
   final ValueChanged<OcrConfirmResult> onConfirm;
 
   /// Optional thumbnail of the pre-attached receipt; a placeholder card is shown
@@ -56,10 +59,10 @@ class OcrConfirmView extends StatefulWidget {
 }
 
 class _OcrConfirmViewState extends State<OcrConfirmView> {
-  late int _cents = widget.scan.bestTotalCents ?? 0;
+  late int _cents = widget.outcome.scan.bestTotalCents ?? 0;
   late final TextEditingController _merchant =
-      TextEditingController(text: widget.scan.merchantGuess ?? '');
-  late DateTime _occurredAt = widget.scan.candidateDate ?? _today;
+      TextEditingController(text: widget.outcome.scan.merchantGuess ?? '');
+  late DateTime _occurredAt = widget.outcome.scan.candidateDate ?? _today;
   ChargeChoice? _selected;
 
   DateTime get _today {
@@ -190,14 +193,9 @@ class _OcrConfirmViewState extends State<OcrConfirmView> {
 
   Widget _scannedBanner(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    // The scan detected nothing usable (unsupported platform, or a receipt we
-    // couldn't read). Say so plainly and point at the keypad — never a dead end.
-    final noResult = widget.scan.bestTotalCents == null &&
-        widget.scan.merchantGuess == null &&
-        widget.scan.candidateDate == null;
-    final subtitle = noResult
-        ? "Couldn't read this receipt — enter the amount below"
-        : 'Scanned — check the amount before saving';
+    // Without a suggested amount, say plainly why (and point at the keypad) —
+    // never a dead end.
+    final noAmount = !widget.outcome.foundAmount;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -211,7 +209,7 @@ class _OcrConfirmViewState extends State<OcrConfirmView> {
             height: 44,
             child: widget.receiptThumbnail ??
                 Icon(
-                  noResult
+                  noAmount
                       ? Icons.image_search_outlined
                       : Icons.receipt_long_outlined,
                   color: scheme.primary,
@@ -225,7 +223,7 @@ class _OcrConfirmViewState extends State<OcrConfirmView> {
                 Text('Receipt attached',
                     style: Theme.of(context).textTheme.titleSmall),
                 Text(
-                  subtitle,
+                  scanStatusLine(widget.outcome),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),

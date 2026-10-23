@@ -36,7 +36,6 @@ class TextAdventureCallbacks {
   const TextAdventureCallbacks({
     this.onStrikeMonster,
     this.onOpenSpoils,
-    this.onSwitchToClassic,
     this.onSwitchToPixels,
     this.onSignWrit,
     this.onDeclineWrit,
@@ -50,11 +49,7 @@ class TextAdventureCallbacks {
   /// Open the month-close battle (dividing the spoils).
   final VoidCallback? onOpenSpoils;
 
-  /// Drop to the Classic ledger view.
-  final VoidCallback? onSwitchToClassic;
-
-  /// Return to the pixel presentation (tiers 1–2). Null hides the toggle, so a
-  /// caller that only offers Classic keeps a single control.
+  /// Return to the pixel presentation (tiers 1–2). Null hides the toggle.
   final VoidCallback? onSwitchToPixels;
 
   final void Function(String proposalId)? onSignWrit;

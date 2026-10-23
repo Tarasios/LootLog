@@ -45,7 +45,6 @@ class PixelAdventureCallbacks {
     this.onStrikeMonster,
     this.onOpenSpoils,
     this.onSwitchToText,
-    this.onSwitchToClassic,
     this.onSignWrit,
     this.onDeclineWrit,
     this.onSealLoan,
@@ -60,9 +59,6 @@ class PixelAdventureCallbacks {
 
   /// Drop to the text-adventure tier (the global text-mode toggle).
   final VoidCallback? onSwitchToText;
-
-  /// Drop to the Classic ledger view.
-  final VoidCallback? onSwitchToClassic;
 
   final void Function(String proposalId)? onSignWrit;
   final void Function(String proposalId)? onDeclineWrit;

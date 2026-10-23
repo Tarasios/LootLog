@@ -7,27 +7,16 @@ extension _CampSection on TextAdventureView {
     return TextPanel(
       title: 'The Camp — outside Floor ${game.floorNumber}',
       icon: Icons.local_fire_department_outlined,
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (callbacks.onSwitchToPixels != null)
-            IconButton(
+      // Switching to Standard lives in the app bar's shared Adventure /
+      // Standard switch, so the camp only offers the pixel presentation.
+      trailing: callbacks.onSwitchToPixels == null
+          ? null
+          : IconButton(
               onPressed: callbacks.onSwitchToPixels,
               tooltip: 'Pixel mode',
               visualDensity: VisualDensity.compact,
               icon: const Icon(Icons.grid_on, size: 18),
             ),
-          TextButton.icon(
-            onPressed: callbacks.onSwitchToClassic,
-            icon: const Icon(Icons.list_alt, size: 16),
-            label: const Text('Classic'),
-            style: TextButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-            ),
-          ),
-        ],
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

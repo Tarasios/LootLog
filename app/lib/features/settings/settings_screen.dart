@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/actions.dart';
 import '../../data/blobs/receipt_offload.dart';
+import '../../data/ocr/text_recognizer.dart';
 import '../../data/providers.dart';
 import '../../game/skin_prefs.dart';
 import '../../ui/glossary.dart';
@@ -22,6 +23,7 @@ import '../categories/category_list_screen.dart';
 import '../export/export_screen.dart';
 import '../ledger/change_log_screen.dart';
 import '../library/receipt_library_screen.dart';
+import '../ocr/scanner_test_screen.dart';
 import '../tax/tax_center_screen.dart';
 import '../tutorial/tutorial.dart';
 import 'emergency_funds_screen.dart';
@@ -29,6 +31,7 @@ import 'income_screen.dart';
 import 'members_screen.dart';
 import 'play_mode.dart';
 import 'play_mode_providers.dart';
+import 'play_mode_switch.dart';
 import 'recurring_screen.dart';
 import 'savings_rules_card.dart';
 import 'visibility_prefs.dart';
@@ -51,6 +54,10 @@ class SettingsScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
+          // Adventure / Standard first: the way between the two modes is
+          // never buried.
+          const PlayModeSwitchTile(),
+          const Divider(),
           const _SectionHeader('Household'),
           _navigationTile(
             context,
@@ -100,9 +107,9 @@ class SettingsScreen extends ConsumerWidget {
               ref.read(showHouseholdBudgetsProvider.notifier).select(value),
             ),
           ),
-          const _SectionHeader('Play mode'),
-          const _PlayModeSection(),
-          if (ref.watch(isAdventureProvider))
+          if (ref.watch(isAdventureProvider)) ...[
+            const _SectionHeader('Adventure'),
+            const _AdventureHomeChoice(),
             SwitchListTile(
               secondary: const Icon(Icons.text_fields),
               title: const Text('Text mode'),
@@ -117,6 +124,7 @@ class SettingsScreen extends ConsumerWidget {
                     .select(value ? AdventureTier.text : AdventureTier.pixel),
               ),
             ),
+          ],
           const _SectionHeader('Rules'),
           const SavingsRulesCard(),
           ListTile(
@@ -233,6 +241,17 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
           ],
+          ListTile(
+            leading: const Icon(Icons.document_scanner_outlined),
+            title: const Text('Test receipt scanner'),
+            subtitle: Text(
+              ref.watch(receiptOcrProvider).isSupported
+                  ? 'See exactly what the scanner reads from a photo'
+                  : 'Scanning runs on Android phones',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => ReceiptScannerTestScreen.open(context),
+          ),
           if (isDesktop)
             _navigationTile(
               context,
@@ -321,11 +340,11 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-/// This person's Standard / Adventure choice, plus — for Adventure — which
-/// screen opens at launch. Saved per person (it follows them to every paired
-/// device); switching never deletes any game progress.
-class _PlayModeSection extends ConsumerWidget {
-  const _PlayModeSection();
+/// For Adventure, which screen opens at launch. Saved per person (it follows
+/// them to every paired device). The Adventure / Standard choice itself is
+/// the shared [PlayModeSwitchTile] at the top of Settings.
+class _AdventureHomeChoice extends ConsumerWidget {
+  const _AdventureHomeChoice();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -334,76 +353,48 @@ class _PlayModeSection extends ConsumerWidget {
     final helper = Theme.of(context).textTheme.bodySmall?.copyWith(
           color: Theme.of(context).colorScheme.onSurfaceVariant,
         );
-
-    Widget choice<T>({
-      required IconData icon,
-      required String title,
-      required String subtitle,
-      required List<ButtonSegment<T>> segments,
-      required T selected,
-      required Future<void> Function(HouseholdActions, T) save,
-    }) =>
-        Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.sm,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.sm,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Icon(icon),
-                  const SizedBox(width: AppSpacing.lg),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [Text(title), Text(subtitle, style: helper)],
+              const Icon(Icons.home_outlined),
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Home screen'),
+                    Text(
+                      'What opens when you launch the app. The other is '
+                      'always one tap away.',
+                      style: helper,
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              SegmentedButton<T>(
-                segments: segments,
-                selected: {selected},
-                onSelectionChanged: actions == null
-                    ? null
-                    : (selection) => unawaited(save(actions, selection.first)),
+                  ],
+                ),
               ),
             ],
           ),
-        );
-
-    return Column(children: [
-      choice<PlayMode>(
-        icon: Icons.sports_esports_outlined,
-        title: 'Mode',
-        subtitle: 'Adventure turns your budget into a game. Standard is the '
-            'plain budgeting app — your logging still helps the household. '
-            'Your choice follows you to every device, and switching back '
-            'never loses progress.',
-        segments: const [
-          ButtonSegment(value: PlayMode.standard, label: Text('Standard')),
-          ButtonSegment(value: PlayMode.adventure, label: Text('Adventure')),
+          const SizedBox(height: AppSpacing.sm),
+          SegmentedButton<AdventureHome>(
+            segments: const [
+              ButtonSegment(value: AdventureHome.hall, label: Text('Hall')),
+              ButtonSegment(value: AdventureHome.ledger, label: Text('Ledger')),
+            ],
+            selected: {prefs.home},
+            onSelectionChanged: actions == null
+                ? null
+                : (selection) =>
+                    unawaited(setAdventureHome(actions, selection.first)),
+          ),
         ],
-        selected: prefs.mode,
-        save: setPlayMode,
       ),
-      if (prefs.mode == PlayMode.adventure)
-        choice<AdventureHome>(
-          icon: Icons.home_outlined,
-          title: 'Home screen',
-          subtitle: 'What opens when you launch the app. The other is always '
-              'one tap away.',
-          segments: const [
-            ButtonSegment(value: AdventureHome.hall, label: Text('Hall')),
-            ButtonSegment(value: AdventureHome.ledger, label: Text('Ledger')),
-          ],
-          selected: prefs.home,
-          save: setAdventureHome,
-        ),
-    ]);
+    );
   }
 }
 

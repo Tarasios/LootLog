@@ -37,10 +37,11 @@ void main() {
     expect(find.textContaining('THE CAMP'), findsOneWidget);
     expect(find.text('THE DUNGEON ENTRANCE'), findsOneWidget);
 
-    // Prime action and the two-way toggles are present.
+    // The prime action is present; the old in-scene Classic button is gone
+    // (switching to Standard is the app bar's shared switch).
     expect(
         find.text('Strike a monster — log a purchase'), findsOneWidget);
-    expect(find.text('Classic'), findsOneWidget);
+    expect(find.text('Classic'), findsNothing);
 
     // The strike bar is pinned outside any scrollable — it can't scroll away.
     expect(
@@ -68,10 +69,9 @@ void main() {
     expect(t.takeException(), isNull);
   });
 
-  testWidgets('Strike, Text and Classic fire their callbacks', (t) async {
+  testWidgets('Strike and Text fire their callbacks', (t) async {
     var struck = 0;
     var text = 0;
-    var classic = 0;
     await t.pumpWidget(_wrap(PixelAdventureView(
       game: game,
       log: log,
@@ -79,16 +79,14 @@ void main() {
       callbacks: PixelAdventureCallbacks(
         onStrikeMonster: () => struck++,
         onSwitchToText: () => text++,
-        onSwitchToClassic: () => classic++,
       ),
     )));
 
     await t.tap(find.text('Strike a monster — log a purchase'));
     await t.tap(find.byTooltip('Text mode'));
-    await t.tap(find.text('Classic'));
     expect(struck, 1);
     expect(text, 1);
-    expect(classic, 1);
+    expect(find.text('Classic'), findsNothing);
   });
 
   testWidgets('tier 2: missing sprites degrade without throwing', (t) async {

@@ -1,8 +1,8 @@
 /// The text-adventure entry point (tier 3, the shipping default before art
 /// exists). Composes [TextAdventureView] from the same providers the classic
 /// dashboard reads — identical numbers — and wires the few actions: strike a
-/// monster (quick entry), enter the month-close battle, sign/decline writs, and
-/// drop to Classic.
+/// monster (quick entry), enter the month-close battle, and sign/decline writs.
+/// Switching to Standard is the app bar's shared Adventure / Standard switch.
 library;
 
 import 'dart:async';
@@ -23,8 +23,6 @@ import '../narrative.dart';
 import '../skin_prefs.dart';
 import 'text_adventure_view.dart';
 import 'text_battle.dart';
-import '../../features/settings/play_mode.dart';
-import '../../features/settings/play_mode_providers.dart';
 import '../../features/settings/visibility_prefs.dart';
 
 /// The narrative/encouragement asset bundle (loaded once). Cosmetic strings
@@ -78,13 +76,6 @@ class TextAdventureScreen extends ConsumerWidget {
       callbacks: TextAdventureCallbacks(
         onStrikeMonster: () => ExpenseEntryScreen.open(context),
         onOpenSpoils: () => unawaited(openTextBattle(context, ref)),
-        // "Classic" here switches this person to Standard mode — reversible,
-        // nothing in the game is lost.
-        onSwitchToClassic: () {
-          if (actions != null) {
-            unawaited(setPlayMode(actions, PlayMode.standard));
-          }
-        },
         onSwitchToPixels: () => unawaited(ref
             .read(adventureTierProvider.notifier)
             .select(AdventureTier.pixel)),

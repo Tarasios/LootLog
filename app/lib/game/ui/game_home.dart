@@ -13,12 +13,14 @@
 ///
 /// Built only behind the Adventure mode gate (`features/shell/home_gate.dart`);
 /// Standard mode never constructs it. Every way into the ledger is handed in
-/// ([onOpenLedger], [links]) so the game layer never depends on the app shell.
+/// ([onOpenLedger], [links]) so the game layer never depends on the app shell;
+/// the overflow menu holds the shared Adventure / Standard switch.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/settings/play_mode_switch.dart';
 import '../../ui/glossary.dart';
 import '../../ui/theme.dart';
 import '../data/game_providers.dart';
@@ -79,6 +81,7 @@ class _HallScaffold extends ConsumerWidget {
             icon: const Icon(Icons.menu_book),
             label: const Text('Ledger'),
           ),
+          const PlayModeMenuButton(),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(

@@ -2,7 +2,8 @@
 /// Composes [PixelAdventureView] from the same providers the classic dashboard
 /// reads — identical numbers — resolving sprites from `assets/game/` and any
 /// referenced custom sprite blobs. The global text-mode toggle drops to the
-/// text-adventure tier (tier 3); Classic drops to the plain ledger.
+/// text-adventure tier (tier 3). Switching to Standard is the app bar's shared
+/// Adventure / Standard switch.
 library;
 
 import 'dart:async';
@@ -23,8 +24,6 @@ import '../skin_prefs.dart';
 import '../text_mode/text_adventure_screen.dart'
     show campAmbienceRng, narrativeProvider;
 import 'pixel_adventure_view.dart';
-import '../../features/settings/play_mode.dart';
-import '../../features/settings/play_mode_providers.dart';
 import '../../features/settings/visibility_prefs.dart';
 
 class PixelAdventureScreen extends ConsumerWidget {
@@ -68,13 +67,6 @@ class PixelAdventureScreen extends ConsumerWidget {
         onOpenSpoils: () => unawaited(openSpoilsRitual(context, ref)),
         onSwitchToText: () => unawaited(
             ref.read(adventureTierProvider.notifier).select(AdventureTier.text)),
-        // "Classic" here switches this person to Standard mode — reversible,
-        // nothing in the game is lost.
-        onSwitchToClassic: () {
-          if (actions != null) {
-            unawaited(setPlayMode(actions, PlayMode.standard));
-          }
-        },
         onSignWrit: (id) {
           if (actions != null) unawaited(actions.approveWithdrawal(id));
         },
