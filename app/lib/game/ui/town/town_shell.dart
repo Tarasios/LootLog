@@ -29,9 +29,12 @@ import '../decor/shop_screen.dart';
 import '../dungeon/dungeon_providers.dart';
 import '../dungeon/dungeon_screen.dart';
 import '../game_home.dart';
+import '../habit_actions.dart';
 import '../hall_common.dart';
+import '../hall_home_sections.dart' show HallHomeData;
 import '../hall_ledger_view.dart';
 import '../hall_status.dart';
+import '../hall_voice.dart';
 import 'town_bottom_bar.dart';
 import 'town_decorate_panel.dart';
 import 'town_inbox_sheet.dart';
@@ -168,6 +171,7 @@ class _TownShellState extends ConsumerState<TownShell> {
     final registryLoad = ref.watch(gameAssetRegistryProvider);
     final clock = ref.watch(gameClockProvider);
     final dungeonOpen = ref.watch(monthEndBattleProvider) != null;
+    final voice = ref.watch(hallVoiceProvider).value ?? HallVoice.empty;
 
     void openTarget(TownTarget target) => switch (target) {
       PlotTarget(:final plotIndex) => showBuildingSheet(
@@ -290,6 +294,28 @@ class _TownShellState extends ConsumerState<TownShell> {
                     ],
                   ),
                 ),
+                if (!_decorating)
+                  Positioned(
+                    left: 8,
+                    bottom: 8,
+                    child: NoSpendCheckIn(
+                      key: const ValueKey('town-no-spend'),
+                      explainWhenUnavailable: true,
+                      data: HallHomeData(
+                        game: game,
+                        view: ledgerView,
+                        voice: voice,
+                        now: now,
+                        onOpenLedger: onOpenLedger,
+                        links: links,
+                      ),
+                      builder: (context, action) => ActionChip(
+                        avatar: Icon(action.icon, size: 18),
+                        label: Text(action.label),
+                        onPressed: action.onPressed,
+                      ),
+                    ),
+                  ),
                 if (_decorating)
                   Positioned(
                     left: 0,

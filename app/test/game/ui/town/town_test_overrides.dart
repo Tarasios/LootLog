@@ -25,6 +25,7 @@ import 'package:lootlog/game/domain/game_state.dart';
 import 'package:lootlog/game/scenes/town/town_game.dart' show TownsfolkEntry;
 import 'package:lootlog/game/skin_prefs.dart';
 import 'package:lootlog/game/ui/dungeon/dungeon_providers.dart';
+import 'package:lootlog/game/ui/hall_habits.dart';
 import 'package:lootlog/game/ui/hall_ledger_view.dart';
 import 'package:lootlog/game/ui/town/town_townsfolk.dart';
 
@@ -52,6 +53,7 @@ List<Override> townTestOverrides({
   HallLedgerView? view,
   GameCommandsService? service,
   MonthEndBattle? battle,
+  HallHabits? habits,
 }) {
   final state = game ?? projectGameState(sampleEvents());
   return [
@@ -63,6 +65,7 @@ List<Override> townTestOverrides({
       tierNotifier: tierNotifier,
       view: view,
       service: service,
+      habits: habits,
       decorCatalog: Future.value(catalog),
     ),
     if (liveStore == null)

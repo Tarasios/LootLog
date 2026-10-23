@@ -26,8 +26,8 @@ import 'building_sheet.dart';
 import 'dungeon/dungeon_screen.dart';
 import 'expeditions_screen.dart';
 import 'forge_screen.dart';
+import 'habit_actions.dart';
 import 'hall_common.dart';
-import 'hall_habits.dart';
 import 'hall_ledger_view.dart';
 import 'hall_names.dart';
 import 'hall_status.dart';
@@ -207,129 +207,42 @@ class _MemberRow extends StatelessWidget {
 // Today: the Scribe's Desk, no-spend check-in, weekly reconcile
 // ---------------------------------------------------------------------------
 
-class HabitPanel extends ConsumerStatefulWidget {
+class HabitPanel extends StatelessWidget {
   const HabitPanel(this.data, {super.key});
 
   final HallHomeData data;
 
-  @override
-  ConsumerState<HabitPanel> createState() => _HabitPanelState();
-}
-
-class _HabitPanelState extends ConsumerState<HabitPanel> {
-  bool _busy = false;
-  bool _checkedIn = false;
-  bool _reconciled = false;
-
-  static const unavailableNote =
-      'Check-ins and weekly reconciles switch on once your household adopts '
-      'the savings rules in Settings (update every device first).';
+  static Widget _button(BuildContext context, HabitActionView action) =>
+      OutlinedButton.icon(
+        onPressed: action.onPressed,
+        icon: Icon(action.icon),
+        label: Text(action.label),
+      );
 
   @override
-  Widget build(BuildContext context) {
-    final data = widget.data;
-    final available = data.view.habitsAvailable;
-    final covered = _checkedIn || todayCovered(data.me, data.today);
-    final reconciled = _reconciled || weekReconciled(data.me, data.today);
-    return HallSection(
-      title: 'Today',
-      icon: Icons.edit_note,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _ScribeRow(data: data),
-          const SizedBox(height: AppSpacing.md),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              OutlinedButton.icon(
-                onPressed: available && !covered && !_busy ? _noSpend : null,
-                icon: Icon(covered ? Icons.check : Icons.nights_stay_outlined),
-                label: Text(covered ? 'Today already counts' : 'No spend today'),
-              ),
-              OutlinedButton.icon(
-                onPressed:
-                    available && !reconciled && !_busy ? _reconcile : null,
-                icon: Icon(reconciled ? Icons.check : Icons.fact_check_outlined),
-                label: Text(reconciled
-                    ? 'Week reconciled'
-                    : 'Reconcile this week'),
-              ),
+  Widget build(BuildContext context) => HallSection(
+        title: 'Today',
+        icon: Icons.edit_note,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _ScribeRow(data: data),
+            const SizedBox(height: AppSpacing.md),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                NoSpendCheckIn(data: data, builder: _button),
+                WeeklyReconcile(data: data, builder: _button),
+              ],
+            ),
+            if (!data.view.habitsAvailable) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(kHabitsUnavailableNote, style: hallMutedStyle(context)),
             ],
-          ),
-          if (!available) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Text(unavailableNote, style: hallMutedStyle(context)),
           ],
-        ],
-      ),
-    );
-  }
-
-  Future<void> _noSpend() async {
-    final habits = ref.read(hallHabitsProvider);
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    if (habits == null) return;
-    setState(() => _busy = true);
-    final ok = await habits.checkInNoSpend();
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _checkedIn = ok;
-    });
-    messenger?.showSnackBar(SnackBar(
-      content: Text(ok
-          ? widget.data.voice
-              .line('noSpendDone', seed: widget.data.today.toKey())
-          : unavailableNote),
-    ));
-  }
-
-  Future<void> _reconcile() async {
-    final habits = ref.read(hallHabitsProvider);
-    if (habits == null) return;
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    final choice = await showDialog<String>(
-      context: context,
-      builder: (context) => HallScope(
-          child: AlertDialog(
-        title: const Text('Reconcile this week?'),
-        content: const Text(
-            "Check this week's entries against your receipts or bank, add "
-            'anything missing, then mark the week done.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop('ledger'),
-            child: const Text('Open the ledger'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop('done'),
-            child: const Text('Mark reconciled'),
-          ),
-        ],
-      )),
-    );
-    if (!mounted) return;
-    if (choice == 'ledger') {
-      widget.data.onOpenLedger();
-      return;
-    }
-    if (choice != 'done') return;
-    setState(() => _busy = true);
-    final ok = await habits.completeReconcile(widget.data.today);
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _reconciled = ok;
-    });
-    messenger?.showSnackBar(SnackBar(
-      content: Text(ok
-          ? widget.data.voice.line('reconcileDone',
-              seed: widget.data.today.weekStart.toKey())
-          : unavailableNote),
-    ));
-  }
+        ),
+      );
 }
 
 class _ScribeRow extends StatelessWidget {

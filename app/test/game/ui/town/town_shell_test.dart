@@ -1,23 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lootlog/domain/time.dart';
 import 'package:lootlog/features/settings/play_mode_switch.dart';
 import 'package:lootlog/game/battle/month_end_battle.dart';
 import 'package:lootlog/game/domain/decor/catalog.dart';
 import 'package:lootlog/game/domain/decor/decor_values.dart';
 import 'package:lootlog/game/domain/game_event.dart';
 import 'package:lootlog/game/domain/game_event_store.dart';
+import 'package:lootlog/game/domain/game_state.dart';
 import 'package:lootlog/game/domain/town/town_view.dart';
 import 'package:lootlog/game/scenes/town/town_scene_view.dart';
 import 'package:lootlog/game/skin_prefs.dart';
 import 'package:lootlog/game/ui/dungeon/dungeon_screen.dart';
 import 'package:lootlog/game/ui/game_home.dart';
+import 'package:lootlog/game/ui/hall_habits.dart';
+import 'package:lootlog/game/ui/hall_ledger_view.dart';
 import 'package:lootlog/game/ui/town/town_place_openers.dart';
 import 'package:lootlog/game/ui/town/town_shell.dart';
 
 import '../../../features/spoils/spoils_fixtures.dart';
 import '../hall_harness.dart'
-    show FixedTier, before, kShippedCatalog, sampleEvents, storeWith;
+    show
+        FakeHabits,
+        FixedTier,
+        before,
+        kShippedCatalog,
+        sampleEvents,
+        sampleView,
+        storeWith;
 import 'town_test_overrides.dart';
 
 /// Counts toggles instead of writing the tier file.
@@ -39,10 +50,16 @@ Widget host({
   AdventureTierNotifier? tierNotifier,
   DecorCatalog catalog = DecorCatalog.empty,
   MonthEndBattle? battle,
+  GameState? game,
+  HallHabits? habits,
+  HallLedgerView? view,
 }) => ProviderScope(
   overrides: townTestOverrides(
     tier: tier,
     battle: battle,
+    game: game,
+    habits: habits,
+    view: view,
     catalog: catalog,
     tierNotifier: tierNotifier,
     liveStore: liveStore,
@@ -336,6 +353,101 @@ void main() {
       await pumpUi(tester);
 
       expect(find.widgetWithText(FilledButton, 'Claim'), findsNothing);
+    });
+  });
+
+  group('habits in the town', () {
+    Finder noSpendChip() => find.descendant(
+      of: find.byKey(const ValueKey('town-no-spend')),
+      matching: find.byType(ActionChip),
+    );
+
+    testWidgets('"No spend today" sits beside Log a purchase and checks in', (
+      tester,
+    ) async {
+      final habits = FakeHabits();
+      await pumpShell(
+        tester,
+        host(
+          tier: AdventureTier.pixel,
+          game: GameState.initial(),
+          habits: habits,
+        ),
+      );
+      expect(find.text('No spend today'), findsOneWidget);
+      await tester.tap(find.text('No spend today'));
+      await pumpUi(tester);
+      expect(habits.checkIns, 1);
+      expect(find.text('Today already counts'), findsOneWidget);
+      expect(find.byType(SnackBar), findsOneWidget);
+    });
+
+    testWidgets('a covered day shows the check-in as done', (tester) async {
+      await pumpShell(tester, host(tier: AdventureTier.pixel));
+      expect(find.text('Today already counts'), findsOneWidget);
+      expect(tester.widget<ActionChip>(noSpendChip()).onPressed, isNull);
+    });
+
+    testWidgets('before the savings rules a tap explains why, writing nothing', (
+      tester,
+    ) async {
+      final habits = FakeHabits();
+      await pumpShell(
+        tester,
+        host(
+          tier: AdventureTier.pixel,
+          game: GameState.initial(),
+          habits: habits,
+          view: sampleView(habits: false),
+        ),
+      );
+      await tester.tap(find.text('No spend today'));
+      await pumpUi(tester);
+      expect(habits.checkIns, 0);
+      expect(find.textContaining('adopts the savings rules'), findsOneWidget);
+    });
+
+    testWidgets('the Inbox offers the weekly reconcile', (tester) async {
+      final habits = FakeHabits();
+      await pumpShell(
+        tester,
+        host(
+          tier: AdventureTier.pixel,
+          game: GameState.initial(),
+          habits: habits,
+        ),
+      );
+      await tester.tap(find.text('Inbox'));
+      await pumpUi(tester);
+      await tester.tap(find.text('Reconcile this week'));
+      await pumpUi(tester);
+      expect(find.text('Reconcile this week?'), findsOneWidget);
+      await tester.tap(find.text('Mark reconciled'));
+      await pumpUi(tester);
+      expect(habits.reconciled, [CalendarDay(2026, 10, 3)]);
+      expect(find.text('Week reconciled'), findsOneWidget);
+    });
+
+    testWidgets('the Inbox reconcile is off with a plain reason before the '
+        'savings rules', (tester) async {
+      await pumpShell(
+        tester,
+        host(
+          tier: AdventureTier.pixel,
+          game: GameState.initial(),
+          view: sampleView(habits: false),
+        ),
+      );
+      await tester.tap(find.text('Inbox'));
+      await pumpUi(tester);
+      final reconcile = tester.widget<OutlinedButton>(
+        find.ancestor(
+          of: find.text('Reconcile this week'),
+          matching: find.byWidgetPredicate((widget) => widget is OutlinedButton),
+        ),
+      );
+      expect(reconcile.onPressed, isNull);
+      expect(find.textContaining('adopts the savings rules'), findsOneWidget);
     });
   });
 }
