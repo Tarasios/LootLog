@@ -5,6 +5,7 @@
 ///   over the app database's `game_events` table).
 /// - [gameStateProvider]: the projection, re-emitted after every append
 ///   (local commands, reward runs, sync merges).
+/// - [gameClockProvider]: the game's clock (overridden in tests).
 /// - [gameCommandsServiceProvider]: this device's adult's
 ///   [GameCommandsService] (null until local setup exists).
 ///
@@ -16,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/actions.dart';
 import '../../data/providers.dart';
+import '../domain/clock.dart';
 import '../domain/game_event_stamp.dart';
 import '../domain/game_event_store.dart';
 import '../domain/game_projection.dart';
@@ -24,6 +26,11 @@ import 'drift_game_event_store.dart';
 import 'game_commands_service.dart';
 
 export 'game_commands_service.dart';
+
+/// The game's "now": the device's wall clock in the app, a `FixedClock` in
+/// tests. The command service and the hall UI read the same clock, so a
+/// countdown shown on screen and the command it gates always agree.
+final gameClockProvider = Provider<Clock>((ref) => const SystemClock());
 
 /// The game event log on this device.
 final gameEventStoreProvider = Provider<GameEventStore>(
@@ -46,6 +53,7 @@ final gameCommandsServiceProvider = Provider<GameCommandsService?>(
     return GameCommandsService(
       store: ref.watch(gameEventStoreProvider),
       actorId: setup.meUserId,
+      clock: ref.watch(gameClockProvider),
       stamp: GameEventStamp(deviceId: ref.watch(deviceIdProvider)),
       ledger: db.eventsDao.allEvents,
     );
@@ -55,5 +63,6 @@ final gameCommandsServiceProvider = Provider<GameCommandsService?>(
     appDatabaseProvider,
     gameEventStoreProvider,
     deviceIdProvider,
+    gameClockProvider,
   ],
 );

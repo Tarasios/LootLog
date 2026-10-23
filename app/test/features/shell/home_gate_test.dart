@@ -10,7 +10,10 @@ import 'package:lootlog/features/settings/play_mode.dart';
 import 'package:lootlog/features/settings/play_mode_providers.dart';
 import 'package:lootlog/features/shell/home_gate.dart';
 import 'package:lootlog/features/shell/loading_screen.dart';
+import 'package:lootlog/game/domain/game_event_store.dart';
 import 'package:lootlog/game/ui/game_home.dart';
+
+import '../../game/ui/hall_harness.dart' show hallOverrides;
 
 /// Stands in for the real AppShell (which needs the whole data layer) and
 /// exposes the hall entry point the gate hands it.
@@ -36,7 +39,11 @@ class _FakeLedger extends StatelessWidget {
 
 Future<void> pumpGate(WidgetTester tester, PlayPrefs? prefs) async {
   await tester.pumpWidget(ProviderScope(
-    overrides: [playPrefsProvider.overrideWithValue(prefs)],
+    overrides: [
+      playPrefsProvider.overrideWithValue(prefs),
+      // The hall over an empty in-memory game log, no database needed.
+      ...hallOverrides(store: InMemoryGameEventStore()),
+    ],
     child: MaterialApp(
       home: HomeGate(
         ledgerBuilder: (onOpenHall) => _FakeLedger(onOpenHall: onOpenHall),
@@ -75,17 +82,17 @@ void main() {
         const PlayPrefs(mode: PlayMode.adventure, home: AdventureHome.hall));
 
     expect(find.byType(GameHome), findsOneWidget);
-    expect(find.text('Guild hall coming soon'), findsOneWidget);
+    expect(find.text('Log a purchase'), findsOneWidget);
     expect(find.text('LEDGER'), findsNothing);
 
-    await tester.tap(find.text('Open the ledger'));
+    await tester.tap(find.text('Ledger'));
     await tester.pumpAndSettle();
     expect(find.text('LEDGER'), findsOneWidget);
 
     // The ledger's hall button returns to the hall rather than stacking.
     await tester.tap(find.byTooltip('Guild hall'));
     await tester.pumpAndSettle();
-    expect(find.text('Guild hall coming soon'), findsOneWidget);
+    expect(find.byType(GameHome), findsOneWidget);
     expect(find.text('LEDGER'), findsNothing);
   });
 
@@ -99,9 +106,9 @@ void main() {
 
     await tester.tap(find.byTooltip('Guild hall'));
     await tester.pumpAndSettle();
-    expect(find.text('Guild hall coming soon'), findsOneWidget);
+    expect(find.byType(GameHome), findsOneWidget);
 
-    await tester.tap(find.text('Open the ledger'));
+    await tester.tap(find.text('Ledger'));
     await tester.pumpAndSettle();
     expect(find.text('LEDGER'), findsOneWidget);
     expect(find.byType(GameHome), findsNothing);
