@@ -1,9 +1,12 @@
 /// A person's room. Its owner can rearrange it: pick or drag an item from
 /// the tray onto a free spot, tap a placed item to rotate or put it away,
-/// and change outfit in the wardrobe. Visitors only look.
+/// and change outfit in the wardrobe. Visitors only look. In the text tier
+/// the room is a list of what is placed, with move, rotate and put away, and
+/// a grid picker for spots (no pixel scene).
 library;
 
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,13 +16,17 @@ import '../../assets/game_asset_scope.dart';
 import '../../data/game_providers.dart';
 import '../../domain/decor/catalog.dart';
 import '../../domain/decor/decor_values.dart';
+import '../../domain/decor/room_grid.dart';
 import '../../domain/game_state.dart';
 import '../../scenes/room/room_game.dart';
 import '../../scenes/room/room_scene_view.dart';
+import '../../skin_prefs.dart';
 import '../hall_common.dart';
 import '../hall_ledger_view.dart';
+import 'cell_picker.dart';
 import 'goal_pictures.dart';
 import 'inventory_tray.dart';
+import 'room_text_body.dart';
 import 'wardrobe_sheet.dart';
 
 class RoomScreen extends ConsumerStatefulWidget {
@@ -62,6 +69,58 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
     if (mounted) setState(() => _picked = null);
   }
 
+  Future<void> _rotate(RoomItemView itemView) => _place(
+    itemView.item,
+    itemView.placement.column,
+    itemView.placement.row,
+    placementId: itemView.placement.placementId,
+    rotation: (itemView.placement.rotation + 1) % 4,
+  );
+
+  Future<void> _putAway(RoomItemView itemView) => runHallCommand(
+    context,
+    ref,
+    (service) => service.storePlacement(itemView.placement.placementId),
+  );
+
+  /// Asks for a spot on the grid (text tier). [moving] is left out of the
+  /// cells shown as taken, so it can shift over its own old spot.
+  Future<(int, int)?> _pickSpot(RoomView view, String title, {RoomItemView? moving}) {
+    String? takenBy(int column, int row) {
+      for (final other in view.items) {
+        if (identical(other, moving)) continue;
+        if (other.cells.contains((column, row))) return other.item.name;
+      }
+      return null;
+    }
+
+    return showCellPicker(
+      context,
+      title: title,
+      columns: RoomGrid.columns,
+      rows: RoomGrid.rows,
+      takenBy: takenBy,
+    );
+  }
+
+  Future<void> _move(RoomView view, RoomItemView itemView) async {
+    final spot = await _pickSpot(view, 'Move ${itemView.item.name} to…', moving: itemView);
+    if (spot == null || !mounted) return;
+    await _place(
+      itemView.item,
+      spot.$1,
+      spot.$2,
+      placementId: itemView.placement.placementId,
+      rotation: itemView.placement.rotation,
+    );
+  }
+
+  Future<void> _placePicked(RoomView view, DecorItem item) async {
+    final spot = await _pickSpot(view, 'Place ${item.name} at…');
+    if (spot == null || !mounted) return;
+    await _place(item, spot.$1, spot.$2);
+  }
+
   Future<void> _showPlacedItemActions(RoomItemView itemView) =>
       showModalBottomSheet<void>(
         context: context,
@@ -74,15 +133,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
               title: const Text('Rotate'),
               onTap: () {
                 Navigator.of(sheetContext).pop();
-                unawaited(
-                  _place(
-                    itemView.item,
-                    itemView.placement.column,
-                    itemView.placement.row,
-                    placementId: itemView.placement.placementId,
-                    rotation: (itemView.placement.rotation + 1) % 4,
-                  ),
-                );
+                unawaited(_rotate(itemView));
               },
             ),
             ListTile(
@@ -90,14 +141,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
               title: const Text('Put away'),
               onTap: () {
                 Navigator.of(sheetContext).pop();
-                unawaited(
-                  runHallCommand(
-                    context,
-                    ref,
-                    (service) =>
-                        service.storePlacement(itemView.placement.placementId),
-                  ),
-                );
+                unawaited(_putAway(itemView));
               },
             ),
           ],
@@ -136,7 +180,10 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
       viewerId: viewerId,
       goalPictures: ref.watch(goalPictureShasProvider),
     );
-    final goalPictures = ref.watch(goalPictureImagesProvider).value ?? const {};
+    final textTier = ref.watch(adventureTierProvider) == AdventureTier.text;
+    final goalPictures = textTier
+        ? const <String, ui.Image>{}
+        : ref.watch(goalPictureImagesProvider).value ?? const {};
 
     return AdventureSpriteScope(
       child: Scaffold(
@@ -166,7 +213,15 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
         body: Column(
           children: [
             Expanded(
-              child: registryLoad.isLoading && !registryLoad.hasValue
+              child: textTier
+                  ? RoomTextBody(
+                      view: view,
+                      editing: _editing,
+                      onMove: (item) => unawaited(_move(view, item)),
+                      onRotate: (item) => unawaited(_rotate(item)),
+                      onPutAway: (item) => unawaited(_putAway(item)),
+                    )
+                  : registryLoad.isLoading && !registryLoad.hasValue
                   // The scene reads its art once, so wait for the registry.
                   ? const ColoredBox(color: Color(0xFF30346D))
                   : RoomSceneView(
@@ -181,7 +236,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
                     ),
             ),
             if (_editing) ...[
-              if (_picked != null)
+              if (_picked != null && !textTier)
                 Padding(
                   padding: const EdgeInsets.all(8),
                   child: Text('Tap a free spot to place ${_picked!.name}.'),
@@ -189,7 +244,9 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
               InventoryTray(
                 space: DecorSpace.room,
                 personId: widget.personId,
-                onPick: (item) => setState(() => _picked = item),
+                onPick: (item) => textTier
+                    ? unawaited(_placePicked(view, item))
+                    : setState(() => _picked = item),
               ),
             ],
           ],

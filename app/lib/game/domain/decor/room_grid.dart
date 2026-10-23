@@ -42,4 +42,31 @@ class TownDecorSpots {
         row < origin.row + TownLayout.footprint;
     return !layout.plotOrigins.any(covers) && !layout.houseOrigins.any(covers);
   }
+
+  /// Where [item] would stand if placed without picking a spot (the text
+  /// tier): a statue on the first free statue spot, anything else on the free
+  /// grass nearest the middle of town. [taken] holds the (column, row) of
+  /// what already stands in the town. Null when nowhere is free.
+  static TownCell? firstFreeSpot(TownLayout layout, DecorItem item, Set<(int, int)> taken) {
+    bool free(TownCell cell) => !taken.contains((cell.column, cell.row));
+    if (item.kind == DecorKind.statue) {
+      for (final spot in layout.statueSpots) {
+        if (free(spot)) return spot;
+      }
+      return null;
+    }
+    final middleColumn = layout.columns ~/ 2;
+    final middleRow = layout.rows ~/ 2;
+    int distance(TownCell cell) =>
+        (cell.column - middleColumn).abs() + (cell.row - middleRow).abs();
+    TownCell? best;
+    for (var row = 0; row < layout.rows; row++) {
+      for (var column = 0; column < layout.columns; column++) {
+        final cell = TownCell(column, row);
+        if (!isFreeGrass(layout, column, row) || !free(cell)) continue;
+        if (best == null || distance(cell) < distance(best)) best = cell;
+      }
+    }
+    return best;
+  }
 }

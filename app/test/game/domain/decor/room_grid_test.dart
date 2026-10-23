@@ -30,4 +30,32 @@ void main() {
     expect(TownDecorSpots.isFreeGrass(layout, plot.column, plot.row), isFalse, reason: 'plot');
     expect(TownDecorSpots.isFreeGrass(layout, layout.gate.column, layout.gate.row), isFalse);
   });
+
+  group('the first free town spot (text tier placing)', () {
+    const layout = TownLayout.standard;
+    const lantern = DecorItem(
+      id: 'lantern', name: 'Lantern', kind: DecorKind.townDecor, rarity: DecorRarity.common,
+      assetKey: AssetKey('decor', 'lantern'),
+    );
+    const statue = DecorItem(
+      id: 'statue', name: 'Statue', kind: DecorKind.statue, rarity: DecorRarity.common,
+      assetKey: AssetKey('decor', 'statue'),
+    );
+
+    test('a statue takes the first free statue spot', () {
+      expect(TownDecorSpots.firstFreeSpot(layout, statue, const {}), layout.statueSpots.first);
+      final first = layout.statueSpots.first;
+      expect(TownDecorSpots.firstFreeSpot(layout, statue, {(first.column, first.row)}), layout.statueSpots[1]);
+      final allTaken = {for (final spot in layout.statueSpots) (spot.column, spot.row)};
+      expect(TownDecorSpots.firstFreeSpot(layout, statue, allTaken), isNull);
+    });
+
+    test('a decoration takes free grass nearest the middle of town, never a taken cell', () {
+      final spot = TownDecorSpots.firstFreeSpot(layout, lantern, const {})!;
+      expect(TownDecorSpots.isFreeGrass(layout, spot.column, spot.row), isTrue);
+      final next = TownDecorSpots.firstFreeSpot(layout, lantern, {(spot.column, spot.row)})!;
+      expect(next, isNot(spot));
+      expect(TownDecorSpots.isFreeGrass(layout, next.column, next.row), isTrue);
+    });
+  });
 }

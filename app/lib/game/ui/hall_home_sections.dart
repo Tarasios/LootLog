@@ -23,6 +23,9 @@ import '../domain/game_values.dart';
 import '../domain/hall_rules.dart';
 import '../game_sprite.dart';
 import 'building_sheet.dart';
+import 'decor/room_screen.dart';
+import 'decor/shop_screen.dart';
+import 'decor/wardrobe_sheet.dart';
 import 'dungeon/dungeon_screen.dart';
 import 'expeditions_screen.dart';
 import 'forge_screen.dart';
@@ -32,6 +35,7 @@ import 'hall_ledger_view.dart';
 import 'hall_names.dart';
 import 'hall_status.dart';
 import 'hall_voice.dart';
+import 'town/town_decor_text_screen.dart';
 import 'vault_screen.dart';
 
 /// What every home section is handed.
@@ -748,6 +752,32 @@ class PlacesPanel extends StatelessWidget {
             subtitle: 'Savings milestones: goal progress and saving streaks',
             onTap: () => pushHallScreen(
                 context, VaultScreen(onOpenLedger: data.onOpenLedger)),
+          ),
+          _PlaceTile(
+            icon: Icons.storefront_outlined,
+            title: 'Shop',
+            subtitle: 'A new set of decorations arrives every day',
+            onTap: () => unawaited(ShopScreen.open(context)),
+          ),
+          if (data.view.meId case final String meId when meId.isNotEmpty) ...[
+            _PlaceTile(
+              icon: Icons.chair_outlined,
+              title: 'Your room',
+              subtitle: 'Arrange your furniture and trophies',
+              onTap: () => unawaited(RoomScreen.open(context, meId)),
+            ),
+            _PlaceTile(
+              icon: Icons.checkroom_outlined,
+              title: 'Wardrobe',
+              subtitle: 'Wear an outfit or a title you own',
+              onTap: () => unawaited(showWardrobeSheet(context, meId)),
+            ),
+          ],
+          _PlaceTile(
+            icon: Icons.park_outlined,
+            title: 'Town decorations',
+            subtitle: 'Place and put away decorations and statues',
+            onTap: () => unawaited(TownDecorTextScreen.open(context)),
           ),
           _PlaceTile(
             icon: Icons.auto_awesome,

@@ -10,8 +10,11 @@ import 'package:lootlog/game/domain/game_event.dart';
 import 'package:lootlog/game/domain/game_values.dart';
 import 'package:lootlog/game/game_sprite.dart';
 import 'package:lootlog/game/skin_prefs.dart';
+import 'package:lootlog/game/ui/decor/room_screen.dart';
+import 'package:lootlog/game/ui/decor/shop_screen.dart';
 import 'package:lootlog/game/ui/dungeon/dungeon_screen.dart';
 import 'package:lootlog/game/ui/game_home.dart';
+import 'package:lootlog/game/ui/town/town_decor_text_screen.dart';
 
 import 'hall_harness.dart';
 
@@ -237,5 +240,44 @@ void main() {
         find.text('Nothing waiting. Log something and see what turns up.'),
         findsOneWidget);
     expect(MaterialKind.values, isNotEmpty);
+  });
+
+  testWidgets('the places list reaches the shop, your room, the wardrobe and '
+      'the town decorations in the text tier', (tester) async {
+    await pumpHall(tester, store: await storeWith(sampleEvents()));
+    for (final place in [
+      'Shop',
+      'Your room',
+      'Wardrobe',
+      'Town decorations',
+    ]) {
+      expect(find.text(place), findsOneWidget, reason: place);
+    }
+    await tester.ensureVisible(find.text('Shop'));
+    await tester.tap(find.text('Shop'));
+    await settle(tester);
+    expect(find.byType(ShopScreen), findsOneWidget);
+    await tester.pageBack();
+    await settle(tester);
+
+    await tester.ensureVisible(find.text('Your room'));
+    await tester.tap(find.text('Your room'));
+    await settle(tester);
+    expect(find.byType(RoomScreen), findsOneWidget);
+    expect(find.byKey(const ValueKey('room-text')), findsOneWidget);
+    await tester.pageBack();
+    await settle(tester);
+
+    await tester.ensureVisible(find.text('Town decorations'));
+    await tester.tap(find.text('Town decorations'));
+    await settle(tester);
+    expect(find.byType(TownDecorTextScreen), findsOneWidget);
+    await tester.pageBack();
+    await settle(tester);
+
+    await tester.ensureVisible(find.text('Wardrobe'));
+    await tester.tap(find.text('Wardrobe'));
+    await settle(tester);
+    expect(find.textContaining('Outfits from the shop'), findsOneWidget);
   });
 }
