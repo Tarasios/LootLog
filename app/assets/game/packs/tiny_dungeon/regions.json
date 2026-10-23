@@ -1,0 +1,91 @@
+{
+  "sheet": "tilemap_packed.png",
+  "cellSize": 16,
+  "spacing": 0,
+  "regions": {
+    "dungeon.floor.default.idle": [
+      0,
+      0
+    ],
+    "dungeon.wall.default.idle": [
+      9,
+      4
+    ],
+    "dungeon.torch.default.idle": [
+      5,
+      2
+    ],
+    "hero.body.default.idle": [
+      1,
+      7
+    ],
+    "hero.body.knight.idle": [
+      0,
+      8
+    ],
+    "hero.body.wizard.idle": [
+      0,
+      7
+    ],
+    "hero.body.rogue.idle": [
+      4,
+      7
+    ],
+    "hero.body.ranger.idle": [
+      4,
+      9
+    ],
+    "boss.goal.default.idle": [
+      1,
+      9
+    ],
+    "boss.goal.food.idle": [
+      0,
+      9
+    ],
+    "boss.goal.entertainment.idle": [
+      3,
+      9
+    ],
+    "boss.goal.transport.idle": [
+      0,
+      10
+    ],
+    "boss.goal.housing.idle": [
+      2,
+      10
+    ],
+    "boss.overbudget.default.idle": [
+      2,
+      9
+    ],
+    "npc.villager.a.idle": [
+      3,
+      8
+    ],
+    "npc.villager.b.idle": [
+      4,
+      8
+    ],
+    "npc.pet.default.idle": [
+      3,
+      10
+    ],
+    "item.weapon.default.idle": [
+      7,
+      8
+    ],
+    "chest.wood.closed.idle": [
+      5,
+      7
+    ],
+    "chest.wood.open.idle": [
+      7,
+      7
+    ],
+    "chest.gold.closed.idle": [
+      6,
+      7
+    ]
+  }
+}

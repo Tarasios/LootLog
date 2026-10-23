@@ -1,0 +1,111 @@
+{
+  "sheet": "roguelikeIndoor_transparent.png",
+  "cellSize": 16,
+  "spacing": 1,
+  "regions": {
+    "room.floor.wood.idle": [
+      23,
+      14
+    ],
+    "room.wall.default.idle": [
+      10,
+      12
+    ],
+    "furniture.bed.default.idle": [
+      8,
+      0,
+      1,
+      2
+    ],
+    "furniture.bed.canopy.idle": [
+      14,
+      0,
+      1,
+      2
+    ],
+    "furniture.rug.default.idle": [
+      0,
+      9,
+      3,
+      3
+    ],
+    "furniture.rug.dragon.idle": [
+      7,
+      9,
+      3,
+      3
+    ],
+    "furniture.lamp.default.idle": [
+      19,
+      4,
+      1,
+      2
+    ],
+    "furniture.lamp.crown.idle": [
+      17,
+      4,
+      1,
+      2
+    ],
+    "furniture.lamp.ember.idle": [
+      20,
+      6,
+      1,
+      2
+    ],
+    "furniture.table.default.idle": [
+      0,
+      0,
+      3,
+      2
+    ],
+    "furniture.chair.default.idle": [
+      0,
+      2
+    ],
+    "furniture.bookshelf.default.idle": [
+      19,
+      17
+    ],
+    "furniture.plant.default.idle": [
+      16,
+      0
+    ],
+    "furniture.painting.default.idle": [
+      19,
+      12
+    ],
+    "furniture.painting.banner.idle": [
+      20,
+      15,
+      1,
+      2
+    ],
+    "furniture.wardrobe.default.idle": [
+      23,
+      9,
+      2,
+      2
+    ],
+    "furniture.desk.default.idle": [
+      4,
+      6,
+      4,
+      2
+    ],
+    "furniture.armchair.default.idle": [
+      22,
+      4,
+      1,
+      2
+    ],
+    "furniture.clock.default.idle": [
+      22,
+      11
+    ],
+    "furniture.trophy_stand.default.idle": [
+      22,
+      10
+    ]
+  }
+}

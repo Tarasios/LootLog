@@ -108,6 +108,10 @@ flutter:
     # writers can edit copy without touching Dart. Listed separately because a
     # bare directory entry does not include nested folders.
     - assets/game/text/
+    # Kenney CC0 16x16 art packs (nested folders must be listed explicitly).
+    - assets/game/packs/tiny_town/
+    - assets/game/packs/tiny_dungeon/
+    - assets/game/packs/roguelike_indoors/
     # App icon + splash master art (placeholders). Regenerate the platform
     # launcher icons and the splash logo with tool/generate_branding.dart.
     - assets/branding/
