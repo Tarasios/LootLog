@@ -2,10 +2,13 @@
 ///
 /// Built only behind the Adventure mode gate (`features/shell/home_gate.dart`);
 /// Standard mode never constructs it. Navigation back to the ledger is handed
-/// in as a callback so the game layer never depends on the app shell.
+/// in as a callback so the game layer never depends on the app shell; the
+/// overflow menu holds the shared Adventure / Standard switch.
 library;
 
 import 'package:flutter/material.dart';
+
+import '../../features/settings/play_mode_switch.dart';
 
 class GameHome extends StatelessWidget {
   const GameHome({super.key, required this.onOpenLedger});
@@ -20,6 +23,7 @@ class GameHome extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Guild hall'),
         automaticallyImplyLeading: false,
+        actions: const [PlayModeMenuButton()],
       ),
       body: Center(
         child: Padding(

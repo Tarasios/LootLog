@@ -127,9 +127,10 @@ void main() {
     expect(find.textContaining('THE CAMP'), findsOneWidget);
     expect(find.textContaining('THE DUNGEON ENTRANCE'), findsOneWidget);
 
-    // The prime action and the always-visible Classic toggle.
+    // The prime action. The old in-scene Classic button is gone: switching to
+    // Standard is the app bar's shared Adventure / Standard switch.
     expect(find.textContaining('Strike a monster'), findsOneWidget);
-    expect(find.text('Classic'), findsOneWidget);
+    expect(find.text('Classic'), findsNothing);
 
     // Party roster (around the campfire) with the user-written description.
     expect(find.text('A steady hand with a ledger.'), findsOneWidget);
@@ -169,22 +170,24 @@ void main() {
     expect(button.hitTestable(), findsOneWidget);
   });
 
-  testWidgets('Strike a monster and Classic fire their callbacks', (t) async {
+  testWidgets('Strike a monster and Pixel mode fire their callbacks',
+      (t) async {
     var struck = 0;
-    var classic = 0;
+    var pixels = 0;
     await t.pumpWidget(_wrap(TextAdventureView(
       game: _withRoster(sampleDungeonState()),
       log: log,
       callbacks: TextAdventureCallbacks(
         onStrikeMonster: () => struck++,
-        onSwitchToClassic: () => classic++,
+        onSwitchToPixels: () => pixels++,
       ),
     )));
 
     await t.tap(find.textContaining('Strike a monster'));
-    await t.tap(find.text('Classic'));
+    await t.tap(find.byTooltip('Pixel mode'));
     expect(struck, 1);
-    expect(classic, 1);
+    expect(pixels, 1);
+    expect(find.text('Classic'), findsNothing);
   });
 
   testWidgets('guild loans show, with Seal only for the other adventurer',

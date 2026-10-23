@@ -289,6 +289,41 @@ abstract final class Glossary {
         'goes to savings, and if it comes in higher, it comes from savings.',
   );
 
+  /// The per-person choice between the game and the plain app. The label is
+  /// the same in both modes so it is easy to find from either side.
+  static const playMode = GlossaryTerm(
+    internal: 'PlayMode',
+    classic: 'Adventure / Standard',
+    adventure: 'Adventure / Standard',
+    helper: 'Adventure turns your budget into a game. Standard is the plain '
+        'budgeting app with the same numbers. Your choice follows you to '
+        'every device.',
+  );
+
+  /// The game experience ([playMode] option).
+  static const adventureMode = GlossaryTerm(
+    internal: 'PlayMode.adventure',
+    classic: 'Adventure',
+    adventure: 'Adventure',
+    helper: 'Your budget as a dungeon-crawler game.',
+  );
+
+  /// The plain budgeting app ([playMode] option).
+  static const standardMode = GlossaryTerm(
+    internal: 'PlayMode.standard',
+    classic: 'Standard',
+    adventure: 'Standard',
+    helper: 'The plain budgeting app — same numbers, no game.',
+  );
+
+  /// The one-line reassurance shown before switching [playMode].
+  static const playModeSwitchReassurance =
+      'You can switch back any time — nothing is lost.';
+
+  /// "Switch to Adventure" / "Switch to Standard".
+  static String switchPlayModeLabel({required bool toAdventure}) =>
+      'Switch to ${(toAdventure ? adventureMode : standardMode).classic}';
+
   /// Every defined term, for tests and any glossary/help screen.
   static const all = <GlossaryTerm>[
     leftoverAllocated,
@@ -317,6 +352,9 @@ abstract final class Glossary {
     household,
     fixedBill,
     variableBill,
+    playMode,
+    adventureMode,
+    standardMode,
   ];
 
   /// Flavor words that must never appear in Classic-mode copy. The glossary is

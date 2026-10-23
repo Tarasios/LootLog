@@ -28,19 +28,13 @@ extension _CampBannerPanel on PixelAdventureView {
                   color: scheme.tertiaryContainer,
                   onColor: scheme.onTertiaryContainer,
                 ),
+              // Switching to Standard lives in the app bar's shared
+              // Adventure / Standard switch.
               IconButton(
                 onPressed: callbacks.onSwitchToText,
                 tooltip: 'Text mode',
                 visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.text_fields, size: 18),
-              ),
-              TextButton.icon(
-                onPressed: callbacks.onSwitchToClassic,
-                icon: const Icon(Icons.list_alt, size: 16),
-                label: const Text('Classic'),
-                style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                ),
               ),
             ],
           ),

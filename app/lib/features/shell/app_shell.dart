@@ -8,7 +8,9 @@
 /// vacations and the homestead, so none of them hide behind Manage; the
 /// trophy hall is also one tap from the Goals pane on every width.
 ///
-/// The quick-entry FAB and receipt scan live here so every pane shares them.
+/// The quick-entry FAB and receipt scan live here so every pane shares them,
+/// as does the overflow menu holding the Adventure / Standard switch (in both
+/// modes — the Adventure dashboards render inside this shell).
 library;
 
 import 'dart:async';
@@ -33,6 +35,7 @@ import '../ocr/ocr_confirm_screen.dart';
 import '../quests/quests_screen.dart';
 import '../rewards/trophy_hall_screen.dart';
 import '../settings/play_mode_providers.dart';
+import '../settings/play_mode_switch.dart';
 import '../spoils/spoils_screen.dart';
 import '../sync/sync_status.dart';
 import '../tutorial/tutorial.dart';
@@ -159,6 +162,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           ..._hallAction(),
           const SpoilsEntryButton(),
           _manageAction(context),
+          const PlayModeMenuButton(),
         ],
       ),
       body: _paneBody(_pane, showActivity: true),
@@ -210,6 +214,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           ..._hallAction(),
           const SpoilsEntryButton(),
           _manageAction(context),
+          const PlayModeMenuButton(),
         ],
       ),
       floatingActionButton: _fab(context),
