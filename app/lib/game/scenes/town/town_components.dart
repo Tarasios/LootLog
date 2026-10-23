@@ -247,8 +247,8 @@ class GateGlow extends CircleComponent {
   }
 }
 
-/// A resident's house with their character (Adventure) or the parked supply
-/// wagon (Standard) beside it, and their name underneath.
+/// A resident's house with their character (Adventure) and their name
+/// underneath, or the parked supply wagon (Standard), never named.
 class HouseComponent extends PositionComponent {
   HouseComponent(this.atlas, this.resident)
     : super(
@@ -283,7 +283,8 @@ class HouseComponent extends PositionComponent {
         priority: 3,
       ),
     );
-    add(_nameUnder(size, resident.name));
+    // A Standard adult's wagon is never named (design rule 7).
+    if (resident.inAdventure) add(_nameUnder(size, resident.name));
   }
 }
 

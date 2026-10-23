@@ -50,7 +50,12 @@ final gameStateProvider = StreamProvider<GameState>(
   dependencies: [gameEventStoreProvider],
 );
 
-/// The command service for this device's adult, or null before setup.
+/// The device's one command queue, kept across service rebuilds.
+final gameCommandQueueProvider = Provider<GameCommandQueue>((ref) => GameCommandQueue());
+
+/// The command service for this device's adult, or null before setup. It is
+/// rebuilt when its inputs change (the catalogue loading, for one), but every
+/// rebuild shares [gameCommandQueueProvider], so commands never race.
 final gameCommandsServiceProvider = Provider<GameCommandsService?>(
   (ref) {
     final setup = ref.watch(localSetupProvider).value;
@@ -63,9 +68,11 @@ final gameCommandsServiceProvider = Provider<GameCommandsService?>(
       stamp: GameEventStamp(deviceId: ref.watch(deviceIdProvider)),
       ledger: db.eventsDao.allEvents,
       catalog: ref.watch(decorCatalogProvider).value ?? DecorCatalog.empty,
+      queue: ref.watch(gameCommandQueueProvider),
     );
   },
   dependencies: [
+    gameCommandQueueProvider,
     localSetupProvider,
     appDatabaseProvider,
     gameEventStoreProvider,

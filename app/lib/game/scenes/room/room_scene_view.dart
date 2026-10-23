@@ -13,6 +13,7 @@ import '../../domain/decor/catalog.dart';
 import '../../domain/decor/room_grid.dart';
 import '../camera_controls.dart';
 import '../pack_atlas.dart';
+import '../scene_pictures.dart';
 import 'room_components.dart';
 import 'room_game.dart';
 
@@ -48,19 +49,31 @@ class RoomSceneView extends StatefulWidget {
 }
 
 class _RoomSceneViewState extends State<RoomSceneView> {
+  late ScenePictures _pictures = ScenePictures(widget.pictures);
   late final RoomGame _game = RoomGame(
     atlas: PackAtlas.shared(widget.registry),
     view: widget.view,
-    pictures: widget.pictures,
+    pictures: _pictures.images,
   );
 
   @override
   void didUpdateWidget(RoomSceneView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.view, widget.view) ||
-        !identical(oldWidget.pictures, widget.pictures)) {
-      unawaited(_game.updateView(widget.view, newPictures: widget.pictures));
+    if (!identical(oldWidget.pictures, widget.pictures)) {
+      final previous = _pictures;
+      _pictures = ScenePictures(widget.pictures);
+      unawaited(
+        _game.updateView(widget.view, newPictures: _pictures.images).whenComplete(previous.dispose),
+      );
+    } else if (!identical(oldWidget.view, widget.view)) {
+      unawaited(_game.updateView(widget.view, newPictures: _pictures.images));
     }
+  }
+
+  @override
+  void dispose() {
+    _pictures.dispose();
+    super.dispose();
   }
 
   /// The room cell under [local] (inside the wall border), or null for the

@@ -183,7 +183,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
     final textTier = ref.watch(adventureTierProvider) == AdventureTier.text;
     final goalPictures = textTier
         ? const <String, ui.Image>{}
-        : ref.watch(goalPictureImagesProvider).value ?? const {};
+        : ref.watch(goalPictureImagesProvider).unwrapPrevious().value ?? const {};
 
     return AdventureSpriteScope(
       child: Scaffold(

@@ -30,6 +30,22 @@ import '../domain/ledger_inputs.dart';
 export '../domain/commands/game_commands.dart'
     show GameCommandResult, GameRejection;
 
+/// The one line every game command on this device waits in, so each command
+/// sees the events of the one before. It outlives any single
+/// [GameCommandsService]: the service is rebuilt when, say, the decoration
+/// catalogue finishes loading, and commands queued on the old service and
+/// the new one must still never race.
+class GameCommandQueue {
+  Future<void> _tail = Future.value();
+
+  /// Runs [body] after every earlier call has finished (or failed).
+  Future<T> serialized<T>(Future<T> Function() body) {
+    final result = _tail.then((_) => body());
+    _tail = result.then((_) {}, onError: (Object _) {});
+    return result;
+  }
+}
+
 class GameCommandsService {
   GameCommandsService({
     required this.store,
@@ -38,7 +54,8 @@ class GameCommandsService {
     this.clock = const SystemClock(),
     this.ledger,
     this.catalog = DecorCatalog.empty,
-  });
+    GameCommandQueue? queue,
+  }) : queue = queue ?? GameCommandQueue();
 
   /// Where game events are read from and appended to.
   final GameEventStore store;
@@ -59,15 +76,11 @@ class GameCommandsService {
   /// The decoration catalogue the decoration commands look items up in.
   final DecorCatalog catalog;
 
-  Future<void> _tail = Future.value();
+  /// The line [run] and [runDecor] share, so each call sees the previous
+  /// call's events (shared with earlier services on this device).
+  final GameCommandQueue queue;
 
-  /// Queues [body] behind every earlier call, so [run] and [runDecor] share
-  /// one line and each call sees the previous call's events.
-  Future<T> _serialized<T>(Future<T> Function() body) {
-    final result = _tail.then((_) => body());
-    _tail = result.then((_) {}, onError: (Object _) {});
-    return result;
-  }
+  Future<T> _serialized<T>(Future<T> Function() body) => queue.serialized(body);
 
   /// Runs [command] against the current state and appends its events when
   /// accepted. Serialized: each call sees the previous call's events.

@@ -15,6 +15,7 @@ import '../../domain/decor/catalog.dart';
 import '../../domain/town/town_layout.dart' show TownCell;
 import '../../domain/town/town_view.dart';
 import '../pack_atlas.dart';
+import '../scene_pictures.dart';
 import 'town_game.dart';
 
 export 'town_game.dart' show LogPulse, TownsfolkEntry;
@@ -59,28 +60,34 @@ class TownSceneView extends StatefulWidget {
 }
 
 class _TownSceneViewState extends State<TownSceneView> {
+  late ScenePictures _pictures = ScenePictures(widget.pictures);
   late final TownGame _game = TownGame(
     atlas: PackAtlas.shared(widget.registry),
     view: widget.view,
     ambientLife: widget.ambientLife,
     townsfolk: widget.townsfolk,
     catalog: widget.catalog,
-    pictures: widget.pictures,
+    pictures: _pictures.images,
   );
   int _zoomAtPinchStart = 3;
 
   @override
   void didUpdateWidget(TownSceneView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final picturesChanged = !identical(oldWidget.pictures, widget.pictures);
     if (oldWidget.view != widget.view ||
-        !identical(oldWidget.pictures, widget.pictures) ||
+        picturesChanged ||
         !identical(oldWidget.catalog, widget.catalog)) {
+      final previous = picturesChanged ? _pictures : null;
+      if (picturesChanged) _pictures = ScenePictures(widget.pictures);
       unawaited(
-        _game.updateView(
-          widget.view,
-          newPictures: widget.pictures,
-          newCatalog: widget.catalog,
-        ),
+        _game
+            .updateView(
+              widget.view,
+              newPictures: _pictures.images,
+              newCatalog: widget.catalog,
+            )
+            .whenComplete(() => previous?.dispose()),
       );
     }
     if (!listEquals(oldWidget.townsfolk, widget.townsfolk)) {
@@ -90,6 +97,12 @@ class _TownSceneViewState extends State<TownSceneView> {
     if (pulse != null && pulse.sequence != oldWidget.logPulse?.sequence) {
       _game.celebrateLog(pulse);
     }
+  }
+
+  @override
+  void dispose() {
+    _pictures.dispose();
+    super.dispose();
   }
 
   @override

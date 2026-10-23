@@ -209,7 +209,7 @@ class _TownShellState extends ConsumerState<TownShell> {
 
     final catalog = ref.watch(decorCatalogProvider).value ?? DecorCatalog.empty;
     final goalPictureShas = ref.watch(goalPictureShasProvider);
-    final goalPictures = ref.watch(goalPictureImagesProvider).value ?? const {};
+    final goalPictures = ref.watch(goalPictureImagesProvider).unwrapPrevious().value ?? const {};
     final game = ref.watch(gameStateProvider).value ?? GameState.initial();
     final ledgerView = ref.watch(hallLedgerViewProvider);
     _claimStarterSetWhenReady(game, ledgerView.meId);

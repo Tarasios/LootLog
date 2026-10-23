@@ -122,6 +122,21 @@ void main() {
   );
 
   testWithGame<TownGame>(
+    "an Adventure adult's house is named; a Standard adult's wagon never is",
+    buildGame,
+    (game) async {
+      await game.ready();
+      final houses = game.world.children.whereType<HouseComponent>().toList();
+      Iterable<String> namesUnder(HouseComponent house) =>
+          house.children.whereType<TextComponent>().map((label) => label.text);
+      final alex = houses.singleWhere((house) => house.resident.personId == 'alex');
+      final sam = houses.singleWhere((house) => house.resident.personId == 'sam');
+      expect(namesUnder(alex), contains('Alex'));
+      expect(namesUnder(sam), isNot(contains('Sam')));
+    },
+  );
+
+  testWithGame<TownGame>(
     'updateView replaces the plots instead of adding more',
     buildGame,
     (game) async {
