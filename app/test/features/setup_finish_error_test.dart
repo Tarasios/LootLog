@@ -64,7 +64,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Welcome gate -> party step.
-    await tester.tap(find.text('Start a new party'));
+    await tester.tap(find.text('Start a new household'));
     await tester.pumpAndSettle();
 
     // Add one adult; the controller makes the first adult "me" automatically.

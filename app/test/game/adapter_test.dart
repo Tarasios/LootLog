@@ -745,6 +745,86 @@ void main() {
       expect(g.warChest.writsForOther.single.needsMySignature, isFalse);
     });
 
+    AllowanceAdvanceProposed loan({required String by}) =>
+        AllowanceAdvanceProposed(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: by,
+          occurredAt: _day(2026, 7, 2),
+          createdAt: _day(2026, 7, 2),
+          advanceId: 'a-$by',
+          byUserId: by,
+          sliceId: 'gear',
+          amountCents: 6000,
+          months: 3,
+        );
+
+    // Allowance advances exist only under the savings rules.
+    SettingChanged savingsRules() => SettingChanged(
+          eventId: _seq.id(),
+          deviceId: 'd',
+          userId: me,
+          occurredAt: _day(2026, 7, 1),
+          createdAt: _day(2026, 7, 1),
+          key: 'savingsRules',
+          value: const {'fromMonth': '2026-07', 'generalTithePct': 20},
+        );
+
+    test('a guild loan the partner asked for awaits my seal', () {
+      final g = _game(
+        [
+          ..._twoAdults(),
+          savingsRules(),
+          _slice(id: 'gear', ownership: const PersonalSlice(partner),
+              limit: 20000),
+          loan(by: partner),
+        ],
+        asOf: _day(2026, 7, 5),
+      );
+      expect(g.warChest.loans, hasLength(1));
+      final l = g.warChest.loans.single;
+      expect(l.advanceId, 'a-$partner');
+      expect(l.byName, 'Sam');
+      expect(l.monsterName, 'gear');
+      expect(l.amountCents, 6000);
+      expect(l.months, 3);
+      expect(l.needsMySeal, isTrue);
+    });
+
+    test('my own guild loan waits on another adventurer', () {
+      final g = _game(
+        [
+          ..._twoAdults(),
+          savingsRules(),
+          _slice(id: 'gear', ownership: const PersonalSlice(me), limit: 20000),
+          loan(by: me),
+        ],
+        asOf: _day(2026, 7, 5),
+      );
+      expect(g.warChest.loans.single.needsMySeal, isFalse);
+    });
+
+    test('a cancelled guild loan is gone', () {
+      final g = _game(
+        [
+          ..._twoAdults(),
+          savingsRules(),
+          _slice(id: 'gear', ownership: const PersonalSlice(me), limit: 20000),
+          loan(by: me),
+          AllowanceAdvanceCancelled(
+            eventId: _seq.id(),
+            deviceId: 'd',
+            userId: me,
+            occurredAt: _day(2026, 7, 3),
+            createdAt: _day(2026, 7, 3),
+            advanceId: 'a-$me',
+          ),
+        ],
+        asOf: _day(2026, 7, 5),
+      );
+      expect(g.warChest.loans, isEmpty);
+    });
+
     test('ransack surfaces a loud banner', () {
       final events = [
         _slice(id: 'grp', ownership: const GroupSlice(), limit: 40000),

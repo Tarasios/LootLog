@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/actions.dart';
 import '../../data/providers.dart';
+import '../settings/play_mode_providers.dart';
 import '../../domain/value_types.dart';
 import '../entry/charge_choice.dart';
 import '../entry/expense_entry_view.dart';
@@ -33,7 +34,11 @@ class ExpenseEntryScreen extends ConsumerWidget {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final groups = buildChargeGroups(state, setup.meUserId);
+    final groups = buildChargeGroups(
+      state,
+      setup.meUserId,
+      isAdventure: ref.watch(isAdventureProvider),
+    );
 
     return ExpenseEntryView(
       groups: groups,

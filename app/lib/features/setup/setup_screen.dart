@@ -21,6 +21,7 @@ import '../../domain/state.dart' show MainCategory;
 import '../../domain/time.dart';
 import '../../domain/value_types.dart';
 import '../../ui/format.dart';
+import '../../ui/glossary.dart';
 import '../../ui/theme.dart';
 import '../settings/play_mode.dart';
 import 'join_party_screen.dart';
@@ -31,13 +32,13 @@ import 'setup_controller.dart';
 enum _Step { party, income, accounts, expenses, budget, goal, summary }
 
 const _stepTitles = <_Step, String>{
-  _Step.party: 'Your party',
-  _Step.income: 'Expedition supplies',
-  _Step.accounts: 'Treasury',
-  _Step.expenses: 'Standing obligations',
-  _Step.budget: 'Dividing the coin',
-  _Step.goal: 'First quest',
-  _Step.summary: 'Ready to delve',
+  _Step.party: 'Your household',
+  _Step.income: 'Income',
+  _Step.accounts: 'Accounts',
+  _Step.expenses: 'Recurring bills',
+  _Step.budget: 'Budgets',
+  _Step.goal: 'First savings goal',
+  _Step.summary: 'Ready to go',
 };
 
 class SetupScreen extends ConsumerStatefulWidget {
@@ -167,7 +168,11 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                       : isSummary
                           ? _finish
                           : _next,
-                  child: Text(isSummary ? 'Begin the adventure' : 'Next'),
+                  child: Text(
+                    isSummary
+                        ? (_meAdventure ? 'Begin the adventure' : 'Finish setup')
+                        : 'Next',
+                  ),
                 ),
               ),
             ],
@@ -200,9 +205,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                       style: text.headlineSmall, textAlign: TextAlign.center),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
-                    'Assemble your party and delve a budget together. '
-                    'First: are you joining a party that already exists on '
-                    'another device?',
+                    'Set up your household’s budget together. '
+                    'First: are you joining a household that already exists '
+                    'on another device?',
                     style: text.bodyMedium,
                     textAlign: TextAlign.center,
                   ),
@@ -210,13 +215,13 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                   FilledButton.icon(
                     onPressed: () => JoinPartyScreen.open(context),
                     icon: const Icon(Icons.qr_code_scanner),
-                    label: const Text('Join an existing party'),
+                    label: const Text('Join an existing household'),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   OutlinedButton.icon(
                     onPressed: () => setState(() => _index = 0),
                     icon: const Icon(Icons.group_add_outlined),
-                    label: const Text('Start a new party'),
+                    label: const Text('Start a new household'),
                   ),
                 ],
               ),
@@ -257,22 +262,31 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     }
   }
 
+  /// Whether this device's adult picked Adventure. The wizard is worded
+  /// neutrally until a mode is chosen; the finish speaks that mode.
+  bool get _meAdventure =>
+      // No adult yet reads as the default mode (Adventure).
+      _c.modeOf(_c.meLocalId ?? '') == PlayMode.adventure;
+
   Future<void> _celebrate() async {
+    final adventure = _meAdventure;
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         icon: const Icon(Icons.celebration, size: 48),
-        title: const Text('Your party is ready!'),
-        content: const Text(
+        title: Text(
+          adventure ? 'Your party is ready!' : 'Your household is ready!',
+        ),
+        content: Text(
           'Every choice you made is now permanently logged and can always be '
-          'changed later from Settings. Log a purchase to earn your first '
-          'streak — the adventure begins now.',
+          'changed later from Settings. Log a purchase to start your first '
+          'streak${adventure ? ' — the adventure begins now' : ''}.',
         ),
         actions: [
           FilledButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Enter the dungeon'),
+            child: Text(adventure ? 'Enter the dungeon' : 'Get started'),
           ),
         ],
       ),
@@ -296,8 +310,8 @@ class _PartyStep extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
         const _StepIntro(
-          'Add the adventurers, dependents, and pets in your household. '
-          'Adults carry income and a budget; everyone else joins the party. '
+          'Add the adults, dependents, and pets in your household. '
+          'Adults carry income and a budget; everyone else is shown with them. '
           'A description feeds the text-mode adventure.',
         ),
         for (final role in DraftRole.values) ...[
@@ -501,8 +515,10 @@ class _ExpensesStep extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
         const _StepIntro(
-          'Recurring bills that come off the top before you divide the coin. '
-          'Group bills split by the party; personal ones sit on one adult.',
+          'Recurring bills that come off the top before budgets are funded. '
+          'Group bills split across the household; personal ones sit on one '
+          'adult. Bills that change month to month (like utilities) can use an '
+          'estimate — you enter the real amount at month end.',
         ),
         for (var i = 0; i < c.fixedExpenses.length; i++)
           _expenseTile(context, i),
@@ -515,7 +531,7 @@ class _ExpensesStep extends StatelessWidget {
               if (e != null) c.addFixedExpense(e);
             },
             icon: const Icon(Icons.add),
-            label: const Text('Add fixed expense'),
+            label: const Text('Add bill'),
           ),
         ),
       ],
@@ -530,7 +546,8 @@ class _ExpensesStep extends StatelessWidget {
       leading: const Icon(Icons.autorenew),
       title: Text(e.name),
       subtitle: Text(
-        '$owner · ${money(e.amountCents)} · '
+        '$owner · ${money(e.amountCents)}'
+        '${e.kind == RecurringKind.variable ? ' est.' : ''} · '
         '${e.cadence == RecurringCadence.annual ? 'annual' : 'monthly'}',
       ),
       trailing: Row(
@@ -747,7 +764,8 @@ class _BudgetStep extends StatelessWidget {
       leading: dense ? null : const Icon(Icons.pie_chart_outline),
       title: Text(cat.name),
       subtitle: Text(cat.tithePct > 0
-          ? '${money(cat.limitCents)} · ${cat.tithePct}% tithe'
+          ? '${money(cat.limitCents)} · ${cat.tithePct}% '
+              '${Glossary.carryTax.classic}'
           : money(cat.limitCents)),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -787,7 +805,7 @@ class _GoalStep extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
         const _StepIntro(
-          'Pick a first savings goal — your first quest boss. Optional, but '
+          'Pick a first savings goal. Optional, but '
           'goals are what make the whole thing sing. Fund it at month close.',
         ),
         if (q == null)
@@ -818,7 +836,7 @@ class _GoalStep extends StatelessWidget {
         const SizedBox(height: AppSpacing.xs),
         Text(
           'Adventure turns the budget into a game (the default). Standard is '
-          'the plain budgeting app — their logging still helps the party. '
+          'the plain budgeting app — their logging still helps the household. '
           'Anyone can switch any time in Settings.',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant),
@@ -861,7 +879,7 @@ class _SummaryStep extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
-        Text('Your party is ready to delve',
+        Text('Your household is ready',
             style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: AppSpacing.md),
         _summaryRow(context, Icons.groups_outlined, 'Members',
@@ -1324,8 +1342,12 @@ Future<DraftFixedExpense?> showExpenseEditor(
   var shared = existing?.shared ?? true;
   String? owner = existing?.ownerLocalId ??
       (c.adults.isNotEmpty ? c.adults.first.localId : null);
+  var kind = existing?.kind ?? RecurringKind.fixed;
   var cadence = existing?.cadence ?? RecurringCadence.monthly;
   var dueMonth = existing?.dueMonth ?? 1;
+  // Labels follow this device's adult's chosen mode (Adventure by default).
+  final me = c.meLocalId;
+  final adventure = me == null || c.modeOf(me) == PlayMode.adventure;
 
   int centsOf() {
     final t = amountCtrl.text.trim();
@@ -1353,7 +1375,7 @@ Future<DraftFixedExpense?> showExpenseEditor(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(existing == null ? 'New fixed expense' : 'Edit fixed expense',
+              Text(existing == null ? 'New bill' : 'Edit bill',
                   style: Theme.of(sheetCtx).textTheme.titleLarge),
               const SizedBox(height: AppSpacing.md),
               TextField(
@@ -1362,18 +1384,45 @@ Future<DraftFixedExpense?> showExpenseEditor(
                 decoration: const InputDecoration(labelText: 'Name'),
               ),
               const SizedBox(height: AppSpacing.sm),
+              SegmentedButton<RecurringKind>(
+                segments: [
+                  ButtonSegment(
+                    value: RecurringKind.fixed,
+                    label: Text(
+                        Glossary.fixedBill.label(isAdventure: adventure)),
+                  ),
+                  ButtonSegment(
+                    value: RecurringKind.variable,
+                    label: Text(
+                        Glossary.variableBill.label(isAdventure: adventure)),
+                  ),
+                ],
+                selected: {kind},
+                onSelectionChanged: (s) => setSheet(() => kind = s.first),
+              ),
+              if (kind == RecurringKind.variable) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  Glossary.variableBill.helper,
+                  style: Theme.of(sheetCtx).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(sheetCtx).colorScheme.onSurfaceVariant),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.sm),
               TextField(
                 controller: amountCtrl,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                    labelText: 'Amount', prefixText: '\$'),
+                decoration: InputDecoration(
+                    labelText:
+                        kind == RecurringKind.variable ? 'Estimate' : 'Amount',
+                    prefixText: '\$'),
               ),
               const SizedBox(height: AppSpacing.md),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Group expense'),
-                subtitle: const Text('Split by the party; off = one adult'),
+                subtitle: const Text('Split across the household; off = one adult'),
                 value: shared,
                 onChanged: (v) => setSheet(() => shared = v),
               ),
@@ -1429,13 +1478,14 @@ Future<DraftFixedExpense?> showExpenseEditor(
                     shared: shared,
                     ownerLocalId: shared ? null : owner,
                     amountCents: centsOf(),
+                    kind: kind,
                     cadence: cadence,
                     dueDay: day,
                     dueMonth:
                         cadence == RecurringCadence.annual ? dueMonth : null,
                   ));
                 },
-                child: Text(existing == null ? 'Add expense' : 'Save'),
+                child: Text(existing == null ? 'Add bill' : 'Save'),
               ),
             ],
           ),
@@ -1519,12 +1569,9 @@ Future<DraftCategory?> showCategoryEditor(
                 TextField(
                   controller: titheCtrl,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Tithe % (0–100)',
-                    helperText:
-                        'When month-end leftover from this category converts '
-                        'to your own pocket money, this share goes to the '
-                        'household war chest instead. 0 keeps it all.',
+                  decoration: InputDecoration(
+                    labelText: 'Carry tax % (0–100)',
+                    helperText: '${Glossary.carryTax.helper} 0 keeps it all.',
                     helperMaxLines: 3,
                   ),
                 ),
@@ -1605,7 +1652,7 @@ Future<void> showMainCategoriesEditor(BuildContext context, SetupController c) {
                   style: Theme.of(sheetCtx).textTheme.titleLarge),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'The big buckets your reports and quests group by. Rename '
+                'The big buckets your reports and savings goals group by. Rename '
                 'any of them, or add your own.',
                 style: Theme.of(sheetCtx).textTheme.bodySmall?.copyWith(
                     color: Theme.of(sheetCtx).colorScheme.onSurfaceVariant),

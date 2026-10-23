@@ -45,7 +45,7 @@ void main() {
   group('member lines', () {
     test('first MemberSet reads as an add', () {
       final titles = feedTitles([member(memberId: 'm1', name: 'Riley')]);
-      expect(titles, ['Robin added Riley to the party']);
+      expect(titles, ['Robin added Riley to the household']);
     });
 
     test('a later MemberSet reads as an update, not an add', () {
@@ -54,7 +54,7 @@ void main() {
         member(memberId: 'm1', name: 'Riley R.'),
       ]);
       expect(titles, [
-        'Robin added Riley to the party',
+        'Robin added Riley to the household',
         'Robin updated Riley R.',
       ]);
     });
@@ -65,7 +65,7 @@ void main() {
         member(memberId: 'm1', name: 'Riley', sprite: 'a' * 64),
       ]);
       expect(titles, [
-        'Robin added Riley to the party',
+        'Robin added Riley to the household',
         "Robin updated Riley's portrait",
       ]);
     });
@@ -76,8 +76,8 @@ void main() {
         member(memberId: 'm1', name: 'Riley', active: false),
       ]);
       expect(titles, [
-        'Robin added Riley to the party',
-        'Robin retired Riley from the party',
+        'Robin added Riley to the household',
+        'Robin retired Riley from the household',
       ]);
     });
   });

@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 
 import '../../ui/category_palette.dart';
 import '../../ui/format.dart';
+import '../../ui/glossary.dart';
 import '../../ui/theme.dart';
 import '../../ui/widgets/app_card.dart';
 import '../../ui/widgets/progress_ring.dart';
@@ -21,6 +22,7 @@ import '../activity/activity_view.dart';
 import '../networth/networth_model.dart';
 import '../spoils/spoils_model.dart';
 import '../sync/sync_status.dart';
+import '../warchest/pending_advance_tile.dart';
 import 'dashboard_model.dart';
 
 /// At or above this width the dashboard becomes a two-column grid.
@@ -35,6 +37,9 @@ class DashboardCallbacks {
     this.onCancelWithdrawal,
     this.onGetStarted,
     this.onNewGoal,
+    this.onApproveAdvance,
+    this.onCancelAdvance,
+    this.onOpenVacations,
   });
 
   final VoidCallback? onOpenSpoils;
@@ -49,6 +54,13 @@ class DashboardCallbacks {
 
   /// Opens the new savings-goal editor. Null in goldens (button hidden).
   final VoidCallback? onNewGoal;
+
+  /// Approves / declines-or-withdraws a pending borrowing request.
+  final void Function(String advanceId)? onApproveAdvance;
+  final void Function(String advanceId)? onCancelAdvance;
+
+  /// Opens the vacations screen from an open-trip card.
+  final VoidCallback? onOpenVacations;
 }
 
 class DashboardView extends StatelessWidget {
@@ -105,6 +117,10 @@ class DashboardView extends StatelessWidget {
           _OverbudgetBanner(card: d, onOpen: callbacks.onOpenSpoils),
         if (model.spoils != null)
           _SpoilsBanner(ritual: model.spoils!, onOpen: callbacks.onOpenSpoils),
+        if (model.advances.isNotEmpty)
+          _AdvancesCard(advances: model.advances, callbacks: callbacks),
+        for (final v in model.vacations)
+          _VacationCard(vacation: v, onOpen: callbacks.onOpenVacations),
       ];
 
   /// The primary column: what you spend and what's coming.
@@ -117,7 +133,14 @@ class DashboardView extends StatelessWidget {
   /// The secondary column: goals, pouches, and reserves.
   List<Widget> _secondary(BuildContext context) => [
         _QuestsCard(quests: model.quests, onNewGoal: callbacks.onNewGoal),
-        _VaultCard(vault: model.vault, meName: model.meName),
+        _VaultCard(
+          vault: model.vault,
+          meName: model.meName,
+          label: Glossary.vaultLabel(
+            isAdventure: false,
+            savingsRules: model.savingsRules,
+          ),
+        ),
         _WarChestCard(card: model.warChest, callbacks: callbacks),
         if (model.netWorth.show) _NetWorthCard(summary: model.netWorth),
         if (model.maintenance.isNotEmpty) _MaintenanceCard(items: model.maintenance),
@@ -171,6 +194,13 @@ class DashboardView extends StatelessWidget {
       ),
     ]);
   }
+}
+
+/// A glossary term's plain (Classic) label, capitalized for a heading. The
+/// dashboard is the Classic surface; Adventure renders its own dashboard.
+String _plain(GlossaryTerm term) {
+  final s = term.classic;
+  return s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 }
 
 /// Inserts a uniform vertical gap between a list of stacked cards.
@@ -384,7 +414,7 @@ class _GetStartedCard extends StatelessWidget {
           Text(
             'Start by carving your monthly budget into categories — one each for '
             'the household’s adults, plus shared ones like groceries. Everything '
-            'else (quests, the war chest, receipts) builds from there.',
+            'else (savings goals, shared savings, receipts) builds from there.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: scheme.onPrimaryContainer,
                 ),
@@ -448,6 +478,107 @@ class _SpoilsBanner extends StatelessWidget {
             ),
           ),
           Icon(Icons.chevron_right, color: scheme.onTertiaryContainer),
+        ],
+      ),
+    );
+  }
+}
+
+/// Pending requests to borrow from a budget's future months. Surfaced here so
+/// the adult who has to approve sees them without hunting through the war
+/// chest; the requester sees theirs waiting, with a way to withdraw it.
+class _AdvancesCard extends StatelessWidget {
+  const _AdvancesCard({required this.advances, required this.callbacks});
+
+  final List<PendingAdvance> advances;
+  final DashboardCallbacks callbacks;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final forMe = advances.where((a) => a.canApprove).length;
+    return AppCard(
+      color: forMe > 0 ? scheme.primaryContainer : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppSectionHeader(
+            title: 'Borrowing requests',
+            icon: Icons.handshake_outlined,
+            iconColor: forMe > 0 ? scheme.onPrimaryContainer : null,
+          ),
+          if (forMe > 0)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: Text(
+                forMe == 1
+                    ? 'One request is waiting for your approval.'
+                    : '$forMe requests are waiting for your approval.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: scheme.onPrimaryContainer,
+                    ),
+              ),
+            ),
+          for (final a in advances)
+            PendingAdvanceTile(
+              advance: a,
+              onApprove: callbacks.onApproveAdvance,
+              onCancel: callbacks.onCancelAdvance,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// An open vacation: what's spent of the trip budget and the daily allowance
+/// left. Tapping opens the vacations screen.
+class _VacationCard extends StatelessWidget {
+  const _VacationCard({required this.vacation, this.onOpen});
+
+  final OpenVacationCard vacation;
+  final VoidCallback? onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final over = vacation.warnings.isNotEmpty;
+    return AppCard(
+      onTap: onOpen,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppSectionHeader(
+            title: 'On vacation · ${vacation.name}',
+            icon: Icons.beach_access_outlined,
+            iconColor: scheme.tertiary,
+            trailing: onOpen == null
+                ? null
+                : Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
+          ),
+          _ProportionBar(
+            fraction: vacation.fraction,
+            fill: over ? scheme.error : scheme.tertiary,
+            track: scheme.surfaceContainerHighest,
+            height: 8,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '${money(vacation.spentCents)} of ${money(vacation.budgetCents)} '
+            'spent · ${vacation.allowanceLabel}',
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+          for (final w in vacation.warnings)
+            Text(
+              w,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.error,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
         ],
       ),
     );
@@ -666,10 +797,17 @@ class _CategoryTile extends StatelessWidget {
 }
 
 class _VaultCard extends StatelessWidget {
-  const _VaultCard({required this.vault, required this.meName});
+  const _VaultCard({
+    required this.vault,
+    required this.meName,
+    required this.label,
+  });
 
   final VaultCard vault;
   final String meName;
+
+  /// The plain name for this adult's own pool ("general savings").
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -683,12 +821,14 @@ class _VaultCard extends StatelessWidget {
             children: [
               Icon(Icons.savings_outlined, color: scheme.onSecondaryContainer),
               const SizedBox(width: AppSpacing.sm),
-              Text(
-                '$meName’s vault',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: scheme.onSecondaryContainer,
-                      fontWeight: FontWeight.w700,
-                    ),
+              Expanded(
+                child: Text(
+                  '$meName’s $label',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: scheme.onSecondaryContainer,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
               ),
             ],
           ),
@@ -717,7 +857,7 @@ class _VaultCard extends StatelessWidget {
               padding: const EdgeInsets.only(top: AppSpacing.sm),
               child: Text(
                 'Projected leftover this month: '
-                '${signedMoney(vault.projectedVaultCents)} to personal spending '
+                '${signedMoney(vault.projectedVaultCents)} to $label '
                 '(${money(vault.projectedLeftoverCents)} leftover at current spend)',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: scheme.onSecondaryContainer,
@@ -986,7 +1126,7 @@ class _WarChestCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AppSectionHeader(
-            title: 'War chest',
+            title: _plain(Glossary.warChest),
             icon: Icons.account_balance,
             iconColor: scheme.primary,
             trailing: Text(
@@ -1067,8 +1207,8 @@ class _WithdrawalTile extends StatelessWidget {
               Expanded(
                 child: Text(
                   needsMe
-                      ? 'Writ awaiting your signature'
-                      : 'Writ awaiting the other signature',
+                      ? 'Withdrawal awaiting your approval'
+                      : 'Withdrawal awaiting another adult’s approval',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: needsMe
@@ -1121,7 +1261,7 @@ class _WithdrawalTile extends StatelessWidget {
                     style: FilledButton.styleFrom(
                       minimumSize: const Size(72, 40),
                     ),
-                    child: const Text('Sign'),
+                    child: const Text('Approve'),
                   ),
                 ],
               ),
@@ -1156,7 +1296,7 @@ class _RansackTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'The war chest was ransacked',
+                  '${_plain(Glossary.ransack)} from shared savings',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: scheme.onErrorContainer,
@@ -1401,8 +1541,8 @@ class _MaintenanceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AppSectionHeader(
-            title: 'Equipment maintenance',
+          AppSectionHeader(
+            title: _plain(Glossary.recurring),
             icon: Icons.build_outlined,
           ),
           for (final m in items)
@@ -1486,8 +1626,8 @@ class _EmergencyFundsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AppSectionHeader(
-            title: 'Reserve caches',
+          AppSectionHeader(
+            title: '${_plain(Glossary.emergencyFund)}s',
             icon: Icons.shield_outlined,
           ),
           Wrap(

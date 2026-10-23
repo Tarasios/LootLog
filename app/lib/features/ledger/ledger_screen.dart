@@ -10,6 +10,7 @@ import '../../data/providers.dart';
 import '../../domain/state.dart';
 import '../../domain/value_types.dart';
 import '../../ui/format.dart';
+import '../../ui/glossary.dart';
 import '../../ui/theme.dart';
 import '../entry/expense_entry_view.dart' show formatMoney;
 import '../purchase/purchase_detail_sheet.dart';
@@ -84,9 +85,14 @@ class _PurchaseList extends StatelessWidget {
       case SliceCharge(:final sliceId):
         return state.slices[sliceId]?.name ?? 'Budget';
       case VaultCharge():
-        return 'Vault';
+        return Glossary.cap(
+          Glossary.vaultLabel(
+            isAdventure: false,
+            savingsRules: state.savingsRules != null,
+          ),
+        );
       case QuestCharge(:final questId):
-        return state.quests[questId]?.name ?? 'Quest';
+        return state.quests[questId]?.name ?? 'Savings goal';
       case EmergencyCharge(:final fundId):
         return state.emergencyFunds[fundId]?.name ?? 'Emergency fund';
       case VacationCharge(:final vacationId):

@@ -127,7 +127,7 @@ class _JoinPartyScreenState extends ConsumerState<JoinPartyScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Join an existing party')),
+      appBar: AppBar(title: const Text('Join an existing household')),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -225,7 +225,7 @@ class _JoinPartyScreenState extends ConsumerState<JoinPartyScreen> {
           const Padding(
             padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
             child: Text(
-              'No party members have synced yet. Give the hub a moment, then '
+              'No household members have synced yet. Give the hub a moment, then '
               'try pairing again.',
             ),
           )

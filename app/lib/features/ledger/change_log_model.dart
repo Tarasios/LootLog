@@ -11,6 +11,7 @@ import '../../domain/event.dart';
 import '../../domain/state.dart';
 import '../../domain/value_types.dart';
 import '../../ui/format.dart';
+import '../../ui/glossary.dart';
 import '../shared/classify_member_set.dart';
 
 /// The visual family of a change-log entry, used only to pick an icon/tint.
@@ -60,8 +61,16 @@ List<ChangeLogEntry> buildChangeLog(
   HouseholdState state,
   List<Event> events, {
   required Map<String, String> userNames,
+  bool isAdventure = false,
 }) {
   String who(String id) => userNames[id] ?? 'Someone';
+  // Classic speaks plain budgeting English; Adventure keeps the flavor words.
+  final chest = Glossary.warChest.label(isAdventure: isAdventure);
+  final party = Glossary.household.label(isAdventure: isAdventure);
+  final vaultWord = Glossary.vaultLabel(
+    isAdventure: isAdventure,
+    savingsRules: state.savingsRules != null,
+  );
   String sliceName(String id) => state.slices[id]?.name ?? 'a category';
   String questName(String id) => state.quests[id]?.name ?? 'a goal';
   String fundName(String id) => state.emergencyFunds[id]?.name ?? 'a fund';
@@ -69,7 +78,7 @@ List<ChangeLogEntry> buildChangeLog(
 
   String targetLabel(ChargeTarget t) => switch (t) {
         SliceCharge(:final sliceId) => sliceName(sliceId),
-        VaultCharge() => 'a vault',
+        VaultCharge() => vaultWord,
         QuestCharge(:final questId) => questName(questId),
         EmergencyCharge(:final fundId) => fundName(fundId),
         VacationCharge(:final vacationId) => vacationName(vacationId),
@@ -172,12 +181,15 @@ List<ChangeLogEntry> buildChangeLog(
         ),
       PoolContributionMade() => entry(
           ChangeLogKind.money,
-          '${who(e.fromUserId)} fed the war chest',
+          isAdventure
+              ? '${who(e.fromUserId)} fed the war chest'
+              : '${who(e.fromUserId)} added to shared savings',
           amountCents: e.amountCents,
         ),
       PoolWithdrawalProposed() => entry(
           ChangeLogKind.governance,
-          '${who(e.byUserId)} proposed a war-chest withdrawal',
+          '${who(e.byUserId)} proposed a '
+          '${Glossary.withdrawal.label(isAdventure: isAdventure)}',
           detail: e.purpose,
           amountCents: -e.amountCents,
         ),
@@ -215,7 +227,7 @@ List<ChangeLogEntry> buildChangeLog(
         ),
       TaxRefundRecorded() => entry(
           ChangeLogKind.money,
-          'Recorded a tax refund to the war chest',
+          'Recorded a tax refund to $chest',
           detail: e.note,
           amountCents: e.amountCents,
         ),
@@ -229,9 +241,9 @@ List<ChangeLogEntry> buildChangeLog(
             final prev = lastMemberSet[e.memberId];
             lastMemberSet[e.memberId] = e;
             return switch (classifyMemberSet(e, prev)) {
-              MemberSetChange.retired => 'Retired ${e.name} from the party',
+              MemberSetChange.retired => 'Retired ${e.name} from the $party',
               MemberSetChange.added =>
-                'Added ${e.name} (${e.role.name}) to the party',
+                'Added ${e.name} (${e.role.name}) to the $party',
               MemberSetChange.portraitOnly => "Updated ${e.name}'s portrait",
               MemberSetChange.updated => 'Updated ${e.name} (${e.role.name})',
             };
@@ -239,7 +251,7 @@ List<ChangeLogEntry> buildChangeLog(
         ),
       PetSet() => entry(
           ChangeLogKind.config,
-          'Added ${e.name} to the party',
+          'Added ${e.name} to the $party',
         ),
       GroupShareSet() => entry(
           ChangeLogKind.config,
@@ -248,7 +260,7 @@ List<ChangeLogEntry> buildChangeLog(
         ),
       GoalSet() => entry(
           ChangeLogKind.config,
-          'Set the war chest target',
+          'Set the $chest target',
           amountCents: e.targetCents,
         ),
       TrackedAccountSet() => entry(

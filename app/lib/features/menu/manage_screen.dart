@@ -1,13 +1,15 @@
-/// The "Manage" hub: a single entry point (from the app bar) to everything that
-/// is not day-to-day expense entry — budget setup, quests, the war chest, net
-/// worth (flag-gated), and settings. Kept out of the primary navigation so the
-/// three main panes stay focused.
+/// The "Manage" menu (from the app bar): setup and housekeeping — budget setup,
+/// net worth (flag-gated), sync, the change log and settings. Everyday money
+/// places (goals, the war chest, emergency funds, vacations, the trophy hall,
+/// the homestead) are first-class in the navigation bar; they are also listed
+/// here under "Also in the navigation bar" so nothing is hard to find.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
+import '../../ui/glossary.dart';
 import '../../ui/theme.dart';
 import '../budget_setup/budget_setup_screen.dart';
 import '../homestead/homestead_screen.dart';
@@ -16,6 +18,7 @@ import '../networth/networth_screen.dart';
 import '../quests/quests_screen.dart';
 import '../rewards/trophy_hall_screen.dart';
 import '../settings/emergency_funds_screen.dart';
+import '../settings/play_mode_providers.dart';
 import '../settings/settings_screen.dart';
 import '../sync/sync_hubs_screen.dart';
 import '../vacation/vacation_screen.dart';
@@ -25,14 +28,17 @@ class ManageScreen extends ConsumerWidget {
   const ManageScreen({super.key});
 
   /// Pushes the manage hub onto the navigator.
-  static Future<void> open(BuildContext context) => Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const ManageScreen()),
-      );
+  static Future<void> open(BuildContext context) => Navigator.of(
+    context,
+  ).push(MaterialPageRoute<void>(builder: (_) => const ManageScreen()));
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(householdStateProvider).value;
     final showNetWorth = state?.netWorth.show ?? false;
+    final adventure = ref.watch(isAdventureProvider);
+    final funds = Glossary.funds.label(isAdventure: adventure);
+    final chest = Glossary.warChest.label(isAdventure: adventure);
     return Scaffold(
       appBar: AppBar(title: const Text('Manage')),
       body: ListView(
@@ -43,51 +49,10 @@ class ManageScreen extends ConsumerWidget {
             title: 'Budget setup',
             subtitle: "Everyone's categories, side by side",
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const BudgetSetupScreen()),
-            ),
-          ),
-          _Entry(
-            icon: Icons.flag_outlined,
-            title: 'Savings goals',
-            subtitle: 'Your goals and their progress',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const QuestsScreen()),
-            ),
-          ),
-          _Entry(
-            icon: Icons.account_balance_outlined,
-            title: 'War chest',
-            subtitle: 'The shared pool, writs, gifts and refunds',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const WarChestScreen()),
-            ),
-          ),
-          _Entry(
-            icon: Icons.medical_services_outlined,
-            title: 'Emergency funds',
-            subtitle: 'Named reserves for the unexpected, pet-linkable',
-            onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
-                  builder: (_) => const EmergencyFundsScreen()),
+                builder: (_) => const BudgetSetupScreen(),
+              ),
             ),
-          ),
-          _Entry(
-            icon: Icons.beach_access_outlined,
-            title: 'Vacations',
-            subtitle: 'Trip sub-budgets drawn from a goal or fund',
-            onTap: () => VacationScreen.open(context),
-          ),
-          _Entry(
-            icon: Icons.emoji_events_outlined,
-            title: 'Trophy hall',
-            subtitle: 'Trophies, titles, badges and your streaks',
-            onTap: () => TrophyHallScreen.open(context),
-          ),
-          _Entry(
-            icon: Icons.cottage_outlined,
-            title: 'Homestead',
-            subtitle: 'Watch the war chest build up, stage by stage',
-            onTap: () => HomesteadScreen.open(context),
           ),
           if (showNetWorth)
             _Entry(
@@ -98,7 +63,6 @@ class ManageScreen extends ConsumerWidget {
                 MaterialPageRoute<void>(builder: (_) => const NetWorthScreen()),
               ),
             ),
-          const Divider(),
           _Entry(
             icon: Icons.sync,
             title: 'Sync & hubs',
@@ -118,6 +82,67 @@ class ManageScreen extends ConsumerWidget {
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
             ),
+          ),
+          const Divider(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.sm,
+              AppSpacing.lg,
+              AppSpacing.xs,
+            ),
+            child: Text(
+              'Also in the navigation bar',
+              style: AppText.sectionLabel(context),
+            ),
+          ),
+          _Entry(
+            icon: Icons.flag_outlined,
+            title: 'Savings goals',
+            subtitle: 'Goals tab — your goals and their progress',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const QuestsScreen()),
+            ),
+          ),
+          _Entry(
+            icon: Icons.account_balance_outlined,
+            title: chest[0].toUpperCase() + chest.substring(1),
+            subtitle:
+                '$funds tab — withdrawals, gifts, refunds and borrowing '
+                'requests',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const WarChestScreen()),
+            ),
+          ),
+          _Entry(
+            icon: Icons.medical_services_outlined,
+            title: 'Emergency funds',
+            subtitle: '$funds tab — named reserves for the unexpected',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const EmergencyFundsScreen(),
+              ),
+            ),
+          ),
+          _Entry(
+            icon: Icons.beach_access_outlined,
+            title: 'Vacations',
+            subtitle: '$funds tab — trip budgets drawn from a goal or fund',
+            onTap: () => VacationScreen.open(context),
+          ),
+          _Entry(
+            icon: Icons.cottage_outlined,
+            title: 'Homestead',
+            subtitle: '$funds tab — $chest building up, stage by stage',
+            onTap: () => HomesteadScreen.open(context),
+          ),
+          _Entry(
+            icon: Icons.emoji_events_outlined,
+            title: 'Trophy hall',
+            subtitle:
+                'Goals tab (trophy button) — trophies, titles, badges '
+                'and streaks',
+            onTap: () => TrophyHallScreen.open(context),
           ),
         ],
       ),

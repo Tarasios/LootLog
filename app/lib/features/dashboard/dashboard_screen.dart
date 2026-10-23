@@ -23,6 +23,7 @@ import '../report/report_screen.dart';
 import '../settings/play_mode_providers.dart';
 import '../settings/visibility_prefs.dart';
 import '../spoils/spoils_screen.dart';
+import '../vacation/vacation_screen.dart';
 import 'dashboard_model.dart';
 import 'dashboard_view.dart';
 
@@ -89,6 +90,13 @@ class DashboardScreen extends ConsumerWidget {
           MaterialPageRoute<void>(builder: (_) => const BudgetSetupScreen()),
         )),
         onNewGoal: () => unawaited(QuestEditorScreen.open(context)),
+        onApproveAdvance: (id) {
+          if (actions != null) unawaited(actions.approveAdvance(id));
+        },
+        onCancelAdvance: (id) {
+          if (actions != null) unawaited(actions.cancelAdvance(id));
+        },
+        onOpenVacations: () => unawaited(VacationScreen.open(context)),
       ),
     );
   }

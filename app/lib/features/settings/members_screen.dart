@@ -48,8 +48,8 @@ class MembersScreen extends ConsumerWidget {
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.xl),
                 child: Text(
-                  'No members yet.\nAdd the adventurers, kids, and pets in your '
-                  'party.',
+                  'No members yet.\nAdd the adults, kids, and pets in your '
+                  'household.',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -169,8 +169,9 @@ class MembersScreen extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   role == MemberRole.adult
-                      ? 'Adults carry income, a vault, and personal categories.'
-                      : 'Display-only party member — no ledger of their own.',
+                      ? 'Adults carry income, their own savings, and personal '
+                          'categories.'
+                      : 'Shown with the household — no ledger of their own.',
                   style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
                     color: Theme.of(sheetContext).colorScheme.onSurfaceVariant,
                   ),

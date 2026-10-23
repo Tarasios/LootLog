@@ -15,6 +15,7 @@ import '../../ui/format.dart';
 import '../../ui/money_input.dart';
 import '../../ui/theme.dart';
 import '../household_context.dart';
+import '../rewards/trophy_hall_screen.dart';
 import '../shared/owner_picker.dart';
 import '../shared/sprite_picker.dart';
 import 'quests_model.dart';
@@ -38,7 +39,17 @@ class QuestsScreen extends ConsumerWidget {
       });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Savings goals')),
+      appBar: AppBar(
+        title: const Text('Savings goals'),
+        actions: [
+          // Completed goals become trophies; the hall is one tap from here.
+          IconButton(
+            tooltip: 'Trophy hall',
+            icon: const Icon(Icons.emoji_events_outlined),
+            onPressed: () => TrophyHallScreen.open(context),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => QuestEditorScreen.open(context),
         icon: const Icon(Icons.add),
@@ -207,7 +218,7 @@ class QuestDetailScreen extends ConsumerWidget {
                   if (quest.abandoned)
                     const Padding(
                       padding: EdgeInsets.only(top: AppSpacing.sm),
-                      child: Text('This quest was abandoned.'),
+                      child: Text('This goal was abandoned.'),
                     ),
                 ],
               ),
@@ -244,7 +255,7 @@ class QuestDetailScreen extends ConsumerWidget {
               child: Text('No fundings recorded.'),
             ),
           const SizedBox(height: AppSpacing.lg),
-          Text('Purchases against this quest',
+          Text('Purchases against this goal',
               style: AppText.sectionLabel(context)),
           for (final p in drawdowns)
             ListTile(
@@ -258,7 +269,7 @@ class QuestDetailScreen extends ConsumerWidget {
           if (drawdowns.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
-              child: Text('Nothing bought from this quest yet.'),
+              child: Text('Nothing bought from this goal yet.'),
             ),
           if (!quest.abandoned) ...[
             const SizedBox(height: AppSpacing.xl),
@@ -268,7 +279,7 @@ class QuestDetailScreen extends ConsumerWidget {
               ),
               onPressed: () => _confirmAbandon(context, ref, state, quest),
               icon: const Icon(Icons.cancel_outlined),
-              label: const Text('Abandon quest'),
+              label: const Text('Abandon goal'),
             ),
           ],
         ],
@@ -290,7 +301,7 @@ class QuestDetailScreen extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Abandon quest?'),
+        title: const Text('Abandon this goal?'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

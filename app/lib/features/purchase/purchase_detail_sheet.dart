@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../data/actions.dart';
+import '../../ui/glossary.dart';
 import '../../data/ocr/text_recognizer.dart';
 import '../../data/providers.dart';
 import '../../data/sync/sync_service.dart';
@@ -483,9 +484,14 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
       case SliceCharge(:final sliceId):
         return state.slices[sliceId]?.name ?? 'Budget';
       case VaultCharge():
-        return 'Vault';
+        return Glossary.cap(
+          Glossary.vaultLabel(
+            isAdventure: false,
+            savingsRules: state.savingsRules != null,
+          ),
+        );
       case QuestCharge(:final questId):
-        return state.quests[questId]?.name ?? 'Quest';
+        return state.quests[questId]?.name ?? 'Savings goal';
       case EmergencyCharge(:final fundId):
         return state.emergencyFunds[fundId]?.name ?? 'Emergency fund';
       case VacationCharge(:final vacationId):

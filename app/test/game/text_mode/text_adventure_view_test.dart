@@ -43,6 +43,56 @@ DungeonState _withRoster(DungeonState g) => DungeonState(
       ],
     );
 
+/// [g] with a guild loan awaiting my seal and one of my own waiting.
+DungeonState _withLoans(DungeonState g) {
+  final wc = g.warChest;
+  return DungeonState(
+    currentMonth: g.currentMonth,
+    floorNumber: g.floorNumber,
+    heroName: g.heroName,
+    heroSprite: g.heroSprite,
+    companionSprites: g.companionSprites,
+    heroHpLostCents: g.heroHpLostCents,
+    expeditionSuppliesCents: g.expeditionSuppliesCents,
+    monsters: g.monsters,
+    contracts: g.contracts,
+    party: g.party,
+    questMonsters: g.questMonsters,
+    provisioning: g.provisioning,
+    goldPouch: g.goldPouch,
+    reserveCaches: g.reserveCaches,
+    expeditions: g.expeditions,
+    roster: g.roster,
+    warChest: WarChest(
+      balanceCents: wc.balanceCents,
+      targetCents: wc.targetCents,
+      pctComplete: wc.pctComplete,
+      estMonthsRemaining: wc.estMonthsRemaining,
+      writsForMe: wc.writsForMe,
+      writsForOther: wc.writsForOther,
+      ransacks: wc.ransacks,
+      loans: const [
+        GuildLoan(
+          advanceId: 'a1',
+          byName: 'Sam',
+          monsterName: 'Gear',
+          amountCents: 6000,
+          months: 3,
+          needsMySeal: true,
+        ),
+        GuildLoan(
+          advanceId: 'a2',
+          byName: 'Robin',
+          monsterName: 'Games',
+          amountCents: 2000,
+          months: 1,
+          needsMySeal: false,
+        ),
+      ],
+    ),
+  );
+}
+
 Widget _wrap(Widget child) => MaterialApp(
       theme: AppTheme.light(),
       home: Scaffold(body: child),
@@ -135,6 +185,35 @@ void main() {
     await t.tap(find.text('Classic'));
     expect(struck, 1);
     expect(classic, 1);
+  });
+
+  testWidgets('guild loans show, with Seal only for the other adventurer',
+      (t) async {
+    t.view.physicalSize = const Size(800, 4000);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
+    final sealed = <String>[];
+    final cancelled = <String>[];
+    await t.pumpWidget(_wrap(TextAdventureView(
+      game: _withLoans(sampleDungeonState()),
+      log: log,
+      callbacks: TextAdventureCallbacks(
+        onSealLoan: sealed.add,
+        onCancelLoan: cancelled.add,
+      ),
+    )));
+
+    expect(find.text('GUILD LOANS AWAITING A SEAL'), findsOneWidget);
+    expect(find.textContaining('Sam asks a guild loan of'), findsOneWidget);
+    expect(find.textContaining('Your guild loan of'), findsOneWidget);
+    expect(find.text('Seal'), findsOneWidget);
+
+    await t.ensureVisible(find.text('Seal'));
+    await t.tap(find.text('Seal'));
+    await t.tap(find.text('Refuse'));
+    await t.tap(find.text('Withdraw'));
+    expect(sealed, ['a1']);
+    expect(cancelled, ['a1', 'a2']);
   });
 
   testWidgets('a wounded party shows the encouragement line', (t) async {

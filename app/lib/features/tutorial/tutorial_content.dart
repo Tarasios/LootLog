@@ -57,14 +57,17 @@ List<TutorialStep> tutorialSteps({required bool isAdventure}) {
       title: t(Glossary.quest),
       body: 'Set a target — a jacket, a canoe, a trip — and feed it with '
           'leftovers at month close. Watch the progress climb until you reach '
-          'the goal.',
+          'the goal. They live on the Goals tab, one tap from the trophy '
+          'hall.',
     ),
     TutorialStep(
       icon: Icons.account_balance_outlined,
       title: '${t(Glossary.warChest)} & withdrawals',
       body: '${Glossary.warChest.helper} Taking money back out is a '
           '${t(Glossary.withdrawal)}: another adult has to approve it first, so '
-          'big decisions are always shared.',
+          'big decisions are always shared. Find it on the '
+          '${t(Glossary.funds)} tab, alongside '
+          '${t(Glossary.emergencyFund)}s and ${t(Glossary.vacation)}s.',
     ),
     const TutorialStep(
       icon: Icons.sync,

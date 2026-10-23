@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../data/actions.dart';
+import '../settings/play_mode_providers.dart';
 import '../../data/blobs/receipt_offload.dart';
 import '../../data/ocr/receipt_parse.dart';
 import '../../data/ocr/text_recognizer.dart';
@@ -92,7 +93,11 @@ class OcrConfirmScreen extends ConsumerWidget {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final groups = buildChargeGroups(state, setup.meUserId);
+    final groups = buildChargeGroups(
+      state,
+      setup.meUserId,
+      isAdventure: ref.watch(isAdventureProvider),
+    );
 
     return OcrConfirmView(
       groups: groups,

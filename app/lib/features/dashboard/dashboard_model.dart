@@ -11,8 +11,13 @@ import '../../domain/money.dart';
 import '../../domain/state.dart';
 import '../../domain/time.dart';
 import '../../domain/value_types.dart';
+import '../../ui/glossary.dart';
 import '../networth/networth_model.dart';
 import '../spoils/spoils_model.dart';
+import '../vacation/vacation_dashboard.dart';
+import '../warchest/advance_model.dart';
+
+export '../warchest/advance_model.dart' show PendingAdvance;
 
 /// The month hero: the household's income, spend, and remaining for the current
 /// month — the headline "how are we doing this month" figures.
@@ -327,6 +332,35 @@ class EmergencyFundCard {
   final String? petName;
 }
 
+/// An open vacation (trip sub-budget), surfaced on the dashboard while it runs.
+class OpenVacationCard {
+  const OpenVacationCard({
+    required this.vacationId,
+    required this.name,
+    required this.spentCents,
+    required this.budgetCents,
+    required this.allowanceLabel,
+    this.warnings = const [],
+  });
+
+  final String vacationId;
+  final String name;
+  final int spentCents;
+  final int budgetCents;
+
+  /// e.g. "$120.00/day for 6 more days".
+  final String allowanceLabel;
+
+  /// Overspend warnings, most urgent first; empty when comfortably on budget.
+  final List<String> warnings;
+
+  double get fraction {
+    if (budgetCents <= 0) return spentCents > 0 ? 1 : 0;
+    final f = spentCents / budgetCents;
+    return f < 0 ? 0 : (f > 1 ? 1 : f);
+  }
+}
+
 /// One day's spend on the month timeline.
 class SpendPoint {
   const SpendPoint({required this.day, required this.cents});
@@ -369,6 +403,9 @@ class DashboardModel {
     required this.netWorth,
     required this.timeline,
     this.overbudgets = const [],
+    this.advances = const [],
+    this.vacations = const [],
+    this.savingsRules = true,
     required this.spoils,
   });
 
@@ -394,6 +431,17 @@ class DashboardModel {
   /// Outstanding overspending to repay, the device owner's first.
   final List<OverbudgetCard> overbudgets;
 
+  /// Pending requests to borrow from a budget's future months, the ones
+  /// awaiting this device's adult first.
+  final List<PendingAdvance> advances;
+
+  /// Trips currently open, by name.
+  final List<OpenVacationCard> vacations;
+
+  /// Whether the household is on the savings rules — Classic then calls each
+  /// adult's own pool "general savings" rather than "personal spending".
+  final bool savingsRules;
+
   /// The reopenable month-close ritual, when one is pending; null otherwise.
   final SpoilsRitual? spoils;
 }
@@ -410,6 +458,7 @@ DashboardModel buildDashboardModel(
   final now = (asOf ?? DateTime.now()).toUtc();
   final month = Month.fromInstant(now);
   final closed = month.prev();
+  final savingsRules = state.savingsRules != null;
   String? nameOf(String id) => userNames[id];
   String? petName(String? id) => id == null ? null : state.pets[id]?.name;
   int? mainColor(String? id) =>
@@ -561,7 +610,8 @@ DashboardModel buildDashboardModel(
       amountCents: w.amountCents,
       purpose: w.purpose,
       destinationLabel: switch (w.destination) {
-        UserVaultDestination(:final userId) => '${nameOf(userId) ?? 'a'} vault',
+        UserVaultDestination(:final userId) =>
+          '${nameOf(userId) ?? 'someone'}’s ${Glossary.vaultLabel(isAdventure: false, savingsRules: savingsRules)}',
         ExternalDestination() => 'external',
       },
       mineToApprove: mineToApprove,
@@ -671,6 +721,23 @@ DashboardModel buildDashboardModel(
     emergencyFunds: funds,
     timeline: timeline,
     overbudgets: overbudgets,
+    advances: buildPendingAdvances(
+      state,
+      meUserId: meUserId,
+      userNames: userNames,
+    ),
+    savingsRules: savingsRules,
+    vacations: [
+      for (final v in state.openVacations)
+        OpenVacationCard(
+          vacationId: v.vacationId,
+          name: v.name,
+          spentCents: v.totalSpentCents,
+          budgetCents: v.totalLimitCents,
+          allowanceLabel: dailyAllowanceLabel(v),
+          warnings: vacationWarnings(v),
+        ),
+    ],
     spoils: buildSpoilsRitual(
       state,
       meUserId: meUserId,

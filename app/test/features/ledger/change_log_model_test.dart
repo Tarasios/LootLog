@@ -167,6 +167,6 @@ void main() {
     final log = buildChangeLog(state, events, userNames: names);
 
     expect(log, hasLength(2));
-    expect(log.first.title, 'Retired Riley from the party');
+    expect(log.first.title, 'Retired Riley from the household');
   });
 }

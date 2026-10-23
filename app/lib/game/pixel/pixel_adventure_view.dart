@@ -34,6 +34,8 @@ class PixelAdventureCallbacks {
     this.onSwitchToClassic,
     this.onSignWrit,
     this.onDeclineWrit,
+    this.onSealLoan,
+    this.onCancelLoan,
   });
 
   /// "Strike a monster" — the two-tap quick entry (log a purchase).
@@ -50,6 +52,12 @@ class PixelAdventureCallbacks {
 
   final void Function(String proposalId)? onSignWrit;
   final void Function(String proposalId)? onDeclineWrit;
+
+  /// Seals (approves) another adventurer's guild loan.
+  final void Function(String advanceId)? onSealLoan;
+
+  /// Refuses another adventurer's guild loan, or withdraws my own.
+  final void Function(String advanceId)? onCancelLoan;
 }
 
 /// The width at or above which the screen lays out as three columns (party
@@ -671,6 +679,10 @@ class PixelAdventureView extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             _WritRow(writ: w, callbacks: callbacks),
           ],
+          for (final l in wc.loans) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _LoanRow(loan: l, callbacks: callbacks),
+          ],
         ],
       ),
     );
@@ -1263,6 +1275,91 @@ class _WritRow extends StatelessWidget {
                 ),
               ],
             ),
+        ],
+      ),
+    );
+  }
+}
+
+// ===========================================================================
+// Guild loan row (allowance advance awaiting another adventurer's seal).
+// ===========================================================================
+
+class _LoanRow extends StatelessWidget {
+  const _LoanRow({required this.loan, required this.callbacks});
+
+  final GuildLoan loan;
+  final PixelAdventureCallbacks callbacks;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final forMe = loan.needsMySeal;
+    final floors = loan.months == 1 ? '1 floor' : '${loan.months} floors';
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: forMe ? scheme.primaryContainer : scheme.surfaceContainerHighest,
+        borderRadius: AppRadii.card,
+        border: forMe ? Border.all(color: scheme.primary) : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.handshake_outlined,
+                  size: 16, color: scheme.onSurfaceVariant),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  forMe
+                      ? 'A guild loan awaits your seal'
+                      : 'Your guild loan awaits another adventurer',
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelMedium
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ),
+              Text(
+                money(loan.amountCents),
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+              ),
+            ],
+          ),
+          Text(
+            '${loan.byName} · ${loan.monsterName} · repaid over $floors',
+            style: Theme.of(context)
+                .textTheme
+                .labelSmall
+                ?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: callbacks.onCancelLoan == null
+                    ? null
+                    : () => callbacks.onCancelLoan!(loan.advanceId),
+                child: Text(forMe ? 'Refuse' : 'Withdraw'),
+              ),
+              if (forMe) ...[
+                const SizedBox(width: AppSpacing.xs),
+                FilledButton(
+                  onPressed: callbacks.onSealLoan == null
+                      ? null
+                      : () => callbacks.onSealLoan!(loan.advanceId),
+                  style:
+                      FilledButton.styleFrom(minimumSize: const Size(72, 40)),
+                  child: const Text('Seal'),
+                ),
+              ],
+            ],
+          ),
         ],
       ),
     );

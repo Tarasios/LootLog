@@ -81,6 +81,12 @@ class PixelAdventureScreen extends ConsumerWidget {
         onDeclineWrit: (id) {
           if (actions != null) unawaited(actions.cancelWithdrawal(id));
         },
+        onSealLoan: (id) {
+          if (actions != null) unawaited(actions.approveAdvance(id));
+        },
+        onCancelLoan: (id) {
+          if (actions != null) unawaited(actions.cancelAdvance(id));
+        },
       ),
     );
   }

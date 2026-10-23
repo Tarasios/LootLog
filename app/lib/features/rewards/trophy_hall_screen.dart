@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
+import '../settings/play_mode_providers.dart';
 import '../../domain/event.dart';
 import '../../domain/value_types.dart';
 import '../../game/rewards/rewards.dart';
@@ -30,6 +31,7 @@ class TrophyHallScreen extends ConsumerWidget {
     final granted = ref.watch(grantedRewardsProvider);
     final snapshot = ref.watch(rewardsSnapshotProvider);
     final state = ref.watch(householdStateProvider).value;
+    final adventure = ref.watch(isAdventureProvider);
     final questNames = <String, String>{
       if (state != null)
         for (final q in state.quests.values) q.questId: q.name,
@@ -49,9 +51,12 @@ class TrophyHallScreen extends ConsumerWidget {
           _RewardsPanel(
             title: 'Trophies',
             icon: Icons.emoji_events_outlined,
-            empty: 'Defeat a savings-goal boss to earn your first trophy.',
+            empty: adventure
+                ? 'Defeat a savings-goal boss to earn your first trophy.'
+                : 'Reach a savings goal to earn your first trophy.',
             rewards: trophies,
             questNames: questNames,
+            adventure: adventure,
           ),
           _RewardsPanel(
             title: 'Titles',
@@ -112,6 +117,7 @@ class _RewardsPanel extends StatelessWidget {
     required this.empty,
     required this.rewards,
     required this.questNames,
+    this.adventure = false,
   });
 
   final String title;
@@ -119,6 +125,7 @@ class _RewardsPanel extends StatelessWidget {
   final String empty;
   final List<GameRewardGranted> rewards;
   final Map<String, String> questNames;
+  final bool adventure;
 
   @override
   Widget build(BuildContext context) {
@@ -147,6 +154,7 @@ class _RewardsPanel extends StatelessWidget {
     final ref = r.sourceRef;
     if (r.kind == RewardKind.trophy) {
       final name = questNames[ref];
+      if (!adventure) return name == null ? 'Goal reached' : '$name reached';
       return name == null ? 'Boss vanquished' : '$name vanquished';
     }
     if (ref.startsWith('daily:')) {

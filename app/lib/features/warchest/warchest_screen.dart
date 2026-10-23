@@ -12,10 +12,24 @@ import '../../data/providers.dart';
 import '../../domain/state.dart';
 import '../../domain/value_types.dart';
 import '../../ui/format.dart';
+import '../../ui/glossary.dart';
 import '../../ui/money_input.dart';
 import '../../ui/theme.dart';
 import '../household_context.dart';
+import '../settings/play_mode_providers.dart';
+import 'advance_model.dart';
+import 'pending_advance_tile.dart';
 import 'warchest_model.dart';
+
+String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+
+/// This device's name for an adult's own pool: "general savings" (Classic on
+/// the savings rules), "personal spending" (Classic before them) or "gold
+/// pouch" (Adventure).
+String _vaultWord(WidgetRef ref) => Glossary.vaultLabel(
+      isAdventure: ref.read(isAdventureProvider),
+      savingsRules: ref.read(householdStateProvider).value?.savingsRules != null,
+    );
 
 class WarChestScreen extends ConsumerWidget {
   const WarChestScreen({super.key});
@@ -29,21 +43,27 @@ class WarChestScreen extends ConsumerWidget {
     if (state == null || meUserId == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    final ledger = buildWarChestLedger(state, events, userNames: names);
+    // Classic speaks plain language; Adventure keeps the war-chest flavor.
+    final adventure = ref.watch(isAdventureProvider);
+    final title = _cap(Glossary.warChest.label(isAdventure: adventure));
+    final ledger = buildWarChestLedger(
+      state,
+      events,
+      userNames: names,
+      isAdventure: adventure,
+    );
     final pending =
         state.withdrawals.values
             .where((w) => w.status == WithdrawalStatus.pending)
             .toList()
           ..sort((a, b) => a.purpose.compareTo(b.purpose));
     final advances =
-        state.advances.values
-            .where((a) => a.status == WithdrawalStatus.pending)
-            .toList()
-          ..sort((a, b) => a.advanceId.compareTo(b.advanceId));
+        buildPendingAdvances(state, meUserId: meUserId, userNames: names);
+    final actions = ref.watch(householdActionsProvider);
     final chest = state.warChest;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('War chest')),
+      appBar: AppBar(title: Text(title)),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
@@ -54,7 +74,7 @@ class WarChestScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('War chest', style: AppText.sectionLabel(context)),
+                  Text(title, style: AppText.sectionLabel(context)),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     money(chest.balanceCents),
@@ -93,7 +113,9 @@ class WarChestScreen extends ConsumerWidget {
               FilledButton.tonalIcon(
                 onPressed: () => _propose(context, ref, state),
                 icon: const Icon(Icons.request_quote_outlined, size: 18),
-                label: const Text('Propose writ'),
+                label: Text(
+                  adventure ? 'Propose writ' : 'Request withdrawal',
+                ),
               ),
               FilledButton.tonalIcon(
                 onPressed: () => _recordGift(context, ref, state),
@@ -109,19 +131,26 @@ class WarChestScreen extends ConsumerWidget {
           ),
           if (pending.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.lg),
-            Text('Pending writs', style: AppText.sectionLabel(context)),
+            Text(
+              adventure ? 'Pending writs' : 'Pending withdrawals',
+              style: AppText.sectionLabel(context),
+            ),
             for (final w in pending)
-              _PendingWrit(writ: w, meUserId: meUserId, names: names),
+              _PendingWrit(
+                writ: w,
+                meUserId: meUserId,
+                names: names,
+                adventure: adventure,
+              ),
           ],
           if (advances.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.lg),
             Text('Borrowing requests', style: AppText.sectionLabel(context)),
             for (final a in advances)
-              _PendingAdvance(
+              PendingAdvanceTile(
                 advance: a,
-                categoryName: state.slices[a.sliceId]?.name ?? 'a budget',
-                meUserId: meUserId,
-                names: names,
+                onApprove: (id) => actions?.approveAdvance(id),
+                onCancel: (id) => actions?.cancelAdvance(id),
               ),
           ],
           const SizedBox(height: AppSpacing.lg),
@@ -146,8 +175,8 @@ class WarChestScreen extends ConsumerWidget {
     final cap = state.vaultOf(meUserId);
     final cents = await _amountDialog(
       context,
-      title: 'Contribute from your vault',
-      helper: 'Capped at your vault: ${money(cap)}',
+      title: 'Contribute from your ${_vaultWord(ref)}',
+      helper: 'Capped at your ${_vaultWord(ref)}: ${money(cap)}',
       max: cap,
     );
     if (cents != null && cents > 0) {
@@ -303,7 +332,9 @@ class WarChestScreen extends ConsumerWidget {
             const SizedBox(height: AppSpacing.lg),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Add to war chest'),
+              child: Text(
+                'Add to ${Glossary.warChest.label(isAdventure: ref.read(isAdventureProvider))}',
+              ),
             ),
           ],
         ),
@@ -366,18 +397,20 @@ class _PendingWrit extends ConsumerWidget {
     required this.writ,
     required this.meUserId,
     required this.names,
+    required this.adventure,
   });
 
   final WithdrawalProposal writ;
   final String meUserId;
   final Map<String, String> names;
+  final bool adventure;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mine = writ.byUserId == meUserId;
     final dest = switch (writ.destination) {
       UserVaultDestination(:final userId) =>
-        'to ${names[userId] ?? userId}\'s vault',
+        'to ${names[userId] ?? userId}\'s ${_vaultWord(ref)}',
       ExternalDestination() => 'external',
     };
     return Card(
@@ -398,7 +431,9 @@ class _PendingWrit extends ConsumerWidget {
             const SizedBox(height: AppSpacing.sm),
             if (mine)
               Text(
-                'Awaiting the other adventurer\'s signature.',
+                adventure
+                    ? 'Awaiting the other adventurer\'s signature.'
+                    : 'Waiting for another adult to approve.',
                 style: Theme.of(context).textTheme.bodySmall,
               )
             else
@@ -416,79 +451,10 @@ class _PendingWrit extends ConsumerWidget {
                     onPressed: () => ref
                         .read(householdActionsProvider)
                         ?.approveWithdrawal(writ.proposalId),
-                    child: const Text('Sign'),
+                    child: Text(adventure ? 'Sign' : 'Approve'),
                   ),
                 ],
               ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A pending request to borrow from a budget's future months. Another adult
-/// approves or declines; the requester can withdraw it.
-class _PendingAdvance extends ConsumerWidget {
-  const _PendingAdvance({
-    required this.advance,
-    required this.categoryName,
-    required this.meUserId,
-    required this.names,
-  });
-
-  final AdvanceState advance;
-  final String categoryName;
-  final String meUserId;
-  final Map<String, String> names;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final mine = advance.byUserId == meUserId;
-    final months = advance.months;
-    final actions = ref.watch(householdActionsProvider);
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${money(advance.amountCents)} from $categoryName over $months '
-              'month${months == 1 ? '' : 's'}',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            Text(
-              'Asked by ${names[advance.byUserId] ?? advance.byUserId} · '
-              'repaid from the next $months month${months == 1 ? '' : 's'} '
-              'of that budget',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (mine)
-                  Expanded(
-                    child: Text(
-                      'Waiting for another adult to approve.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                TextButton(
-                  onPressed: () => actions?.cancelAdvance(advance.advanceId),
-                  child: Text(mine ? 'Withdraw' : 'Decline'),
-                ),
-                if (!mine) ...[
-                  const SizedBox(width: AppSpacing.sm),
-                  FilledButton(
-                    onPressed: () => actions?.approveAdvance(advance.advanceId),
-                    child: const Text('Approve'),
-                  ),
-                ],
-              ],
-            ),
           ],
         ),
       ),
@@ -611,7 +577,7 @@ class _WritSheetState extends ConsumerState<_WritSheet> {
               for (final a in ref.watch(partyAdultsProvider))
                 DropdownMenuItem(
                   value: 'vault:${a.id}',
-                  child: Text('${a.name}\'s vault'),
+                  child: Text('${a.name}\'s ${_vaultWord(ref)}'),
                 ),
             ],
             onChanged: (v) => setState(() {
