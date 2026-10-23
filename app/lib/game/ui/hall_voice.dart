@@ -26,13 +26,12 @@ class HallVoice {
     this.sets = const {},
     this.reasons = const {},
     this.rejections = const {},
-    this.bossNames = const {},
   });
 
   /// Before the file loads.
   static const empty = HallVoice();
 
-  /// The line sets that are picked from (`greetings`, `bossWin`, ...).
+  /// The line sets that are picked from (`greetings`, `chestOpened`, ...).
   final Map<String, List<String>> sets;
 
   /// Plain descriptions of reward reason codes (`log.daily` -> "Showed up").
@@ -40,9 +39,6 @@ class HallVoice {
 
   /// Friendly copy for each [GameRejection], by name.
   final Map<String, String> rejections;
-
-  /// Display names for seasonal boss keys.
-  final Map<String, String> bossNames;
 
   /// The set names the file is expected to carry.
   static const setNames = [
@@ -55,14 +51,20 @@ class HallVoice {
     'upgradeStarted',
     'collected',
     'expeditionSent',
-    'ritualStepDone',
-    'bossIntro',
-    'bossTurns',
-    'bossWin',
-    'bossLoss',
-    'spoilsChest',
     'caravan',
   ];
+
+  /// The single-line sets that label a button or a place, each with the
+  /// line used when the file lacks it, so no button is ever blank.
+  static const fallbacks = <String, String>{
+    'dungeonCallout':
+        '{month}: the dungeon below the town gate is open. Aim each leftover '
+            'at a goal boss or an OVERBUDGET, then return for the spoils chest.',
+    'dungeonCalloutButton': 'Enter the dungeon',
+    'dungeonPlaceDone': 'All done for now. The next one opens when the month ends.',
+    'dungeonPlaceReadyOne': '{n} month ready for the dungeon',
+    'dungeonPlaceReadyMany': '{n} months ready for the dungeon',
+  };
 
   /// Parses the JSON document. Keys starting with `_` are comments.
   factory HallVoice.parse(String json) {
@@ -79,17 +81,19 @@ class HallVoice {
       },
       reasons: strings(root['reasons']),
       rejections: strings(root['rejections']),
-      bossNames: strings(root['bossNames']),
     );
   }
 
   /// A line from [set], chosen by [seed], with `{name}` placeholders filled
-  /// from [fill]. Empty when the set is missing.
+  /// from [fill]. A missing set falls back to its built-in line in
+  /// [fallbacks], or is empty.
   String line(String set, {Object? seed, Map<String, String> fill = const {}}) {
     final lines = sets[set] ?? const <String>[];
-    if (lines.isEmpty) return '';
-    final i = seed == null ? 0 : _stableHash('$seed') % lines.length;
-    var out = lines[i];
+    final fallback = fallbacks[set];
+    if (lines.isEmpty && fallback == null) return '';
+    var out = lines.isEmpty
+        ? fallback!
+        : lines[seed == null ? 0 : _stableHash('$seed') % lines.length];
     for (final e in fill.entries) {
       out = out.replaceAll('{${e.key}}', e.value);
     }
@@ -102,9 +106,6 @@ class HallVoice {
 
   /// A plain description of a reward's [reasonCode].
   String reason(String reasonCode) => reasons[reasonCode] ?? 'A reward';
-
-  /// [bossKey]'s display name ("the Frost Wyrm").
-  String bossName(String bossKey) => bossNames[bossKey] ?? 'the seasonal beast';
 
   /// A deterministic string hash (Dart's `hashCode` is not stable across
   /// runs), so a seeded pick is the same on every device.
