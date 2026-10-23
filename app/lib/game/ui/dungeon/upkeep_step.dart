@@ -37,6 +37,10 @@ class _UpkeepStepState extends State<UpkeepStep> {
     super.dispose();
   }
 
+  int? _centsFor(VariableTally tally) => tryParseMoneyCents(_controllers[tally.expenseId]!.text);
+
+  bool get _allValid => widget.tallies.every((tally) => _centsFor(tally) != null);
+
   @override
   Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(16), children: [
         if (widget.intro case final String intro) ...[
@@ -52,18 +56,19 @@ class _UpkeepStepState extends State<UpkeepStep> {
               key: ValueKey('upkeep-${tally.expenseId}'),
               controller: _controllers[tally.expenseId],
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 labelText: tally.name,
                 helperText: 'Estimate ${money(tally.estimateCents)}',
+                errorText: _centsFor(tally) == null ? 'Enter an amount, like 82.50' : null,
                 prefixText: r'$',
               ),
             ),
           ),
         FilledButton(
-          onPressed: () => widget.onDone({
-            for (final tally in widget.tallies)
-              tally.expenseId: tryParseMoneyCents(_controllers[tally.expenseId]!.text) ?? tally.estimateCents,
-          }),
+          onPressed: _allValid
+              ? () => widget.onDone({for (final tally in widget.tallies) tally.expenseId: _centsFor(tally)!})
+              : null,
           child: const Text('Descend'),
         ),
       ]);

@@ -40,32 +40,32 @@ class _BattleTurnState extends State<_BattleTurn> {
   late SpoilsChoice _choice = widget.weapon.defaultChoice;
 
   /// The moves this leftover can make, each with its label: the debts and
-  /// goals it can reach, then savings and keeping it.
+  /// goals it can reach that are still standing (an earlier weapon may have
+  /// cleared a shared debt or finished a goal), then savings and keeping it.
   List<(SpoilsChoice, String)> get _options {
     final leftover = widget.weapon.leftover;
     final savingsLabel = Glossary.vaultLabel(isAdventure: widget.isAdventure, savingsRules: leftover.savingsRules);
     return [
       for (final debt in widget.debts)
-        if (leftover.overbudgetOptions.any((option) => option.sliceId == debt.sliceId))
+        if (debt.outstandingCents > 0 && leftover.overbudgetOptions.any((option) => option.sliceId == debt.sliceId))
           (SpoilsChoice(SpoilsMove.debt, overbudgetSliceId: debt.sliceId), 'Pay off ${debt.name}'),
       for (final boss in widget.bosses)
-        if (leftover.questOptions.any((option) => option.questId == boss.questId))
+        if (boss.remainingCents > 0 && leftover.questOptions.any((option) => option.questId == boss.questId))
           (SpoilsChoice(SpoilsMove.goal, questId: boss.questId), 'Toward ${boss.name}'),
       (const SpoilsChoice(SpoilsMove.bank), 'Bank it in your $savingsLabel'),
       (const SpoilsChoice(SpoilsMove.carry), 'Keep it in ${widget.weapon.name}'),
     ];
   }
 
-  /// The listed option matching [_choice] (the default choice may carry a
-  /// quest id alongside a bank or carry move).
+  /// The listed option matching [_choice]. A bank or carry default may
+  /// carry a stray quest id, so those match by move; a goal or debt that is
+  /// no longer offered falls back to banking it.
   SpoilsChoice _selected(List<(SpoilsChoice, String)> options) {
     for (final (choice, _) in options) {
       if (choice == _choice) return choice;
     }
-    for (final (choice, _) in options) {
-      if (choice.move == _choice.move) return choice;
-    }
-    return options.first.$1;
+    final move = _choice.move == SpoilsMove.carry ? SpoilsMove.carry : SpoilsMove.bank;
+    return options.firstWhere((option) => option.$1.move == move).$1;
   }
 
   @override

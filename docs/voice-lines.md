@@ -487,7 +487,7 @@ savings. Every amount in a line is the real split, computed by the ledger
 and filled in by the screen; the lines only frame it. Picks are seeded by
 the category and month so a line is stable on screen. Placeholders:
 `{name}` (the category), `{amount}` (a money amount), `{target}` (a goal or
-the category carrying an OVERBUDGET).
+the category carrying an OVERBUDGET), `{gems}` and `{months}` (the bonus).
 `app/test/game/ui/dungeon/dungeon_voice_test.dart` checks every set is
 present and that nothing shames or blames.
 
@@ -505,3 +505,10 @@ present and that nothing shames or blames.
 | `bossFalls` | A goal is fully funded | The big celebration: the goal is reached |
 | `victory` | Every weapon has been used | Wrap up warmly before returning to town |
 | `noLeftovers` | No category had anything left over | Reassure: an exactly-spent month is a month that worked |
+| `chestWaiting` | Return to town: the spoils chest was granted | Point at the reward waiting in the inbox |
+| `bonusOnTime` | The chest came with bonus gems and at least one on-time ritual in a row | Celebrate consistency (a count of months, never dollars) |
+| `bonusGear` | Bonus gems with no on-time streak (the hero's gear alone) | Name the bonus without implying a streak that isn't there |
+| `dividedNoChest` | Return to town on a device with no game service yet | Confirm the leftovers are divided |
+| `headBack` | Button when nothing was left over | A calm way out, no judgement |
+| `saveFailed` | The ledger write failed (nothing was divided) | Reassure and invite a retry, no blame |
+| `chestPending` | The leftovers were saved but the chest failed to arrive | Say plainly the money is done, and that retrying brings the chest |

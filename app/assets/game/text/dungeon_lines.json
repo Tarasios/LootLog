@@ -10,5 +10,12 @@
   "carry": ["{amount} stays with {name} for next month."],
   "bossFalls": ["{target} falls! The goal is yours."],
   "victory": ["The party climbs back to town with the spoils."],
-  "noLeftovers": ["Nothing left over this month — and that's fine. Every budget did its job."]
+  "noLeftovers": ["Nothing left over this month — and that's fine. Every budget did its job."],
+  "chestWaiting": ["A spoils chest waits in your inbox."],
+  "bonusOnTime": ["Bonus: {gems} gems. On-time month-end streak: {months}."],
+  "bonusGear": ["Bonus: {gems} gems, thanks to your hero's gear."],
+  "dividedNoChest": ["Your leftovers are divided."],
+  "headBack": ["Head back to town"],
+  "saveFailed": ["The spoils couldn't be saved just now. Nothing is lost, so please try again."],
+  "chestPending": ["Your leftovers are divided and saved. The spoils chest got stuck at the gate; try again and it will follow you home."]
 }

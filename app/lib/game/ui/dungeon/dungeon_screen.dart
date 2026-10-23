@@ -61,7 +61,16 @@ class _DungeonScreenState extends ConsumerState<DungeonScreen> {
   List<DebtMonster> _debts = const [];
   final List<String> _log = [];
   DungeonGame? _game;
+  bool _gameRequested = false;
+  final Map<String, ui.Image> _pictures = {};
   bool _saving = false;
+
+  /// The ledger write for this battle has succeeded: it is never made again,
+  /// only the chest is retried.
+  bool _ledgerWritten = false;
+
+  /// The ledger is written but the chest has not arrived yet.
+  bool _chestPending = false;
 
   @override
   void initState() {
@@ -71,7 +80,21 @@ class _DungeonScreenState extends ConsumerState<DungeonScreen> {
     _bosses = battle?.bosses ?? const [];
     _debts = battle?.debts ?? const [];
     _stage = (battle?.upkeep.isNotEmpty ?? false) ? _DungeonStage.upkeep : _DungeonStage.battle;
-    if (battle != null) unawaited(_buildGame(battle));
+  }
+
+  @override
+  void dispose() {
+    for (final picture in _pictures.values) {
+      picture.dispose();
+    }
+    super.dispose();
+  }
+
+  /// Builds the pixel scene the first time it is needed (never in text tier).
+  void _requestGame(MonthEndBattle battle) {
+    if (_gameRequested) return;
+    _gameRequested = true;
+    unawaited(_buildGame(battle));
   }
 
   Future<Map<String, ui.Image>> _decodePictures(MonthEndBattle battle) async {
@@ -92,6 +115,13 @@ class _DungeonScreenState extends ConsumerState<DungeonScreen> {
 
   Future<void> _buildGame(MonthEndBattle battle) async {
     final pictures = await _decodePictures(battle);
+    if (!mounted) {
+      for (final picture in pictures.values) {
+        picture.dispose();
+      }
+      return;
+    }
+    _pictures.addAll(pictures);
     AssetRegistry registry;
     try {
       registry = await ref.read(gameAssetRegistryProvider.future);
@@ -165,21 +195,39 @@ class _DungeonScreenState extends ConsumerState<DungeonScreen> {
     }
   }
 
+  /// Writes the ledger once, then brings the chest home. A failed ledger
+  /// write can be retried as a whole; once it has succeeded, a failed chest
+  /// keeps the screen open with an honest note, and the next tap retries the
+  /// chest alone. Leaving then is fine too: the leftovers are divided.
   Future<void> _returnToTown() async {
+    if (_saving) return;
     final battle = _battle!;
     final container = ProviderScope.containerOf(context, listen: false);
     setState(() => _saving = true);
-    final GameCommandResult? outcome;
+    if (!_ledgerWritten) {
+      try {
+        await writeMonthEndLedger(
+          container,
+          battle.ritual,
+          battle.resultFor(choices: _choices, actualsByExpenseId: _actuals),
+        );
+        _ledgerWritten = true;
+      } on Object {
+        if (!mounted) return;
+        setState(() => _saving = false);
+        showMonthEndSaveFailed(context, container);
+        return;
+      }
+    }
+    final MonthEndGameOutcome outcome;
     try {
-      outcome = await commitMonthEnd(
-        container,
-        battle.ritual,
-        battle.resultFor(choices: _choices, actualsByExpenseId: _actuals),
-      );
+      outcome = await finishMonthEndGame(container, battle.ritual.month);
     } on Object {
       if (!mounted) return;
-      setState(() => _saving = false);
-      showMonthEndSaveFailed(context);
+      setState(() {
+        _saving = false;
+        _chestPending = true;
+      });
       return;
     }
     if (!mounted) return;
@@ -196,6 +244,7 @@ class _DungeonScreenState extends ConsumerState<DungeonScreen> {
       // written through the same path.
       return textTierBattle(context, battle.ritual);
     }
+    if (battle != null) _requestGame(battle);
     return AdventureSpriteScope(
       child: Scaffold(
         appBar: AppBar(title: const Text('The dungeon')),
@@ -224,6 +273,7 @@ class _DungeonScreenState extends ConsumerState<DungeonScreen> {
                     bosses: _bosses,
                     debts: _debts,
                     headline: voice.line('victory', seed: _seed('victory')),
+                    pendingNote: _chestPending ? voice.line('chestPending') : null,
                     saving: _saving,
                     onReturn: _returnToTown,
                   ),
@@ -244,6 +294,7 @@ class _DungeonScreenState extends ConsumerState<DungeonScreen> {
                           'amount': money(open.weapons[_turn].valueCents),
                         }),
                   onTakeTurn: _takeTurn,
+                  headBackLabel: voice.line('headBack'),
                   onHeadBack: () => setState(() => _stage = _DungeonStage.victory),
                 ),
             ]),
@@ -262,19 +313,32 @@ Widget textTierBattle(BuildContext context, SpoilsRitual ritual) => TextBattleVi
       onConfirm: (result) => unawaited(_finishTextBattle(context, ritual, result)),
     );
 
+/// The text battle pops on confirm (so it can't be confirmed twice), writes
+/// the ledger once, then brings the chest home. A failed chest never undoes
+/// or repeats the ledger write: a dialog says the leftovers are saved and
+/// offers to retry the chest alone.
 Future<void> _finishTextBattle(BuildContext context, SpoilsRitual ritual, SpoilsResult result) async {
   final navigator = Navigator.of(context);
   final container = ProviderScope.containerOf(context, listen: false);
   navigator.pop();
-  final GameCommandResult? outcome;
   try {
-    outcome = await commitMonthEnd(container, ritual, result);
+    await writeMonthEndLedger(container, ritual, result);
   } on Object {
-    if (navigator.mounted) showMonthEndSaveFailed(navigator.context);
+    if (navigator.mounted) showMonthEndSaveFailed(navigator.context, container);
     return;
   }
+  MonthEndGameOutcome? outcome;
+  while (outcome == null && navigator.mounted) {
+    try {
+      outcome = await finishMonthEndGame(container, ritual.month);
+    } on Object {
+      if (!navigator.mounted || !await askRetryChest(navigator.context, container)) break;
+    }
+  }
   if (!navigator.mounted) return;
-  await showMonthEndCelebration(navigator.context, container, outcome, seed: '${ritual.month.toKey()}:victory');
+  if (outcome != null) {
+    await showMonthEndCelebration(navigator.context, container, outcome, seed: '${ritual.month.toKey()}:victory');
+  }
   if (navigator.mounted) await ReportScreen.open(navigator.context, initialMonth: ritual.month);
 }
 
@@ -296,9 +360,11 @@ class _TurnPanel extends StatelessWidget {
     required this.weapon,
     required this.weaponLine,
     required this.onTakeTurn,
+    required this.headBackLabel,
     required this.onHeadBack,
   });
 
+  final String headBackLabel;
   final List<String> log;
   final String? intro;
   final BattleWeapon? weapon;
@@ -322,7 +388,7 @@ class _TurnPanel extends StatelessWidget {
           ],
           const SizedBox(height: 12),
           if (next == null)
-            FilledButton(onPressed: onHeadBack, child: const Text('Head back to town'))
+            FilledButton(onPressed: onHeadBack, child: Text(headBackLabel))
           else
             FilledButton(
               key: const ValueKey('next-weapon'),
@@ -341,9 +407,13 @@ class _Victory extends StatelessWidget {
     required this.bosses,
     required this.debts,
     required this.headline,
+    required this.pendingNote,
     required this.saving,
     required this.onReturn,
   });
+
+  /// Shown when the leftovers are saved but the chest has not arrived.
+  final String? pendingNote;
 
   final MonthEndBattle battle;
   final List<GoalBoss> bosses;
@@ -378,6 +448,10 @@ class _Victory extends StatelessWidget {
             ),
         ],
         const SizedBox(height: 12),
+        if (pendingNote case final String note) ...[
+          Text(note, key: const ValueKey('chest-pending')),
+          const SizedBox(height: 8),
+        ],
         FilledButton(onPressed: saving ? null : onReturn, child: const Text('Return to town')),
       ]);
 }
