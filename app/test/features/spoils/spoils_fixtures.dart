@@ -63,6 +63,22 @@ class TestLedger {
         customSpriteSha256: pictureSha256,
       ));
 
+  /// A personal variable bill (estimate only) starting in [startMonth].
+  void variableBill(String expenseId, String owner, int estimateCents, Month startMonth) =>
+      events.add(RecurringExpenseSet(
+        eventId: _nextId(),
+        deviceId: 'd',
+        userId: owner,
+        occurredAt: setupInstant,
+        createdAt: setupInstant,
+        expenseId: expenseId,
+        name: expenseId,
+        ownership: PersonalParty(owner),
+        kind: RecurringKind.variable,
+        amountCents: estimateCents,
+        startMonth: startMonth,
+      ));
+
   void buy(String who, String sliceId, int cents, DateTime when) => events.add(PurchaseAdded(
         eventId: _nextId(),
         deviceId: 'd',
@@ -119,6 +135,20 @@ SpoilsRitual _ritual(HouseholdState household) =>
     ..category('fun', owner: 'alex', limitCents: 20000, mainCategoryId: 'entertainment', since: dayOf(2026, 9, 1))
     ..category('food', owner: 'alex', limitCents: 40000, mainCategoryId: 'food', since: dayOf(2026, 9, 1))
     ..buy('alex', 'fun', 25000, dayOf(2026, 9, 10))
+    ..buy('alex', 'food', 30000, dayOf(2026, 9, 12));
+  final household = reduce(ledger.events, asOf: ritualInstant);
+  return (household, _ritual(household));
+}
+
+/// As [ritualFixture], plus a $80 variable Utilities bill whose September
+/// actual has not been recorded, so the ritual starts with a tally.
+(HouseholdState, SpoilsRitual) ritualFixtureWithVariableBill() {
+  final ledger = TestLedger()
+    ..adult('alex')
+    ..category('fun', owner: 'alex', limitCents: 20000, mainCategoryId: 'entertainment')
+    ..category('food', owner: 'alex', limitCents: 40000, mainCategoryId: 'food')
+    ..variableBill('utilities', 'alex', 8000, const Month(2026, 9))
+    ..buy('alex', 'fun', 5000, dayOf(2026, 9, 10))
     ..buy('alex', 'food', 30000, dayOf(2026, 9, 12));
   final household = reduce(ledger.events, asOf: ritualInstant);
   return (household, _ritual(household));

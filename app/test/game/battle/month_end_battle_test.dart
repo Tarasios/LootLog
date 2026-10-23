@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lootlog/domain/value_types.dart';
 import 'package:lootlog/features/spoils/spoils_move.dart';
+import 'package:lootlog/game/assets/asset_key.dart';
 import 'package:lootlog/game/battle/month_end_battle.dart';
 
 import '../../features/spoils/spoils_fixtures.dart';
@@ -57,5 +59,59 @@ void main() {
       }
     }
     expect(result.tallies.length, ritual.variableTallies.length, reason: 'unrecorded actuals default to the estimate');
+  });
+
+  test('a quest offered on several leftovers is one boss; a debt offered on several is one monster', () {
+    final (household, ritual) = ritualFixture();
+    expect(ritual.sliceLeftovers.length, greaterThan(1));
+    expect(MonthEndBattle.from(ritual, household)!.bosses, hasLength(1));
+    final (debtHousehold, debtRitual) = ritualFixtureWithDebt();
+    expect(MonthEndBattle.from(debtRitual, debtHousehold)!.debts, hasLength(1));
+  });
+
+  test('a boss with no target is already revealed and has no HP', () {
+    const boss = GoalBoss(
+      questId: 'q',
+      name: 'q',
+      targetCents: 0,
+      progressCents: 0,
+      spriteKey: AssetKey('boss', 'goal'),
+      shared: false,
+    );
+    expect(boss.revealFraction, 1.0);
+    expect(boss.remainingCents, 0);
+  });
+
+  test('a negative landing changes nothing', () {
+    final (household, ritual) = ritualFixture();
+    final boss = MonthEndBattle.from(ritual, household)!.bosses.first;
+    expect(boss.afterLanding(-500).progressCents, boss.progressCents);
+    final (debtHousehold, debtRitual) = ritualFixtureWithDebt();
+    final monster = MonthEndBattle.from(debtRitual, debtHousehold)!.debts.first;
+    expect(monster.afterLanding(-500).outstandingCents, monster.outstandingCents);
+  });
+
+  test('variable bills: the estimate stands unless an actual is entered', () {
+    final (household, ritual) = ritualFixtureWithVariableBill();
+    final battle = MonthEndBattle.from(ritual, household)!;
+    expect(ritual.variableTallies, isNotEmpty);
+    expect(battle.upkeep, ritual.variableTallies);
+    final tally = ritual.variableTallies.first;
+
+    final estimated = battle.resultFor(choices: const {}, actualsByExpenseId: const {});
+    expect(estimated.tallies.map((entry) => entry.expenseId), ritual.variableTallies.map((entry) => entry.expenseId));
+    expect(estimated.tallies.first.actualCents, tally.estimateCents);
+
+    final entered = battle.resultFor(choices: const {}, actualsByExpenseId: {tally.expenseId: 9123});
+    expect(entered.tallies.first.actualCents, 9123);
+  });
+
+  test('with no choices the pre-selected debt payment is written', () {
+    final (household, ritual) = ritualFixtureWithDebt();
+    final result = MonthEndBattle.from(ritual, household)!.resultFor(choices: const {}, actualsByExpenseId: const {});
+    final lines = result.allocations.first.allocations;
+    expect(lines, hasLength(1));
+    expect(lines.first.destination, isA<OverbudgetPayment>());
+    expect(lines.first.amountCents, ritual.sliceLeftovers.first.leftoverCents);
   });
 }

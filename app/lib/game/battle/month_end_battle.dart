@@ -45,11 +45,12 @@ class GoalBoss {
 
   double get revealFraction => targetCents <= 0 ? 1 : (progressCents / targetCents).clamp(0, 1).toDouble();
 
+  /// The boss after [landedCents] reach it (a negative amount lands as 0).
   GoalBoss afterLanding(int landedCents) => GoalBoss(
         questId: questId,
         name: name,
         targetCents: targetCents,
-        progressCents: progressCents + landedCents,
+        progressCents: progressCents + (landedCents < 0 ? 0 : landedCents),
         spriteKey: spriteKey,
         shared: shared,
         pictureSha256: pictureSha256,
@@ -65,10 +66,15 @@ class DebtMonster {
 
   AssetKey get spriteKey => const AssetKey('boss', 'overbudget');
 
+  /// The monster after [landedCents] reach it (a negative amount lands as 0).
   DebtMonster afterLanding(int landedCents) => DebtMonster(
         sliceId: sliceId,
         name: name,
-        outstandingCents: landedCents >= outstandingCents ? 0 : outstandingCents - landedCents,
+        outstandingCents: landedCents <= 0
+            ? outstandingCents
+            : landedCents >= outstandingCents
+                ? 0
+                : outstandingCents - landedCents,
       );
 }
 
@@ -134,6 +140,9 @@ class MonthEndBattle {
 
   /// The confirmed ritual: an actual for every variable bill (the estimate
   /// when none was entered) and one choice's allocations per category.
+  ///
+  /// This carries the allowance choice only; it does not express the
+  /// savings-rules move of a category's saved balance (`source: savings`).
   SpoilsResult resultFor({required Map<String, SpoilsChoice> choices, required Map<String, int> actualsByExpenseId}) =>
       SpoilsResult(
         tallies: [
