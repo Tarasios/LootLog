@@ -1,6 +1,7 @@
-# On-demand test builds: Android APK + Windows zip, uploaded as workflow
-# artifacts only. Unlike release.yml this does NOT create a GitHub Release and
-# skips macOS/Linux. Run it from the Actions tab -> "Test build" -> Run workflow.
+# Quick test builds: Android APK + Windows zip, uploaded as Actions artifacts.
+# No tag, no GitHub Release. Run it from the Actions tab ("Test build" ->
+# "Run workflow"), then download the artifacts from the finished run.
+# The APK is debug-signed (installable for testing, not for distribution).
 
 name: Test build
 
@@ -23,7 +24,7 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
-      - name: Build APK (debug-signed, fine for sideloading)
+      - name: Build APK
         working-directory: app
         run: |
           flutter pub get
@@ -33,6 +34,7 @@ jobs:
           name: lootlog-android-apk
           path: app/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
+          retention-days: 14
 
   windows:
     runs-on: windows-latest
@@ -52,3 +54,4 @@ jobs:
           name: lootlog-windows
           path: app/build/windows/x64/runner/Release/
           if-no-files-found: error
+          retention-days: 14
