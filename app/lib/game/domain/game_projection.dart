@@ -48,7 +48,7 @@ GameState applyGameEvent(GameState state, GameEvent event) {
           '${cursor.eventId}; rebuild with projectGameState.');
     }
   }
-  final draft = _GameStateDraft(state, event.eventId);
+  final draft = _GameStateDraft(state, event.eventId, event.occurredAt);
   _apply(draft, event);
   return draft.build(event);
 }
@@ -284,7 +284,7 @@ void _apply(_GameStateDraft draft, GameEvent event) {
 
 /// One event's worth of changes, applied copy-on-write to the prior state.
 class _GameStateDraft {
-  _GameStateDraft(GameState prior, this.eventId)
+  _GameStateDraft(GameState prior, this.eventId, this.at)
       : hall = prior.hall,
         _people = prior.people,
         _warnings = prior.warnings;
@@ -334,10 +334,23 @@ class _GameStateDraft {
     if (delta.isEmpty) return;
     final next = Map.of(hall.materials.amounts);
     final short = <String>[];
+    final over = <String>[];
+    final capacity = hall.storageCapacityAt(at);
     for (final entry in delta.amounts.entries) {
-      final adjusted = (next[entry.key] ?? 0) + sign * entry.value;
-      if (adjusted < 0) short.add('${entry.key.name} ${-adjusted}');
-      next[entry.key] = adjusted < 0 ? 0 : adjusted;
+      final held = next[entry.key] ?? 0;
+      var adjusted = held + sign * entry.value;
+      if (adjusted < 0) {
+        short.add('${entry.key.name} ${-adjusted}');
+        adjusted = 0;
+      }
+      if (sign > 0 && !Balance.uncappedMaterials.contains(entry.key)) {
+        final cap = held > capacity ? held : capacity;
+        if (adjusted > cap) {
+          over.add('${entry.key.name} ${adjusted - cap}');
+          adjusted = cap;
+        }
+      }
+      next[entry.key] = adjusted;
     }
     if (short.isNotEmpty) {
       warn(GameWarningCode.materialsClamped, short.join(', '));
