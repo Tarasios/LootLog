@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../features/settings/play_mode_switch.dart';
+import '../../assets/asset_catalog.dart';
 import '../../assets/asset_registry.dart';
 import '../../assets/game_asset_scope.dart';
 import '../../data/game_providers.dart';
@@ -16,6 +17,7 @@ import '../../domain/town/town_view.dart';
 import '../../scenes/town/town_scene_view.dart';
 import '../../skin_prefs.dart';
 import '../building_sheet.dart';
+import '../decor/shop_screen.dart';
 import '../game_home.dart';
 import '../hall_common.dart';
 import '../hall_ledger_view.dart';
@@ -31,9 +33,13 @@ Widget buildTownShell(
   BuildContext context, {
   required VoidCallback onOpenLedger,
   required HallLinks links,
-}) => TownShell(onOpenLedger: onOpenLedger, links: links);
+}) => TownShell(
+  onOpenLedger: onOpenLedger,
+  links: links,
+  openers: const TownPlaceOpeners(openShop: ShopScreen.open),
+);
 
-class TownShell extends ConsumerWidget {
+class TownShell extends ConsumerStatefulWidget {
   const TownShell({
     super.key,
     required this.onOpenLedger,
@@ -55,12 +61,52 @@ class TownShell extends ConsumerWidget {
   final bool ambientLife;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TownShell> createState() => _TownShellState();
+}
+
+class _TownShellState extends ConsumerState<TownShell> {
+  /// Set once the starter claim has been scheduled, so it runs at most once
+  /// per visit (the claim is idempotent anyway).
+  bool _starterClaimScheduled = false;
+
+  /// Gives a player who owns nothing yet the starter furniture, once the
+  /// catalogue and their game state have loaded. Quiet: never blocks the
+  /// scene, and a refusal (already claimed) shows nothing.
+  void _claimStarterSetWhenReady(GameState game, String? meId) {
+    if (_starterClaimScheduled || meId == null || meId.isEmpty) return;
+    final catalog = ref.read(decorCatalogProvider).value;
+    if (catalog == null || catalog.starterSet.isEmpty) return;
+    if (!ref.read(gameStateProvider).hasValue) return;
+    if (game.decor.ownedByPerson[meId]?.isNotEmpty ?? false) return;
+    _starterClaimScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _claimStarterSet());
+  }
+
+  Future<void> _claimStarterSet() async {
+    final service = ref.read(gameCommandsServiceProvider);
+    if (service == null) return;
+    final result = await service.claimStarterSet();
+    if (!result.accepted || !mounted) return;
+    await showHallCelebration(
+      context,
+      sprite: GameAssetKeys.chest(ChestType.wood),
+      title: 'Welcome home',
+      lines: const ['Your first furniture is waiting inside your house.'],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final onOpenLedger = widget.onOpenLedger;
+    final links = widget.links;
+    final openers = widget.openers;
     final textTier = ref.watch(adventureTierProvider) == AdventureTier.text;
     if (textTier) return GameHome(onOpenLedger: onOpenLedger, links: links);
 
+    ref.watch(decorCatalogProvider);
     final game = ref.watch(gameStateProvider).value ?? GameState.initial();
     final ledgerView = ref.watch(hallLedgerViewProvider);
+    _claimStarterSetWhenReady(game, ledgerView.meId);
     final townsfolk = ref.watch(townsfolkProvider);
     final registryLoad = ref.watch(gameAssetRegistryProvider);
     final clock = ref.watch(gameClockProvider);
@@ -90,7 +136,8 @@ class TownShell extends ConsumerWidget {
               ),
     };
 
-    void openInbox() => showTownInbox(context, onOpenLedger: onOpenLedger, links: links);
+    void openInbox() =>
+        showTownInbox(context, onOpenLedger: onOpenLedger, links: links);
 
     void logPurchase() {
       final openEntry = links.logPurchase;
@@ -134,7 +181,7 @@ class TownShell extends ConsumerWidget {
                           view: townView,
                           registry: registryLoad.value ?? AssetRegistry.bundled,
                           onTarget: openTarget,
-                          ambientLife: ambientLife,
+                          ambientLife: widget.ambientLife,
                           townsfolk: townsfolk,
                         ),
                 ),
@@ -155,7 +202,8 @@ class TownShell extends ConsumerWidget {
                         tooltip: 'Text mode',
                         icon: const Icon(Icons.notes),
                         color: Colors.white,
-                        onPressed: () => ref.read(adventureTierProvider.notifier).toggle(),
+                        onPressed: () =>
+                            ref.read(adventureTierProvider.notifier).toggle(),
                       ),
                       const PlayModeMenuButton(),
                     ],

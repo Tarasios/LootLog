@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/features/settings/play_mode_switch.dart';
+import 'package:lootlog/game/domain/game_event.dart';
 import 'package:lootlog/game/domain/game_event_store.dart';
 import 'package:lootlog/game/skin_prefs.dart';
 import 'package:lootlog/game/ui/game_home.dart';
@@ -110,16 +111,15 @@ void main() {
     final tier = RecordingTier(AdventureTier.pixel);
     await pumpShell(
       tester,
-      host(
-        tier: AdventureTier.pixel,
-        tierNotifier: tier,
-      ),
+      host(tier: AdventureTier.pixel, tierNotifier: tier),
     );
     await tester.tap(find.byTooltip('Text mode'));
     expect(tier.toggles, 1);
   });
 
-  testWidgets('Shop without a shop yet explains what is coming', (tester) async {
+  testWidgets('Shop without a shop yet explains what is coming', (
+    tester,
+  ) async {
     await pumpShell(tester, host(tier: AdventureTier.pixel));
     await tester.tap(find.text('Shop'));
     await pumpUi(tester);
@@ -150,29 +150,90 @@ void main() {
     expect(find.text('Wood chest'), findsOneWidget);
   });
 
-  testWidgets('Log a purchase falls back to the ledger when no entry link is wired', (
-    tester,
-  ) async {
-    var ledgerOpened = 0;
-    await pumpShell(
-      tester,
-      host(tier: AdventureTier.pixel, onOpenLedger: () => ledgerOpened++),
-    );
-    await tester.tap(find.text('Log a purchase'));
-    expect(ledgerOpened, 1);
-  });
+  testWidgets(
+    'Log a purchase falls back to the ledger when no entry link is wired',
+    (tester) async {
+      var ledgerOpened = 0;
+      await pumpShell(
+        tester,
+        host(tier: AdventureTier.pixel, onOpenLedger: () => ledgerOpened++),
+      );
+      await tester.tap(find.text('Log a purchase'));
+      expect(ledgerOpened, 1);
+    },
+  );
 
-  testWidgets('a registry that fails to load falls back to bundled art and still shows the scene', (
-    tester,
-  ) async {
-    await pumpShell(tester, host(tier: AdventureTier.pixel, registryFails: true));
-    expect(find.byKey(const ValueKey('town-scene')), findsOneWidget);
+  testWidgets(
+    'a registry that fails to load falls back to bundled art and still shows the scene',
+    (tester) async {
+      await pumpShell(
+        tester,
+        host(tier: AdventureTier.pixel, registryFails: true),
+      );
+      expect(find.byKey(const ValueKey('town-scene')), findsOneWidget);
+    },
+  );
+
+  group('the starter set', () {
+    Widget starterHost(TownTestHarness harness, AdventureTier tier) =>
+        ProviderScope(
+          overrides: harness.overrides(tier: tier),
+          child: MaterialApp(
+            home: TownShell(onOpenLedger: () {}, ambientLife: false),
+          ),
+        );
+
+    Future<List<ItemAcquired>> starterEvents(
+      WidgetTester tester,
+      TownTestHarness harness,
+    ) async {
+      final events =
+          await tester.runAsync(harness.store.all) ?? const <GameEvent>[];
+      return events.whereType<ItemAcquired>().toList();
+    }
+
+    testWidgets('a new player is given the starter furniture and a welcome', (
+      tester,
+    ) async {
+      final harness = await TownTestHarness.create();
+      await pumpShell(tester, starterHost(harness, AdventureTier.pixel));
+      await pumpUi(tester);
+      final acquired = await starterEvents(tester, harness);
+      expect(
+        acquired.map((event) => event.itemId),
+        harness.catalog.starterItemIds,
+      );
+      expect(acquired.every((event) => event.actorId == harness.meId), isTrue);
+      expect(find.text('Welcome home'), findsOneWidget);
+    });
+
+    testWidgets(
+      'a player who already has the starter set is not given it twice',
+      (tester) async {
+        final harness = await TownTestHarness.create(starterClaimed: true);
+        final before = (await starterEvents(tester, harness)).length;
+        await pumpShell(tester, starterHost(harness, AdventureTier.pixel));
+        await pumpUi(tester);
+        expect((await starterEvents(tester, harness)).length, before);
+        expect(find.text('Welcome home'), findsNothing);
+      },
+    );
+
+    testWidgets('the text tier does not claim the starter set', (tester) async {
+      final harness = await TownTestHarness.create();
+      await pumpShell(tester, starterHost(harness, AdventureTier.text));
+      await pumpUi(tester);
+      expect(await starterEvents(tester, harness), isEmpty);
+    });
   });
 
   group('the Inbox sheet stays live', () {
     Future<void> pumpLiveShell(WidgetTester tester) async {
       final store = await tester.runAsync(() => storeWith(sampleEvents()));
-      await pumpShell(tester, host(tier: AdventureTier.pixel, liveStore: store));
+      await pumpShell(
+        tester,
+        host(tier: AdventureTier.pixel, liveStore: store),
+      );
       await tester.tap(find.text('Inbox'));
       await pumpUi(tester);
     }

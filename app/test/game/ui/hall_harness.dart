@@ -175,19 +175,21 @@ List<Override> hallOverrides({
   AssetRegistry registry = AssetRegistry.bundled,
   bool registryFails = false,
   AdventureTierNotifier? tierNotifier,
+  GameCommandsService? service,
 }) {
   var ids = 0;
   return [
     gameEventStoreProvider.overrideWithValue(store),
     gameClockProvider.overrideWithValue(FixedClock(kHallNow)),
-    gameCommandsServiceProvider.overrideWithValue(GameCommandsService(
-      store: store,
-      actorId: robin,
-      clock: FixedClock(kHallNow),
-      stamp: GameEventStamp(
-          deviceId: 'test',
-          newEventId: () => 'z${(ids++).toString().padLeft(4, '0')}'),
-    )),
+    gameCommandsServiceProvider.overrideWithValue(service ??
+        GameCommandsService(
+          store: store,
+          actorId: robin,
+          clock: FixedClock(kHallNow),
+          stamp: GameEventStamp(
+              deviceId: 'test',
+              newEventId: () => 'z${(ids++).toString().padLeft(4, '0')}'),
+        )),
     hallLedgerViewProvider.overrideWithValue(view ?? sampleView()),
     hallVoiceProvider.overrideWith((ref) async => diskVoice()),
     hallHabitsProvider.overrideWithValue(habits ?? FakeHabits()),
