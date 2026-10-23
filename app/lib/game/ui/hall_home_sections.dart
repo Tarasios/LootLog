@@ -5,6 +5,8 @@
 /// habit actions.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -21,6 +23,7 @@ import '../domain/game_values.dart';
 import '../domain/hall_rules.dart';
 import '../game_sprite.dart';
 import 'building_sheet.dart';
+import 'dungeon/dungeon_screen.dart';
 import 'expeditions_screen.dart';
 import 'forge_screen.dart';
 import 'hall_common.dart';
@@ -29,7 +32,6 @@ import 'hall_ledger_view.dart';
 import 'hall_names.dart';
 import 'hall_status.dart';
 import 'hall_voice.dart';
-import 'ritual_screen.dart';
 import 'vault_screen.dart';
 
 /// What every home section is handed.
@@ -568,11 +570,10 @@ class RitualCallout extends StatelessWidget {
   Widget build(BuildContext context) {
     final pending = pendingRitualMonths(data.me, data.now);
     if (pending.isEmpty) return const SizedBox.shrink();
-    // A ritual already under way first; otherwise the month just ended.
+    // A month already started first; otherwise the month just ended.
     final month = pending.firstWhere(
         (m) => (data.me.ritual[m]?.steps.length ?? 0) > 0,
         orElse: () => pending.last);
-    final done = data.me.ritual[month]?.steps.length ?? 0;
     final scheme = Theme.of(context).colorScheme;
     return HallSection(
       title: 'The ${Glossary.monthRitual.adventure} awaits',
@@ -582,16 +583,16 @@ class RitualCallout extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${monthLabel(month.year, month.month)}: $done of '
-            '${RitualStep.values.length} steps done. Finish them to face the '
-            'seasonal boss and earn the spoils chest.',
+            '${monthLabel(month.year, month.month)}: the dungeon below the '
+            'town gate is open. Aim each leftover at a goal boss or an '
+            'OVERBUDGET, then return for the spoils chest.',
             style: hallBodyStyle(context),
           ),
           const SizedBox(height: AppSpacing.sm),
           FilledButton.icon(
-            onPressed: () => openRitual(context, data),
+            onPressed: () => unawaited(openDungeon(context)),
             icon: const Icon(Icons.auto_awesome),
-            label: Text(done == 0 ? 'Begin the ritual' : 'Continue the ritual'),
+            label: const Text('Enter the dungeon'),
           ),
         ],
       ),
@@ -599,10 +600,8 @@ class RitualCallout extends StatelessWidget {
   }
 }
 
-/// Pushes the ritual screen.
-void openRitual(BuildContext context, HallHomeData data) =>
-    pushHallScreen(context,
-        RitualScreen(onOpenLedger: data.onOpenLedger, links: data.links));
+/// Opens the month-end dungeon (the ritual's battle).
+Future<void> openDungeon(BuildContext context) => DungeonScreen.open(context);
 
 // ---------------------------------------------------------------------------
 // The shared stores
@@ -844,7 +843,7 @@ class PlacesPanel extends StatelessWidget {
                 ? 'All done for now. The next one opens when the month ends.'
                 : '${pending.length} month${pending.length == 1 ? '' : 's'} '
                     'ready for the ritual',
-            onTap: () => openRitual(context, data),
+            onTap: () => unawaited(openDungeon(context)),
           ),
         ],
       ),

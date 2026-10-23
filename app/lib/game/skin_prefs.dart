@@ -32,13 +32,10 @@ Future<File> _tierFile() async {
 
 /// The tier a device starts on before it makes an explicit choice.
 ///
-/// Text mode today: Adventure reads as a text-based RPG unless real art is
-/// provided, and the sprites currently bundled are script-generated
-/// placeholders (tool/generate_placeholder_sprites.dart), not the
-/// commissioned art. When the real pixel art lands in `assets/game/`, flip
-/// this to [AdventureTier.pixel] — the persisted per-device choice always
-/// wins either way.
-const AdventureTier defaultAdventureTier = AdventureTier.text;
+/// Pixel art: real CC0 art (Kenney packs) is bundled, so Adventure opens as
+/// the pixel town. An explicit per-device choice (persisted) still wins, and
+/// text mode remains a first-class tier that can be selected at any time.
+const AdventureTier defaultAdventureTier = AdventureTier.pixel;
 
 /// Loads the persisted tier, defaulting to [defaultAdventureTier].
 Future<AdventureTier> loadAdventureTier() async {

@@ -537,6 +537,10 @@ class GameCommands {
   /// (reconcile, review, plan, contribute), once each, for a month that has
   /// ended and is at most [Balance.ritualOpenMonths] back. The UI calls this
   /// when the person finishes that step's screen.
+  ///
+  /// Kept for log compatibility: the month-end dungeon replaced the four-step
+  /// ritual, so no UI calls this any more. The projection still reads the
+  /// events older devices wrote.
   GameCommandResult completeRitualStep(Month month, RitualStep step) {
     final current = Month.fromInstant(_now);
     if (!month.isBefore(current)) {
@@ -576,6 +580,9 @@ class GameCommands {
   /// from the ledger), plus a random spread. A win adds
   /// [Balance.bossWinRewards]. Win or lose, the spoils chest is granted: the
   /// ritual earned it, and losing is never a punishment.
+  ///
+  /// Kept for log compatibility: the seasonal boss is retired, so no UI calls
+  /// this any more. The projection still reads the events older devices wrote.
   GameCommandResult fightBoss(Month month, {int loggedDays = 0}) {
     final progress = _me.ritual[month];
     if (progress == null || !progress.steps.containsAll(RitualStep.values)) {

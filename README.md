@@ -1,9 +1,9 @@
 # LootLog
 
 LootLog is a rigorous shared budgeting app that plays like a pixel art
-dungeon crawler. Your household is a party of adventurers. Budget categories
-are monsters, savings goals are quest bosses, and closing out the month is a
-battle ritual where you divide the spoils. Underneath the game sits a strict,
+game. Your household is a party of adventurers living in a small pixel town:
+you log purchases, build up the town, decorate rooms and open chests, and
+closing out the month is a trip into the dungeon where you divide the spoils. Underneath the game sits a strict,
 local-first ledger: every amount is integer cents, every change is a permanent
 event, and the game layer can read those numbers but can never change them.
 
@@ -37,33 +37,43 @@ sync hub, automatic backups of every device, and the receipt library.
 
 _Placeholders. Drop real captures in `docs/screenshots/`._
 
-| Adventure dungeon | Classic dashboard | Sync & hubs |
+| Adventure town | Classic dashboard | Sync & hubs |
 | --- | --- | --- |
 | ![Adventure](docs/screenshots/adventure.png) | ![Classic dashboard](docs/screenshots/dashboard.png) | ![Sync & hubs](docs/screenshots/sync.png) |
 
-| Spoils ritual | Quests | Receipt capture |
+| Month-end dungeon | Quests | Receipt capture |
 | --- | --- | --- |
 | ![Spoils](docs/screenshots/spoils.png) | ![Quests](docs/screenshots/quests.png) | ![Receipt](docs/screenshots/receipt.png) |
 
 ## Two modes, one set of numbers
 
-**Adventure mode** is the default. Categories are monsters you whittle down as
-you spend, a savings goal is a quest boss you hunt across months, and the
-month-close ritual is where you divide the spoils. The game exists to build a
-habit: come back daily to log purchases, come back monthly for the ritual, and
-watch your streaks, trophies, and Homestead (the visualization of your shared
-pool) grow. The app cheers you on and refuses to scold. Overspending enrages a
-monster on screen, and the words you actually read stay kind: they say what
-happened, keep your dignity intact, and point at next month.
+**Adventure mode** is the default, and it opens on the town: a pixel-art map
+you can pan and zoom, with a building on each plot, your house, townsfolk and a
+gate to the dungeon. Log a purchase in one tap, collect from your buildings,
+open chests and the daily shop, and spend gems on furniture and garden pieces.
+Tap your house to walk into your rooms and place decorations (a wardrobe holds
+outfits and titles). Streak milestones and finished savings goals add rewards,
+a trophy in your room and a statue in the town. All of it is cosmetic: nothing
+in the game ever changes a cent.
+
+At the end of each month the gate glows and you enter the **month-end
+dungeon**. Every category's leftover is a weapon. Aim it at a savings-goal boss,
+at an OVERBUDGET (an unsettled overspend), into savings, or keep it in the
+category; the screen shows the exact split before you confirm, and a spoils
+chest waits in your inbox when you return. Leaving early writes nothing. The
+Budget tab shows the plain budgeting screens with the same numbers, and the app
+cheers you on and refuses to scold: the words you read say what happened, keep
+your dignity intact, and point at next month.
 
 **Classic mode** is a clean, plain dashboard that is always one tap away. It
 uses everyday language ("shared savings" instead of "war chest") and shows
 identical numbers.
 
-**It always renders.** Art is scarce, so every game screen works at three
-tiers: full pixel art, labeled placeholder cards for any missing sprites, and
-a complete text-adventure presentation built from character descriptions you
-write yourself. A missing sprite can never crash or block a screen, and the
+**It always renders.** The bundled art is the free CC0 Kenney packs (Tiny
+Town, Tiny Dungeon and Roguelike Indoors), so Adventure opens as pixel art by
+default; every game screen also works with labeled placeholder cards for any
+missing sprite, and as a complete text-adventure presentation built from
+character descriptions you write yourself (a per-device choice). A missing sprite can never crash or block a screen, and the
 app is fully playable in text mode alone.
 
 ## Quick start
@@ -217,7 +227,7 @@ details in [`docs/release.md`](docs/release.md).
 ```
 app/lib/domain/   Pure Dart: events, the Money type, and the reducer (no Flutter)
 app/lib/data/     Store (drift), blobs, sync (hub + client), OCR, exports, sheets
-app/lib/game/     The game: pure HouseholdState -> GameState adapter, rewards, text mode, pixel widgets
+app/lib/game/     The game: pure domain -> read models (town, room, month-end battle) -> Flame scenes + Flutter sheets
 app/lib/features/ Classic UI, one folder per feature
 app/lib/ui/       Theme, shared widgets, and the glossary/strings module
 docs/             Architecture, sync protocol, art spec, ADRs, release guide

@@ -17,8 +17,18 @@ you can replace any of them with better writing without guessing at intent.
 - Lines are shown in BOTH Classic and Adventure mode, so avoid vocabulary
   that only works in one (no "tithe", "war chest", or "floor" here; the
   glossary handles mode-specific wording elsewhere).
-- `app/test/game/narrative_test.dart` guards the rules below; `./check.sh`
-  must pass after any edit.
+- `./check.sh` must pass after any edit. `app/test/game/ui/hall_voice_test.dart`
+  and `app/test/game/ui/dungeon/dungeon_voice_test.dart` guard the hall and
+  dungeon files (8+ lines where required, nothing shames or blames).
+
+> **Retired files.** Sections 1 to 5 below (`purchase_logged.json`,
+> `overspend_support.json`, `ritual_celebrations.json`,
+> `streak_celebrations.json`, `camp_ambience.json`) fed the old dungeon-floor
+> dashboard, which Adventure no longer has: the town is the home. Nothing loads
+> those five files now. They stay in `app/assets/game/text/` so the lines can be
+> reused, but editing them changes nothing in the app. The live voice is in
+> `hall_lines.json`, `dungeon_lines.json` and `encounter_lines.json`, listed
+> from "Month-end encounter lines" onward.
 
 ## 1. `purchase_logged.json` — after a purchase is logged
 
@@ -153,6 +163,15 @@ spoils. Placeholders: `{name}` `{spent}` `{leftover}` `{limit}` `{over}`.
 | `exact` | Spent exactly the limit | Neutral, satisfied close — no shame, no reward inflation |
 | `enraged` | Spent over the limit | Supportive, forward-looking; never blames |
 
+Every line, by group:
+
+| Group | Lines |
+|-------|-------|
+| `flawless` | The {name} monster falls without you lifting a finger — all {leftover} of your strength is saved! <br> {name} didn't even get a swing in. Zero effort spent, {leftover} banked! <br> A flawless victory over {name} — your whole {leftover} guard is intact. |
+| `victory` | {name} takes {spent} damage and crumbles — {leftover} of effort saved for the spoils! <br> Down goes {name} after {spent}. You walk away {leftover} stronger. <br> {name} is felled for {spent} — the remaining {leftover} is yours to divide. |
+| `exact` | {name} falls with your final swing — every coin of {limit} spent, nothing wasted. <br> A hard-fought draw-down: {name} took exactly {limit} to fell. Clean kill. |
+| `enraged` | {name} fought ENRAGED — it took {spent}, {over} past your guard. The party regroups; next floor, we fight smarter. <br> {name} hit harder than planned: {over} beyond the limit. No shame — mark it, plan it, slay it next month. |
+
 ## Guild hall lines (`hall_lines.json`)
 
 Adventure-only, so game words are fine here. Every set is picked with a
@@ -160,6 +179,15 @@ seed (the event being celebrated, or the day) so a line is stable on
 screen and the same on every device. `app/test/game/ui/hall_voice_test.dart`
 checks each set has 8+ lines, that nothing shames or blames, and that every
 losing boss line still promises the spoils.
+
+> **Retired sets.** `ritualStepDone`, `bossIntro`, `bossTurns`, `bossWin`,
+> `bossLoss` and `spoilsChest` belonged to the four-step ritual and the seasonal
+> boss, which the month-end dungeon replaced. The file still carries them
+> (`hall_voice_test.dart` still checks them, and older devices' logs still
+> mention the boss), but no screen speaks them any more. The dungeon's own
+> voice is in `dungeon_lines.json`. The same goes for the `bossNames` labels and
+> the `ritualStep*`, `ritualMonth*`, `ritualIncomplete` and `bossAlreadyFought`
+> rejection lines below: kept for log compatibility, not shown.
 
 ### `greetings`
 
@@ -477,7 +505,31 @@ shortfalls at buildings and expeditions.
 
 Plain labels, not narrative: `reasons` names why an inbox reward or chest
 was earned (by reward reason code), and `bossNames` names each seasonal
-boss key.
+boss key (retired, see above).
+
+| Reason code | Label shown | Trigger |
+|---|---|---|
+| `log.daily` | Showed up today | The first purchase logged in a day |
+| `checkin.no_spend` | Checked in on a quiet day | A "no spend today" check-in |
+| `log.extra` | Kept logging | Logging more purchases the same day (gems are capped daily) |
+| `log.timely` | Logged it right away | Logging a purchase soon after it happened |
+| `week.checkin` | A steady week | The weekly check-in chest |
+| `week.reconcile` | Reconciled the week | The weekly reconcile chest |
+| `week.party` | The whole party showed up | Everyone in the party logged this week (additive; never names anyone) |
+| `streak.token` | Streak milestone | A streak milestone reward (freeze token or decoration) |
+| `caravan.supply` | Supply caravan | A Standard-mode partner's budgeting feeding the party |
+| `ritual.spoils` | Finished the month's ritual | The month-end dungeon is finished: the spoils chest |
+| `ritual.bonus` | Bonus: month-end rituals on time | On-time month-end ritual bonus gems |
+| `month.gold` | Bonus: a budget finished on target | A category finished the month on target (bonus only) |
+| `vault.quest` | Savings goal milestone | A savings goal reaches a percent milestone |
+| `vault.consistency` | Months of saving in a row | Consecutive months with a savings choice |
+
+| Boss key | Label |
+|---|---|
+| `frostWyrm` | the Frost Wyrm |
+| `thawHydra` | the Thaw Hydra |
+| `sunDrake` | the Sun Drake |
+| `harvestLich` | the Harvest Lich |
 
 ## Month-end dungeon lines (`dungeon_lines.json`)
 
@@ -491,24 +543,24 @@ the category carrying an OVERBUDGET), `{gems}` and `{months}` (the bonus).
 `app/test/game/ui/dungeon/dungeon_voice_test.dart` checks every set is
 present and that nothing shames or blames.
 
-| Set | Trigger | Intended outcome |
-|-----|---------|------------------|
-| `gateOpen` | The dungeon opens with a month-end ritual waiting | Invite: last month's leftovers are something to use, not a test |
-| `gateClosed` | The gate is tapped while no ritual is waiting | Explain when it opens and that logging now fills the next one |
-| `upkeep` | The entrance step: recording what variable bills came to | Calm bookkeeping before the fun; differences never punish |
-| `weaponReady` | A category's leftover is the next weapon | Make the leftover feel like a reward to aim |
-| `hitGoal` | A leftover lands on a savings goal | Celebrate progress toward the goal |
-| `hitDebt` | A leftover strikes an OVERBUDGET | Paying it down is a win, never a scolding |
-| `taxFlies` | Part of a move goes to the war chest on the way | Show the cut plainly, as the party's shared fund growing |
-| `bank` | A leftover goes to the person's own savings | Saving for later is a fine choice |
-| `carry` | A leftover stays in its category | Keeping it for next month is a fine choice |
-| `bossFalls` | A goal is fully funded | The big celebration: the goal is reached |
-| `victory` | Every weapon has been used | Wrap up warmly before returning to town |
-| `noLeftovers` | No category had anything left over | Reassure: an exactly-spent month is a month that worked |
-| `chestWaiting` | Return to town: the spoils chest was granted | Point at the reward waiting in the inbox |
-| `bonusOnTime` | The chest came with bonus gems and at least one on-time ritual in a row | Celebrate consistency (a count of months, never dollars) |
-| `bonusGear` | Bonus gems with no on-time streak (the hero's gear alone) | Name the bonus without implying a streak that isn't there |
-| `dividedNoChest` | Return to town on a device with no game service yet | Confirm the leftovers are divided |
-| `headBack` | Button when nothing was left over | A calm way out, no judgement |
-| `saveFailed` | The ledger write failed (nothing was divided) | Reassure and invite a retry, no blame |
-| `chestPending` | The leftovers were saved but the chest failed to arrive | Say plainly the money is done, and that retrying brings the chest |
+| Set | Trigger | Intended outcome | Current line(s) |
+|-----|---------|------------------|-----------------|
+| `gateOpen` | The dungeon opens with a month-end ritual waiting | Invite: last month's leftovers are something to use, not a test | The dungeon gate stands open. Last month's leftovers are yours to wield. |
+| `gateClosed` | The gate is tapped while no ritual is waiting | Explain when it opens and that logging now fills the next one | The gate is sealed until the month turns. Keep logging — every coin you don't spend becomes a weapon. |
+| `upkeep` | The entrance step: recording what variable bills came to | Calm bookkeeping before the fun; differences never punish | The gatekeeper tallies the upkeep before you descend. |
+| `weaponReady` | A category's leftover is the next weapon | Make the leftover feel like a reward to aim | {name} gleams with {amount}. Where will you strike? |
+| `hitGoal` | A leftover lands on a savings goal | Celebrate progress toward the goal | {amount} lands on {target}! <br> {target} staggers — {amount} closer! |
+| `hitDebt` | A leftover strikes an OVERBUDGET | Paying it down is a win, never a scolding | {amount} strikes the OVERBUDGET on {target}! |
+| `taxFlies` | Part of a move goes to the war chest on the way | Show the cut plainly, as the party's shared fund growing | {amount} flies to the war chest. |
+| `bank` | A leftover goes to the person's own savings | Saving for later is a fine choice | {amount} goes into your pouch for later. |
+| `carry` | A leftover stays in its category | Keeping it for next month is a fine choice | {amount} stays with {name} for next month. |
+| `bossFalls` | A goal is fully funded | The big celebration: the goal is reached | {target} falls! The goal is yours. |
+| `victory` | Every weapon has been used | Wrap up warmly before returning to town | The party climbs back to town with the spoils. |
+| `noLeftovers` | No category had anything left over | Reassure: an exactly-spent month is a month that worked | Nothing left over this month — and that's fine. Every budget did its job. |
+| `chestWaiting` | Return to town: the spoils chest was granted | Point at the reward waiting in the inbox | A spoils chest waits in your inbox. |
+| `bonusOnTime` | The chest came with bonus gems and at least one on-time ritual in a row | Celebrate consistency (a count of months, never dollars) | Bonus: {gems} gems. On-time month-end streak: {months}. |
+| `bonusGear` | Bonus gems with no on-time streak (the hero's gear alone) | Name the bonus without implying a streak that isn't there | Bonus: {gems} gems, thanks to your hero's gear. |
+| `dividedNoChest` | Return to town on a device with no game service yet | Confirm the leftovers are divided | Your leftovers are divided. |
+| `headBack` | Button when nothing was left over | A calm way out, no judgement | Head back to town |
+| `saveFailed` | The ledger write failed (nothing was divided) | Reassure and invite a retry, no blame | The spoils couldn't be saved just now. Nothing is lost, so please try again. |
+| `chestPending` | The leftovers were saved but the chest failed to arrive | Say plainly the money is done, and that retrying brings the chest | Your leftovers are divided and saved. The spoils chest got stuck at the gate; try again and it will follow you home. |

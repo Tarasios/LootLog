@@ -8,6 +8,7 @@ import 'package:lootlog/game/domain/game_event.dart';
 import 'package:lootlog/game/domain/game_values.dart';
 import 'package:lootlog/game/game_sprite.dart';
 import 'package:lootlog/game/skin_prefs.dart';
+import 'package:lootlog/game/ui/dungeon/dungeon_screen.dart';
 import 'package:lootlog/game/ui/game_home.dart';
 
 import 'hall_harness.dart';
@@ -42,7 +43,8 @@ void main() {
     expect(find.text('Unlock: 20 gems'), findsOneWidget);
     expect(find.text('Wood chest'), findsOneWidget);
     expect(find.text('Showed up today'), findsOneWidget);
-    expect(find.textContaining('2 of 4 steps done'), findsOneWidget);
+    expect(find.textContaining('the dungeon below the town gate is open'),
+        findsOneWidget);
     expect(find.text('Log a purchase'), findsOneWidget);
     // Sprites fall back to their text cards: no image is ever decoded.
     expect(find.byType(TextSpriteCard), findsWidgets);
@@ -65,6 +67,15 @@ void main() {
       expect(copy, isNot(contains(word)), reason: 'found "$word"');
     }
     expect(copy, contains('streak: start a fresh one today'));
+  });
+
+  testWidgets('the ritual callout opens the month-end dungeon',
+      (tester) async {
+    await pumpHall(tester, store: await storeWith(sampleEvents()));
+    await tester.tap(find.text('Enter the dungeon'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(DungeonScreen), findsOneWidget);
   });
 
   testWidgets('"Log a purchase" opens quick entry in one tap', (tester) async {

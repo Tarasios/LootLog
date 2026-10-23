@@ -10,8 +10,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/actions.dart';
 import '../../data/providers.dart';
-import '../../game/adventure_screen.dart' show customSpriteBlobsProvider;
 import '../../game/adventure_spoils.dart';
+import '../../game/custom_sprite_blobs.dart';
 import '../../game/game_sprite.dart';
 import '../../game/month_end_encounters.dart';
 import '../../ui/format.dart';

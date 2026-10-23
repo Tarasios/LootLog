@@ -88,6 +88,7 @@ void main() {
   group('adventure tier pref (adventure_tier.txt)', () {
     test('missing file defaults to the shipping default tier', () async {
       expect(await loadAdventureTier(), defaultAdventureTier);
+      expect(defaultAdventureTier, AdventureTier.pixel);
     });
 
     test('an explicit choice survives; garbage falls back to the default',

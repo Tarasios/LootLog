@@ -6,8 +6,10 @@ load-bearing constraints that the whole design depends on.
 
 LootLog is a **pixel-art dungeon-crawler that happens to be a rigorous shared
 budgeting app.** The game is the product: the household is a party of
-adventurers delving a dungeon, budget categories are monsters, savings goals are
-quest bosses, and month close is a battle ritual. Underneath sits a local-first,
+adventurers living in a small pixel town. Daily life is the town (rooms you
+decorate, a daily shop, chests, streaks); month close is a trip into the
+dungeon, where leftovers are weapons, savings goals are bosses and OVERBUDGETs
+are monsters. Underneath sits a local-first,
 event-sourced, integer-cents ledger that the game layer can read but **never
 alter.** It is Flutter only (Android + desktop Windows/macOS/Linux), with no
 external services, servers, accounts, or SaaS beyond one opt-in exception
@@ -342,19 +344,26 @@ spoils/tithe math IS the combat math** — the game displays it, never redefines
 it.
 
 **Core mapping.**
-- personal category → monster (maxHP = effective limit, damage = spent;
-  overspend = enraged + player HP loss)
-- group category → party contract with a multi-color banner
+- the town is the daily home: buildings on plots (the guild-hall buildings,
+  see `app/lib/game/domain/town/`), your house and rooms, townsfolk, and the
+  supply caravan for a Standard-mode partner. Budget categories are not
+  monsters on a monthly floor any more; the plain budgeting screens live on the
+  Budget tab
+- month close → the month-end dungeon below the town gate: the ritual's
+  battle. Each category's leftover is a weapon; each turn aims it at a goal
+  boss, an OVERBUDGET, savings or the category itself. The preview is the
+  shared move module's math (a mismatch tithe shows the war-chest cut flying
+  off as coins); the seasonal boss and the four-step ritual are retired
+- personal category → a weapon at month end (the leftover), never a monster
+- group category → party contract (group leftovers flow to the war chest
+  automatically)
 - pet-linked categories/funds → shown under the pet party member
-- recurring expenses + emergency contributions → "equipment maintenance &
-  provisioning" at floor start (variable = "awaiting tally"; annual =
-  provisioning contracts with a countdown)
+- recurring expenses + emergency contributions → the upkeep step at the dungeon
+  entrance (variable = "awaiting tally"; annual = provisioning contracts)
 - income → expedition supplies
-- month → a dungeon floor
-- month close → the dividing-the-spoils battle ritual (attacks show damage
-  numbers; a mismatch tithe shows the war-chest cut flying off as coins)
-- quest → a quest boss hunted across months (HP = target, allocations = damage,
-  completion = trophy)
+- quest → a goal boss in the dungeon (HP = target, allocations = damage); a
+  completed goal becomes a trophy in the room and a statue in the town
+- OVERBUDGET → a monster in the dungeon (HP = outstanding debt)
 - vault → gold pouch
 - withdrawal → a writ needing another adventurer's signature
 - ransack → a loud "the war chest was ransacked" banner
@@ -362,11 +371,41 @@ it.
 - emergency funds → reserve caches; tax marker → a small scroll seal, on the
   purchase detail only
 
-**Rewards & the habit loop (all cosmetic).** Defeating a quest boss grants a
-trophy in the party's trophy hall. Streaks — consecutive days with purchases
-logged, consecutive on-time month-close rituals — earn cosmetic titles and
-badges. Every ritual completion gets a celebration. Rewards are recorded as
-cosmetic events so they sync like everything else.
+**Rewards & the habit loop (all cosmetic).** The decoration catalogue, the
+daily shop, decorations found in chests, streak milestones, goal trophies and
+statues, and room/town placement are all cosmetic. Streaks — consecutive days
+with purchases logged, consecutive on-time month-end dungeons — earn cosmetic
+rewards. Every month-end gets a spoils chest. Rewards are recorded as game
+events (`lib/game/domain/`) so they sync like everything else, and none of them
+changes a cent.
+
+**Layers (render only at the top).** The game is built in four layers, each
+depending only on the one below:
+
+1. **Pure domain** (`lib/game/domain/`, plus `lib/game/domain/town/` and
+   `lib/game/domain/decor/`): game events, the `GameState` projection, rewards,
+   the shop rotation, the room grid. Zero Flutter imports; deterministic given
+   the same events and an injected `Clock`.
+2. **Read models**: pure mappings from ledger and game state to what a screen
+   shows: the town view (`domain/town/town_view.dart`), the room view
+   (`scenes/room/room_game.dart`'s `RoomView`), and the month-end battle
+   (`battle/month_end_battle.dart`, built on `features/spoils/spoils_model.dart`).
+3. **Flame scenes** (`lib/game/scenes/`): the town, room and dungeon scenes
+   draw a read model and report taps. They render only: no scene computes a
+   balance, a price or a payout.
+4. **Flutter sheets and screens** (`lib/game/ui/`): the town shell, building
+   sheets, shop, wardrobe, inbox and the dungeon screen. The guild-hall list
+   screens in the same folder are the text-tier rendering of the town, and
+   `text_mode/text_battle.dart` is the text tier of the dungeon.
+
+**Where money moves.** Money moves only through `lib/features/spoils/spoils_move.dart`
+(the pure move module that previews and builds a leftover's allocations with
+the reducer's math, shared by the Standard sheet, the text battle and the
+dungeon) and `applySpoilsResult` (`features/spoils/spoils_screen.dart`), the
+one path that writes a confirmed month end: variable actuals first, then one
+allocation per category. Besides those, game code writes ledger events only
+through quick-log and the no-spend check-in. Leaving the dungeon early writes
+nothing, so the ledger's grace-period defaults still apply.
 
 **Meta-progression: the Homestead.** The war chest is visualized as something
 built/cared for outside the dungeon — default flavor a homestead under
@@ -383,8 +422,10 @@ touching code.
 **The asset-degradation ladder.** Art is scarce (one beginner artist), so every
 game surface must render fully at **three tiers, decided per-asset at runtime**:
 
-1. **Full pixel art** — the target look: party frames with HP bars around a
-   central floor viewport, a scrolling log, and a minimap of the year's floors.
+1. **Full pixel art** — the default look: the town, rooms and dungeon drawn
+   from the bundled CC0 Kenney packs (Tiny Town, Tiny Dungeon, Roguelike
+   Indoors), or from an artist's PNG named after the key, which overrides the
+   pack.
 2. **Partial** — available sprites render; missing ones degrade to **labeled
    placeholder cards.** Never crash, never block a screen.
 3. **Text mode** — a **first-class text-adventure presentation, not an error
@@ -393,10 +434,12 @@ game surface must render fully at **three tiers, decided per-asset at runtime**:
    fun in text mode alone.
 
 Pixel art renders with `FilterQuality.none` at integer scales; assets live in
-`app/assets/game/` per `docs/art-assets.md` (one small palette, one 32×32 base
-sprite size, one 48×48 portrait size, a 9-slice panel spec, a prioritized
-"first ten assets" list — every asset individually optional). Custom sprite
-blobs render through the same pixelated pipeline.
+`app/assets/game/` per `docs/art-assets.md` (a 16×16 base tile matching the
+bundled packs, 48×48 portraits, a 9-slice panel spec, `packs/<pack>/regions.json`
+mapping keys to sheet cells — every asset individually optional). Custom sprite
+blobs render through the same pixelated pipeline. New devices default to the
+pixel tier (`defaultAdventureTier` in `lib/game/skin_prefs.dart`); an explicit
+per-device choice always wins.
 
 **Modes.** Adventure (default) / Classic, toggleable; both render from the same
 providers with identical numbers. Classic uses plain language only — no "slice",
@@ -490,9 +533,13 @@ whole sync path end to end.
   store, `ocr/` (pure parser + a thin plugin wrapper), the receipt-library
   projector, import/export (+ merge preview), xlsx export, `sheets/` (optional,
   isolated), and tax package export.
-- `app/lib/game/` — `adapter.dart` (pure `DungeonState` mapping) + `rewards/`
-  (cosmetic reward logic, pure) + `text_mode/` + pixel widgets;
-  narrative/encouragement strings under `app/assets/game/text/`.
+- `app/lib/game/` — `domain/` (pure game events, projection, rewards, town and
+  decor logic) + `battle/` (the month-end read model) + `scenes/` (Flame town,
+  room and dungeon scenes, render only) + `ui/` (town shell, sheets, dungeon
+  screen, guild-hall text screens) + `assets/` (keys, packs, sprites) +
+  `text_mode/` (the text-tier battle); `adapter.dart` still maps the ledger to
+  `DungeonState`. Narrative/encouragement strings live under
+  `app/assets/game/text/`.
 - `app/lib/features/<name>/` — classic UI, per feature.
 - `app/lib/ui/` — theme, shared widgets, and the glossary/strings module.
 - `docs/` — architecture, protocol, art specs, distribution, and ADRs.

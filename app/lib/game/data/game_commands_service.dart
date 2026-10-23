@@ -174,11 +174,17 @@ class GameCommandsService {
   // ---- Spoils ritual -----------------------------------------------------------------
 
   /// Marks one ritual step for [month] done.
+  ///
+  /// Kept for log compatibility: the month-end dungeon replaced the four-step
+  /// ritual, so no UI calls this any more.
   Future<GameCommandResult> completeRitualStep(Month month, RitualStep step) =>
       run((c) => c.completeRitualStep(month, step));
 
   /// Fights [month]'s boss once the ritual is done, with the month's
   /// logged-day count read from the ledger.
+  ///
+  /// Kept for log compatibility: the seasonal boss is retired, so no UI calls
+  /// this any more.
   Future<GameCommandResult> fightBoss(Month month) async {
     final read = ledger;
     final days = read == null

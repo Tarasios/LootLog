@@ -12,15 +12,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/actions.dart';
 import '../../data/providers.dart';
 import '../../data/sync/sync_service.dart';
-import '../../game/pixel/pixel_adventure_screen.dart';
-import '../../game/skin_prefs.dart';
-import '../../game/text_mode/text_adventure_screen.dart';
 import '../activity/activity_model.dart';
 import '../budget_setup/budget_setup_screen.dart';
 import '../household_context.dart';
 import '../quests/quests_screen.dart';
 import '../report/report_screen.dart';
-import '../settings/play_mode_providers.dart';
 import '../settings/visibility_prefs.dart';
 import '../spoils/spoils_screen.dart';
 import '../vacation/vacation_screen.dart';
@@ -34,16 +30,6 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // The Adventure skin renders the same providers through the game widgets.
-    // The pixel presentation (tiers 1–2) is the target look — each missing
-    // sprite degrades to its own labelled placeholder. The global text-mode
-    // toggle drops to tier 3, the first-class text adventure.
-    if (ref.watch(isAdventureProvider)) {
-      return ref.watch(adventureTierProvider) == AdventureTier.text
-          ? const TextAdventureScreen()
-          : const PixelAdventureScreen();
-    }
-
     final state = ref.watch(householdStateProvider).value;
     final events = ref.watch(eventLogProvider).value ?? const [];
     final meUserId = ref.watch(meUserIdProvider);
