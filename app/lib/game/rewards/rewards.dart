@@ -90,9 +90,9 @@ class RewardsSnapshot {
 /// The household-local calendar date of an [instant], as a UTC-midnight
 /// `DateTime` so day arithmetic is DST-safe.
 DateTime _localDate(DateTime instant) {
-  final u = instant.toUtc();
-  final l = u.add(vancouverUtcOffset(u));
-  return DateTime.utc(l.year, l.month, l.day);
+  final utc = instant.toUtc();
+  final local = utc.add(vancouverUtcOffset(utc));
+  return DateTime.utc(local.year, local.month, local.day);
 }
 
 /// The current consecutive-day purchase-logging streak as of [asOf].
@@ -103,8 +103,8 @@ DateTime _localDate(DateTime instant) {
 /// in a row (yesterday and today) means the streak has lapsed to zero.
 int dailyLogStreak(HouseholdState state, {required DateTime asOf}) {
   final days = <DateTime>{
-    for (final p in state.purchases.values)
-      if (!p.voided) _localDate(p.occurredAt),
+    for (final purchase in state.purchases.values)
+      if (!purchase.voided) _localDate(purchase.occurredAt),
   };
   if (days.isEmpty) return 0;
 
@@ -137,19 +137,19 @@ int onTimeRitualStreak(
   required int graceDays,
 }) {
   final onTime = <Month>{};
-  for (final e in log) {
-    if (e is! LeftoverAllocated) continue;
-    if (e.createdAt.isAfter(asOf)) continue;
-    final deadline = e.month.endInstantUtc().add(Duration(days: graceDays));
-    if (!e.createdAt.isAfter(deadline)) {
-      onTime.add(e.month);
+  for (final event in log) {
+    if (event is! LeftoverAllocated) continue;
+    if (event.createdAt.isAfter(asOf)) continue;
+    final deadline = event.month.endInstantUtc().add(Duration(days: graceDays));
+    if (!event.createdAt.isAfter(deadline)) {
+      onTime.add(event.month);
     }
   }
   if (onTime.isEmpty) return 0;
 
   var latest = onTime.first;
-  for (final m in onTime) {
-    if (m.isAfter(latest)) latest = m;
+  for (final month in onTime) {
+    if (month.isAfter(latest)) latest = month;
   }
 
   var streak = 0;
@@ -166,13 +166,13 @@ List<EarnedReward> earnedTrophies(HouseholdState state) {
   final trophies = <EarnedReward>[];
   final ids = state.quests.keys.toList()..sort();
   for (final id in ids) {
-    final q = state.quests[id]!;
-    if (q.completed && !q.abandoned) {
+    final quest = state.quests[id]!;
+    if (quest.completed && !quest.abandoned) {
       trophies.add(EarnedReward(
         rewardId: 'trophy:quest:$id',
         kind: RewardKind.trophy,
         sourceRef: id,
-        label: '${q.name} vanquished',
+        label: '${quest.name} vanquished',
       ));
     }
   }
@@ -249,8 +249,8 @@ List<EarnedReward> computeEarnedRewards(
 
 /// The set of reward ids already recorded as [GameRewardGranted] events.
 Set<String> grantedRewardIds(List<Event> log) => {
-      for (final e in log)
-        if (e is GameRewardGranted) e.rewardId,
+      for (final event in log)
+        if (event is GameRewardGranted) event.rewardId,
     };
 
 /// The earned rewards that have no matching [GameRewardGranted] event yet — the
@@ -263,9 +263,9 @@ List<EarnedReward> ungrantedRewards(
   final granted = grantedRewardIds(log);
   final seen = <String>{};
   final pending = <EarnedReward>[];
-  for (final r in earned) {
-    if (granted.contains(r.rewardId)) continue;
-    if (seen.add(r.rewardId)) pending.add(r);
+  for (final reward in earned) {
+    if (granted.contains(reward.rewardId)) continue;
+    if (seen.add(reward.rewardId)) pending.add(reward);
   }
   return pending;
 }

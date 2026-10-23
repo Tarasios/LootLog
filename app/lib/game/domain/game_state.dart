@@ -256,19 +256,19 @@ class StreakState {
   /// The most recent covered day, or null if none.
   GameDay? get lastDay => coveredDays.isEmpty
       ? null
-      : coveredDays.reduce((a, b) => a.compareTo(b) >= 0 ? a : b);
+      : coveredDays.reduce((latest, day) => latest.compareTo(day) >= 0 ? latest : day);
 
   /// The length of the run of consecutive covered days ending at [lastDay].
   /// Whether that run is still alive "today" is the caller's question, since
   /// the projection has no clock.
   int get count {
     var day = lastDay;
-    var n = 0;
+    var length = 0;
     while (day != null && coveredDays.contains(day)) {
-      n++;
+      length++;
       day = day.previous();
     }
-    return n;
+    return length;
   }
 
   @override
@@ -546,23 +546,23 @@ class GameState {
       'pool: ${hall.materials}, warnings: $warnings)';
 }
 
-bool _mapEq<K, V>(Map<K, V> a, Map<K, V> b) {
-  if (identical(a, b)) return true;
-  if (a.length != b.length) return false;
-  for (final e in a.entries) {
-    if (!b.containsKey(e.key) || b[e.key] != e.value) return false;
+bool _mapEq<K, V>(Map<K, V> first, Map<K, V> second) {
+  if (identical(first, second)) return true;
+  if (first.length != second.length) return false;
+  for (final entry in first.entries) {
+    if (!second.containsKey(entry.key) || second[entry.key] != entry.value) return false;
   }
   return true;
 }
 
-bool _setEq<T>(Set<T> a, Set<T> b) =>
-    identical(a, b) || (a.length == b.length && a.containsAll(b));
+bool _setEq<T>(Set<T> first, Set<T> second) =>
+    identical(first, second) || (first.length == second.length && first.containsAll(second));
 
-bool _listEq<T>(List<T> a, List<T> b) {
-  if (identical(a, b)) return true;
-  if (a.length != b.length) return false;
-  for (var i = 0; i < a.length; i++) {
-    if (a[i] != b[i]) return false;
+bool _listEq<T>(List<T> first, List<T> second) {
+  if (identical(first, second)) return true;
+  if (first.length != second.length) return false;
+  for (var i = 0; i < first.length; i++) {
+    if (first[i] != second[i]) return false;
   }
   return true;
 }

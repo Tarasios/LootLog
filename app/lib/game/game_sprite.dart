@@ -33,8 +33,8 @@ int spriteFrameCount(String assetName) {
   final base = dot == -1 ? assetName : assetName.substring(0, dot);
   final match = RegExp(r'_(\d+)f$').firstMatch(base);
   if (match == null) return 1;
-  final n = int.parse(match.group(1)!);
-  return n <= 0 ? 1 : n;
+  final frames = int.parse(match.group(1)!);
+  return frames <= 0 ? 1 : frames;
 }
 
 /// The source rectangle of [frameIndex] within a strip of [frameCount] uniform
@@ -274,9 +274,9 @@ class _SpritePlaceholder extends StatelessWidget {
 
   /// Up to two initials from the label, so small placeholders stay legible.
   static String _initials(String label) {
-    final words = label.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty);
+    final words = label.trim().split(RegExp(r'\s+')).where((word) => word.isNotEmpty);
     if (words.isEmpty) return '?';
-    final letters = words.map((w) => w[0].toUpperCase()).take(2).join();
+    final letters = words.map((word) => word[0].toUpperCase()).take(2).join();
     return letters.isEmpty ? '?' : letters;
   }
 }

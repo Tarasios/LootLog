@@ -16,9 +16,9 @@ import 'game_values.dart';
 import 'reason_codes.dart';
 
 /// Canonical event order: `occurredAt`, then `eventId` as the tiebreak.
-int compareGameEvents(GameEvent a, GameEvent b) {
-  final byTime = a.occurredAt.compareTo(b.occurredAt);
-  return byTime != 0 ? byTime : a.eventId.compareTo(b.eventId);
+int compareGameEvents(GameEvent first, GameEvent second) {
+  final byTime = first.occurredAt.compareTo(second.occurredAt);
+  return byTime != 0 ? byTime : first.eventId.compareTo(second.eventId);
 }
 
 /// Rebuilds the state from scratch. Input order does not matter and duplicate
@@ -27,9 +27,9 @@ GameState projectGameState(Iterable<GameEvent> events) {
   final sorted = [...events]..sort(compareGameEvents);
   final seen = <String>{};
   var state = GameState.initial();
-  for (final e in sorted) {
-    if (seen.add(e.eventId)) {
-      state = applyGameEvent(state, e);
+  for (final event in sorted) {
+    if (seen.add(event.eventId)) {
+      state = applyGameEvent(state, event);
     }
   }
   return state;
@@ -47,234 +47,234 @@ GameState applyGameEvent(GameState state, GameEvent event) {
           '${cursor.eventId}; rebuild with projectGameState.');
     }
   }
-  final tx = _Tx(state, event.eventId);
-  _apply(tx, event);
-  return tx.build(event);
+  final draft = _GameStateDraft(state, event.eventId);
+  _apply(draft, event);
+  return draft.build(event);
 }
 
-void _apply(_Tx tx, GameEvent event) {
+void _apply(_GameStateDraft draft, GameEvent event) {
   final actor = event.actorId;
   switch (event) {
-    case RewardGranted e:
-      final p = tx.person(actor);
-      if (p.seenRewardIds.contains(e.rewardId)) return;
-      var streak = p.streak;
-      if (GameReasonCodes.streakDays.contains(e.reasonCode)) {
-        streak = _cover(streak, GameDay.fromInstant(e.occurredAt));
+    case RewardGranted granted:
+      final person = draft.person(actor);
+      if (person.seenRewardIds.contains(granted.rewardId)) return;
+      var streak = person.streak;
+      if (GameReasonCodes.streakDays.contains(granted.reasonCode)) {
+        streak = _cover(streak, GameDay.fromInstant(granted.occurredAt));
       }
-      tx.put(p.copyWith(
-        seenRewardIds: _with(p.seenRewardIds, e.rewardId),
+      draft.put(person.copyWith(
+        seenRewardIds: _with(person.seenRewardIds, granted.rewardId),
         unclaimedRewards: _put(
-          p.unclaimedRewards,
-          e.rewardId,
+          person.unclaimedRewards,
+          granted.rewardId,
           PendingReward(
-            rewardId: e.rewardId,
-            kind: e.kind,
-            reasonCode: e.reasonCode,
-            loot: Loot(gems: e.gems, materials: e.materials, tokens: e.tokens),
-            grantedAt: e.occurredAt,
+            rewardId: granted.rewardId,
+            kind: granted.kind,
+            reasonCode: granted.reasonCode,
+            loot: Loot(gems: granted.gems, materials: granted.materials, tokens: granted.tokens),
+            grantedAt: granted.occurredAt,
           ),
         ),
         streak: streak,
       ));
 
-    case RewardClaimed e:
-      final p = tx.person(actor);
-      final reward = p.unclaimedRewards[e.rewardId];
+    case RewardClaimed claimed:
+      final person = draft.person(actor);
+      final reward = person.unclaimedRewards[claimed.rewardId];
       if (reward == null) {
-        tx.warn(GameWarningCode.unknownReward, e.rewardId);
+        draft.warn(GameWarningCode.unknownReward, claimed.rewardId);
         return;
       }
-      tx.put(p.copyWith(unclaimedRewards: _without(p.unclaimedRewards, e.rewardId)));
-      tx.credit(actor, reward.loot);
+      draft.put(person.copyWith(unclaimedRewards: _without(person.unclaimedRewards, claimed.rewardId)));
+      draft.credit(actor, reward.loot);
 
-    case MaterialsCollected e:
-      final known = tx.hall.plots.values
-          .any((p) => p.building != null && p.buildingId == e.buildingId);
-      if (!known) tx.warn(GameWarningCode.unknownBuilding, e.buildingId);
-      tx.adjustPool(e.amounts, 1);
-      final last = tx.hall.lastCollectedAt[e.buildingId];
-      if (last == null || e.occurredAt.isAfter(last)) {
-        tx.hall = tx.hall.copyWith(
+    case MaterialsCollected collected:
+      final known = draft.hall.plots.values
+          .any((plot) => plot.building != null && plot.buildingId == collected.buildingId);
+      if (!known) draft.warn(GameWarningCode.unknownBuilding, collected.buildingId);
+      draft.adjustPool(collected.amounts, 1);
+      final last = draft.hall.lastCollectedAt[collected.buildingId];
+      if (last == null || collected.occurredAt.isAfter(last)) {
+        draft.hall = draft.hall.copyWith(
             lastCollectedAt:
-                _put(tx.hall.lastCollectedAt, e.buildingId, e.occurredAt));
+                _put(draft.hall.lastCollectedAt, collected.buildingId, collected.occurredAt));
       }
 
-    case PlotUnlocked e:
-      if (tx.hall.plots.containsKey(e.plotIndex)) {
-        tx.warn(GameWarningCode.duplicateUnlock, 'plot ${e.plotIndex}');
+    case PlotUnlocked unlocked:
+      if (draft.hall.plots.containsKey(unlocked.plotIndex)) {
+        draft.warn(GameWarningCode.duplicateUnlock, 'plot ${unlocked.plotIndex}');
         return;
       }
-      tx.hall = tx.hall.copyWith(
-          plots: _put(tx.hall.plots, e.plotIndex, PlotState(e.plotIndex)));
-      tx.adjustGems(actor, -e.gemCost);
+      draft.hall = draft.hall.copyWith(
+          plots: _put(draft.hall.plots, unlocked.plotIndex, PlotState(unlocked.plotIndex)));
+      draft.adjustGems(actor, -unlocked.gemCost);
 
-    case BuildingStarted e:
-      final plot = tx.hall.plots[e.plotIndex];
+    case BuildingStarted started:
+      final plot = draft.hall.plots[started.plotIndex];
       if (plot == null) {
-        tx.warn(GameWarningCode.plotLocked, 'plot ${e.plotIndex}');
+        draft.warn(GameWarningCode.plotLocked, 'plot ${started.plotIndex}');
       }
       final existing = plot?.building;
-      if (existing != null && existing.type != e.buildingType) {
-        tx.warn(GameWarningCode.plotOccupied,
-            'plot ${e.plotIndex} holds ${existing.type.name}');
+      if (existing != null && existing.type != started.buildingType) {
+        draft.warn(GameWarningCode.plotOccupied,
+            'plot ${started.plotIndex} holds ${existing.type.name}');
         return;
       }
-      if (existing != null && existing.tier >= e.tier) {
-        tx.warn(GameWarningCode.duplicateBuild,
-            '${e.buildingType.name} tier ${e.tier}');
+      if (existing != null && existing.tier >= started.tier) {
+        draft.warn(GameWarningCode.duplicateBuild,
+            '${started.buildingType.name} tier ${started.tier}');
         return;
       }
-      tx.hall = tx.hall.copyWith(
+      draft.hall = draft.hall.copyWith(
         plots: _put(
-          tx.hall.plots,
-          e.plotIndex,
+          draft.hall.plots,
+          started.plotIndex,
           PlotState(
-            e.plotIndex,
+            started.plotIndex,
             BuildingState(
-              type: e.buildingType,
-              tier: e.tier,
-              startedAt: e.occurredAt,
-              completesAt: e.completesAt,
+              type: started.buildingType,
+              tier: started.tier,
+              startedAt: started.occurredAt,
+              completesAt: started.completesAt,
             ),
           ),
         ),
       );
-      tx.pay(actor, e.cost);
+      draft.pay(actor, started.cost);
 
-    case GearUpgraded e:
-      final owner = tx.person(e.heroId);
-      final current = owner.hero.gear[e.slot];
+    case GearUpgraded upgraded:
+      final owner = draft.person(upgraded.heroId);
+      final current = owner.hero.gear[upgraded.slot];
       if (current != null &&
-          current.gearType == e.gearType &&
-          current.tier >= e.tier) {
-        tx.warn(GameWarningCode.duplicateGear, '${e.slot} ${e.gearType}');
+          current.gearType == upgraded.gearType &&
+          current.tier >= upgraded.tier) {
+        draft.warn(GameWarningCode.duplicateGear, '${upgraded.slot} ${upgraded.gearType}');
         return;
       }
-      tx.put(owner.copyWith(
+      draft.put(owner.copyWith(
         hero: HeroState(
           cosmetics: owner.hero.cosmetics,
-          gear: _put(owner.hero.gear, e.slot, GearPiece(e.gearType, e.tier)),
+          gear: _put(owner.hero.gear, upgraded.slot, GearPiece(upgraded.gearType, upgraded.tier)),
         ),
       ));
-      tx.pay(actor, e.cost);
+      draft.pay(actor, upgraded.cost);
 
-    case HeroCustomized e:
-      final owner = tx.person(e.heroId);
-      tx.put(owner.copyWith(
+    case HeroCustomized customized:
+      final owner = draft.person(customized.heroId);
+      draft.put(owner.copyWith(
         hero: HeroState(
-          cosmetics: _put(owner.hero.cosmetics, e.field, e.value),
+          cosmetics: _put(owner.hero.cosmetics, customized.field, customized.value),
           gear: owner.hero.gear,
         ),
       ));
 
-    case ExpeditionStarted e:
-      final hero = tx.person(e.heroId);
+    case ExpeditionStarted expedition:
+      final hero = draft.person(expedition.heroId);
       if (hero.activeExpedition != null) {
-        tx.warn(GameWarningCode.expeditionAlreadyActive, e.region.name);
+        draft.warn(GameWarningCode.expeditionAlreadyActive, expedition.region.name);
         return;
       }
-      tx.put(hero.copyWith(
+      draft.put(hero.copyWith(
         activeExpedition: ActiveExpedition(
-          region: e.region,
-          startedAt: e.occurredAt,
-          durationMinutes: e.durationMinutes,
+          region: expedition.region,
+          startedAt: expedition.occurredAt,
+          durationMinutes: expedition.durationMinutes,
         ),
       ));
 
-    case ExpeditionResolved e:
-      final hero = tx.person(e.heroId);
-      if (hero.activeExpedition?.region != e.region) {
-        tx.warn(GameWarningCode.noActiveExpedition, e.region.name);
+    case ExpeditionResolved resolved:
+      final hero = draft.person(resolved.heroId);
+      if (hero.activeExpedition?.region != resolved.region) {
+        draft.warn(GameWarningCode.noActiveExpedition, resolved.region.name);
         return;
       }
-      tx.put(hero.copyWith(
+      draft.put(hero.copyWith(
         activeExpedition: null,
         lastExpedition: ExpeditionReport(
-          region: e.region,
-          loot: e.loot,
-          reportLines: List.unmodifiable(e.reportLines),
-          returnedAt: e.occurredAt,
+          region: resolved.region,
+          loot: resolved.loot,
+          reportLines: List.unmodifiable(resolved.reportLines),
+          returnedAt: resolved.occurredAt,
         ),
       ));
-      tx.adjustPool(e.loot, 1);
+      draft.adjustPool(resolved.loot, 1);
 
-    case ChestGranted e:
-      final p = tx.person(actor);
-      if (p.seenChestIds.contains(e.chestId)) return;
-      tx.put(p.copyWith(
-        seenChestIds: _with(p.seenChestIds, e.chestId),
-        unopenedChests: _put(p.unopenedChests, e.chestId, e.chestType),
+    case ChestGranted chest:
+      final person = draft.person(actor);
+      if (person.seenChestIds.contains(chest.chestId)) return;
+      draft.put(person.copyWith(
+        seenChestIds: _with(person.seenChestIds, chest.chestId),
+        unopenedChests: _put(person.unopenedChests, chest.chestId, chest.chestType),
       ));
 
-    case ChestOpened e:
-      final p = tx.person(actor);
-      if (!p.unopenedChests.containsKey(e.chestId)) {
-        tx.warn(GameWarningCode.unknownChest, e.chestId);
+    case ChestOpened opened:
+      final person = draft.person(actor);
+      if (!person.unopenedChests.containsKey(opened.chestId)) {
+        draft.warn(GameWarningCode.unknownChest, opened.chestId);
         return;
       }
-      tx.put(p.copyWith(unopenedChests: _without(p.unopenedChests, e.chestId)));
-      tx.credit(actor, e.contents);
+      draft.put(person.copyWith(unopenedChests: _without(person.unopenedChests, opened.chestId)));
+      draft.credit(actor, opened.contents);
 
-    case StreakFreezeUsed e:
-      final p = tx.person(actor);
+    case StreakFreezeUsed freeze:
+      final person = draft.person(actor);
       // Already covered (logged, or frozen by another device): nothing to
       // spend a token on.
-      if (p.streak.coveredDays.contains(e.date)) return;
+      if (person.streak.coveredDays.contains(freeze.date)) return;
       // The day is covered even if the tokens ran short: streaks forgive.
-      tx.put(p.copyWith(
+      draft.put(person.copyWith(
         streak: StreakState(
-          _with(p.streak.coveredDays, e.date),
-          _with(p.streak.frozenDays, e.date),
+          _with(person.streak.coveredDays, freeze.date),
+          _with(person.streak.frozenDays, freeze.date),
         ),
       ));
-      tx.adjustTokens(actor, -1);
+      draft.adjustTokens(actor, -1);
 
-    case RitualStepCompleted e:
-      final p = tx.person(actor);
-      final progress = p.ritual[e.month] ?? const RitualProgress();
-      tx.put(p.copyWith(
+    case RitualStepCompleted step:
+      final person = draft.person(actor);
+      final progress = person.ritual[step.month] ?? const RitualProgress();
+      draft.put(person.copyWith(
         ritual: _put(
-          p.ritual,
-          e.month,
-          RitualProgress(steps: _with(progress.steps, e.step), boss: progress.boss),
+          person.ritual,
+          step.month,
+          RitualProgress(steps: _with(progress.steps, step.step), boss: progress.boss),
         ),
       ));
 
-    case BossFightResolved e:
-      final p = tx.person(actor);
-      final progress = p.ritual[e.month] ?? const RitualProgress();
+    case BossFightResolved fight:
+      final person = draft.person(actor);
+      final progress = person.ritual[fight.month] ?? const RitualProgress();
       if (progress.boss != null) {
-        tx.warn(GameWarningCode.duplicateBossFight, e.month.toKey());
+        draft.warn(GameWarningCode.duplicateBossFight, fight.month.toKey());
         return;
       }
-      tx.put(p.copyWith(
+      draft.put(person.copyWith(
         ritual: _put<Month, RitualProgress>(
-          p.ritual,
-          e.month,
+          person.ritual,
+          fight.month,
           RitualProgress(
             steps: progress.steps,
             boss: BossResult(
-              bossKey: e.bossKey,
-              won: e.won,
-              turns: e.turns,
-              rewards: e.rewards,
+              bossKey: fight.bossKey,
+              won: fight.won,
+              turns: fight.turns,
+              rewards: fight.rewards,
             ),
           ),
         ),
       ));
-      tx.credit(actor, e.rewards);
+      draft.credit(actor, fight.rewards);
 
-    case PartyJoined e:
-      tx.put(tx.person(actor).copyWith(partyId: e.partyId));
+    case PartyJoined joined:
+      draft.put(draft.person(actor).copyWith(partyId: joined.partyId));
 
-    case PartyLeft e:
-      final p = tx.person(actor);
-      if (p.partyId != e.partyId) {
-        tx.warn(GameWarningCode.notInParty, e.partyId);
+    case PartyLeft left:
+      final person = draft.person(actor);
+      if (person.partyId != left.partyId) {
+        draft.warn(GameWarningCode.notInParty, left.partyId);
         return;
       }
-      tx.put(p.copyWith(partyId: null));
+      draft.put(person.copyWith(partyId: null));
 
     case UnknownGameEvent _:
       return;
@@ -282,8 +282,8 @@ void _apply(_Tx tx, GameEvent event) {
 }
 
 /// One event's worth of changes, applied copy-on-write to the prior state.
-class _Tx {
-  _Tx(GameState prior, this.eventId)
+class _GameStateDraft {
+  _GameStateDraft(GameState prior, this.eventId)
       : hall = prior.hall,
         _people = prior.people,
         _warnings = prior.warnings;
@@ -296,31 +296,31 @@ class _Tx {
   PersonState person(String id) =>
       _people[id] ?? PersonState(personId: id);
 
-  void put(PersonState p) => _people = _put(_people, p.personId, p);
+  void put(PersonState person) => _people = _put(_people, person.personId, person);
 
   void warn(GameWarningCode code, [String detail = '']) =>
       _warnings = List.unmodifiable([..._warnings, GameWarning(eventId, code, detail)]);
 
   void adjustGems(String personId, int delta) {
     if (delta == 0) return;
-    final p = person(personId);
-    var gems = p.gems + delta;
+    final personState = person(personId);
+    var gems = personState.gems + delta;
     if (gems < 0) {
       warn(GameWarningCode.gemsClamped, '$personId short ${-gems}');
       gems = 0;
     }
-    put(p.copyWith(gems: gems));
+    put(personState.copyWith(gems: gems));
   }
 
   void adjustTokens(String personId, int delta) {
     if (delta == 0) return;
-    final p = person(personId);
-    var tokens = p.freezeTokens + delta;
+    final personState = person(personId);
+    var tokens = personState.freezeTokens + delta;
     if (tokens < 0) {
       warn(GameWarningCode.tokensClamped, '$personId short ${-tokens}');
       tokens = 0;
     }
-    put(p.copyWith(freezeTokens: tokens));
+    put(personState.copyWith(freezeTokens: tokens));
   }
 
   /// Adds ([sign] = 1) or removes ([sign] = -1) [delta] from the shared pool,
@@ -329,10 +329,10 @@ class _Tx {
     if (delta.isEmpty) return;
     final next = Map.of(hall.materials.amounts);
     final short = <String>[];
-    for (final e in delta.amounts.entries) {
-      final v = (next[e.key] ?? 0) + sign * e.value;
-      if (v < 0) short.add('${e.key.name} ${-v}');
-      next[e.key] = v < 0 ? 0 : v;
+    for (final entry in delta.amounts.entries) {
+      final adjusted = (next[entry.key] ?? 0) + sign * entry.value;
+      if (adjusted < 0) short.add('${entry.key.name} ${-adjusted}');
+      next[entry.key] = adjusted < 0 ? 0 : adjusted;
     }
     if (short.isNotEmpty) {
       warn(GameWarningCode.materialsClamped, short.join(', '));
@@ -360,15 +360,15 @@ class _Tx {
       );
 }
 
-StreakState _cover(StreakState s, GameDay day) => s.coveredDays.contains(day)
-    ? s
-    : StreakState(_with(s.coveredDays, day), s.frozenDays);
+StreakState _cover(StreakState streak, GameDay day) => streak.coveredDays.contains(day)
+    ? streak
+    : StreakState(_with(streak.coveredDays, day), streak.frozenDays);
 
-Map<K, V> _put<K, V>(Map<K, V> m, K key, V value) =>
-    Map.unmodifiable({...m, key: value});
+Map<K, V> _put<K, V>(Map<K, V> map, K key, V value) =>
+    Map.unmodifiable({...map, key: value});
 
-Map<K, V> _without<K, V>(Map<K, V> m, K key) =>
-    Map.unmodifiable({...m}..remove(key));
+Map<K, V> _without<K, V>(Map<K, V> map, K key) =>
+    Map.unmodifiable({...map}..remove(key));
 
-Set<T> _with<T>(Set<T> s, T value) =>
-    s.contains(value) ? s : Set.unmodifiable({...s, value});
+Set<T> _with<T>(Set<T> set, T value) =>
+    set.contains(value) ? set : Set.unmodifiable({...set, value});

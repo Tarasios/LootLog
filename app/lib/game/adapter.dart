@@ -56,8 +56,8 @@ DungeonState buildDungeonState(
   // ---- Hero & companion avatars (every other active adult) ---------------
   final heroSprite =
       _memberSprite(state, meUserId, Sprites.heroA, nameOf(meUserId) ?? 'You');
-  final companionIds = state.adultIds.where((u) => u != meUserId).toList()
-    ..sort((a, b) => (nameOf(a) ?? a).compareTo(nameOf(b) ?? b));
+  final companionIds = state.adultIds.where((adultId) => adultId != meUserId).toList()
+    ..sort((first, second) => (nameOf(first) ?? first).compareTo(nameOf(second) ?? second));
   final companionSprites = [
     for (final id in companionIds)
       _memberSprite(state, id, Sprites.heroB, nameOf(id) ?? 'Companion'),
@@ -80,10 +80,10 @@ DungeonState buildDungeonState(
         cfg.ownerUserId != meUserId) {
       continue;
     }
-    final sm = state.sliceMonth(cfg.sliceId, month);
-    final maxHp = sm?.effectiveLimitCents ?? cfg.baseEffectiveLimitCents;
-    final damage = sm?.spentCents ?? 0;
-    final excess = sm?.overspendCents ?? 0;
+    final sliceMonth = state.sliceMonth(cfg.sliceId, month);
+    final maxHp = sliceMonth?.effectiveLimitCents ?? cfg.baseEffectiveLimitCents;
+    final damage = sliceMonth?.spentCents ?? 0;
+    final excess = sliceMonth?.overspendCents ?? 0;
     heroHpLost += excess;
 
     // A category owned by pets anchors under its first owning pet; the legacy
@@ -131,53 +131,53 @@ DungeonState buildDungeonState(
     }
   }
 
-  int monsterRank(Monster m) => m.mine ? 0 : 1;
-  looseMonsters.sort((a, b) {
-    final c = monsterRank(a).compareTo(monsterRank(b));
-    return c != 0 ? c : a.name.compareTo(b.name);
+  int monsterRank(Monster monster) => monster.mine ? 0 : 1;
+  looseMonsters.sort((first, second) {
+    final comparison = monsterRank(first).compareTo(monsterRank(second));
+    return comparison != 0 ? comparison : first.name.compareTo(second.name);
   });
-  looseContracts.sort((a, b) => a.name.compareTo(b.name));
+  looseContracts.sort((first, second) => first.name.compareTo(second.name));
 
   // ---- OVERBUDGET debt monsters (outstanding only, mine first) ------------
   final overbudgets = <OverbudgetMonster>[
-    for (final d in state.outstandingOverbudgets)
-      if (includeOtherAdults || d.ownerUserId == meUserId)
+    for (final debt in state.outstandingOverbudgets)
+      if (includeOtherAdults || debt.ownerUserId == meUserId)
         OverbudgetMonster(
-        sliceId: d.sliceId,
-        categoryName: state.slices[d.sliceId]?.name ?? d.sliceId,
+        sliceId: debt.sliceId,
+        categoryName: state.slices[debt.sliceId]?.name ?? debt.sliceId,
         sprite: SpriteRef.asset(
           Sprites.overbudget,
-          label: 'OVERBUDGET — ${state.slices[d.sliceId]?.name ?? d.sliceId}',
+          label: 'OVERBUDGET — ${state.slices[debt.sliceId]?.name ?? debt.sliceId}',
         ),
-        accruedCents: d.accruedCents,
-        outstandingCents: d.outstandingCents,
-        mine: d.ownerUserId == meUserId,
-        ownerName: nameOf(d.ownerUserId),
-        mainCategoryId: state.slices[d.sliceId]?.mainCategoryId,
+        accruedCents: debt.accruedCents,
+        outstandingCents: debt.outstandingCents,
+        mine: debt.ownerUserId == meUserId,
+        ownerName: nameOf(debt.ownerUserId),
+        mainCategoryId: state.slices[debt.sliceId]?.mainCategoryId,
       ),
-  ]..sort((a, b) {
-      final c = (a.mine ? 0 : 1).compareTo(b.mine ? 0 : 1);
-      return c != 0 ? c : a.categoryName.compareTo(b.categoryName);
+  ]..sort((first, second) {
+      final comparison = (first.mine ? 0 : 1).compareTo(second.mine ? 0 : 1);
+      return comparison != 0 ? comparison : first.categoryName.compareTo(second.categoryName);
     });
 
   // ---- Reserve caches (emergency funds), pet-linked ones set aside -------
   final looseCaches = <ReserveCache>[];
   final petCaches = <String, List<ReserveCache>>{};
-  for (final f in state.emergencyFunds.values) {
+  for (final fund in state.emergencyFunds.values) {
     final cache = ReserveCache(
-      fundId: f.fundId,
-      name: f.name,
-      sprite: SpriteRef.asset(Sprites.reserveCache, label: f.name),
-      balanceCents: f.balanceCents,
-      petName: petNameOf(f.petId),
+      fundId: fund.fundId,
+      name: fund.name,
+      sprite: SpriteRef.asset(Sprites.reserveCache, label: fund.name),
+      balanceCents: fund.balanceCents,
+      petName: petNameOf(fund.petId),
     );
-    if (f.petId != null) {
-      (petCaches[f.petId!] ??= []).add(cache);
+    if (fund.petId != null) {
+      (petCaches[fund.petId!] ??= []).add(cache);
     } else {
       looseCaches.add(cache);
     }
   }
-  looseCaches.sort((a, b) => a.name.compareTo(b.name));
+  looseCaches.sort((first, second) => first.name.compareTo(second.name));
 
   // ---- Party members (pets) ----------------------------------------------
   final party = <PartyMember>[
@@ -189,95 +189,95 @@ DungeonState buildDungeonState(
             ? SpriteRef.custom(pet.customSpriteSha256, label: pet.name)
             : SpriteRef.asset(Sprites.pet, label: pet.name),
         monsters: (petMonsters[pet.petId] ?? [])
-          ..sort((a, b) => a.name.compareTo(b.name)),
+          ..sort((first, second) => first.name.compareTo(second.name)),
         contracts: (petContracts[pet.petId] ?? [])
-          ..sort((a, b) => a.name.compareTo(b.name)),
+          ..sort((first, second) => first.name.compareTo(second.name)),
         reserveCaches: (petCaches[pet.petId] ?? [])
-          ..sort((a, b) => a.name.compareTo(b.name)),
+          ..sort((first, second) => first.name.compareTo(second.name)),
       ),
-  ]..sort((a, b) => a.name.compareTo(b.name));
+  ]..sort((first, second) => first.name.compareTo(second.name));
 
   // ---- Party roster (all active members, me first) -----------------------
   // Derived from MemberSet state — never from device-local setup — so any
   // household size renders. Adults, then dependents, then pets; me leads.
   final roster = <Adventurer>[
-    for (final m in state.members.values)
-      if (m.active)
+    for (final member in state.members.values)
+      if (member.active)
         Adventurer(
-          memberId: m.memberId,
-          name: m.name,
-          role: _roleOf(m.role),
-          descriptionText: m.descriptionText,
-          isMe: m.memberId == meUserId,
-          sprite: m.customSpriteSha256 != null
-              ? SpriteRef.custom(m.customSpriteSha256, label: m.name)
-              : SpriteRef.asset(_rosterAsset(m.role), label: m.name),
+          memberId: member.memberId,
+          name: member.name,
+          role: _roleOf(member.role),
+          descriptionText: member.descriptionText,
+          isMe: member.memberId == meUserId,
+          sprite: member.customSpriteSha256 != null
+              ? SpriteRef.custom(member.customSpriteSha256, label: member.name)
+              : SpriteRef.asset(_rosterAsset(member.role), label: member.name),
         ),
   ]..sort(_rosterOrder(meUserId));
 
   // ---- Quest monsters -----------------------------------------------------
   final questMonsters = <QuestMonster>[];
-  for (final q in state.quests.values) {
-    if (q.abandoned) continue;
+  for (final quest in state.quests.values) {
+    if (quest.abandoned) continue;
     final contributors = <Contributor>[
-      for (final e in q.contributions.entries)
-        if (e.value != 0)
-          Contributor(name: nameOf(e.key) ?? 'Someone', cents: e.value),
-    ]..sort((a, b) => b.cents.compareTo(a.cents));
+      for (final entry in quest.contributions.entries)
+        if (entry.value != 0)
+          Contributor(name: nameOf(entry.key) ?? 'Someone', cents: entry.value),
+    ]..sort((first, second) => second.cents.compareTo(first.cents));
     questMonsters.add(QuestMonster(
-      questId: q.questId,
-      name: q.name,
-      sprite: q.customSpriteSha256 != null
-          ? SpriteRef.custom(q.customSpriteSha256, label: q.name)
-          : SpriteRef.asset(Sprites.questMonster, label: q.name),
-      targetCents: q.targetCents,
-      contributedCents: q.totalContributedCents,
-      balanceCents: q.balanceCents,
-      completed: q.completed,
-      shared: q.ownership is SharedParty,
+      questId: quest.questId,
+      name: quest.name,
+      sprite: quest.customSpriteSha256 != null
+          ? SpriteRef.custom(quest.customSpriteSha256, label: quest.name)
+          : SpriteRef.asset(Sprites.questMonster, label: quest.name),
+      targetCents: quest.targetCents,
+      contributedCents: quest.totalContributedCents,
+      balanceCents: quest.balanceCents,
+      completed: quest.completed,
+      shared: quest.ownership is SharedParty,
       contributors: contributors,
-      mainCategoryId: q.mainCategoryId,
-      descriptionText: q.descriptionText,
+      mainCategoryId: quest.mainCategoryId,
+      descriptionText: quest.descriptionText,
     ));
   }
-  questMonsters.sort((a, b) {
-    final c = (a.completed ? 1 : 0).compareTo(b.completed ? 1 : 0);
-    return c != 0 ? c : a.name.compareTo(b.name);
+  questMonsters.sort((first, second) {
+    final comparison = (first.completed ? 1 : 0).compareTo(second.completed ? 1 : 0);
+    return comparison != 0 ? comparison : first.name.compareTo(second.name);
   });
 
   // ---- Provisioning (recurring expenses + emergency contributions) -------
   final provisioning = <ProvisionLine>[];
   final closed = month.prev();
   final localNow = now.add(vancouverUtcOffset(now));
-  for (final r in state.recurringExpenses.values) {
-    final activeNow = r.activeIn(month);
-    final activeClosed = r.activeIn(closed);
+  for (final expense in state.recurringExpenses.values) {
+    final activeNow = expense.activeIn(month);
+    final activeClosed = expense.activeIn(closed);
     if (!activeNow && !activeClosed) continue;
-    final actualThis = state.variableActualFor(r.expenseId, month);
+    final actualThis = state.variableActualFor(expense.expenseId, month);
     // An annual contract's floor charge is its 1/12 accrual; the full bill is
     // its face value.
-    final amount = r.isAnnual
-        ? r.amountCents ~/ 12
-        : (r.kind == RecurringKind.variable
-            ? (actualThis ?? r.amountCents)
-            : r.amountCents);
-    final awaiting = r.kind == RecurringKind.variable &&
+    final amount = expense.isAnnual
+        ? expense.amountCents ~/ 12
+        : (expense.kind == RecurringKind.variable
+            ? (actualThis ?? expense.amountCents)
+            : expense.amountCents);
+    final awaiting = expense.kind == RecurringKind.variable &&
         activeClosed &&
-        state.variableActualFor(r.expenseId, closed) == null;
+        state.variableActualFor(expense.expenseId, closed) == null;
     provisioning.add(ProvisionLine(
-      name: r.name,
-      kind: r.kind == RecurringKind.variable
+      name: expense.name,
+      kind: expense.kind == RecurringKind.variable
           ? ProvisionKind.variableMaintenance
           : ProvisionKind.fixedMaintenance,
       amountCents: amount,
-      shared: r.isShared,
+      shared: expense.isShared,
       awaitingTally: awaiting,
-      ownerName: r.ownerUserId == null ? null : nameOf(r.ownerUserId!),
-      isAnnualContract: r.isAnnual,
-      contractTotalCents: r.isAnnual ? r.amountCents : null,
-      dueDay: r.isAnnual ? r.dueDay : null,
-      dueMonth: r.isAnnual ? r.dueMonth : null,
-      daysUntilDue: r.isAnnual ? r.daysUntilDue(localNow) : null,
+      ownerName: expense.ownerUserId == null ? null : nameOf(expense.ownerUserId!),
+      isAnnualContract: expense.isAnnual,
+      contractTotalCents: expense.isAnnual ? expense.amountCents : null,
+      dueDay: expense.isAnnual ? expense.dueDay : null,
+      dueMonth: expense.isAnnual ? expense.dueMonth : null,
+      daysUntilDue: expense.isAnnual ? expense.daysUntilDue(localNow) : null,
     ));
   }
   // Emergency-fund contributions designated on slices are provisioning too.
@@ -291,23 +291,23 @@ DungeonState buildDungeonState(
         (emergencyByFund[cfg.emergencyFundId!] ?? 0) +
             cfg.emergencyContributionCents;
   }
-  for (final e in emergencyByFund.entries) {
+  for (final entry in emergencyByFund.entries) {
     provisioning.add(ProvisionLine(
-      name: state.emergencyFunds[e.key]?.name ?? 'Reserve',
+      name: state.emergencyFunds[entry.key]?.name ?? 'Reserve',
       kind: ProvisionKind.emergencyProvision,
-      amountCents: e.value,
+      amountCents: entry.value,
       shared: true,
       awaitingTally: false,
     ));
   }
-  provisioning.sort((a, b) => a.name.compareTo(b.name));
+  provisioning.sort((first, second) => first.name.compareTo(second.name));
 
   // ---- Gold pouch (vault) + projected minting ----------------------------
   var projMint = 0;
   for (final cfg in state.slices.values) {
     if (cfg.isGroup || cfg.ownerUserId != meUserId) continue;
-    final sm = state.sliceMonth(cfg.sliceId, month);
-    final leftover = sm?.leftoverCents ?? 0;
+    final sliceMonth = state.sliceMonth(cfg.sliceId, month);
+    final leftover = sliceMonth?.leftoverCents ?? 0;
     if (leftover <= 0) continue;
     projMint += Money.titheCents(leftover, cfg.poolTithePct).remainderCents;
   }
@@ -320,15 +320,15 @@ DungeonState buildDungeonState(
   // ---- War chest: writs + ransacks + goal --------------------------------
   final writsForMe = <Writ>[];
   final writsForOther = <Writ>[];
-  for (final w in state.withdrawals.values) {
-    if (w.status != WithdrawalStatus.pending) continue;
-    final needsMe = w.byUserId != meUserId;
+  for (final withdrawal in state.withdrawals.values) {
+    if (withdrawal.status != WithdrawalStatus.pending) continue;
+    final needsMe = withdrawal.byUserId != meUserId;
     final writ = Writ(
-      proposalId: w.proposalId,
-      byName: nameOf(w.byUserId) ?? 'Someone',
-      amountCents: w.amountCents,
-      purpose: w.purpose,
-      destinationLabel: switch (w.destination) {
+      proposalId: withdrawal.proposalId,
+      byName: nameOf(withdrawal.byUserId) ?? 'Someone',
+      amountCents: withdrawal.amountCents,
+      purpose: withdrawal.purpose,
+      destinationLabel: switch (withdrawal.destination) {
         UserVaultDestination(:final userId) =>
           '${nameOf(userId) ?? 'a'} pouch',
         ExternalDestination() => 'beyond the walls',
@@ -338,28 +338,28 @@ DungeonState buildDungeonState(
     (needsMe ? writsForMe : writsForOther).add(writ);
   }
   final ransacks = <RansackBanner>[
-    for (final r in state.ransacks)
+    for (final ransack in state.ransacks)
       RansackBanner(
-        cacheName: state.emergencyFunds[r.fundId]?.name ?? 'a reserve cache',
-        excessCents: r.excessCents,
-        purpose: r.purpose,
-        occurredAt: r.occurredAt,
+        cacheName: state.emergencyFunds[ransack.fundId]?.name ?? 'a reserve cache',
+        excessCents: ransack.excessCents,
+        purpose: ransack.purpose,
+        occurredAt: ransack.occurredAt,
       ),
-  ]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+  ]..sort((first, second) => second.occurredAt.compareTo(first.occurredAt));
   final loans = <GuildLoan>[
-    for (final a in state.advances.values)
-      if (a.status == WithdrawalStatus.pending)
+    for (final advance in state.advances.values)
+      if (advance.status == WithdrawalStatus.pending)
         GuildLoan(
-          advanceId: a.advanceId,
-          byName: nameOf(a.byUserId) ?? 'Someone',
-          monsterName: state.slices[a.sliceId]?.name ?? 'a monster',
-          amountCents: a.amountCents,
-          months: a.months,
-          needsMySeal: a.byUserId != meUserId,
+          advanceId: advance.advanceId,
+          byName: nameOf(advance.byUserId) ?? 'Someone',
+          monsterName: state.slices[advance.sliceId]?.name ?? 'a monster',
+          amountCents: advance.amountCents,
+          months: advance.months,
+          needsMySeal: advance.byUserId != meUserId,
         ),
-  ]..sort((a, b) {
-      final c = (a.needsMySeal ? 0 : 1).compareTo(b.needsMySeal ? 0 : 1);
-      return c != 0 ? c : a.advanceId.compareTo(b.advanceId);
+  ]..sort((first, second) {
+      final comparison = (first.needsMySeal ? 0 : 1).compareTo(second.needsMySeal ? 0 : 1);
+      return comparison != 0 ? comparison : first.advanceId.compareTo(second.advanceId);
     });
   final goal = state.warChest.goal;
   final warChest = WarChest(
@@ -375,23 +375,23 @@ DungeonState buildDungeonState(
 
   // ---- Expeditions abroad (open vacation side-floors) --------------------
   final expeditions = <ExpeditionFloor>[
-    for (final v in state.openVacations)
+    for (final vacation in state.openVacations)
       ExpeditionFloor(
-        vacationId: v.vacationId,
-        name: v.name,
-        totalBudgetCents: v.totalLimitCents,
-        totalSpentCents: v.totalSpentCents,
-        totalOverspendCents: v.totalOverspendCents,
-        daysRemaining: v.daysRemaining,
-        dailyAllowanceRemainingCents: v.dailyAllowanceRemainingCents,
-        fundBalanceCents: v.fundBalanceCents,
+        vacationId: vacation.vacationId,
+        name: vacation.name,
+        totalBudgetCents: vacation.totalLimitCents,
+        totalSpentCents: vacation.totalSpentCents,
+        totalOverspendCents: vacation.totalOverspendCents,
+        daysRemaining: vacation.daysRemaining,
+        dailyAllowanceRemainingCents: vacation.dailyAllowanceRemainingCents,
+        fundBalanceCents: vacation.fundBalanceCents,
         rings: [
-          for (final c in v.categories)
+          for (final category in vacation.categories)
             ExpeditionRing(
-              name: c.name,
-              budgetCents: c.limitCents,
-              spentCents: c.spentCents,
-              overspendCents: c.overspendCents,
+              name: category.name,
+              budgetCents: category.limitCents,
+              spentCents: category.spentCents,
+              overspendCents: category.overspendCents,
             ),
         ],
       ),
@@ -444,12 +444,12 @@ String _rosterAsset(MemberRole role) => switch (role) {
 /// Orders the roster: the device owner first, then by role (adults, dependents,
 /// pets), then by name — a stable party line-up.
 int Function(Adventurer, Adventurer) _rosterOrder(String meUserId) =>
-    (a, b) {
-      final am = a.isMe ? 0 : 1;
-      final bm = b.isMe ? 0 : 1;
-      if (am != bm) return am - bm;
-      if (a.role != b.role) return a.role.index - b.role.index;
-      return a.name.compareTo(b.name);
+    (first, second) {
+      final firstRank = first.isMe ? 0 : 1;
+      final secondRank = second.isMe ? 0 : 1;
+      if (firstRank != secondRank) return firstRank - secondRank;
+      if (first.role != second.role) return first.role.index - second.role.index;
+      return first.name.compareTo(second.name);
     };
 
 /// The scrolling adventure log: real events narrated in game voice, newest
@@ -471,145 +471,145 @@ List<LogEntry> buildAdventureLog(
 
   final entries = <LogEntry>[];
 
-  String purchaseLine(PurchaseAdded e) => switch (e.target) {
+  String purchaseLine(PurchaseAdded purchase) => switch (purchase.target) {
         SliceCharge(:final sliceId) =>
           '${sliceName(sliceId).toUpperCase()} MONSTER TAKES '
-              '${money(e.amountCents)} DMG',
+              '${money(purchase.amountCents)} DMG',
         VaultCharge() =>
-          '${who(e.userId)} spends ${money(e.amountCents)} from the gold pouch',
+          '${who(purchase.userId)} spends ${money(purchase.amountCents)} from the gold pouch',
         QuestCharge(:final questId) =>
-          '${who(e.userId)} claims ${money(e.amountCents)} from the '
+          '${who(purchase.userId)} claims ${money(purchase.amountCents)} from the '
               '${questName(questId)} hoard',
         EmergencyCharge(:final fundId) =>
-          '${who(e.userId)} breaks open the ${fundName(fundId)} cache for '
-              '${money(e.amountCents)}',
+          '${who(purchase.userId)} breaks open the ${fundName(fundId)} cache for '
+              '${money(purchase.amountCents)}',
         VacationCharge(:final vacationId) =>
-          '${who(e.userId)} spends ${money(e.amountCents)} on the '
+          '${who(purchase.userId)} spends ${money(purchase.amountCents)} on the '
               '${vacationName(vacationId)} expedition',
       };
 
-  for (final e in events) {
-    final mine = e.userId == meUserId;
+  for (final event in events) {
+    final mine = event.userId == meUserId;
     LogEntry? entry;
     LogEntry make(String line, LogTone tone, {bool? isMine}) => LogEntry(
-          id: e.eventId,
+          id: event.eventId,
           line: line,
           tone: tone,
-          occurredAt: e.occurredAt,
+          occurredAt: event.occurredAt,
           isMine: isMine ?? mine,
         );
-    switch (e) {
+    switch (event) {
       case PurchaseAdded():
-        entry = make(purchaseLine(e), LogTone.strike);
+        entry = make(purchaseLine(event), LogTone.strike);
       case GiftReceived():
         entry = make(
-          'TREASURE FOUND — ${money(e.amountCents)} for ${who(e.forUserId)}',
+          'TREASURE FOUND — ${money(event.amountCents)} for ${who(event.forUserId)}',
           LogTone.treasure,
-          isMine: e.forUserId == meUserId,
+          isMine: event.forUserId == meUserId,
         );
       case IncomeSet():
         entry = make(
-          'SUPPLIES ARRIVE — ${money(e.amountCents)} for ${who(e.forUserId)}',
+          'SUPPLIES ARRIVE — ${money(event.amountCents)} for ${who(event.forUserId)}',
           LogTone.supplies,
-          isMine: e.forUserId == meUserId,
+          isMine: event.forUserId == meUserId,
         );
       case DefaultIncomeSet():
         entry = make(
-          'Standing supplies set for ${who(e.forUserId)} — '
-              '${money(e.amountCents)} a floor',
+          'Standing supplies set for ${who(event.forUserId)} — '
+              '${money(event.amountCents)} a floor',
           LogTone.supplies,
-          isMine: e.forUserId == meUserId,
+          isMine: event.forUserId == meUserId,
         );
       case QuestSet():
         entry = make(
-          'A quest boss appears: ${e.name} (${money(e.targetCents)} HP)',
+          'A quest boss appears: ${event.name} (${money(event.targetCents)} HP)',
           LogTone.quest,
         );
       case QuestAbandoned():
         entry = make(
-          'The hunt for ${questName(e.questId)} is called off',
+          'The hunt for ${questName(event.questId)} is called off',
           LogTone.quest,
         );
       case LeftoverAllocated():
         // One game-voice beat per destination the spoils went to — the log
         // narrates the ritual's outcome, it never re-computes it. Amounts are
         // the event's own gross figures (tithes are the spoils sheet's story).
-        final src = sliceName(e.sliceId).toUpperCase();
-        final mineAlloc = e.forUserId == meUserId;
+        final src = sliceName(event.sliceId).toUpperCase();
+        final mineAlloc = event.forUserId == meUserId;
         var i = 0;
-        for (final a in e.allocations) {
+        for (final allocation in event.allocations) {
           i++;
-          if (a.amountCents <= 0) continue;
-          final (line, tone) = switch (a.destination) {
+          if (allocation.amountCents <= 0) continue;
+          final (line, tone) = switch (allocation.destination) {
             QuestDestination(:final questId) => (
-                '${who(e.forUserId)} hurls ${money(a.amountCents)} of $src '
+                '${who(event.forUserId)} hurls ${money(allocation.amountCents)} of $src '
                     'loot at the ${questName(questId).toUpperCase()} '
                     'quest boss',
                 LogTone.quest,
               ),
             CarryInSlice() => (
-                '${who(e.forUserId)} banks ${money(a.amountCents)} in $src '
+                '${who(event.forUserId)} banks ${money(allocation.amountCents)} in $src '
                     'for the next floor',
                 LogTone.ritual,
               ),
             Discretionary() => (
-                '${who(e.forUserId)} pockets ${money(a.amountCents)} of '
+                '${who(event.forUserId)} pockets ${money(allocation.amountCents)} of '
                     '$src loot',
                 LogTone.ritual,
               ),
             OverbudgetPayment(:final sliceId) => (
-                '${who(e.forUserId)} strikes the '
+                '${who(event.forUserId)} strikes the '
                     '${sliceName(sliceId).toUpperCase()} OVERBUDGET with '
-                    '${money(a.amountCents)} of $src loot',
+                    '${money(allocation.amountCents)} of $src loot',
                 LogTone.strike,
               ),
           };
           entries.add(LogEntry(
-            id: '${e.eventId}#$i',
+            id: '${event.eventId}#$i',
             line: line,
             tone: tone,
-            occurredAt: e.occurredAt,
+            occurredAt: event.occurredAt,
             isMine: mineAlloc,
           ));
         }
-        if (e.allocations.every((a) => a.amountCents <= 0)) {
+        if (event.allocations.every((allocation) => allocation.amountCents <= 0)) {
           entry = make(
-            '${who(e.forUserId)} divides the spoils of ${sliceName(e.sliceId)}',
+            '${who(event.forUserId)} divides the spoils of ${sliceName(event.sliceId)}',
             LogTone.ritual,
             isMine: mineAlloc,
           );
         }
       case PoolContributionMade():
         entry = make(
-          '${who(e.fromUserId)} feeds the war chest ${money(e.amountCents)}',
+          '${who(event.fromUserId)} feeds the war chest ${money(event.amountCents)}',
           LogTone.chest,
-          isMine: e.fromUserId == meUserId,
+          isMine: event.fromUserId == meUserId,
         );
       case TaxRefundRecorded():
         entry = make(
-          'A royal rebate reaches the war chest: ${money(e.amountCents)}',
+          'A royal rebate reaches the war chest: ${money(event.amountCents)}',
           LogTone.chest,
         );
       case PoolWithdrawalProposed():
         entry = make(
-          '${who(e.byUserId)} raises a writ for ${money(e.amountCents)}',
+          '${who(event.byUserId)} raises a writ for ${money(event.amountCents)}',
           LogTone.writ,
-          isMine: e.byUserId == meUserId,
+          isMine: event.byUserId == meUserId,
         );
       case PoolWithdrawalApproved():
-        entry = make('${who(e.byUserId)} signs a writ', LogTone.writ,
-            isMine: e.byUserId == meUserId);
+        entry = make('${who(event.byUserId)} signs a writ', LogTone.writ,
+            isMine: event.byUserId == meUserId);
       case PoolWithdrawalCancelled():
-        entry = make('${who(e.userId)} withdraws a writ', LogTone.writ);
+        entry = make('${who(event.userId)} withdraws a writ', LogTone.writ);
       case MemberSet():
         entry = make(
-          e.active
-              ? '${e.name} joins the party'
-              : '${e.name} leaves the party',
+          event.active
+              ? '${event.name} joins the party'
+              : '${event.name} leaves the party',
           LogTone.muster,
         );
       case PetSet():
-        entry = make('${e.name} joins the party', LogTone.muster);
+        entry = make('${event.name} joins the party', LogTone.muster);
       // Silent: voids, receipts, goals, accounts, settings, cosmetics, tallies,
       // shares, main categories, vacations, budget/recurring/fund config.
       case PurchaseVoided():
@@ -643,48 +643,48 @@ List<LogEntry> buildAdventureLog(
   }
 
   // Ransacks are a derived record, not an event — fold them in loudly.
-  for (final r in state.ransacks) {
+  for (final ransack in state.ransacks) {
     entries.add(LogEntry(
-      id: 'ransack-${r.fundId}-${r.occurredAt.toIso8601String()}',
-      line: 'THE WAR CHEST WAS RANSACKED! ${money(r.excessCents)} taken to '
-          'cover the ${state.emergencyFunds[r.fundId]?.name ?? 'reserve'} '
-          '(${r.purpose})',
+      id: 'ransack-${ransack.fundId}-${ransack.occurredAt.toIso8601String()}',
+      line: 'THE WAR CHEST WAS RANSACKED! ${money(ransack.excessCents)} taken to '
+          'cover the ${state.emergencyFunds[ransack.fundId]?.name ?? 'reserve'} '
+          '(${ransack.purpose})',
       tone: LogTone.ransack,
-      occurredAt: r.occurredAt,
+      occurredAt: ransack.occurredAt,
       isMine: false,
     ));
   }
 
-  entries.sort((a, b) {
-    final c = b.occurredAt.compareTo(a.occurredAt);
-    return c != 0 ? c : b.id.compareTo(a.id);
+  entries.sort((first, second) {
+    final comparison = second.occurredAt.compareTo(first.occurredAt);
+    return comparison != 0 ? comparison : second.id.compareTo(first.id);
   });
   return entries.length > limit ? entries.sublist(0, limit) : entries;
 }
 
-/// Whole months from [a] to [b] (may be negative if [b] precedes [a]).
-int _monthsBetween(Month a, Month b) =>
-    (b.year - a.year) * 12 + (b.month - a.month);
+/// Whole months from [from] to [to] (may be negative if [to] precedes [from]).
+int _monthsBetween(Month from, Month to) =>
+    (to.year - from.year) * 12 + (to.month - from.month);
 
 /// The earliest month any activity is keyed to, used to number the floor.
 /// Scans everything the read-model exposes a month for; null when empty.
 Month? _earliestMonth(HouseholdState state) {
   Month? earliest;
-  void consider(Month m) {
-    if (earliest == null || m.isBefore(earliest!)) earliest = m;
+  void consider(Month month) {
+    if (earliest == null || month.isBefore(earliest!)) earliest = month;
   }
 
   for (final cfg in state.slices.values) {
     consider(cfg.createdMonth);
   }
-  for (final sm in state.sliceMonths.values) {
-    consider(sm.month);
+  for (final sliceMonth in state.sliceMonths.values) {
+    consider(sliceMonth.month);
   }
-  for (final r in state.recurringExpenses.values) {
-    consider(r.startMonth);
+  for (final expense in state.recurringExpenses.values) {
+    consider(expense.startMonth);
   }
-  for (final p in state.purchases.values) {
-    consider(p.month);
+  for (final purchase in state.purchases.values) {
+    consider(purchase.month);
   }
   for (final key in state.incomeByUserMonth.keys) {
     consider(Month.parse(key.split('|').last));

@@ -82,12 +82,12 @@ List<HomesteadStage>? stagesFromCosmetic(Object? value) {
 
 /// Serialises a stage ladder back into the `homestead.stages` cosmetic value.
 List<Map<String, Object?>> stagesToCosmetic(List<HomesteadStage> stages) => [
-      for (final s in stages)
+      for (final stage in stages)
         {
-          'name': s.name,
-          'thresholdCents': s.thresholdCents,
-          if (s.customSpriteSha256 != null)
-            'spriteSha256': s.customSpriteSha256,
+          'name': stage.name,
+          'thresholdCents': stage.thresholdCents,
+          if (stage.customSpriteSha256 != null)
+            'spriteSha256': stage.customSpriteSha256,
         },
     ];
 

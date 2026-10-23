@@ -65,10 +65,10 @@ class AdventureDashboard extends StatelessWidget {
             title: 'Monsters on this floor',
             child: Column(
               children: [
-                for (final m in game.monsters)
+                for (final monster in game.monsters)
                   Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                    child: MonsterCard(monster: m, resolver: resolver),
+                    child: MonsterCard(monster: monster, resolver: resolver),
                   ),
               ],
             ),
@@ -80,10 +80,10 @@ class AdventureDashboard extends StatelessWidget {
             title: 'Party contracts',
             child: Column(
               children: [
-                for (final c in game.contracts)
+                for (final contract in game.contracts)
                   Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                    child: ContractBanner(contract: c),
+                    child: ContractBanner(contract: contract),
                   ),
               ],
             ),
@@ -99,10 +99,10 @@ class AdventureDashboard extends StatelessWidget {
             title: 'Quest monsters',
             child: Column(
               children: [
-                for (final q in game.questMonsters)
+                for (final quest in game.questMonsters)
                   Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                    child: QuestMonsterCard(quest: q, resolver: resolver),
+                    child: QuestMonsterCard(quest: quest, resolver: resolver),
                   ),
               ],
             ),
@@ -120,9 +120,9 @@ class AdventureDashboard extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           ReserveCacheStrip(caches: game.reserveCaches),
         ],
-        for (final e in game.expeditions) ...[
+        for (final expedition in game.expeditions) ...[
           const SizedBox(height: AppSpacing.md),
-          ExpeditionFloorCard(expedition: e),
+          ExpeditionFloorCard(expedition: expedition),
         ],
       ],
     );
@@ -139,13 +139,13 @@ class ExpeditionFloorCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final e = expedition;
-    final ration = e.daysRemaining > 0
-        ? '${money(e.dailyAllowanceRemainingCents)}/day · '
-            '${e.daysRemaining} days left'
+    final trip = expedition;
+    final ration = trip.daysRemaining > 0
+        ? '${money(trip.dailyAllowanceRemainingCents)}/day · '
+            '${trip.daysRemaining} days left'
         : 'expedition over';
     return _SectionCard(
-      title: 'Expedition abroad — ${e.name}',
+      title: 'Expedition abroad — ${trip.name}',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -155,26 +155,26 @@ class ExpeditionFloorCard extends StatelessWidget {
               const SizedBox(width: AppSpacing.xs),
               Expanded(
                 child: Text(
-                  '${money(e.totalSpentCents)} of ${money(e.totalBudgetCents)} '
+                  '${money(trip.totalSpentCents)} of ${money(trip.totalBudgetCents)} '
                   'provisions spent · $ration',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ),
             ],
           ),
-          if (e.overspent)
+          if (trip.overspent)
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.xs),
               child: _Tag(
-                label: 'Over provisions by ${money(e.totalOverspendCents)}',
+                label: 'Over provisions by ${money(trip.totalOverspendCents)}',
                 color: scheme.error,
               ),
             ),
-          if (e.fundExhausted)
+          if (trip.fundExhausted)
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.xs),
               child: _Tag(
-                label: 'Cache depleted by ${money(-e.fundBalanceCents)}',
+                label: 'Cache depleted by ${money(-trip.fundBalanceCents)}',
                 color: scheme.error,
               ),
             ),
@@ -182,7 +182,7 @@ class ExpeditionFloorCard extends StatelessWidget {
           Wrap(
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,
-            children: [for (final r in e.rings) _ExpeditionRingChip(ring: r)],
+            children: [for (final ring in trip.rings) _ExpeditionRingChip(ring: ring)],
           ),
         ],
       ),
@@ -591,13 +591,13 @@ class PartyMemberCard extends StatelessWidget {
               ),
             ],
           ),
-          for (final m in member.monsters) ...[
+          for (final monster in member.monsters) ...[
             const SizedBox(height: AppSpacing.sm),
-            MonsterCard(monster: m, resolver: resolver),
+            MonsterCard(monster: monster, resolver: resolver),
           ],
-          for (final c in member.contracts) ...[
+          for (final contract in member.contracts) ...[
             const SizedBox(height: AppSpacing.sm),
-            ContractBanner(contract: c),
+            ContractBanner(contract: contract),
           ],
           if (member.reserveCaches.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.sm),
@@ -694,7 +694,7 @@ class QuestMonsterCard extends StatelessWidget {
                   padding: const EdgeInsets.only(top: AppSpacing.xxs),
                   child: Text(
                     quest.contributors
-                        .map((c) => '${c.name} ${money(c.cents)}')
+                        .map((contribution) => '${contribution.name} ${money(contribution.cents)}')
                         .join('  ·  '),
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: scheme.onSurfaceVariant,
@@ -860,17 +860,17 @@ class WarChestCard extends StatelessWidget {
                   ?.copyWith(color: scheme.onSurfaceVariant),
             ),
           ],
-          for (final r in chest.ransacks) ...[
+          for (final ransack in chest.ransacks) ...[
             const SizedBox(height: AppSpacing.md),
-            RansackBannerView(banner: r),
+            RansackBannerView(banner: ransack),
           ],
-          for (final w in chest.writsForMe) ...[
+          for (final writ in chest.writsForMe) ...[
             const SizedBox(height: AppSpacing.md),
-            WritTile(writ: w, callbacks: callbacks),
+            WritTile(writ: writ, callbacks: callbacks),
           ],
-          for (final w in chest.writsForOther) ...[
+          for (final writ in chest.writsForOther) ...[
             const SizedBox(height: AppSpacing.md),
-            WritTile(writ: w, callbacks: callbacks),
+            WritTile(writ: writ, callbacks: callbacks),
           ],
         ],
       ),
@@ -1143,7 +1143,7 @@ class ReserveCacheStrip extends StatelessWidget {
       child: Wrap(
         spacing: AppSpacing.sm,
         runSpacing: AppSpacing.sm,
-        children: [for (final c in caches) _CacheChip(cache: c)],
+        children: [for (final cache in caches) _CacheChip(cache: cache)],
       ),
     );
   }
@@ -1262,7 +1262,7 @@ class _SpoilsCta extends StatelessWidget {
                       [
                         parts.join(' · '),
                         'defaults in ${banner.daysRemaining}d',
-                      ].where((s) => s.isNotEmpty).join(' — '),
+                      ].where((part) => part.isNotEmpty).join(' — '),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: scheme.onTertiaryContainer,
                           ),

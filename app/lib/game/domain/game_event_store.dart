@@ -31,9 +31,9 @@ class InMemoryGameEventStore implements GameEventStore {
   @override
   Future<void> append(Iterable<GameEvent> events) async {
     var changed = false;
-    for (final e in events) {
-      if (!_byId.containsKey(e.eventId)) {
-        _byId[e.eventId] = e.toJson();
+    for (final event in events) {
+      if (!_byId.containsKey(event.eventId)) {
+        _byId[event.eventId] = event.toJson();
         changed = true;
       }
     }

@@ -72,9 +72,9 @@ List<EncounterData> buildEncounters(
   for (final cfg in state.slices.values) {
     if (cfg.createdMonth.isAfter(month)) continue;
     if (!cfg.isGroup && cfg.ownerUserId != meUserId) continue;
-    final sm = state.sliceMonth(cfg.sliceId, month);
-    final maxHp = sm?.effectiveLimitCents ?? cfg.baseEffectiveLimitCents;
-    if (maxHp <= 0 && (sm?.spentCents ?? 0) <= 0) continue;
+    final sliceMonth = state.sliceMonth(cfg.sliceId, month);
+    final maxHp = sliceMonth?.effectiveLimitCents ?? cfg.baseEffectiveLimitCents;
+    if (maxHp <= 0 && (sliceMonth?.spentCents ?? 0) <= 0) continue;
 
     // The champion: the linked pet for a pet-owned category, the owner for a
     // personal one, nobody for a plain group category.
@@ -93,22 +93,22 @@ List<EncounterData> buildEncounters(
       sliceId: cfg.sliceId,
       name: cfg.name,
       maxHpCents: maxHp,
-      spentCents: sm?.spentCents ?? 0,
+      spentCents: sliceMonth?.spentCents ?? 0,
       isGroup: cfg.isGroup,
       championName: pets.isNotEmpty
-          ? pets.map((p) => p.name).join(' & ')
+          ? pets.map((pet) => pet.name).join(' & ')
           : champion?.name,
       championDescription: pets.isNotEmpty
           ? pets
-              .map((p) => p.descriptionText)
-              .where((d) => d?.isNotEmpty == true)
+              .map((pet) => pet.descriptionText)
+              .where((description) => description?.isNotEmpty == true)
               .firstOrNull
           : champion?.descriptionText,
     ));
   }
-  out.sort((a, b) {
-    final g = (a.isGroup ? 0 : 1).compareTo(b.isGroup ? 0 : 1);
-    return g != 0 ? g : a.name.compareTo(b.name);
+  out.sort((first, second) {
+    final byGroup = (first.isGroup ? 0 : 1).compareTo(second.isGroup ? 0 : 1);
+    return byGroup != 0 ? byGroup : first.name.compareTo(second.name);
   });
   return out;
 }
@@ -133,7 +133,7 @@ class EncounterLines {
   factory EncounterLines.parse(String json) {
     final map = jsonDecode(json) as Map;
     List<String> lines(String key) =>
-        [for (final e in (map[key] as List? ?? const [])) e as String];
+        [for (final line in (map[key] as List? ?? const [])) line as String];
     return EncounterLines(
       flawless: lines('flawless'),
       victory: lines('victory'),
@@ -146,26 +146,26 @@ class EncounterLines {
       EncounterLines.parse(
           await (bundle ?? rootBundle).loadString(assetPath));
 
-  /// The narrated line for [e], placeholders filled. [rng] injectable.
-  String lineFor(EncounterData e, {Random? rng}) {
-    final pool = e.enraged
+  /// The narrated line for [encounter], placeholders filled. [rng] injectable.
+  String lineFor(EncounterData encounter, {Random? rng}) {
+    final pool = encounter.enraged
         ? enraged
-        : e.flawless
+        : encounter.flawless
             ? flawless
-            : e.leftoverCents > 0
+            : encounter.leftoverCents > 0
                 ? victory
                 : exact;
     if (pool.isEmpty) return '';
     final line = pool.length == 1
         ? pool.first
         : pool[(rng ?? Random()).nextInt(pool.length)];
-    String money(int c) => '\$${Money(c).format()}';
+    String money(int cents) => '\$${Money(cents).format()}';
     return line
-        .replaceAll('{name}', e.name.toUpperCase())
-        .replaceAll('{spent}', money(e.spentCents))
-        .replaceAll('{leftover}', money(e.leftoverCents))
-        .replaceAll('{limit}', money(e.maxHpCents))
-        .replaceAll('{over}', money(e.overspendCents));
+        .replaceAll('{name}', encounter.name.toUpperCase())
+        .replaceAll('{spent}', money(encounter.spentCents))
+        .replaceAll('{leftover}', money(encounter.leftoverCents))
+        .replaceAll('{limit}', money(encounter.maxHpCents))
+        .replaceAll('{over}', money(encounter.overspendCents));
   }
 }
 
@@ -235,10 +235,10 @@ class _MonthEndEncountersScreenState extends State<MonthEndEncountersScreen> {
                 controller: _controller,
                 onPageChanged: (i) => setState(() => _index = i),
                 children: [
-                  for (final e in widget.encounters)
+                  for (final encounter in widget.encounters)
                     _EncounterPage(
-                      encounter: e,
-                      line: widget.lines.lineFor(e),
+                      encounter: encounter,
+                      line: widget.lines.lineFor(encounter),
                       resolver: widget.resolver,
                     ),
                 ],
@@ -281,11 +281,11 @@ class _EncounterPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final e = encounter;
-    final hpFrac = e.maxHpCents <= 0
+    final current = encounter;
+    final hpFrac = current.maxHpCents <= 0
         ? 1.0
-        : (e.spentCents / e.maxHpCents).clamp(0.0, 1.0);
-    String money(int c) => '\$${Money(c).format()}';
+        : (current.spentCents / current.maxHpCents).clamp(0.0, 1.0);
+    String money(int cents) => '\$${Money(cents).format()}';
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 440),
@@ -296,29 +296,29 @@ class _EncounterPage extends StatelessWidget {
             children: [
               GameSprite(
                 sprite: SpriteRef.asset(
-                  e.enraged ? Sprites.monsterEnraged : Sprites.monster,
-                  label: e.name,
+                  current.enraged ? Sprites.monsterEnraged : Sprites.monster,
+                  label: current.name,
                 ),
                 resolver: resolver,
                 scale: 4,
               ),
               const SizedBox(height: AppSpacing.lg),
               Text(
-                e.name.toUpperCase(),
+                current.name.toUpperCase(),
                 style: Theme.of(context)
                     .textTheme
                     .headlineSmall
                     ?.copyWith(fontWeight: FontWeight.w800),
                 textAlign: TextAlign.center,
               ),
-              if (e.championName != null)
+              if (current.championName != null)
                 Padding(
                   padding: const EdgeInsets.only(top: AppSpacing.xs),
                   child: Text(
-                    e.championDescription?.isNotEmpty == true
-                        ? '${e.championName}\'s charge — '
-                            '${e.championDescription}'
-                        : '${e.championName}\'s charge',
+                    current.championDescription?.isNotEmpty == true
+                        ? '${current.championName}\'s charge — '
+                            '${current.championDescription}'
+                        : '${current.championName}\'s charge',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: scheme.onSurfaceVariant,
                           fontStyle: FontStyle.italic,
@@ -332,13 +332,13 @@ class _EncounterPage extends StatelessWidget {
                 child: LinearProgressIndicator(
                   value: hpFrac,
                   minHeight: 10,
-                  color: e.enraged ? scheme.error : scheme.primary,
+                  color: current.enraged ? scheme.error : scheme.primary,
                   backgroundColor: scheme.surfaceContainerHighest,
                 ),
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                '${money(e.spentCents)} damage dealt of ${money(e.maxHpCents)} max HP',
+                '${money(current.spentCents)} damage dealt of ${money(current.maxHpCents)} max HP',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: scheme.onSurfaceVariant,
                     ),

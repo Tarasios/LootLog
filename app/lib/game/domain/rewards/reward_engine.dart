@@ -46,13 +46,13 @@ class Party {
   final List<PartyAdult> adults;
 
   PartyAdult? adult(String memberId) {
-    for (final a in adults) {
-      if (a.memberId == memberId) return a;
+    for (final adult in adults) {
+      if (adult.memberId == memberId) return adult;
     }
     return null;
   }
 
-  Iterable<PartyAdult> get adventurers => adults.where((a) => a.inAdventure);
+  Iterable<PartyAdult> get adventurers => adults.where((adult) => adult.inAdventure);
 }
 
 /// How the engine stamps the events it writes: this device, and fresh event
@@ -121,24 +121,24 @@ class RewardEngine {
     // the habit. Ordered by (createdAt, eventId) so every device agrees which
     // event opened a day and which ones fill the cap.
     final rewardable = [
-      for (final e in ledger)
-        if (party.adult(e.userId) != null && _inWindow(e, oldest, today)) e,
-    ]..sort((a, b) {
-        final byTime = a.createdAt.compareTo(b.createdAt);
-        return byTime != 0 ? byTime : a.eventId.compareTo(b.eventId);
+      for (final event in ledger)
+        if (party.adult(event.userId) != null && _inWindow(event, oldest, today)) event,
+    ]..sort((first, second) {
+        final byTime = first.createdAt.compareTo(second.createdAt);
+        return byTime != 0 ? byTime : first.eventId.compareTo(second.eventId);
       });
 
     final run = _Run(gameState, party, stamp, now, today);
-    for (final e in rewardable) {
-      final adult = party.adult(e.userId)!;
-      switch (e) {
+    for (final event in rewardable) {
+      final adult = party.adult(event.userId)!;
+      switch (event) {
         // An edit's corrected copy is not a new purchase.
         case PurchaseAdded(amendsPurchaseId: null):
-          run.activity(adult, e, purchase: e);
+          run.activity(adult, event, purchase: event);
         case NoSpendCheckedIn():
-          run.activity(adult, e);
+          run.activity(adult, event);
         case ReconcileCompleted():
-          run.reconcile(adult, e);
+          run.reconcile(adult, event);
         default:
           break;
       }
@@ -153,8 +153,8 @@ class RewardEngine {
     return run.out;
   }
 
-  static bool _inWindow(Event e, GameDay oldest, GameDay today) {
-    final day = GameDay.fromInstant(e.createdAt);
+  static bool _inWindow(Event event, GameDay oldest, GameDay today) {
+    final day = GameDay.fromInstant(event.createdAt);
     return day >= oldest && day <= today;
   }
 }
@@ -162,17 +162,17 @@ class RewardEngine {
 /// What one evaluation knows about a person: the projection plus everything
 /// this run has already emitted for them.
 class _Person {
-  _Person(PersonState p)
-      : covered = {...p.streak.coveredDays},
-        logged = {...p.streak.loggedDays},
-        frontier = p.streak.lastDay,
-        seenRewards = {...p.seenRewardIds},
-        seenChests = {...p.seenChestIds},
-        wallet = p.freezeTokens,
+  _Person(PersonState state)
+      : covered = {...state.streak.coveredDays},
+        logged = {...state.streak.loggedDays},
+        frontier = state.streak.lastDay,
+        seenRewards = {...state.seenRewardIds},
+        seenChests = {...state.seenChestIds},
+        wallet = state.freezeTokens,
         waitingTokens = [
-          for (final r in p.unclaimedRewards.values)
-            if (r.loot.tokens > 0) (rewardId: r.rewardId, tokens: r.loot.tokens),
-        ]..sort((a, b) => a.rewardId.compareTo(b.rewardId));
+          for (final reward in state.unclaimedRewards.values)
+            if (reward.loot.tokens > 0) (rewardId: reward.rewardId, tokens: reward.loot.tokens),
+        ]..sort((first, second) => first.rewardId.compareTo(second.rewardId));
 
   final Set<GameDay> covered;
   final Set<GameDay> logged;
@@ -189,17 +189,17 @@ class _Person {
   final List<({String rewardId, int tokens})> waitingTokens;
 
   int get heldTokens =>
-      wallet + waitingTokens.fold(0, (sum, t) => sum + t.tokens);
+      wallet + waitingTokens.fold(0, (sum, waiting) => sum + waiting.tokens);
 
   void cover(GameDay day) {
     covered.add(day);
-    final f = frontier;
-    if (f == null || day > f) frontier = day;
+    final currentFrontier = frontier;
+    if (currentFrontier == null || day > currentFrontier) frontier = day;
   }
 
   int loggedInWeek(GameDay weekStart) {
     final end = weekStart.addDays(6);
-    return logged.where((d) => d >= weekStart && d <= end).length;
+    return logged.where((day) => day >= weekStart && day <= end).length;
   }
 }
 
@@ -221,16 +221,16 @@ class _Run {
       _people.putIfAbsent(id, () => _Person(state.person(id)));
 
   /// An active-day event: a new purchase or a no-spend check-in.
-  void activity(PartyAdult adult, Event e, {PurchaseAdded? purchase}) {
+  void activity(PartyAdult adult, Event event, {PurchaseAdded? purchase}) {
     final who = adult.memberId;
-    final day = GameDay.fromInstant(e.createdAt);
+    final day = GameDay.fromInstant(event.createdAt);
     if (!adult.inAdventure) {
       _caravan(who, day);
       return;
     }
-    final p = person(who);
-    final opener = _openers.putIfAbsent('$who|${day.toKey()}', () => e.eventId);
-    final opensDay = opener == e.eventId;
+    final personRecord = person(who);
+    final opener = _openers.putIfAbsent('$who|${day.toKey()}', () => event.eventId);
+    final opensDay = opener == event.eventId;
 
     // Missed days before this one are settled first, so a gap never hides
     // behind the day that ends it.
@@ -245,11 +245,11 @@ class _Run {
         reasonCode: purchase == null
             ? GameReasonCodes.noSpendCheckIn
             : GameReasonCodes.dailyLog,
-        source: e.eventId,
+        source: event.eventId,
         // Stamped with the logged instant: the projection covers that day.
-        occurredAt: e.createdAt,
+        occurredAt: event.createdAt,
       );
-      p
+      personRecord
         ..logged.add(day)
         ..cover(day);
     }
@@ -278,12 +278,12 @@ class _Run {
     int gems,
     PurchaseAdded purchase,
   ) {
-    final p = person(who);
+    final personRecord = person(who);
     final rewardId = '$reasonCode:$who:${day.toKey()}:${purchase.purchaseId}';
-    if (p.seenRewards.contains(rewardId)) return;
+    if (personRecord.seenRewards.contains(rewardId)) return;
     final extra = '${GameReasonCodes.extraLog}:$who:${day.toKey()}:';
     final timely = '${GameReasonCodes.timely}:$who:${day.toKey()}:';
-    final used = p.seenRewards
+    final used = personRecord.seenRewards
         .where((id) => id.startsWith(extra) || id.startsWith(timely))
         .length;
     if (used >= Balance.dailyGemCap) return;
@@ -311,9 +311,9 @@ class _Run {
     }
   }
 
-  void reconcile(PartyAdult adult, ReconcileCompleted e) {
+  void reconcile(PartyAdult adult, ReconcileCompleted event) {
     if (!adult.inAdventure) return;
-    final week = e.weekStart.weekStart;
+    final week = event.weekStart.weekStart;
     if (week > today.weekStart) return; // a week that hasn't started
     final who = adult.memberId;
     _chest(who, GameReasonCodes.weeklyReconcile, ChestType.iron, week);
@@ -322,7 +322,7 @@ class _Run {
         kind: 'gems',
         gems: Balance.weeklyReconcileGems,
         reasonCode: GameReasonCodes.weeklyReconcile,
-        source: e.eventId);
+        source: event.eventId);
   }
 
   /// A Standard adult's active day: materials for the shared pool, delivered
@@ -343,27 +343,27 @@ class _Run {
   /// including) [until], spending a freeze token per day while any are held.
   /// With none left the streak simply resets — no event says so.
   void bridge(String who, GameDay until) {
-    final p = person(who);
-    final from = p.frontier;
+    final personRecord = person(who);
+    final from = personRecord.frontier;
     if (from == null) return;
-    for (var d = from.next(); d < until; d = d.next()) {
-      if (p.heldTokens == 0) return;
-      if (p.wallet == 0) {
+    for (var day = from.next(); day < until; day = day.next()) {
+      if (personRecord.heldTokens == 0) return;
+      if (personRecord.wallet == 0) {
         // Collect a waiting token on the person's behalf to spend it.
-        final t = p.waitingTokens.removeAt(0);
-        _claim(who, t.rewardId);
-        p.wallet += t.tokens;
+        final token = personRecord.waitingTokens.removeAt(0);
+        _claim(who, token.rewardId);
+        personRecord.wallet += token.tokens;
       }
-      p.wallet--;
+      personRecord.wallet--;
       out.add(StreakFreezeUsed(
         eventId: stamp.newEventId(),
         deviceId: stamp.deviceId,
         actorId: who,
         occurredAt: now,
         createdAt: now,
-        date: d,
+        date: day,
       ));
-      p.cover(d);
+      personRecord.cover(day);
     }
   }
 
@@ -371,27 +371,27 @@ class _Run {
   /// [Balance.streakDaysPerFreezeToken] days, while fewer than
   /// [Balance.maxFreezeTokens] are held.
   void tokens(String who) {
-    final p = person(who);
-    final end = p.frontier;
+    final personRecord = person(who);
+    final end = personRecord.frontier;
     if (end == null) return;
     var start = end;
-    while (p.covered.contains(start.previous())) {
+    while (personRecord.covered.contains(start.previous())) {
       start = start.previous();
     }
     final length = start.daysUntil(end) + 1;
-    for (var m = Balance.streakDaysPerFreezeToken;
-        m <= length;
-        m += Balance.streakDaysPerFreezeToken) {
+    for (var milestone = Balance.streakDaysPerFreezeToken;
+        milestone <= length;
+        milestone += Balance.streakDaysPerFreezeToken) {
       final rewardId =
-          '${GameReasonCodes.streakToken}:$who:${start.toKey()}:$m';
-      if (p.seenRewards.contains(rewardId)) continue;
-      if (p.heldTokens >= Balance.maxFreezeTokens) return;
+          '${GameReasonCodes.streakToken}:$who:${start.toKey()}:$milestone';
+      if (personRecord.seenRewards.contains(rewardId)) continue;
+      if (personRecord.heldTokens >= Balance.maxFreezeTokens) return;
       _grant(who,
           rewardId: rewardId,
           kind: 'freezeToken',
           tokens: 1,
           reasonCode: GameReasonCodes.streakToken);
-      p.waitingTokens.add((rewardId: rewardId, tokens: 1));
+      personRecord.waitingTokens.add((rewardId: rewardId, tokens: 1));
     }
   }
 
@@ -406,8 +406,8 @@ class _Run {
     String? source,
     DateTime? occurredAt,
   }) {
-    final p = person(who);
-    if (!p.seenRewards.add(rewardId)) return;
+    final personRecord = person(who);
+    if (!personRecord.seenRewards.add(rewardId)) return;
     out.add(RewardGranted(
       eventId: stamp.newEventId(),
       deviceId: stamp.deviceId,

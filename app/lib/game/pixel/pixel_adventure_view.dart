@@ -166,12 +166,12 @@ class PixelAdventureView extends StatelessWidget {
                         _spoilsCta(context),
                         const SizedBox(height: AppSpacing.md),
                       ],
-                      for (final r in game.warChest.ransacks) ...[
-                        _ransack(context, r),
+                      for (final ransack in game.warChest.ransacks) ...[
+                        _ransack(context, ransack),
                         const SizedBox(height: AppSpacing.md),
                       ],
-                      for (final d in game.overbudgets) ...[
-                        _overbudget(context, d),
+                      for (final debt in game.overbudgets) ...[
+                        _overbudget(context, debt),
                         const SizedBox(height: AppSpacing.md),
                       ],
                       _floorViewport(context),
@@ -205,12 +205,12 @@ class PixelAdventureView extends StatelessWidget {
           _spoilsCta(context),
           const SizedBox(height: AppSpacing.md),
         ],
-        for (final r in game.warChest.ransacks) ...[
-          _ransack(context, r),
+        for (final ransack in game.warChest.ransacks) ...[
+          _ransack(context, ransack),
           const SizedBox(height: AppSpacing.md),
         ],
-        for (final d in game.overbudgets) ...[
-          _overbudget(context, d),
+        for (final debt in game.overbudgets) ...[
+          _overbudget(context, debt),
           const SizedBox(height: AppSpacing.md),
         ],
         _partyStrip(context),
@@ -326,10 +326,10 @@ class PixelAdventureView extends StatelessWidget {
     if (game.roster.isEmpty) return Center(child: fire);
     final left = game.roster.take((game.roster.length + 1) ~/ 2).toList();
     final right = game.roster.skip(left.length).toList();
-    Widget slot(Adventurer a) => Padding(
+    Widget slot(Adventurer adventurer) => Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
           child: GameSprite(
-            sprite: a.sprite,
+            sprite: adventurer.sprite,
             resolver: resolver,
             scale: 2,
             animate: animate,
@@ -340,12 +340,12 @@ class PixelAdventureView extends StatelessWidget {
         crossAxisAlignment: WrapCrossAlignment.end,
         alignment: WrapAlignment.center,
         children: [
-          for (final a in left) slot(a),
+          for (final adventurer in left) slot(adventurer),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
             child: fire,
           ),
-          for (final a in right) slot(a),
+          for (final adventurer in right) slot(adventurer),
         ],
       ),
     );
@@ -368,12 +368,12 @@ class PixelAdventureView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final a in game.roster)
+          for (final adventurer in game.roster)
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.sm),
               child: _PartyFrame(
-                adventurer: a,
-                stats: _statsFor(a),
+                adventurer: adventurer,
+                stats: _statsFor(adventurer),
                 resolver: resolver,
                 animate: animate,
               ),
@@ -396,12 +396,12 @@ class PixelAdventureView extends StatelessWidget {
           itemCount: game.roster.length,
           separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
           itemBuilder: (context, i) {
-            final a = game.roster[i];
+            final adventurer = game.roster[i];
             return SizedBox(
               width: 200,
               child: _PartyFrame(
-                adventurer: a,
-                stats: _statsFor(a),
+                adventurer: adventurer,
+                stats: _statsFor(adventurer),
                 resolver: resolver,
                 animate: animate,
               ),
@@ -412,28 +412,28 @@ class PixelAdventureView extends StatelessWidget {
     );
   }
 
-  /// Aggregates the monsters attributed to [a] into a health reading for the
+  /// Aggregates the monsters attributed to [adventurer] into a health reading for the
   /// member's frame — presentation-only grouping of numbers the adapter already
   /// derived. Companions/pets with no ledger of their own read as provisioned.
-  _FrameStats _statsFor(Adventurer a) {
+  _FrameStats _statsFor(Adventurer adventurer) {
     final monsters = <Monster>[];
-    if (a.role == AdventurerRole.familiar) {
-      for (final p in game.party) {
-        if (p.petId == a.memberId) monsters.addAll(p.monsters);
+    if (adventurer.role == AdventurerRole.familiar) {
+      for (final partyMember in game.party) {
+        if (partyMember.petId == adventurer.memberId) monsters.addAll(partyMember.monsters);
       }
     } else {
-      for (final m in game.monsters) {
-        final isHers = a.isMe ? m.mine : (!m.mine && m.ownerName == a.name);
-        if (isHers) monsters.add(m);
+      for (final monster in game.monsters) {
+        final belongsToAdventurer = adventurer.isMe ? monster.mine : (!monster.mine && monster.ownerName == adventurer.name);
+        if (belongsToAdventurer) monsters.add(monster);
       }
     }
     var maxHp = 0;
     var damage = 0;
     var excess = 0;
-    for (final m in monsters) {
-      maxHp += m.maxHpCents;
-      damage += m.damageCents;
-      excess += m.excessCents;
+    for (final monster in monsters) {
+      maxHp += monster.maxHpCents;
+      damage += monster.damageCents;
+      excess += monster.excessCents;
     }
     return _FrameStats(
       hasLedger: monsters.isNotEmpty,
@@ -449,10 +449,10 @@ class PixelAdventureView extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final monsters = <Monster>[
       ...game.monsters,
-      for (final p in game.party) ...p.monsters,
+      for (final partyMember in game.party) ...partyMember.monsters,
     ];
     final maxBudget = monsters.fold<int>(
-        0, (m, x) => x.maxHpCents > m ? x.maxHpCents : m);
+        0, (largest, monster) => monster.maxHpCents > largest ? monster.maxHpCents : largest);
     return _PixelPanel(
       title: 'The Dungeon Entrance',
       accent: scheme.secondary,
@@ -486,10 +486,10 @@ class PixelAdventureView extends StatelessWidget {
                 runSpacing: AppSpacing.md,
                 crossAxisAlignment: WrapCrossAlignment.end,
                 children: [
-                  for (final m in monsters)
+                  for (final monster in monsters)
                     _MonsterTile(
-                      monster: m,
-                      scale: _budgetScale(m.maxHpCents, maxBudget),
+                      monster: monster,
+                      scale: _budgetScale(monster.maxHpCents, maxBudget),
                       resolver: resolver,
                       animate: animate,
                     ),
@@ -497,7 +497,7 @@ class PixelAdventureView extends StatelessWidget {
               ),
             if (game.contracts.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.md),
-              for (final c in game.contracts) _contractRow(context, c),
+              for (final contract in game.contracts) _contractRow(context, contract),
             ],
             if (game.questMonsters.isNotEmpty) ...[
               const Divider(height: AppSpacing.xl),
@@ -509,8 +509,8 @@ class PixelAdventureView extends StatelessWidget {
                 runSpacing: AppSpacing.md,
                 crossAxisAlignment: WrapCrossAlignment.end,
                 children: [
-                  for (final q in game.questMonsters)
-                    _BossTile(quest: q, resolver: resolver, animate: animate),
+                  for (final quest in game.questMonsters)
+                    _BossTile(quest: quest, resolver: resolver, animate: animate),
                 ],
               ),
             ],
@@ -525,15 +525,15 @@ class PixelAdventureView extends StatelessWidget {
   /// pixels never blur.
   int _budgetScale(int hpCents, int maxBudgetCents) {
     if (maxBudgetCents <= 0) return 2;
-    final r = hpCents / maxBudgetCents;
-    if (r >= 0.66) return 4;
-    if (r >= 0.33) return 3;
+    final fill = hpCents / maxBudgetCents;
+    if (fill >= 0.66) return 4;
+    if (fill >= 0.33) return 3;
     return 2;
   }
 
-  Widget _contractRow(BuildContext context, PartyContract c) {
+  Widget _contractRow(BuildContext context, PartyContract contract) {
     final scheme = Theme.of(context).colorScheme;
-    final color = c.enraged ? scheme.error : scheme.tertiary;
+    final color = contract.enraged ? scheme.error : scheme.tertiary;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
       child: Row(
@@ -545,19 +545,19 @@ class PixelAdventureView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${c.name} (party)',
+                  '${contract.name} (party)',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.labelMedium,
                 ),
                 const SizedBox(height: 2),
-                _PixelHpBar(fraction: c.hp.fraction, color: color),
+                _PixelHpBar(fraction: contract.hp.fraction, color: color),
               ],
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
           Text(
-            c.enraged ? 'ENRAGED' : '${c.hp.pct}%',
+            contract.enraged ? 'ENRAGED' : '${contract.hp.pct}%',
             style: Theme.of(context)
                 .textTheme
                 .labelSmall
@@ -579,15 +579,15 @@ class PixelAdventureView extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          for (var m = 1; m <= 12; m++)
+          for (var monthNumber = 1; monthNumber <= 12; monthNumber++)
             _MinimapTile(
-              label: _monthInitials[m - 1],
-              status: m < current
+              label: _monthInitials[monthNumber - 1],
+              status: monthNumber < current
                   ? _FloorStatus.explored
-                  : (m == current
+                  : (monthNumber == current
                       ? _FloorStatus.current
                       : _FloorStatus.locked),
-              wounded: m == current && game.heroWounded,
+              wounded: monthNumber == current && game.heroWounded,
             ),
         ],
       ),
@@ -598,7 +598,7 @@ class PixelAdventureView extends StatelessWidget {
 
   Widget _treasury(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final wc = game.warChest;
+    final warChest = game.warChest;
     return _PixelPanel(
       title: 'The Treasury',
       accent: scheme.primary,
@@ -646,7 +646,7 @@ class PixelAdventureView extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               const Expanded(child: Text('War chest')),
               Text(
-                money(wc.balanceCents),
+                money(warChest.balanceCents),
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w800,
                       fontFeatures: const [FontFeature.tabularFigures()],
@@ -654,34 +654,34 @@ class PixelAdventureView extends StatelessWidget {
               ),
             ],
           ),
-          if (wc.hasGoal) ...[
+          if (warChest.hasGoal) ...[
             const SizedBox(height: AppSpacing.xs),
             _PixelHpBar(
-              fraction: (wc.pctComplete ?? 0).clamp(0.0, 1.0),
+              fraction: (warChest.pctComplete ?? 0).clamp(0.0, 1.0),
               color: scheme.primary,
             ),
             const SizedBox(height: AppSpacing.xxs),
             Text(
-              '${((wc.pctComplete ?? 0) * 100).round()}% of '
-              '${money(wc.targetCents!)}'
-              '${wc.monthsToGo != null ? ' · ~${wc.monthsToGo} floors' : ''}',
+              '${((warChest.pctComplete ?? 0) * 100).round()}% of '
+              '${money(warChest.targetCents!)}'
+              '${warChest.monthsToGo != null ? ' · ~${warChest.monthsToGo} floors' : ''}',
               style: Theme.of(context)
                   .textTheme
                   .labelSmall
                   ?.copyWith(color: scheme.onSurfaceVariant),
             ),
           ],
-          for (final w in wc.writsForMe) ...[
+          for (final writ in warChest.writsForMe) ...[
             const SizedBox(height: AppSpacing.sm),
-            _WritRow(writ: w, callbacks: callbacks),
+            _WritRow(writ: writ, callbacks: callbacks),
           ],
-          for (final w in wc.writsForOther) ...[
+          for (final writ in warChest.writsForOther) ...[
             const SizedBox(height: AppSpacing.sm),
-            _WritRow(writ: w, callbacks: callbacks),
+            _WritRow(writ: writ, callbacks: callbacks),
           ],
-          for (final l in wc.loans) ...[
+          for (final loan in warChest.loans) ...[
             const SizedBox(height: AppSpacing.sm),
-            _LoanRow(loan: l, callbacks: callbacks),
+            _LoanRow(loan: loan, callbacks: callbacks),
           ],
         ],
       ),
@@ -728,23 +728,23 @@ class PixelAdventureView extends StatelessWidget {
     );
   }
 
-  Widget _logLine(BuildContext context, LogEntry e) {
-    final ts = toneStyle(context, e.tone);
+  Widget _logLine(BuildContext context, LogEntry entry) {
+    final style = toneStyle(context, entry.tone);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(ts.icon, size: 14, color: ts.color),
+          Icon(style.icon, size: 14, color: style.color),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
-              e.line,
+              entry.line,
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    fontWeight: e.tone == LogTone.ransack
+                    fontWeight: entry.tone == LogTone.ransack
                         ? FontWeight.w800
                         : FontWeight.w400,
-                    color: e.tone == LogTone.ransack ? ts.color : null,
+                    color: entry.tone == LogTone.ransack ? style.color : null,
                   ),
             ),
           ),
@@ -786,7 +786,7 @@ class PixelAdventureView extends StatelessWidget {
     );
   }
 
-  Widget _overbudget(BuildContext context, OverbudgetMonster d) {
+  Widget _overbudget(BuildContext context, OverbudgetMonster debt) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -805,7 +805,7 @@ class PixelAdventureView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'THE OVERBUDGET LOOMS — ${d.categoryName.toUpperCase()}',
+                  'THE OVERBUDGET LOOMS — ${debt.categoryName.toUpperCase()}',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.5,
@@ -813,10 +813,10 @@ class PixelAdventureView extends StatelessWidget {
                       ),
                 ),
                 Text(
-                  '${money(d.outstandingCents)} HP remains'
-                  '${d.paidCents > 0 ? ' (${money(d.paidCents)} dealt)' : ''}'
-                  ' · ${d.categoryName} is locked until it falls'
-                  '${d.mine ? '' : ' · ${d.ownerName ?? 'ally'}’s hunt'}',
+                  '${money(debt.outstandingCents)} HP remains'
+                  '${debt.paidCents > 0 ? ' (${money(debt.paidCents)} dealt)' : ''}'
+                  ' · ${debt.categoryName} is locked until it falls'
+                  '${debt.mine ? '' : ' · ${debt.ownerName ?? 'ally'}’s hunt'}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: scheme.onErrorContainer,
                       ),
@@ -829,7 +829,7 @@ class PixelAdventureView extends StatelessWidget {
     );
   }
 
-  Widget _ransack(BuildContext context, RansackBanner r) {
+  Widget _ransack(BuildContext context, RansackBanner ransack) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -857,8 +857,8 @@ class PixelAdventureView extends StatelessWidget {
                       ),
                 ),
                 Text(
-                  '${money(r.excessCents)} raided for ${r.cacheName}'
-                  '${r.purpose.isEmpty ? '' : ' · ${r.purpose}'}',
+                  '${money(ransack.excessCents)} raided for ${ransack.cacheName}'
+                  '${ransack.purpose.isEmpty ? '' : ' · ${ransack.purpose}'}',
                   style: Theme.of(context)
                       .textTheme
                       .bodySmall
@@ -895,8 +895,8 @@ class _FrameStats {
   double get fraction {
     if (!hasLedger || maxHpCents <= 0) return 1;
     final remaining = maxHpCents - damageCents;
-    final f = remaining / maxHpCents;
-    return f < 0 ? 0 : (f > 1 ? 1 : f);
+    final fill = remaining / maxHpCents;
+    return fill < 0 ? 0 : (fill > 1 ? 1 : fill);
   }
 }
 
@@ -1158,7 +1158,7 @@ class _MinimapTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final (bg, fg, border) = switch (status) {
+    final (background, foreground, border) = switch (status) {
       _FloorStatus.current => wounded
           ? (scheme.error, scheme.onError, scheme.error)
           : (scheme.primary, scheme.onPrimary, scheme.primary),
@@ -1178,7 +1178,7 @@ class _MinimapTile extends StatelessWidget {
       height: 22,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: bg,
+        color: background,
         borderRadius: BorderRadius.circular(2),
         border: Border.all(color: border),
       ),
@@ -1190,7 +1190,7 @@ class _MinimapTile extends StatelessWidget {
           fontWeight: status == _FloorStatus.current
               ? FontWeight.w900
               : FontWeight.w600,
-          color: fg,
+          color: foreground,
         ),
       ),
     );
@@ -1387,8 +1387,8 @@ class _PixelHpBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final f = fraction.isNaN ? 0.0 : fraction.clamp(0.0, 1.0);
-    final filled = (f * cells).round();
+    final clamped = fraction.isNaN ? 0.0 : fraction.clamp(0.0, 1.0);
+    final filled = (clamped * cells).round();
     return Row(
       children: [
         for (var i = 0; i < cells; i++)

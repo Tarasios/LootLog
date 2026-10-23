@@ -104,21 +104,21 @@ sealed class GameEvent {
       schemaVersion: json['schemaVersion'] as int? ?? 1,
     );
     final type = json['type'] as String;
-    final p = (json['payload'] as Map).cast<String, dynamic>();
+    final payload = (json['payload'] as Map).cast<String, dynamic>();
     try {
-      return _decode(env, type, p);
+      return _decode(env, type, payload);
     } on UnrecognizedGameValue {
-      return UnknownGameEvent._(env, type, p);
+      return UnknownGameEvent._(env, type, payload);
     }
   }
 
-  static GameEvent _decode(_Envelope env, String type, Map<String, dynamic> p) {
-    final eventId = env.eventId;
-    final deviceId = env.deviceId;
-    final actorId = env.actorId;
-    final occurredAt = env.occurredAt;
-    final createdAt = env.createdAt;
-    final schemaVersion = env.schemaVersion;
+  static GameEvent _decode(_Envelope envelope, String type, Map<String, dynamic> payload) {
+    final eventId = envelope.eventId;
+    final deviceId = envelope.deviceId;
+    final actorId = envelope.actorId;
+    final occurredAt = envelope.occurredAt;
+    final createdAt = envelope.createdAt;
+    final schemaVersion = envelope.schemaVersion;
 
     switch (type) {
       case 'RewardGranted':
@@ -129,14 +129,14 @@ sealed class GameEvent {
           occurredAt: occurredAt,
           createdAt: createdAt,
           schemaVersion: schemaVersion,
-          rewardId: p['rewardId'] as String,
-          kind: p['kind'] as String,
-          gems: p['gems'] as int? ?? 0,
-          materials: _materials(p['materials']),
-          tokens: p['tokens'] as int? ?? 0,
-          reasonCode: p['reasonCode'] as String,
+          rewardId: payload['rewardId'] as String,
+          kind: payload['kind'] as String,
+          gems: payload['gems'] as int? ?? 0,
+          materials: _materials(payload['materials']),
+          tokens: payload['tokens'] as int? ?? 0,
+          reasonCode: payload['reasonCode'] as String,
           sourceLedgerEventIds:
-              (p['sourceLedgerEventIds'] as List?)?.cast<String>() ?? const [],
+              (payload['sourceLedgerEventIds'] as List?)?.cast<String>() ?? const [],
         );
       case 'RewardClaimed':
         return RewardClaimed(
@@ -146,7 +146,7 @@ sealed class GameEvent {
           occurredAt: occurredAt,
           createdAt: createdAt,
           schemaVersion: schemaVersion,
-          rewardId: p['rewardId'] as String,
+          rewardId: payload['rewardId'] as String,
         );
       case 'MaterialsCollected':
         return MaterialsCollected(
@@ -156,8 +156,8 @@ sealed class GameEvent {
           occurredAt: occurredAt,
           createdAt: createdAt,
           schemaVersion: schemaVersion,
-          buildingId: p['buildingId'] as String,
-          amounts: _materials(p['amounts']),
+          buildingId: payload['buildingId'] as String,
+          amounts: _materials(payload['amounts']),
         );
       case 'PlotUnlocked':
         return PlotUnlocked(
@@ -167,8 +167,8 @@ sealed class GameEvent {
           occurredAt: occurredAt,
           createdAt: createdAt,
           schemaVersion: schemaVersion,
-          plotIndex: p['plotIndex'] as int,
-          gemCost: p['gemCost'] as int? ?? 0,
+          plotIndex: payload['plotIndex'] as int,
+          gemCost: payload['gemCost'] as int? ?? 0,
         );
       case 'BuildingStarted':
         return BuildingStarted(
@@ -178,12 +178,12 @@ sealed class GameEvent {
           occurredAt: occurredAt,
           createdAt: createdAt,
           schemaVersion: schemaVersion,
-          plotIndex: p['plotIndex'] as int,
+          plotIndex: payload['plotIndex'] as int,
           buildingType: gameEnumByName(
-              BuildingType.values, p['buildingType'] as String, 'building'),
-          tier: p['tier'] as int,
-          cost: _loot(p['cost']),
-          completesAt: DateTime.parse(p['completesAt'] as String).toUtc(),
+              BuildingType.values, payload['buildingType'] as String, 'building'),
+          tier: payload['tier'] as int,
+          cost: _loot(payload['cost']),
+          completesAt: DateTime.parse(payload['completesAt'] as String).toUtc(),
         );
       case 'GearUpgraded':
         return GearUpgraded(
@@ -193,11 +193,11 @@ sealed class GameEvent {
           occurredAt: occurredAt,
           createdAt: createdAt,
           schemaVersion: schemaVersion,
-          heroId: p['heroId'] as String,
-          slot: p['slot'] as String,
-          gearType: p['gearType'] as String,
-          tier: p['tier'] as int,
-          cost: _loot(p['cost']),
+          heroId: payload['heroId'] as String,
+          slot: payload['slot'] as String,
+          gearType: payload['gearType'] as String,
+          tier: payload['tier'] as int,
+          cost: _loot(payload['cost']),
         );
       case 'HeroCustomized':
         return HeroCustomized(
@@ -207,9 +207,9 @@ sealed class GameEvent {
           occurredAt: occurredAt,
           createdAt: createdAt,
           schemaVersion: schemaVersion,
-          heroId: p['heroId'] as String,
-          field: p['field'] as String,
-          value: p['value'] as String,
+          heroId: payload['heroId'] as String,
+          field: payload['field'] as String,
+          value: payload['value'] as String,
         );
       case 'ExpeditionStarted':
         return ExpeditionStarted(
@@ -219,9 +219,9 @@ sealed class GameEvent {
           occurredAt: occurredAt,
           createdAt: createdAt,
           schemaVersion: schemaVersion,
-          heroId: p['heroId'] as String,
-          region: _region(p['region']),
-          durationMinutes: p['durationMinutes'] as int,
+          heroId: payload['heroId'] as String,
+          region: _region(payload['region']),
+          durationMinutes: payload['durationMinutes'] as int,
         );
       case 'ExpeditionResolved':
         return ExpeditionResolved(
@@ -231,10 +231,10 @@ sealed class GameEvent {
           occurredAt: occurredAt,
           createdAt: createdAt,
           schemaVersion: schemaVersion,
-          heroId: p['heroId'] as String,
-          region: _region(p['region']),
-          loot: _materials(p['loot']),
-          reportLines: (p['reportLines'] as List?)?.cast<String>() ?? const [],
+          heroId: payload['heroId'] as String,
+          region: _region(payload['region']),
+          loot: _materials(payload['loot']),
+          reportLines: (payload['reportLines'] as List?)?.cast<String>() ?? const [],
         );
       case 'ChestGranted':
         return ChestGranted(
@@ -244,10 +244,10 @@ sealed class GameEvent {
           occurredAt: occurredAt,
           createdAt: createdAt,
           schemaVersion: schemaVersion,
-          chestId: p['chestId'] as String,
+          chestId: payload['chestId'] as String,
           chestType: gameEnumByName(
-              ChestType.values, p['chestType'] as String, 'chest type'),
-          reasonCode: p['reasonCode'] as String,
+              ChestType.values, payload['chestType'] as String, 'chest type'),
+          reasonCode: payload['reasonCode'] as String,
         );
       case 'ChestOpened':
         return ChestOpened(
@@ -257,8 +257,8 @@ sealed class GameEvent {
           occurredAt: occurredAt,
           createdAt: createdAt,
           schemaVersion: schemaVersion,
-          chestId: p['chestId'] as String,
-          contents: _loot(p['contents']),
+          chestId: payload['chestId'] as String,
+          contents: _loot(payload['contents']),
         );
       case 'StreakFreezeUsed':
         return StreakFreezeUsed(
@@ -268,7 +268,7 @@ sealed class GameEvent {
           occurredAt: occurredAt,
           createdAt: createdAt,
           schemaVersion: schemaVersion,
-          date: GameDay.parse(p['date'] as String),
+          date: GameDay.parse(payload['date'] as String),
         );
       case 'RitualStepCompleted':
         return RitualStepCompleted(
@@ -278,9 +278,9 @@ sealed class GameEvent {
           occurredAt: occurredAt,
           createdAt: createdAt,
           schemaVersion: schemaVersion,
-          month: Month.parse(p['month'] as String),
+          month: Month.parse(payload['month'] as String),
           step: gameEnumByName(
-              RitualStep.values, p['step'] as String, 'ritual step'),
+              RitualStep.values, payload['step'] as String, 'ritual step'),
         );
       case 'BossFightResolved':
         return BossFightResolved(
@@ -290,11 +290,11 @@ sealed class GameEvent {
           occurredAt: occurredAt,
           createdAt: createdAt,
           schemaVersion: schemaVersion,
-          month: Month.parse(p['month'] as String),
-          bossKey: p['bossKey'] as String,
-          won: p['won'] as bool,
-          turns: p['turns'] as int,
-          rewards: _loot(p['rewards']),
+          month: Month.parse(payload['month'] as String),
+          bossKey: payload['bossKey'] as String,
+          won: payload['won'] as bool,
+          turns: payload['turns'] as int,
+          rewards: _loot(payload['rewards']),
         );
       case 'PartyJoined':
         return PartyJoined(
@@ -304,7 +304,7 @@ sealed class GameEvent {
           occurredAt: occurredAt,
           createdAt: createdAt,
           schemaVersion: schemaVersion,
-          partyId: p['partyId'] as String,
+          partyId: payload['partyId'] as String,
         );
       case 'PartyLeft':
         return PartyLeft(
@@ -314,10 +314,10 @@ sealed class GameEvent {
           occurredAt: occurredAt,
           createdAt: createdAt,
           schemaVersion: schemaVersion,
-          partyId: p['partyId'] as String,
+          partyId: payload['partyId'] as String,
         );
       default:
-        return UnknownGameEvent._(env, type, p);
+        return UnknownGameEvent._(envelope, type, payload);
     }
   }
 }

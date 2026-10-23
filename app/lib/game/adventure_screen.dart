@@ -30,12 +30,12 @@ final customSpriteBlobsProvider =
   if (state == null) return const {};
   final blobs = ref.watch(blobStoreProvider);
   final shas = <String>{
-    for (final m in state.members.values)
-      if (m.customSpriteSha256 != null) m.customSpriteSha256!,
-    for (final q in state.quests.values)
-      if (q.customSpriteSha256 != null) q.customSpriteSha256!,
-    for (final p in state.pets.values)
-      if (p.customSpriteSha256 != null) p.customSpriteSha256!,
+    for (final member in state.members.values)
+      if (member.customSpriteSha256 != null) member.customSpriteSha256!,
+    for (final quest in state.quests.values)
+      if (quest.customSpriteSha256 != null) quest.customSpriteSha256!,
+    for (final pet in state.pets.values)
+      if (pet.customSpriteSha256 != null) pet.customSpriteSha256!,
   };
   final out = <String, Uint8List>{};
   for (final sha in shas) {

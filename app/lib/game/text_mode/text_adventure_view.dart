@@ -95,8 +95,8 @@ class TextAdventureView extends StatelessWidget {
                   children: [
                     _campHeader(context),
                     if (spoilsPending) _spoilsCallout(context),
-                    for (final r in game.warChest.ransacks)
-                      _ransack(context, r),
+                    for (final ransack in game.warChest.ransacks)
+                      _ransack(context, ransack),
                     if (game.overbudgets.isNotEmpty) _overbudgets(context),
                     _dungeonEntrance(context),
                     if (game.questMonsters.isNotEmpty) _questBosses(context),
@@ -178,7 +178,7 @@ class TextAdventureView extends StatelessWidget {
             Text('No adventurers mustered yet.',
                 style: monoStyle(context, color: scheme.onSurfaceVariant))
           else
-            for (final a in game.roster) _rosterLine(context, a),
+            for (final adventurer in game.roster) _rosterLine(context, adventurer),
         ],
       ),
     );
@@ -242,15 +242,15 @@ class TextAdventureView extends StatelessWidget {
     );
   }
 
-  Widget _ransack(BuildContext context, RansackBanner r) {
+  Widget _ransack(BuildContext context, RansackBanner ransack) {
     final scheme = Theme.of(context).colorScheme;
     return TextPanel(
       title: 'The war chest was ransacked!',
       icon: Icons.local_fire_department,
       accent: scheme.error,
       child: Text(
-        '${money(r.excessCents)} was torn from the war chest to cover '
-        '${r.cacheName} (${r.purpose}).',
+        '${money(ransack.excessCents)} was torn from the war chest to cover '
+        '${ransack.cacheName} (${ransack.purpose}).',
         style: monoStyle(context, color: scheme.error),
       ),
     );
@@ -266,20 +266,20 @@ class TextAdventureView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final d in game.overbudgets) ...[
+          for (final debt in game.overbudgets) ...[
             _hpLine(
               context,
-              name: 'OVERBUDGET · ${d.categoryName}',
-              bar: textBar(d.hp.fraction),
-              value: '${money(d.paidCents)} repaid / ${money(d.accruedCents)}',
-              tag: d.mine ? 'yours' : (d.ownerName ?? ''),
+              name: 'OVERBUDGET · ${debt.categoryName}',
+              bar: textBar(debt.hp.fraction),
+              value: '${money(debt.paidCents)} repaid / ${money(debt.accruedCents)}',
+              tag: debt.mine ? 'yours' : (debt.ownerName ?? ''),
               tint: scheme.error,
             ),
             Padding(
               padding: const EdgeInsets.only(left: AppSpacing.lg),
               child: Text(
-                '${d.categoryName} is locked — its funding feeds the beast '
-                'until ${money(d.outstandingCents)} is repaid. Strike it at '
+                '${debt.categoryName} is locked — its funding feeds the beast '
+                'until ${money(debt.outstandingCents)} is repaid. Strike it at '
                 'the spoils.',
                 style: monoStyle(context, color: scheme.onSurfaceVariant),
               ),
@@ -291,9 +291,9 @@ class TextAdventureView extends StatelessWidget {
   }
 
   // ---- Party roster (rendered around the campfire) ------------------------
-  Widget _rosterLine(BuildContext context, Adventurer a) {
+  Widget _rosterLine(BuildContext context, Adventurer adventurer) {
     final scheme = Theme.of(context).colorScheme;
-    final tag = switch (a.role) {
+    final tag = switch (adventurer.role) {
       AdventurerRole.adventurer => 'adventurer',
       AdventurerRole.companion => 'companion',
       AdventurerRole.familiar => 'familiar',
@@ -305,24 +305,24 @@ class TextAdventureView extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(a.isMe ? '▶ ' : '· ',
+              Text(adventurer.isMe ? '▶ ' : '· ',
                   style: monoStyle(context, color: scheme.primary)),
               Flexible(
                 child: Text(
-                  a.name,
+                  adventurer.name,
                   style: monoStyle(context, weight: FontWeight.w700),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              Text('($tag${a.isMe ? ', you' : ''})',
+              Text('($tag${adventurer.isMe ? ', you' : ''})',
                   style: monoStyle(context, color: scheme.onSurfaceVariant)),
             ],
           ),
           Padding(
             padding: const EdgeInsets.only(left: AppSpacing.lg),
             child: Text(
-              a.descriptionText?.isNotEmpty == true
-                  ? a.descriptionText!
+              adventurer.descriptionText?.isNotEmpty == true
+                  ? adventurer.descriptionText!
                   : 'An adventurer whose tale is yet unwritten.',
               style: monoStyle(context, color: scheme.onSurfaceVariant)
                   .copyWith(fontStyle: FontStyle.italic),
@@ -338,7 +338,7 @@ class TextAdventureView extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final empty = game.monsters.isEmpty &&
         game.contracts.isEmpty &&
-        game.party.every((p) => p.monsters.isEmpty && p.contracts.isEmpty);
+        game.party.every((partyMember) => partyMember.monsters.isEmpty && partyMember.contracts.isEmpty);
     return TextPanel(
       title: 'The Dungeon Entrance',
       icon: Icons.grid_view_outlined,
@@ -357,49 +357,49 @@ class TextAdventureView extends StatelessWidget {
                 style: monoStyle(context, color: scheme.onSurfaceVariant),
               ),
             ),
-          for (final m in game.monsters) _monsterLine(context, m),
-          for (final c in game.contracts) _contractLine(context, c),
-          for (final p in game.party)
-            if (p.monsters.isNotEmpty || p.contracts.isNotEmpty) ...[
+          for (final monster in game.monsters) _monsterLine(context, monster),
+          for (final contract in game.contracts) _contractLine(context, contract),
+          for (final partyMember in game.party)
+            if (partyMember.monsters.isNotEmpty || partyMember.contracts.isNotEmpty) ...[
               Padding(
                 padding: const EdgeInsets.only(top: AppSpacing.sm),
-                child: Text('${p.name}\'s charges',
+                child: Text('${partyMember.name}\'s charges',
                     style: monoStyle(context, color: scheme.secondary)),
               ),
-              for (final m in p.monsters) _monsterLine(context, m),
-              for (final c in p.contracts) _contractLine(context, c),
+              for (final monster in partyMember.monsters) _monsterLine(context, monster),
+              for (final contract in partyMember.contracts) _contractLine(context, contract),
             ],
         ],
       ),
     );
   }
 
-  Widget _monsterLine(BuildContext context, Monster m) {
+  Widget _monsterLine(BuildContext context, Monster monster) {
     final scheme = Theme.of(context).colorScheme;
-    final tag = m.enraged
-        ? 'ENRAGED +${money(m.excessCents)}'
-        : (m.defeated ? 'FELLED ✓' : (m.mine ? 'yours' : m.ownerName ?? ''));
+    final tag = monster.enraged
+        ? 'ENRAGED +${money(monster.excessCents)}'
+        : (monster.defeated ? 'FELLED ✓' : (monster.mine ? 'yours' : monster.ownerName ?? ''));
     final tint =
-        m.enraged ? scheme.error : (m.defeated ? scheme.tertiary : null);
+        monster.enraged ? scheme.error : (monster.defeated ? scheme.tertiary : null);
     return _hpLine(
       context,
-      name: m.name,
-      bar: textBar(m.hp.fraction),
-      value: '${money(m.damageCents)} / ${money(m.maxHpCents)}',
+      name: monster.name,
+      bar: textBar(monster.hp.fraction),
+      value: '${money(monster.damageCents)} / ${money(monster.maxHpCents)}',
       tag: tag,
       tint: tint,
     );
   }
 
-  Widget _contractLine(BuildContext context, PartyContract c) {
+  Widget _contractLine(BuildContext context, PartyContract contract) {
     final scheme = Theme.of(context).colorScheme;
     return _hpLine(
       context,
-      name: '${c.name} (party)',
-      bar: textBar(c.hp.fraction),
-      value: '${money(c.damageCents)} / ${money(c.maxHpCents)}',
-      tag: c.enraged ? 'ENRAGED +${money(c.excessCents)}' : 'shared',
-      tint: c.enraged ? scheme.error : scheme.secondary,
+      name: '${contract.name} (party)',
+      bar: textBar(contract.hp.fraction),
+      value: '${money(contract.damageCents)} / ${money(contract.maxHpCents)}',
+      tag: contract.enraged ? 'ENRAGED +${money(contract.excessCents)}' : 'shared',
+      tint: contract.enraged ? scheme.error : scheme.secondary,
     );
   }
 
@@ -448,13 +448,13 @@ class TextAdventureView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final q in game.questMonsters) _questLine(context, q),
+          for (final quest in game.questMonsters) _questLine(context, quest),
         ],
       ),
     );
   }
 
-  Widget _questLine(BuildContext context, QuestMonster q) {
+  Widget _questLine(BuildContext context, QuestMonster quest) {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
@@ -464,26 +464,26 @@ class TextAdventureView extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(q.name,
+                child: Text(quest.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: monoStyle(context, weight: FontWeight.w700)),
               ),
               Text(
-                q.completed ? 'FELLED ✓' : '${q.hp.pct}%',
+                quest.completed ? 'FELLED ✓' : '${quest.hp.pct}%',
                 style: monoStyle(context,
-                    color: q.completed ? scheme.tertiary : scheme.secondary),
+                    color: quest.completed ? scheme.tertiary : scheme.secondary),
               ),
             ],
           ),
           Text(
-            '${textBar(q.hp.fraction)}  '
-            '${money(q.contributedCents)} / ${money(q.targetCents)}',
+            '${textBar(quest.hp.fraction)}  '
+            '${money(quest.contributedCents)} / ${money(quest.targetCents)}',
             style: monoStyle(context,
-                color: q.completed ? scheme.tertiary : scheme.secondary),
+                color: quest.completed ? scheme.tertiary : scheme.secondary),
           ),
-          if (q.descriptionText?.isNotEmpty == true)
-            Text(q.descriptionText!,
+          if (quest.descriptionText?.isNotEmpty == true)
+            Text(quest.descriptionText!,
                 style: monoStyle(context, color: scheme.onSurfaceVariant)
                     .copyWith(fontStyle: FontStyle.italic)),
         ],
@@ -494,7 +494,7 @@ class TextAdventureView extends StatelessWidget {
   // ---- Treasury: gold pouch, war chest, reserve caches --------------------
   Widget _treasury(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final wc = game.warChest;
+    final warChest = game.warChest;
     return TextPanel(
       title: 'The Treasury',
       icon: Icons.savings_outlined,
@@ -511,26 +511,26 @@ class TextAdventureView extends StatelessWidget {
             Text('  (pouch reconciled to zero)',
                 style: monoStyle(context, color: scheme.error)),
           const SizedBox(height: AppSpacing.xs),
-          _kv(context, 'War chest', money(wc.balanceCents)),
-          if (wc.hasGoal)
+          _kv(context, 'War chest', money(warChest.balanceCents)),
+          if (warChest.hasGoal)
             Text(
-              '  ${textBar(wc.pctComplete ?? 0)}  '
-              '${((wc.pctComplete ?? 0) * 100).round()}% of '
-              '${money(wc.targetCents ?? 0)}'
-              '${wc.monthsToGo != null ? ' · ~${wc.monthsToGo} floors' : ''}',
+              '  ${textBar(warChest.pctComplete ?? 0)}  '
+              '${((warChest.pctComplete ?? 0) * 100).round()}% of '
+              '${money(warChest.targetCents ?? 0)}'
+              '${warChest.monthsToGo != null ? ' · ~${warChest.monthsToGo} floors' : ''}',
               style: monoStyle(context, color: scheme.tertiary),
             ),
           if (game.reserveCaches.isNotEmpty ||
-              game.party.any((p) => p.reserveCaches.isNotEmpty)) ...[
+              game.party.any((partyMember) => partyMember.reserveCaches.isNotEmpty)) ...[
             const SizedBox(height: AppSpacing.xs),
             Text('Reserve caches',
                 style: monoStyle(context, color: scheme.onSurfaceVariant)),
-            for (final c in game.reserveCaches)
-              _kv(context, '  · ${c.name}', money(c.balanceCents), subtle: true),
-            for (final p in game.party)
-              for (final c in p.reserveCaches)
-                _kv(context, '  · ${c.name} (${p.name})',
-                    money(c.balanceCents),
+            for (final cache in game.reserveCaches)
+              _kv(context, '  · ${cache.name}', money(cache.balanceCents), subtle: true),
+            for (final partyMember in game.party)
+              for (final cache in partyMember.reserveCaches)
+                _kv(context, '  · ${cache.name} (${partyMember.name})',
+                    money(cache.balanceCents),
                     subtle: true),
           ],
         ],
@@ -547,27 +547,27 @@ class TextAdventureView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final w in game.warChest.writsForMe)
+          for (final writ in game.warChest.writsForMe)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${w.byName} asks ${money(w.amountCents)} for ${w.purpose} '
-                    '→ ${w.destinationLabel}',
+                    '${writ.byName} asks ${money(writ.amountCents)} for ${writ.purpose} '
+                    '→ ${writ.destinationLabel}',
                     style: monoStyle(context),
                   ),
                   Row(
                     children: [
                       TextButton.icon(
-                        onPressed: () => callbacks.onSignWrit?.call(w.proposalId),
+                        onPressed: () => callbacks.onSignWrit?.call(writ.proposalId),
                         icon: const Icon(Icons.check, size: 16),
                         label: const Text('Sign'),
                       ),
                       TextButton.icon(
                         onPressed: () =>
-                            callbacks.onDeclineWrit?.call(w.proposalId),
+                            callbacks.onDeclineWrit?.call(writ.proposalId),
                         icon: const Icon(Icons.close, size: 16),
                         label: const Text('Decline'),
                       ),
@@ -576,9 +576,9 @@ class TextAdventureView extends StatelessWidget {
                 ],
               ),
             ),
-          for (final w in game.warChest.writsForOther)
+          for (final writ in game.warChest.writsForOther)
             Text(
-              'Your writ for ${money(w.amountCents)} (${w.purpose}) awaits '
+              'Your writ for ${money(writ.amountCents)} (${writ.purpose}) awaits '
               'another adventurer\'s signature.',
               style: monoStyle(context, color: scheme.onSurfaceVariant),
             ),
@@ -589,7 +589,7 @@ class TextAdventureView extends StatelessWidget {
 
   Widget _loans(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    String floors(int n) => n == 1 ? 'the next floor' : 'the next $n floors';
+    String floors(int count) => count == 1 ? 'the next floor' : 'the next $count floors';
     return TextPanel(
       title: 'Guild Loans Awaiting a Seal',
       icon: Icons.handshake_outlined,
@@ -597,39 +597,39 @@ class TextAdventureView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final l in game.warChest.loans)
+          for (final loan in game.warChest.loans)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    l.needsMySeal
-                        ? '${l.byName} asks a guild loan of '
-                            '${money(l.amountCents)} against the '
-                            '${l.monsterName} monster, repaid over '
-                            '${floors(l.months)}.'
-                        : 'Your guild loan of ${money(l.amountCents)} '
-                            '(${l.monsterName}, over ${floors(l.months)}) '
+                    loan.needsMySeal
+                        ? '${loan.byName} asks a guild loan of '
+                            '${money(loan.amountCents)} against the '
+                            '${loan.monsterName} monster, repaid over '
+                            '${floors(loan.months)}.'
+                        : 'Your guild loan of ${money(loan.amountCents)} '
+                            '(${loan.monsterName}, over ${floors(loan.months)}) '
                             "awaits another adventurer's seal.",
-                    style: l.needsMySeal
+                    style: loan.needsMySeal
                         ? monoStyle(context)
                         : monoStyle(context, color: scheme.onSurfaceVariant),
                   ),
                   Row(
                     children: [
-                      if (l.needsMySeal)
+                      if (loan.needsMySeal)
                         TextButton.icon(
                           onPressed: () =>
-                              callbacks.onSealLoan?.call(l.advanceId),
+                              callbacks.onSealLoan?.call(loan.advanceId),
                           icon: const Icon(Icons.check, size: 16),
                           label: const Text('Seal'),
                         ),
                       TextButton.icon(
                         onPressed: () =>
-                            callbacks.onCancelLoan?.call(l.advanceId),
+                            callbacks.onCancelLoan?.call(loan.advanceId),
                         icon: const Icon(Icons.close, size: 16),
-                        label: Text(l.needsMySeal ? 'Refuse' : 'Withdraw'),
+                        label: Text(loan.needsMySeal ? 'Refuse' : 'Withdraw'),
                       ),
                     ],
                   ),
@@ -649,27 +649,27 @@ class TextAdventureView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final p in game.provisioning) _provLine(context, p),
+          for (final line in game.provisioning) _provLine(context, line),
         ],
       ),
     );
   }
 
-  Widget _provLine(BuildContext context, ProvisionLine p) {
+  Widget _provLine(BuildContext context, ProvisionLine line) {
     final scheme = Theme.of(context).colorScheme;
     final trailing = <String>[
-      if (p.shared) 'shared' else if (p.ownerName != null) p.ownerName!,
-      if (p.awaitingTally) 'awaiting tally',
-      if (p.isAnnualContract && p.daysUntilDue != null)
-        dueCountdown(p.daysUntilDue!),
-    ].where((s) => s.isNotEmpty).join(' · ');
+      if (line.shared) 'shared' else if (line.ownerName != null) line.ownerName!,
+      if (line.awaitingTally) 'awaiting tally',
+      if (line.isAnnualContract && line.daysUntilDue != null)
+        dueCountdown(line.daysUntilDue!),
+    ].where((part) => part.isNotEmpty).join(' · ');
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
       child: Row(
         children: [
           Expanded(
             child: Text(
-              p.isAnnualContract ? '${p.name} (contract)' : p.name,
+              line.isAnnualContract ? '${line.name} (contract)' : line.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: monoStyle(context),
@@ -682,7 +682,7 @@ class TextAdventureView extends StatelessWidget {
                   style: monoStyle(context, color: scheme.onSurfaceVariant)),
             ),
           Text(
-            '−${money(p.amountCents)}',
+            '−${money(line.amountCents)}',
             style: monoStyle(context, color: scheme.onSurfaceVariant),
           ),
         ],
@@ -709,25 +709,25 @@ class TextAdventureView extends StatelessWidget {
             Text('The tale has not yet begun. Strike a monster to open it.',
                 style: monoStyle(context, color: scheme.onSurfaceVariant))
           else
-            for (final e in log) _logLine(context, e),
+            for (final entry in log) _logLine(context, entry),
         ],
       ),
     );
   }
 
-  Widget _logLine(BuildContext context, LogEntry e) {
-    final ts = toneStyle(context, e.tone);
+  Widget _logLine(BuildContext context, LogEntry entry) {
+    final style = toneStyle(context, entry.tone);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(ts.icon, size: 16, color: ts.color),
+          Icon(style.icon, size: 16, color: style.color),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: Text(e.line,
+            child: Text(entry.line,
                 style: monoStyle(context,
-                    weight: e.tone == LogTone.ransack
+                    weight: entry.tone == LogTone.ransack
                         ? FontWeight.w700
                         : FontWeight.w400)),
           ),
@@ -736,16 +736,16 @@ class TextAdventureView extends StatelessWidget {
     );
   }
 
-  Widget _kv(BuildContext context, String k, String v, {bool subtle = false}) {
+  Widget _kv(BuildContext context, String label, String value, {bool subtle = false}) {
     final scheme = Theme.of(context).colorScheme;
     return Row(
       children: [
         Expanded(
-          child: Text(k,
+          child: Text(label,
               style: monoStyle(context,
                   color: subtle ? scheme.onSurfaceVariant : null)),
         ),
-        Text(v,
+        Text(value,
             style: monoStyle(context,
                 weight: subtle ? FontWeight.w400 : FontWeight.w700,
                 color: subtle ? scheme.onSurfaceVariant : null)),
