@@ -78,8 +78,8 @@ class XlsxWorkbook {
 
   /// Looks a sheet up by tab name, or null when absent.
   XlsxSheet? sheet(String name) {
-    for (final s in sheets) {
-      if (s.name == name) return s;
+    for (final sheet in sheets) {
+      if (sheet.name == name) return sheet;
     }
     return null;
   }

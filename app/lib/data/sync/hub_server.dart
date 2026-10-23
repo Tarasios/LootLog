@@ -120,8 +120,8 @@ class HubServer {
         if (method == 'HEAD') return await _handleGetBlob(sha, head: true);
       }
       return _json(404, {'error': 'not found'});
-    } on FormatException catch (e) {
-      return _json(400, {'error': 'bad request', 'detail': e.message});
+    } on FormatException catch (error) {
+      return _json(400, {'error': 'bad request', 'detail': error.message});
     }
   }
 
@@ -148,7 +148,7 @@ class HubServer {
       return _json(400, {'error': 'events must be a list'});
     }
     final events = <Event>[
-      for (final e in list) Event.fromJson((e as Map).cast<String, dynamic>()),
+      for (final item in list) Event.fromJson((item as Map).cast<String, dynamic>()),
     ];
     await db.eventsDao.appendEvents(events);
     final maxSeq = await db.hubHostDao.assignSeqs();
@@ -180,13 +180,13 @@ class HubServer {
     final List<GameEvent> events;
     try {
       events = [
-        for (final e in list)
-          GameEvent.fromJson((e as Map).cast<String, dynamic>()),
+        for (final item in list)
+          GameEvent.fromJson((item as Map).cast<String, dynamic>()),
       ];
-    } on TypeError catch (e) {
+    } on TypeError catch (error) {
       // A structurally broken envelope (missing or mistyped field). Unknown
       // types and values are fine — they decode as UnknownGameEvent.
-      return _json(400, {'error': 'bad game event', 'detail': '$e'});
+      return _json(400, {'error': 'bad game event', 'detail': '$error'});
     }
     await db.gameEventsDao.appendGameEvents(events);
     final maxSeq = await db.gameSyncDao.assignHostedSeqs();
@@ -213,7 +213,7 @@ class HubServer {
     if (!_isSha256(sha)) {
       return _json(400, {'error': 'blob name must be a sha256'});
     }
-    final bytes = await request.read().expand((c) => c).toList();
+    final bytes = await request.read().expand((chunk) => chunk).toList();
     if (bytes.length > kMaxBlobBytes) {
       return _json(413, {'error': 'blob exceeds 20MB cap'});
     }
@@ -252,7 +252,7 @@ class HubServer {
   bool _isPath(List<String> segments, List<String> want) =>
       segments.length == want.length &&
       List.generate(segments.length, (i) => segments[i] == want[i])
-          .every((b) => b);
+          .every((matches) => matches);
 
   Future<Map<String, dynamic>> _readJson(Request request) async {
     final text = await request.readAsString();
@@ -271,5 +271,5 @@ class HubServer {
       );
 
   static final RegExp _sha256Re = RegExp(r'^[0-9a-f]{64}$');
-  bool _isSha256(String s) => _sha256Re.hasMatch(s.toLowerCase());
+  bool _isSha256(String value) => _sha256Re.hasMatch(value.toLowerCase());
 }

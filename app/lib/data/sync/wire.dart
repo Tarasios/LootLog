@@ -45,15 +45,15 @@ class EventPage {
   final int maxSeq;
 
   Map<String, dynamic> toJson() => {
-        'events': [for (final e in events) e.toJson()],
+        'events': [for (final event in events) event.toJson()],
         'cursor': cursor,
         'maxSeq': maxSeq,
       };
 
   factory EventPage.fromJson(Map<String, dynamic> json) => EventPage(
         events: [
-          for (final e in (json['events'] as List))
-            Event.fromJson((e as Map).cast<String, dynamic>()),
+          for (final eventJson in (json['events'] as List))
+            Event.fromJson((eventJson as Map).cast<String, dynamic>()),
         ],
         cursor: json['cursor'] as int,
         maxSeq: json['maxSeq'] as int,
@@ -76,15 +76,15 @@ class GameEventPage {
   final int maxSeq;
 
   Map<String, dynamic> toJson() => {
-        'events': [for (final e in events) e.toJson()],
+        'events': [for (final event in events) event.toJson()],
         'cursor': cursor,
         'maxSeq': maxSeq,
       };
 
   factory GameEventPage.fromJson(Map<String, dynamic> json) => GameEventPage(
         events: [
-          for (final e in (json['events'] as List))
-            GameEvent.fromJson((e as Map).cast<String, dynamic>()),
+          for (final eventJson in (json['events'] as List))
+            GameEvent.fromJson((eventJson as Map).cast<String, dynamic>()),
         ],
         cursor: json['cursor'] as int,
         maxSeq: json['maxSeq'] as int,

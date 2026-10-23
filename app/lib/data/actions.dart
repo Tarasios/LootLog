@@ -196,7 +196,7 @@ class HouseholdActions {
             : taxDeductible as bool?,
         amendsPurchaseId: old.purchaseId,
       ),
-      for (final r in old.receipts)
+      for (final receipt in old.receipts)
         ReceiptAttached(
           eventId: uuidv7(),
           deviceId: deviceId,
@@ -204,9 +204,9 @@ class HouseholdActions {
           occurredAt: receiptAt,
           createdAt: now,
           purchaseId: newId,
-          sha256: r.sha256,
-          mimeType: r.mimeType,
-          sizeBytes: r.sizeBytes,
+          sha256: receipt.sha256,
+          mimeType: receipt.mimeType,
+          sizeBytes: receipt.sizeBytes,
         ),
     ];
     await _commit(events);
@@ -412,16 +412,16 @@ class HouseholdActions {
     final pending = ungrantedRewards(earned, log);
     if (pending.isEmpty) return const [];
     final events = [
-      for (final r in pending)
+      for (final pendingReward in pending)
         GameRewardGranted(
           eventId: uuidv7(),
           deviceId: deviceId,
           userId: meUserId,
           occurredAt: now,
           createdAt: now,
-          rewardId: r.rewardId,
-          kind: r.kind,
-          sourceRef: r.sourceRef,
+          rewardId: pendingReward.rewardId,
+          kind: pendingReward.kind,
+          sourceRef: pendingReward.sourceRef,
           grantedAt: now,
         ),
     ];

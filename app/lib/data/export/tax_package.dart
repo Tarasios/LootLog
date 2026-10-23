@@ -69,42 +69,42 @@ TaxPackage buildTaxPackage(
 }) {
   final deductibles = [...(state.deductibleByYear[year] ?? const [])];
   // Deterministic order: date, user, slice, amount, then purchaseId tie-break.
-  deductibles.sort((a, b) {
-    final da = _householdDay(a.occurredAt);
-    final db = _householdDay(b.occurredAt);
-    var c = da.compareTo(db);
-    if (c != 0) return c;
-    c = (userNames[a.userId] ?? a.userId)
-        .compareTo(userNames[b.userId] ?? b.userId);
-    if (c != 0) return c;
-    c = a.sliceName.compareTo(b.sliceName);
-    if (c != 0) return c;
-    c = a.amountCents.compareTo(b.amountCents);
-    if (c != 0) return c;
-    return a.purchaseId.compareTo(b.purchaseId);
+  deductibles.sort((first, second) {
+    final firstDay = _householdDay(first.occurredAt);
+    final db = _householdDay(second.occurredAt);
+    var comparison = firstDay.compareTo(db);
+    if (comparison != 0) return comparison;
+    comparison = (userNames[first.userId] ?? first.userId)
+        .compareTo(userNames[second.userId] ?? second.userId);
+    if (comparison != 0) return comparison;
+    comparison = first.sliceName.compareTo(second.sliceName);
+    if (comparison != 0) return comparison;
+    comparison = first.amountCents.compareTo(second.amountCents);
+    if (comparison != 0) return comparison;
+    return first.purchaseId.compareTo(second.purchaseId);
   });
 
   final receipts = <TaxReceiptFile>[];
   final baseCounts = <String, int>{}; // base name -> assigned count so far
   final rows = <List<String>>[];
 
-  for (final d in deductibles) {
-    final date = _householdDay(d.occurredAt);
-    final user = userNames[d.userId] ?? d.userId;
+  for (final deductible in deductibles) {
+    final date = _householdDay(deductible.occurredAt);
+    final user = userNames[deductible.userId] ?? deductible.userId;
     final base = '${date}_'
         '${sanitizeSegment(user, fallback: 'user')}_'
-        '${sanitizeSegment(d.sliceName, fallback: 'slice')}_'
-        '${Money(d.amountCents).format()}';
+        '${sanitizeSegment(deductible.sliceName, fallback: 'slice')}_'
+        '${Money(deductible.amountCents).format()}';
 
     final filenames = <String>[];
-    final shas = [...d.receiptShas]..sort();
+    final shas = [...deductible.receiptShas]..sort();
     for (final sha in shas) {
-      final n = (baseCounts[base] ?? 0) + 1;
-      baseCounts[base] = n;
+      final occurrence = (baseCounts[base] ?? 0) + 1;
+      baseCounts[base] = occurrence;
       final mime =
-          state.purchases[d.purchaseId]?.receipts
+          state.purchases[deductible.purchaseId]?.receipts
                   .firstWhere(
-                    (r) => r.sha256 == sha,
+                    (receipt) => receipt.sha256 == sha,
                     orElse: () => const ReceiptRef(
                       sha256: '',
                       mimeType: 'application/octet-stream',
@@ -113,7 +113,7 @@ TaxPackage buildTaxPackage(
                   )
                   .mimeType ??
               'application/octet-stream';
-      final filename = '${base}_$n.${extensionForMime(mime)}';
+      final filename = '${base}_$occurrence.${extensionForMime(mime)}';
       filenames.add(filename);
       receipts.add(TaxReceiptFile(filename: filename, sha256: sha));
     }
@@ -121,18 +121,18 @@ TaxPackage buildTaxPackage(
     rows.add([
       date,
       user,
-      d.sliceName,
-      d.merchant ?? '',
-      Money(d.amountCents).format(),
-      d.shared ? 'yes' : 'no',
-      d.note ?? '',
+      deductible.sliceName,
+      deductible.merchant ?? '',
+      Money(deductible.amountCents).format(),
+      deductible.shared ? 'yes' : 'no',
+      deductible.note ?? '',
       filenames.join('; '),
     ]);
   }
 
   final csv = StringBuffer()..writeln(_csvRow(kTaxSummaryColumns));
-  for (final r in rows) {
-    csv.writeln(_csvRow(r));
+  for (final row in rows) {
+    csv.writeln(_csvRow(row));
   }
   return TaxPackage(csv: csv.toString(), receipts: receipts);
 }
@@ -150,17 +150,17 @@ Future<Uint8List> writeTaxPackageZip(
     ..addFile(
       ArchiveFile.bytes('summary.csv', utf8.encode(pkg.csv)),
     );
-  for (final r in pkg.receipts) {
-    if (!await blobs.exists(r.sha256)) continue;
-    final bytes = await blobs.read(r.sha256);
-    archive.addFile(ArchiveFile.bytes('receipts/${r.filename}', bytes));
+  for (final receipt in pkg.receipts) {
+    if (!await blobs.exists(receipt.sha256)) continue;
+    final bytes = await blobs.read(receipt.sha256);
+    archive.addFile(ArchiveFile.bytes('receipts/${receipt.filename}', bytes));
   }
   return ZipEncoder().encodeBytes(archive);
 }
 
 String _householdDay(DateTime instant) {
-  final u = instant.toUtc();
-  final local = u.add(vancouverUtcOffset(u));
+  final utc = instant.toUtc();
+  final local = utc.add(vancouverUtcOffset(utc));
   return '${local.year.toString().padLeft(4, '0')}-'
       '${local.month.toString().padLeft(2, '0')}-'
       '${local.day.toString().padLeft(2, '0')}';

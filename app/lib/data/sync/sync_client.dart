@@ -71,9 +71,9 @@ class SyncResult {
 
   final List<HubSyncResult> hubs;
 
-  bool get allOk => hubs.every((h) => h.ok);
-  int get pulled => hubs.fold(0, (a, h) => a + h.pulled);
-  int get pushed => hubs.fold(0, (a, h) => a + h.pushed);
+  bool get allOk => hubs.every((hub) => hub.ok);
+  int get pulled => hubs.fold(0, (sum, hub) => sum + hub.pulled);
+  int get pushed => hubs.fold(0, (sum, hub) => sum + hub.pushed);
 }
 
 /// Drives sync for one device against its paired hubs.
@@ -112,18 +112,18 @@ class SyncClient {
     if (res.status != 200) {
       throw SyncException('pair failed (${res.status}): ${res.text}');
     }
-    final pr = PairResult.fromJson(
+    final pairResult = PairResult.fromJson(
       (jsonDecode(res.text) as Map).cast<String, dynamic>(),
     );
     await db.pairedHubDao.upsert(
       PairedHubRow(
-        hubId: pr.hubId,
+        hubId: pairResult.hubId,
         baseUrl: baseUrl,
-        deviceToken: pr.deviceToken,
+        deviceToken: pairResult.deviceToken,
         name: _hostLabel(baseUrl),
       ),
     );
-    return pr.hubId;
+    return pairResult.hubId;
   }
 
   /// Runs one sync cycle against every paired hub, returning the outcome.
@@ -153,9 +153,9 @@ class SyncClient {
         gamePulled: game.pulled,
         gameSupported: game.supported,
       );
-    } on Object catch (e) {
+    } on Object catch (error) {
       // Silent-but-visible: surface the failure without throwing.
-      return HubSyncResult.failed(hub.hubId, e.toString());
+      return HubSyncResult.failed(hub.hubId, error.toString());
     }
   }
 
@@ -168,12 +168,12 @@ class SyncClient {
       'POST',
       _uri(hub.baseUrl, 'events'),
       token: hub.deviceToken,
-      body: {'events': [for (final e in unpushed) e.toJson()]},
+      body: {'events': [for (final event in unpushed) event.toJson()]},
     );
     if (res.status != 200) {
       throw SyncException('push events failed (${res.status})');
     }
-    await db.syncDao.markPushed(hub.hubId, [for (final e in unpushed) e.eventId]);
+    await db.syncDao.markPushed(hub.hubId, [for (final event in unpushed) event.eventId]);
     return unpushed.length;
   }
 
@@ -217,7 +217,7 @@ class SyncClient {
         // Events pulled from a hub are, by definition, already known to it — so
         // never bounce them back on the next push.
         await db.syncDao
-            .markPushed(hub.hubId, [for (final e in page.events) e.eventId]);
+            .markPushed(hub.hubId, [for (final event in page.events) event.eventId]);
         total += page.events.length;
       }
       await db.syncDao.setPullCursor(hub.hubId, page.cursor);
@@ -261,14 +261,14 @@ class SyncClient {
         'POST',
         _uri(hub.baseUrl, 'game-events'),
         token: hub.deviceToken,
-        body: {'events': [for (final e in unpushed) e.toJson()]},
+        body: {'events': [for (final event in unpushed) event.toJson()]},
       );
       if (res.status == 404) return unsupported;
       if (res.status != 200) {
         throw SyncException('push game events failed (${res.status})');
       }
       await db.gameSyncDao
-          .markPushed(hub.hubId, [for (final e in unpushed) e.eventId]);
+          .markPushed(hub.hubId, [for (final event in unpushed) event.eventId]);
     }
 
     var cursor = await db.gameSyncDao.pullCursor(hub.hubId);
@@ -289,7 +289,7 @@ class SyncClient {
       if (page.events.isNotEmpty) {
         await db.gameEventsDao.appendGameEvents(page.events);
         await db.gameSyncDao
-            .markPushed(hub.hubId, [for (final e in page.events) e.eventId]);
+            .markPushed(hub.hubId, [for (final event in page.events) event.eventId]);
         pulled += page.events.length;
       }
       await db.gameSyncDao.setPullCursor(hub.hubId, page.cursor);
@@ -386,8 +386,8 @@ class SyncClient {
   }
 
   String _hostLabel(String baseUrl) {
-    final u = Uri.tryParse(baseUrl);
-    return u == null ? baseUrl : '${u.host}:${u.port}';
+    final uri = Uri.tryParse(baseUrl);
+    return uri == null ? baseUrl : '${uri.host}:${uri.port}';
   }
 }
 
