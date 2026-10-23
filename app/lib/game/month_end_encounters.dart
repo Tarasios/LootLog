@@ -69,32 +69,32 @@ List<EncounterData> buildEncounters(
   String meUserId,
 ) {
   final out = <EncounterData>[];
-  for (final cfg in state.slices.values) {
-    if (cfg.createdMonth.isAfter(month)) continue;
-    if (!cfg.isGroup && cfg.ownerUserId != meUserId) continue;
-    final sliceMonth = state.sliceMonth(cfg.sliceId, month);
-    final maxHp = sliceMonth?.effectiveLimitCents ?? cfg.baseEffectiveLimitCents;
+  for (final sliceConfig in state.slices.values) {
+    if (sliceConfig.createdMonth.isAfter(month)) continue;
+    if (!sliceConfig.isGroup && sliceConfig.ownerUserId != meUserId) continue;
+    final sliceMonth = state.sliceMonth(sliceConfig.sliceId, month);
+    final maxHp = sliceMonth?.effectiveLimitCents ?? sliceConfig.baseEffectiveLimitCents;
     if (maxHp <= 0 && (sliceMonth?.spentCents ?? 0) <= 0) continue;
 
     // The champion: the linked pet for a pet-owned category, the owner for a
     // personal one, nobody for a plain group category.
-    final petIds = cfg.petOwnerIds.isNotEmpty
-        ? cfg.petOwnerIds
-        : [if (cfg.petId != null) cfg.petId!];
+    final petIds = sliceConfig.petOwnerIds.isNotEmpty
+        ? sliceConfig.petOwnerIds
+        : [if (sliceConfig.petId != null) sliceConfig.petId!];
     final pets = [
       for (final id in petIds)
         if (state.members[id] != null) state.members[id]!,
     ];
     final champion = pets.isNotEmpty
         ? pets.first
-        : (cfg.isGroup ? null : state.members[cfg.ownerUserId]);
+        : (sliceConfig.isGroup ? null : state.members[sliceConfig.ownerUserId]);
 
     out.add(EncounterData(
-      sliceId: cfg.sliceId,
-      name: cfg.name,
+      sliceId: sliceConfig.sliceId,
+      name: sliceConfig.name,
       maxHpCents: maxHp,
       spentCents: sliceMonth?.spentCents ?? 0,
-      isGroup: cfg.isGroup,
+      isGroup: sliceConfig.isGroup,
       championName: pets.isNotEmpty
           ? pets.map((pet) => pet.name).join(' & ')
           : champion?.name,

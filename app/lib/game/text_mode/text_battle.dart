@@ -274,8 +274,8 @@ class _TextBattleViewState extends State<TextBattleView> {
               ),
             ],
             selected: {move},
-            onSelectionChanged: (sel) =>
-                setState(() => _move[leftover.sliceId] = sel.first),
+            onSelectionChanged: (selection) =>
+                setState(() => _move[leftover.sliceId] = selection.first),
           ),
           const SizedBox(height: AppSpacing.sm),
           _outcome(context, leftover, move),
@@ -311,13 +311,13 @@ class _TextBattleViewState extends State<TextBattleView> {
                 onChanged: (value) =>
                     setState(() => _overbudgetChoice[leftover.sliceId] = value),
                 items: [
-                  for (final opt in leftover.overbudgetOptions)
+                  for (final debtOption in leftover.overbudgetOptions)
                     DropdownMenuItem(
-                        value: opt.sliceId,
-                        child: Text(opt.mainCategoryId != null &&
-                                opt.mainCategoryId == leftover.mainCategoryId
-                            ? '${opt.name} (same category, no tithe)'
-                            : opt.name)),
+                        value: debtOption.sliceId,
+                        child: Text(debtOption.mainCategoryId != null &&
+                                debtOption.mainCategoryId == leftover.mainCategoryId
+                            ? '${debtOption.name} (same category, no tithe)'
+                            : debtOption.name)),
                 ],
               ),
             Text(
@@ -378,8 +378,8 @@ class _TextBattleViewState extends State<TextBattleView> {
           return Text('No quest boss to strike.',
               style: monoStyle(context, color: scheme.onSurfaceVariant));
         }
-        final qid = _questChoice[leftover.sliceId] ?? leftover.questOptions.first.questId;
-        final quest = leftover.questOptions.firstWhere((option) => option.questId == qid,
+        final questId = _questChoice[leftover.sliceId] ?? leftover.questOptions.first.questId;
+        final quest = leftover.questOptions.firstWhere((option) => option.questId == questId,
             orElse: () => leftover.questOptions.first);
         final split = previewQuestAttack(
           leftover.leftoverCents,
@@ -391,7 +391,7 @@ class _TextBattleViewState extends State<TextBattleView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             DropdownButton<String>(
-              value: qid,
+              value: questId,
               isDense: true,
               onChanged: (value) =>
                   setState(() => _questChoice[leftover.sliceId] = value),

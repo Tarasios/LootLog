@@ -71,33 +71,33 @@ DungeonState buildDungeonState(
   final petContracts = <String, List<PartyContract>>{};
   var heroHpLost = 0;
 
-  for (final cfg in state.slices.values) {
-    if (cfg.createdMonth.isAfter(month)) continue;
+  for (final sliceConfig in state.slices.values) {
+    if (sliceConfig.createdMonth.isAfter(month)) continue;
     // Visibility toggle: another adult's personal monsters stay off this
     // device's floor (party contracts and everything shared always render).
     if (!includeOtherAdults &&
-        !cfg.isGroup &&
-        cfg.ownerUserId != meUserId) {
+        !sliceConfig.isGroup &&
+        sliceConfig.ownerUserId != meUserId) {
       continue;
     }
-    final sliceMonth = state.sliceMonth(cfg.sliceId, month);
-    final maxHp = sliceMonth?.effectiveLimitCents ?? cfg.baseEffectiveLimitCents;
+    final sliceMonth = state.sliceMonth(sliceConfig.sliceId, month);
+    final maxHp = sliceMonth?.effectiveLimitCents ?? sliceConfig.baseEffectiveLimitCents;
     final damage = sliceMonth?.spentCents ?? 0;
     final excess = sliceMonth?.overspendCents ?? 0;
     heroHpLost += excess;
 
     // A category owned by pets anchors under its first owning pet; the legacy
     // single-pet link keeps working.
-    final petAnchor = cfg.petId ??
-        (cfg.petOwnerIds.isNotEmpty ? cfg.petOwnerIds.first : null);
-    if (cfg.isGroup) {
+    final petAnchor = sliceConfig.petId ??
+        (sliceConfig.petOwnerIds.isNotEmpty ? sliceConfig.petOwnerIds.first : null);
+    if (sliceConfig.isGroup) {
       final petNames = [
-        for (final id in cfg.petOwnerIds)
+        for (final id in sliceConfig.petOwnerIds)
           if (petNameOf(id) != null) petNameOf(id)!,
       ];
       final contract = PartyContract(
-        sliceId: cfg.sliceId,
-        name: cfg.name,
+        sliceId: sliceConfig.sliceId,
+        name: sliceConfig.name,
         maxHpCents: maxHp,
         damageCents: damage,
         excessCents: excess,
@@ -109,19 +109,19 @@ DungeonState buildDungeonState(
         looseContracts.add(contract);
       }
     } else {
-      final mine = cfg.ownerUserId == meUserId;
+      final mine = sliceConfig.ownerUserId == meUserId;
       final monster = Monster(
-        sliceId: cfg.sliceId,
-        name: cfg.name,
+        sliceId: sliceConfig.sliceId,
+        name: sliceConfig.name,
         sprite: SpriteRef.asset(
           excess > 0 ? Sprites.monsterEnraged : Sprites.monster,
-          label: cfg.name,
+          label: sliceConfig.name,
         ),
         maxHpCents: maxHp,
         damageCents: damage,
         excessCents: excess,
         mine: mine,
-        ownerName: nameOf(cfg.ownerUserId ?? ''),
+        ownerName: nameOf(sliceConfig.ownerUserId ?? ''),
       );
       if (petAnchor != null) {
         (petMonsters[petAnchor] ??= []).add(monster);
@@ -282,14 +282,14 @@ DungeonState buildDungeonState(
   }
   // Emergency-fund contributions designated on slices are provisioning too.
   final emergencyByFund = <String, int>{};
-  for (final cfg in state.slices.values) {
-    if (cfg.createdMonth.isAfter(month)) continue;
-    if (cfg.emergencyFundId == null || cfg.emergencyContributionCents <= 0) {
+  for (final sliceConfig in state.slices.values) {
+    if (sliceConfig.createdMonth.isAfter(month)) continue;
+    if (sliceConfig.emergencyFundId == null || sliceConfig.emergencyContributionCents <= 0) {
       continue;
     }
-    emergencyByFund[cfg.emergencyFundId!] =
-        (emergencyByFund[cfg.emergencyFundId!] ?? 0) +
-            cfg.emergencyContributionCents;
+    emergencyByFund[sliceConfig.emergencyFundId!] =
+        (emergencyByFund[sliceConfig.emergencyFundId!] ?? 0) +
+            sliceConfig.emergencyContributionCents;
   }
   for (final entry in emergencyByFund.entries) {
     provisioning.add(ProvisionLine(
@@ -304,12 +304,12 @@ DungeonState buildDungeonState(
 
   // ---- Gold pouch (vault) + projected minting ----------------------------
   var projMint = 0;
-  for (final cfg in state.slices.values) {
-    if (cfg.isGroup || cfg.ownerUserId != meUserId) continue;
-    final sliceMonth = state.sliceMonth(cfg.sliceId, month);
+  for (final sliceConfig in state.slices.values) {
+    if (sliceConfig.isGroup || sliceConfig.ownerUserId != meUserId) continue;
+    final sliceMonth = state.sliceMonth(sliceConfig.sliceId, month);
     final leftover = sliceMonth?.leftoverCents ?? 0;
     if (leftover <= 0) continue;
-    projMint += Money.titheCents(leftover, cfg.poolTithePct).remainderCents;
+    projMint += Money.titheCents(leftover, sliceConfig.poolTithePct).remainderCents;
   }
   final goldPouch = GoldPouch(
     balanceCents: state.vaultOf(meUserId),
@@ -534,7 +534,7 @@ List<LogEntry> buildAdventureLog(
         // One game-voice beat per destination the spoils went to — the log
         // narrates the ritual's outcome, it never re-computes it. Amounts are
         // the event's own gross figures (tithes are the spoils sheet's story).
-        final src = sliceName(event.sliceId).toUpperCase();
+        final sourceName = sliceName(event.sliceId).toUpperCase();
         final mineAlloc = event.forUserId == meUserId;
         var i = 0;
         for (final allocation in event.allocations) {
@@ -542,25 +542,25 @@ List<LogEntry> buildAdventureLog(
           if (allocation.amountCents <= 0) continue;
           final (line, tone) = switch (allocation.destination) {
             QuestDestination(:final questId) => (
-                '${who(event.forUserId)} hurls ${money(allocation.amountCents)} of $src '
+                '${who(event.forUserId)} hurls ${money(allocation.amountCents)} of $sourceName '
                     'loot at the ${questName(questId).toUpperCase()} '
                     'quest boss',
                 LogTone.quest,
               ),
             CarryInSlice() => (
-                '${who(event.forUserId)} banks ${money(allocation.amountCents)} in $src '
+                '${who(event.forUserId)} banks ${money(allocation.amountCents)} in $sourceName '
                     'for the next floor',
                 LogTone.ritual,
               ),
             Discretionary() => (
                 '${who(event.forUserId)} pockets ${money(allocation.amountCents)} of '
-                    '$src loot',
+                    '$sourceName loot',
                 LogTone.ritual,
               ),
             OverbudgetPayment(:final sliceId) => (
                 '${who(event.forUserId)} strikes the '
                     '${sliceName(sliceId).toUpperCase()} OVERBUDGET with '
-                    '${money(allocation.amountCents)} of $src loot',
+                    '${money(allocation.amountCents)} of $sourceName loot',
                 LogTone.strike,
               ),
           };
@@ -674,8 +674,8 @@ Month? _earliestMonth(HouseholdState state) {
     if (earliest == null || month.isBefore(earliest!)) earliest = month;
   }
 
-  for (final cfg in state.slices.values) {
-    consider(cfg.createdMonth);
+  for (final sliceConfig in state.slices.values) {
+    consider(sliceConfig.createdMonth);
   }
   for (final sliceMonth in state.sliceMonths.values) {
     consider(sliceMonth.month);

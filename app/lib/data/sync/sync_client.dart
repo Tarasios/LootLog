@@ -104,16 +104,16 @@ class SyncClient {
   /// Pairs with the hub reachable at [baseUrl] using [pairingSecret], persisting
   /// the returned token so future cycles include this hub. Returns its hubId.
   Future<String> pair(String baseUrl, String pairingSecret) async {
-    final res = await _send(
+    final response = await _send(
       'POST',
       _uri(baseUrl, 'pair'),
       body: {'pairingSecret': pairingSecret, 'deviceName': deviceName},
     );
-    if (res.status != 200) {
-      throw SyncException('pair failed (${res.status}): ${res.text}');
+    if (response.status != 200) {
+      throw SyncException('pair failed (${response.status}): ${response.text}');
     }
     final pairResult = PairResult.fromJson(
-      (jsonDecode(res.text) as Map).cast<String, dynamic>(),
+      (jsonDecode(response.text) as Map).cast<String, dynamic>(),
     );
     await db.pairedHubDao.upsert(
       PairedHubRow(
@@ -164,14 +164,14 @@ class SyncClient {
   Future<int> _pushEvents(PairedHubRow hub) async {
     final unpushed = await db.syncDao.unpushedEventsForHub(hub.hubId);
     if (unpushed.isEmpty) return 0;
-    final res = await _send(
+    final response = await _send(
       'POST',
       _uri(hub.baseUrl, 'events'),
       token: hub.deviceToken,
       body: {'events': [for (final event in unpushed) event.toJson()]},
     );
-    if (res.status != 200) {
-      throw SyncException('push events failed (${res.status})');
+    if (response.status != 200) {
+      throw SyncException('push events failed (${response.status})');
     }
     await db.syncDao.markPushed(hub.hubId, [for (final event in unpushed) event.eventId]);
     return unpushed.length;
@@ -203,14 +203,14 @@ class SyncClient {
     var cursor = await db.syncDao.pullCursor(hub.hubId);
     var total = 0;
     while (true) {
-      final res = await _send('GET',
+      final response = await _send('GET',
           _uri(hub.baseUrl, 'events', {'after': '$cursor', 'limit': '500'}),
           token: hub.deviceToken);
-      if (res.status != 200) {
-        throw SyncException('pull events failed (${res.status})');
+      if (response.status != 200) {
+        throw SyncException('pull events failed (${response.status})');
       }
       final page = EventPage.fromJson(
-        (jsonDecode(res.text) as Map).cast<String, dynamic>(),
+        (jsonDecode(response.text) as Map).cast<String, dynamic>(),
       );
       if (page.events.isNotEmpty) {
         await db.eventsDao.appendEvents(page.events);
@@ -234,13 +234,13 @@ class SyncClient {
     for (final sha in referenced) {
       if (excluded.contains(sha)) continue;
       if (await blobs.exists(sha)) continue;
-      final res = await _sendBytes('GET', _uri(hub.baseUrl, 'blobs/$sha'),
+      final response = await _sendBytes('GET', _uri(hub.baseUrl, 'blobs/$sha'),
           token: hub.deviceToken);
-      if (res.status == 404) continue; // this hub doesn't have it either
-      if (res.status != 200) {
-        throw SyncException('pull blob $sha failed (${res.status})');
+      if (response.status == 404) continue; // this hub doesn't have it either
+      if (response.status != 200) {
+        throw SyncException('pull blob $sha failed (${response.status})');
       }
-      await blobs.save(res.bytes);
+      await blobs.save(response.bytes);
       count++;
     }
     return count;
@@ -257,15 +257,15 @@ class SyncClient {
     const unsupported = (pushed: 0, pulled: 0, supported: false);
     final unpushed = await db.gameSyncDao.unpushedForHub(hub.hubId);
     if (unpushed.isNotEmpty) {
-      final res = await _send(
+      final response = await _send(
         'POST',
         _uri(hub.baseUrl, 'game-events'),
         token: hub.deviceToken,
         body: {'events': [for (final event in unpushed) event.toJson()]},
       );
-      if (res.status == 404) return unsupported;
-      if (res.status != 200) {
-        throw SyncException('push game events failed (${res.status})');
+      if (response.status == 404) return unsupported;
+      if (response.status != 200) {
+        throw SyncException('push game events failed (${response.status})');
       }
       await db.gameSyncDao
           .markPushed(hub.hubId, [for (final event in unpushed) event.eventId]);
@@ -274,17 +274,17 @@ class SyncClient {
     var cursor = await db.gameSyncDao.pullCursor(hub.hubId);
     var pulled = 0;
     while (true) {
-      final res = await _send(
+      final response = await _send(
         'GET',
         _uri(hub.baseUrl, 'game-events', {'after': '$cursor', 'limit': '500'}),
         token: hub.deviceToken,
       );
-      if (res.status == 404) return unsupported;
-      if (res.status != 200) {
-        throw SyncException('pull game events failed (${res.status})');
+      if (response.status == 404) return unsupported;
+      if (response.status != 200) {
+        throw SyncException('pull game events failed (${response.status})');
       }
       final page = GameEventPage.fromJson(
-        (jsonDecode(res.text) as Map).cast<String, dynamic>(),
+        (jsonDecode(response.text) as Map).cast<String, dynamic>(),
       );
       if (page.events.isNotEmpty) {
         await db.gameEventsDao.appendGameEvents(page.events);
@@ -333,10 +333,10 @@ class SyncClient {
   Future<bool> fetchBlob(String sha) async {
     for (final hub in await db.pairedHubDao.all()) {
       try {
-        final res = await _sendBytes('GET', _uri(hub.baseUrl, 'blobs/$sha'),
+        final response = await _sendBytes('GET', _uri(hub.baseUrl, 'blobs/$sha'),
             token: hub.deviceToken);
-        if (res.status == 200) {
-          await blobs.save(res.bytes);
+        if (response.status == 200) {
+          await blobs.save(response.bytes);
           return true;
         }
       } on Object {
@@ -358,26 +358,26 @@ class SyncClient {
 
   Future<_Res> _send(String method, Uri uri,
       {String? token, Map<String, dynamic>? body}) async {
-    final req = await _http.openUrl(method, uri);
-    if (token != null) req.headers.set('authorization', 'Bearer $token');
+    final request = await _http.openUrl(method, uri);
+    if (token != null) request.headers.set('authorization', 'Bearer $token');
     if (body != null) {
-      req.headers.contentType = ContentType.json;
-      req.add(utf8.encode(jsonEncode(body)));
+      request.headers.contentType = ContentType.json;
+      request.add(utf8.encode(jsonEncode(body)));
     }
-    final resp = await req.close();
+    final resp = await request.close();
     final text = await resp.transform(utf8.decoder).join();
     return _Res(resp.statusCode, text, const []);
   }
 
   Future<_Res> _sendBytes(String method, Uri uri,
       {String? token, List<int>? bytes}) async {
-    final req = await _http.openUrl(method, uri);
-    if (token != null) req.headers.set('authorization', 'Bearer $token');
+    final request = await _http.openUrl(method, uri);
+    if (token != null) request.headers.set('authorization', 'Bearer $token');
     if (bytes != null) {
-      req.headers.contentType = ContentType.binary;
-      req.add(bytes);
+      request.headers.contentType = ContentType.binary;
+      request.add(bytes);
     }
-    final resp = await req.close();
+    final resp = await request.close();
     final out = <int>[];
     await for (final chunk in resp) {
       out.addAll(chunk);

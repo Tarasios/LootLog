@@ -68,12 +68,12 @@ class HubServer {
   /// Ensures the hub identity exists (generating it once) before serving.
   Future<void> ready() async {
     if (_ready) return;
-    final cfg = await db.hubHostDao.ensureConfig(
+    final hubConfig = await db.hubHostDao.ensureConfig(
       hubId: _pinnedHubId,
       pairingSecret: _pinnedPairingSecret,
     );
-    hubId = cfg.hubId;
-    pairingSecret = cfg.pairingSecret;
+    hubId = hubConfig.hubId;
+    pairingSecret = hubConfig.pairingSecret;
     await db.hubHostDao.assignSeqs();
     await db.gameSyncDao.assignHostedSeqs();
     _ready = true;

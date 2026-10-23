@@ -145,12 +145,12 @@ Future<Uint8List> writeTaxPackageZip(
   required Map<String, String> userNames,
   required BlobStore blobs,
 }) async {
-  final pkg = buildTaxPackage(state, year: year, userNames: userNames);
+  final taxPackage = buildTaxPackage(state, year: year, userNames: userNames);
   final archive = Archive()
     ..addFile(
-      ArchiveFile.bytes('summary.csv', utf8.encode(pkg.csv)),
+      ArchiveFile.bytes('summary.csv', utf8.encode(taxPackage.csv)),
     );
-  for (final receipt in pkg.receipts) {
+  for (final receipt in taxPackage.receipts) {
     if (!await blobs.exists(receipt.sha256)) continue;
     final bytes = await blobs.read(receipt.sha256);
     archive.addFile(ArchiveFile.bytes('receipts/${receipt.filename}', bytes));

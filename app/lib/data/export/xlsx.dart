@@ -203,10 +203,10 @@ String _sheetXml(XlsxSheet sheet) {
 
 String _rowXml(int rowNum, List<XlsxCell> cells) {
   final buffer = StringBuffer('<row r="$rowNum">');
-  for (var col = 0; col < cells.length; col++) {
-    final cell = cells[col];
+  for (var column = 0; column < cells.length; column++) {
+    final cell = cells[column];
     if (cell.isBlank && !cell.bold) continue;
-    final ref = '${_columnName(col)}$rowNum';
+    final ref = '${_columnName(column)}$rowNum';
     final style = cell.bold ? ' s="1"' : '';
     if (cell.isNumber) {
       buffer.write('<c r="$ref"$style><v>${_text(cell.value)}</v></c>');

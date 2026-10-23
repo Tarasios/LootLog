@@ -95,7 +95,7 @@ sealed class GameEvent {
 
   /// Reconstructs an event from its JSON envelope.
   static GameEvent fromJson(Map<String, dynamic> json) {
-    final env = _Envelope(
+    final envelope = _Envelope(
       eventId: json['eventId'] as String,
       deviceId: json['deviceId'] as String,
       actorId: json['actorId'] as String,
@@ -106,9 +106,9 @@ sealed class GameEvent {
     final type = json['type'] as String;
     final payload = (json['payload'] as Map).cast<String, dynamic>();
     try {
-      return _decode(env, type, payload);
+      return _decode(envelope, type, payload);
     } on UnrecognizedGameValue {
-      return UnknownGameEvent._(env, type, payload);
+      return UnknownGameEvent._(envelope, type, payload);
     }
   }
 
@@ -825,15 +825,15 @@ class PartyLeft extends GameEvent {
 /// naming a value added by a newer release. Kept verbatim so it is stored,
 /// relayed and exported unchanged; the projection ignores it.
 class UnknownGameEvent extends GameEvent {
-  UnknownGameEvent._(_Envelope env, this.type, Map<String, dynamic> rawPayload)
+  UnknownGameEvent._(_Envelope envelope, this.type, Map<String, dynamic> rawPayload)
       : _payload = rawPayload,
         super(
-          eventId: env.eventId,
-          deviceId: env.deviceId,
-          actorId: env.actorId,
-          occurredAt: env.occurredAt,
-          createdAt: env.createdAt,
-          schemaVersion: env.schemaVersion,
+          eventId: envelope.eventId,
+          deviceId: envelope.deviceId,
+          actorId: envelope.actorId,
+          occurredAt: envelope.occurredAt,
+          createdAt: envelope.createdAt,
+          schemaVersion: envelope.schemaVersion,
         );
 
   @override

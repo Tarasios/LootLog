@@ -119,11 +119,11 @@ class Money implements Comparable<Money> {
   /// Formats as a plain decimal string with exactly two fractional digits,
   /// e.g. `1234 -> "12.34"`, `-5 -> "-0.05"`. No currency symbol or grouping.
   String format() {
-    final neg = cents < 0;
+    final negative = cents < 0;
     final magnitude = cents.abs();
     final dollars = magnitude ~/ 100;
     final remainder = magnitude % 100;
-    final sign = neg ? '-' : '';
+    final sign = negative ? '-' : '';
     return '$sign$dollars.${remainder.toString().padLeft(2, '0')}';
   }
 

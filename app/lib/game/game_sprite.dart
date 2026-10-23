@@ -41,9 +41,9 @@ int spriteFrameCount(String assetName) {
 /// frames laid out horizontally across an image of [imageSize].
 Rect spriteFrameSrc(Size imageSize, int frameCount, int frameIndex) {
   final count = frameCount <= 0 ? 1 : frameCount;
-  final idx = frameIndex % count;
+  final frame = frameIndex % count;
   final frameWidth = imageSize.width / count;
-  return Rect.fromLTWH(frameWidth * idx, 0, frameWidth, imageSize.height);
+  return Rect.fromLTWH(frameWidth * frame, 0, frameWidth, imageSize.height);
 }
 
 /// Resolves a [SpriteRef] to an [ImageProvider], or null when the art is not
@@ -301,9 +301,9 @@ class _SpritePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final imageSize =
         Size(image.width.toDouble(), image.height.toDouble());
-    final src = spriteFrameSrc(imageSize, frameCount, frameIndex);
-    final dst = Offset.zero & size;
-    canvas.drawImageRect(image, src, dst, _paint);
+    final sourceRect = spriteFrameSrc(imageSize, frameCount, frameIndex);
+    final destinationRect = Offset.zero & size;
+    canvas.drawImageRect(image, sourceRect, destinationRect, _paint);
   }
 
   @override

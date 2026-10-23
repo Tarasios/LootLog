@@ -108,11 +108,11 @@ String _targetLabel(
     case EmergencyCharge(:final fundId):
       return state.emergencyFunds[fundId]?.name ?? fundId;
     case VacationCharge(:final vacationId, :final categoryId):
-      final vac = state.vacations[vacationId];
-      final cat = vac?.categories
+      final vacation = state.vacations[vacationId];
+      final cat = vacation?.categories
           .where((category) => category.categoryId == categoryId)
           .firstOrNull;
-      final vacName = vac?.name ?? vacationId;
+      final vacName = vacation?.name ?? vacationId;
       final catName = cat?.name ?? categoryId;
       return 'Vacation: $vacName / $catName';
   }

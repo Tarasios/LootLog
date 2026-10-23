@@ -38,9 +38,9 @@ class BlobStore {
     if (!await file.exists()) {
       await root.create(recursive: true);
       // Write to a temp file then rename, so a reader never sees a partial blob.
-      final tmp = File('${file.path}.tmp-$pid');
-      await tmp.writeAsBytes(bytes, flush: true);
-      await tmp.rename(file.path);
+      final tempFile = File('${file.path}.tmp-$pid');
+      await tempFile.writeAsBytes(bytes, flush: true);
+      await tempFile.rename(file.path);
     }
     return sha;
   }

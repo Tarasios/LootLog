@@ -106,26 +106,27 @@ MonthReport buildMonthReport(
   final rows = <ReportCategoryRow>[];
   final spendByMain = <String, int>{}; // resolved main-category id -> cents
 
-  for (final cfg in state.slices.values) {
-    if (cfg.createdMonth.isAfter(month)) continue;
-    if (userId != null && (cfg.isGroup || cfg.ownerUserId != userId)) {
+  for (final sliceConfig in state.slices.values) {
+    if (sliceConfig.createdMonth.isAfter(month)) continue;
+    if (userId != null &&
+        (sliceConfig.isGroup || sliceConfig.ownerUserId != userId)) {
       continue;
     }
 
-    final sliceMonth = state.sliceMonth(cfg.sliceId, month);
+    final sliceMonth = state.sliceMonth(sliceConfig.sliceId, month);
     final budgeted =
-        sliceMonth?.effectiveLimitCents ?? cfg.baseEffectiveLimitCents;
+        sliceMonth?.effectiveLimitCents ?? sliceConfig.baseEffectiveLimitCents;
     final spent = sliceMonth?.spentCents ?? 0;
     final leftover =
         sliceMonth?.leftoverCents ?? (budgeted > spent ? budgeted - spent : 0);
 
     rows.add(
       ReportCategoryRow(
-        categoryId: cfg.sliceId,
-        name: cfg.name,
-        mainCategoryId: cfg.mainCategoryId,
-        isGroup: cfg.isGroup,
-        ownerUserId: cfg.ownerUserId,
+        categoryId: sliceConfig.sliceId,
+        name: sliceConfig.name,
+        mainCategoryId: sliceConfig.mainCategoryId,
+        isGroup: sliceConfig.isGroup,
+        ownerUserId: sliceConfig.ownerUserId,
         budgetedCents: budgeted,
         spentCents: spent,
         leftoverCents: leftover,
@@ -133,7 +134,7 @@ MonthReport buildMonthReport(
     );
 
     if (spent > 0) {
-      final resolved = _resolveMain(state, cfg.mainCategoryId).id;
+      final resolved = _resolveMain(state, sliceConfig.mainCategoryId).id;
       spendByMain[resolved] = (spendByMain[resolved] ?? 0) + spent;
     }
   }
