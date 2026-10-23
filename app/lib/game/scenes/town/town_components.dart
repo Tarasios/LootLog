@@ -97,7 +97,13 @@ class KeyedSprite extends PositionComponent {
   Future<void> onLoad() async {
     final sprite = atlas.spriteFor(assetKey);
     if (sprite != null) {
-      add(SpriteComponent(sprite: sprite, size: size));
+      add(
+        SpriteComponent(
+          sprite: sprite,
+          size: size,
+          paint: Paint()..filterQuality = FilterQuality.none,
+        ),
+      );
       return;
     }
     add(

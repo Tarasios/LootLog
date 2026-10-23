@@ -105,4 +105,18 @@ void main() {
       expect(label.position.y, TownLayout.footprint * 16 + 1);
     },
   );
+  testWithGame<TownGame>(
+    'the camera snaps to whole screen pixels so tiles never shimmer',
+    buildGame,
+    (game) async {
+      await game.ready();
+      game.cameraControls.zoomTo(3);
+      game.cameraControls.panByScreen(-1, -2);
+      game.update(0);
+      final position = game.camera.viewfinder.position;
+      expect(position.x * 3, closeTo((position.x * 3).roundToDouble(), 1e-3));
+      expect(position.y * 3, closeTo((position.y * 3).roundToDouble(), 1e-3));
+      expect(position.x, isNot(game.cameraControls.centerX));
+    },
+  );
 }

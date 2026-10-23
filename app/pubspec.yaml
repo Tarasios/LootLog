@@ -64,8 +64,9 @@ dev_dependencies:
   # Codegen for Riverpod and drift.
   build_runner: ^2.15.0
   drift_dev: ^2.34.0
-  # Strict recommended lint set (configured in analysis_options.yaml).
+  # Flame component and game tests.
   flame_test: ^2.3.1
+  # Strict recommended lint set (configured in analysis_options.yaml).
   flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter

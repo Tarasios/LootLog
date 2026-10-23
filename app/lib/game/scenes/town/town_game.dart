@@ -132,9 +132,19 @@ class TownGame extends FlameGame {
     _syncCamera();
   }
 
+  /// Rounds a world coordinate to a whole screen pixel at the current zoom,
+  /// so tiles never straddle pixels (no seams or shimmer while panning).
+  double _snapToScreenPixel(double worldCoordinate) {
+    final zoom = cameraControls.zoom;
+    return (worldCoordinate * zoom).roundToDouble() / zoom;
+  }
+
   void _syncCamera() {
     camera.viewfinder
       ..zoom = cameraControls.zoom.toDouble()
-      ..position = Vector2(cameraControls.centerX, cameraControls.centerY);
+      ..position = Vector2(
+        _snapToScreenPixel(cameraControls.centerX),
+        _snapToScreenPixel(cameraControls.centerY),
+      );
   }
 }
