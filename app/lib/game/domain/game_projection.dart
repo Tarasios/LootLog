@@ -277,6 +277,9 @@ void _apply(_GameStateDraft draft, GameEvent event) {
       }
       draft.put(person.copyWith(partyId: null));
 
+    case ItemAcquired() || ItemPurchased() || ItemPlaced() || ItemStored() || ItemEquipped():
+      return;
+
     case UnknownGameEvent _:
       return;
   }
