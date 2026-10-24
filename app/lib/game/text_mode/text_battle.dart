@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import '../../domain/money.dart';
 import '../../domain/value_types.dart';
 import '../../features/spoils/spoils_model.dart';
+import '../../features/spoils/spoils_move.dart';
 import '../../features/spoils/spoils_sheet.dart';
 import '../../ui/format.dart';
 import '../../ui/theme.dart';
@@ -81,47 +82,17 @@ class _TextBattleViewState extends State<TextBattleView> {
     return leftover.overbudgetOptions.isNotEmpty ? leftover.overbudgetOptions.first : null;
   }
 
-  List<Allocation> _allocationsFor(SliceLeftover leftover) {
-    switch (_move[leftover.sliceId]!) {
-      case _Move.carry:
-        return [
-          Allocation(
-              destination: const CarryInSlice(), amountCents: leftover.leftoverCents),
-        ];
-      case _Move.pouch:
-        return [
-          Allocation(
-              destination: const Discretionary(),
-              amountCents: leftover.leftoverCents),
-        ];
-      case _Move.attack:
-        final questId = _questChoice[leftover.sliceId];
-        return [
-          Allocation(
-            destination:
-                questId == null ? const Discretionary() : QuestDestination(questId),
-            amountCents: leftover.leftoverCents,
-          ),
-        ];
-      case _Move.smite:
-        final option = _chosenOverbudget(leftover);
-        if (option == null) {
-          return [
-            Allocation(
-                destination: const Discretionary(),
-                amountCents: leftover.leftoverCents),
-          ];
-        }
-        // The whole leftover goes in as one blow; the reducer tithes it
-        // (unless the categories match), pays no more than the debt, and
-        // pockets the rest — the OVERBUDGET never takes more than it needs.
-        return [
-          Allocation(
-              destination: OverbudgetPayment(option.sliceId),
-              amountCents: leftover.leftoverCents),
-        ];
-    }
-  }
+  /// The battle's selection for [leftover] as the shared month-end choice.
+  SpoilsChoice _choiceFor(SliceLeftover leftover) => SpoilsChoice(
+        switch (_move[leftover.sliceId]!) {
+          _Move.smite => SpoilsMove.debt,
+          _Move.carry => SpoilsMove.carry,
+          _Move.attack => SpoilsMove.goal,
+          _Move.pouch => SpoilsMove.bank,
+        },
+        questId: _questChoice[leftover.sliceId],
+        overbudgetSliceId: _overbudgetChoice[leftover.sliceId],
+      );
 
   void _confirm() {
     final tallies = <TallyResult>[
@@ -135,7 +106,7 @@ class _TextBattleViewState extends State<TextBattleView> {
       for (final leftover in widget.ritual.sliceLeftovers)
         SliceAllocationResult(
           sliceId: leftover.sliceId,
-          allocations: _allocationsFor(leftover),
+          allocations: allocationsForChoice(leftover, _choiceFor(leftover)),
         ),
     ];
     widget.onConfirm(SpoilsResult(tallies: tallies, allocations: allocations));

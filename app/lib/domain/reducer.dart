@@ -12,6 +12,7 @@ library;
 import 'event.dart';
 import 'money.dart';
 import 'pools.dart';
+import 'ritual_order.dart';
 import 'state.dart';
 import 'time.dart';
 import 'value_types.dart';

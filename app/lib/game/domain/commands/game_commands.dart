@@ -20,6 +20,9 @@ import '../../config/balance.dart';
 import '../../config/narration.dart';
 import '../clock.dart';
 import '../content.dart';
+import '../decor/catalog.dart';
+import '../decor/chest_decor.dart';
+import '../decor/decor_values.dart';
 import '../game_event.dart';
 import '../game_event_stamp.dart';
 import '../game_rng.dart';
@@ -75,6 +78,10 @@ enum GameRejection {
   /// No such chest waits unopened for the actor.
   unknownChest,
 
+  /// The decoration catalogue has not loaded yet, so a chest opened now
+  /// would lose its decoration for good. Try again in a moment.
+  catalogNotReady,
+
   /// No such reward waits unclaimed for the actor.
   unknownReward,
 
@@ -123,11 +130,44 @@ enum GameRejection {
   /// The month's boss has been fought.
   bossAlreadyFought,
 
+  /// The month-end dungeon was already finished: its spoils are home.
+  ritualAlreadyFinished,
+
   /// Already in that party.
   alreadyInParty,
 
   /// Not in any party.
   notInParty,
+
+  /// No catalogue item has that id.
+  unknownItem,
+
+  /// The item is not in today's shop.
+  notInShopToday,
+
+  /// The person has no available copy of the item.
+  itemNotOwned,
+
+  /// Another item already covers one of the cells.
+  cellOccupied,
+
+  /// The item would stick out of the room or off the town's free grass.
+  outOfBounds,
+
+  /// Room items go in rooms, town decorations and statues in town.
+  wrongSpace,
+
+  /// No such placement.
+  unknownPlacement,
+
+  /// Only a room's owner rearranges it.
+  notYourRoom,
+
+  /// Only outfits and titles can be worn.
+  notEquippable,
+
+  /// The starter set was already handed out.
+  starterAlreadyClaimed,
 }
 
 /// What a command decided: the events to append, or why not.
@@ -162,12 +202,17 @@ class GameCommands {
     required this.clock,
     required this.actorId,
     required this.stamp,
+    this.catalog = DecorCatalog.empty,
   });
 
   final GameState state;
   final Clock clock;
   final String actorId;
   final GameEventStamp stamp;
+
+  /// The decoration catalogue chests roll their decoration from. Empty (the
+  /// default) means chests hold gems and tokens only.
+  final DecorCatalog catalog;
 
   late final DateTime _now = clock.now();
   HallState get _hall => state.hall;
@@ -291,6 +336,12 @@ class GameCommands {
       tokens = 0;
       gems += Balance.tokenOverflowGems;
     }
+    final drop = rollChestDecor(rng, type, catalog,
+        alreadyOwned: (item) => item.placeableInTown
+            ? state.decor.townOwned.containsKey(item.id)
+            : state.decor.ownedCount(actorId, item.id) > 0);
+    gems += drop.duplicateGems;
+    final droppedItem = drop.item;
     return _accept([
       ChestOpened(
         eventId: env.id,
@@ -301,6 +352,18 @@ class GameCommands {
         chestId: chestId,
         contents: Loot(gems: gems, tokens: tokens),
       ),
+      if (droppedItem != null)
+        ItemAcquired(
+          eventId: stamp.newEventId(),
+          deviceId: stamp.deviceId,
+          actorId: actorId,
+          occurredAt: _now,
+          createdAt: _now,
+          acquisitionId: chestId,
+          itemId: droppedItem.id,
+          source: DecorSource.chest,
+          toTown: droppedItem.placeableInTown,
+        ),
     ]);
   }
 
@@ -474,6 +537,10 @@ class GameCommands {
   /// (reconcile, review, plan, contribute), once each, for a month that has
   /// ended and is at most [Balance.ritualOpenMonths] back. The UI calls this
   /// when the person finishes that step's screen.
+  ///
+  /// Kept for log compatibility: the month-end dungeon replaced the four-step
+  /// ritual, so no UI calls this any more. The projection still reads the
+  /// events older devices wrote.
   GameCommandResult completeRitualStep(Month month, RitualStep step) {
     final current = Month.fromInstant(_now);
     if (!month.isBefore(current)) {
@@ -513,6 +580,9 @@ class GameCommands {
   /// from the ledger), plus a random spread. A win adds
   /// [Balance.bossWinRewards]. Win or lose, the spoils chest is granted: the
   /// ritual earned it, and losing is never a punishment.
+  ///
+  /// Kept for log compatibility: the seasonal boss is retired, so no UI calls
+  /// this any more. The projection still reads the events older devices wrote.
   GameCommandResult fightBoss(Month month, {int loggedDays = 0}) {
     final progress = _me.ritual[month];
     if (progress == null || !progress.steps.containsAll(RitualStep.values)) {
@@ -566,6 +636,46 @@ class GameCommands {
       ));
     }
     return _accept(events);
+  }
+
+  /// The month-end dungeon was completed for [month]: the spoils chest, plus
+  /// bonus gems for on-time rituals and hero gear. Cosmetic loot only — the
+  /// money moved through the ledger's own allocations before this runs.
+  GameCommandResult finishMonthRitual(Month month, {required int onTimeRitualMonths}) {
+    final chestId = spoilsChestId(actorId, month);
+    if (_me.seenChestIds.contains(chestId)) {
+      return _reject(GameRejection.ritualAlreadyFinished);
+    }
+    final cappedMonths = onTimeRitualMonths.clamp(0, Balance.ritualBonusMaxOnTimeMonths);
+    final bonusGems = cappedMonths * Balance.ritualBonusGemsPerOnTimeMonth +
+        _me.hero.power * Balance.ritualBonusGemsPerHeroPower;
+    return _accept([
+      ChestGranted(
+        eventId: stamp.newEventId(),
+        deviceId: stamp.deviceId,
+        actorId: actorId,
+        occurredAt: _now,
+        createdAt: _now,
+        chestId: chestId,
+        chestType: ChestType.spoils,
+        reasonCode: GameReasonCodes.ritualSpoils,
+      ),
+      if (bonusGems > 0)
+        RewardGranted(
+          eventId: stamp.newEventId(),
+          deviceId: stamp.deviceId,
+          actorId: actorId,
+          occurredAt: _now,
+          createdAt: _now,
+          rewardId: '${GameReasonCodes.ritualBonus}:$actorId:${month.toKey()}',
+          kind: 'gems',
+          gems: bonusGems,
+          materials: const MaterialBundle.empty(),
+          tokens: 0,
+          reasonCode: GameReasonCodes.ritualBonus,
+          sourceLedgerEventIds: const [],
+        ),
+    ]);
   }
 
   // ---- Party --------------------------------------------------------------------

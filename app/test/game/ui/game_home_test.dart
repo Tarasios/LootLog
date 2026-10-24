@@ -1,11 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/domain/time.dart';
+import 'package:lootlog/game/domain/commands/game_commands.dart'
+    show spoilsChestId;
+import 'package:lootlog/game/domain/decor/catalog.dart';
 import 'package:lootlog/game/domain/game_event.dart';
 import 'package:lootlog/game/domain/game_values.dart';
 import 'package:lootlog/game/game_sprite.dart';
 import 'package:lootlog/game/skin_prefs.dart';
+import 'package:lootlog/game/ui/decor/room_screen.dart';
+import 'package:lootlog/game/ui/decor/shop_screen.dart';
+import 'package:lootlog/game/ui/dungeon/dungeon_screen.dart';
 import 'package:lootlog/game/ui/game_home.dart';
+import 'package:lootlog/game/ui/habit_actions.dart';
+import 'package:lootlog/game/ui/town/town_decor_text_screen.dart';
 
 import 'hall_harness.dart';
 
@@ -14,6 +24,12 @@ List<String> visibleText(WidgetTester tester) => [
       for (final w in tester.widgetList<Text>(find.byType(Text)))
         w.data ?? w.textSpan?.toPlainText() ?? '',
     ];
+
+/// Habit actions whose ledger write fails.
+class ThrowingHabits extends FakeHabits {
+  @override
+  Future<bool> checkInNoSpend() async => throw StateError('disk full');
+}
 
 void main() {
   testWidgets('the hall home renders every section in the text tier with no '
@@ -39,7 +55,8 @@ void main() {
     expect(find.text('Unlock: 20 gems'), findsOneWidget);
     expect(find.text('Wood chest'), findsOneWidget);
     expect(find.text('Showed up today'), findsOneWidget);
-    expect(find.textContaining('2 of 4 steps done'), findsOneWidget);
+    expect(find.textContaining('the dungeon below the town gate is open'),
+        findsOneWidget);
     expect(find.text('Log a purchase'), findsOneWidget);
     // Sprites fall back to their text cards: no image is ever decoded.
     expect(find.byType(TextSpriteCard), findsWidgets);
@@ -62,6 +79,35 @@ void main() {
       expect(copy, isNot(contains(word)), reason: 'found "$word"');
     }
     expect(copy, contains('streak: start a fresh one today'));
+  });
+
+  testWidgets('the ritual callout opens the month-end dungeon',
+      (tester) async {
+    await pumpHall(tester, store: await storeWith(sampleEvents()));
+    await tester.tap(find.text('Enter the dungeon'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(DungeonScreen), findsOneWidget);
+  });
+
+  testWidgets('finished months hide the ritual callout and clear the place '
+      'tile', (tester) async {
+    await pumpHall(tester, store: await storeWith(sampleEvents()));
+    expect(find.text('2 months ready for the dungeon'), findsOneWidget);
+
+    await pumpHall(tester,
+        store: await storeWith([
+          ...sampleEvents(),
+          for (final month in [Month(2026, 8), Month(2026, 9)])
+            chestGranted('spoils-${month.toKey()}', spoilsChestId(robin, month),
+                ChestType.spoils,
+                when: before(const Duration(hours: 1))),
+        ]));
+    expect(find.textContaining('the dungeon below the town gate is open'),
+        findsNothing);
+    expect(find.text('Enter the dungeon'), findsNothing);
+    expect(find.text('All done for now. The next one opens when the month ends.'),
+        findsOneWidget);
   });
 
   testWidgets('"Log a purchase" opens quick entry in one tap', (tester) async {
@@ -90,6 +136,19 @@ void main() {
     expect(habits.checkIns, 1);
     expect(find.text('Today already counts'), findsOneWidget);
     expect(find.byType(SnackBar), findsOneWidget);
+  });
+
+  testWidgets('a check-in that fails says so calmly and is ready to retry',
+      (tester) async {
+    await pumpHall(tester,
+        store: await storeWith(const []), habits: ThrowingHabits());
+    await tester.tap(find.text('No spend today'));
+    await settle(tester);
+    final button = tester.widget<OutlinedButton>(find.ancestor(
+        of: find.text('No spend today'),
+        matching: find.byWidgetPredicate((w) => w is OutlinedButton)));
+    expect(button.onPressed, isNotNull);
+    expect(find.text(kHabitSaveFailedNote), findsOneWidget);
   });
 
   testWidgets('a covered day disables the check-in', (tester) async {
@@ -141,6 +200,27 @@ void main() {
     expect(find.text('Wood chest'), findsNothing);
   });
 
+  testWidgets('the Open button waits, labelled, until the decorations have '
+      'loaded', (tester) async {
+    final store = await storeWith(sampleEvents());
+    final catalogLoading = Completer<DecorCatalog>();
+    await pumpHall(tester,
+        store: store, decorCatalog: catalogLoading.future);
+    expect(find.widgetWithText(FilledButton, 'Open'), findsNothing);
+    final waiting = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Unpacking…'));
+    expect(waiting.onPressed, isNull);
+
+    catalogLoading.complete(kShippedCatalog);
+    await settle(tester);
+    expect(find.widgetWithText(FilledButton, 'Unpacking…'), findsNothing);
+    expect(
+        tester
+            .widget<FilledButton>(find.widgetWithText(FilledButton, 'Open'))
+            .onPressed,
+        isNotNull);
+  });
+
   testWidgets('claiming a reward credits it and says so', (tester) async {
     final store = await storeWith(sampleEvents());
     await pumpHall(tester, store: store);
@@ -180,5 +260,44 @@ void main() {
         find.text('Nothing waiting. Log something and see what turns up.'),
         findsOneWidget);
     expect(MaterialKind.values, isNotEmpty);
+  });
+
+  testWidgets('the places list reaches the shop, your room, the wardrobe and '
+      'the town decorations in the text tier', (tester) async {
+    await pumpHall(tester, store: await storeWith(sampleEvents()));
+    for (final place in [
+      'Shop',
+      'Your room',
+      'Wardrobe',
+      'Town decorations',
+    ]) {
+      expect(find.text(place), findsOneWidget, reason: place);
+    }
+    await tester.ensureVisible(find.text('Shop'));
+    await tester.tap(find.text('Shop'));
+    await settle(tester);
+    expect(find.byType(ShopScreen), findsOneWidget);
+    await tester.pageBack();
+    await settle(tester);
+
+    await tester.ensureVisible(find.text('Your room'));
+    await tester.tap(find.text('Your room'));
+    await settle(tester);
+    expect(find.byType(RoomScreen), findsOneWidget);
+    expect(find.byKey(const ValueKey('room-text')), findsOneWidget);
+    await tester.pageBack();
+    await settle(tester);
+
+    await tester.ensureVisible(find.text('Town decorations'));
+    await tester.tap(find.text('Town decorations'));
+    await settle(tester);
+    expect(find.byType(TownDecorTextScreen), findsOneWidget);
+    await tester.pageBack();
+    await settle(tester);
+
+    await tester.ensureVisible(find.text('Wardrobe'));
+    await tester.tap(find.text('Wardrobe'));
+    await settle(tester);
+    expect(find.textContaining('Outfits from the shop'), findsOneWidget);
   });
 }

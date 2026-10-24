@@ -1,0 +1,23 @@
+{
+  "gateOpen": ["The dungeon gate stands open. Last month's leftovers are yours to wield."],
+  "gateClosed": ["The gate is sealed until the month turns. Keep logging — every coin you don't spend becomes a weapon."],
+  "upkeep": ["The gatekeeper tallies the upkeep before you descend."],
+  "weaponReady": ["{name} gleams with {amount}. Where will you strike?"],
+  "hitGoal": ["{amount} lands on {target}!", "{target} staggers — {amount} closer!"],
+  "hitDebt": ["{amount} strikes the OVERBUDGET on {target}!"],
+  "taxFlies": ["{amount} flies to the war chest."],
+  "bank": ["{amount} goes into your pouch for later."],
+  "carry": ["{amount} stays with {name} for next month."],
+  "bossFalls": ["{target} falls! The goal is yours."],
+  "victory": ["The party climbs back to town with the spoils."],
+  "noLeftovers": ["Nothing left over this month — and that's fine. Every budget did its job."],
+  "chestWaiting": ["A spoils chest waits in your inbox."],
+  "bonusOnTime": ["Bonus: {gems} gems. On-time month-end streak: {months}."],
+  "bonusGear": ["Bonus: {gems} gems, thanks to your hero's gear."],
+  "dividedNoChest": ["Your leftovers are divided."],
+  "headBack": ["Head back to town"],
+  "saveFailed": ["The spoils couldn't be saved just now. Nothing is lost, so please try again."],
+  "chestPending": ["Your leftovers are divided and saved. The spoils chest got stuck at the gate; try again now to bring it home."],
+  "nothingToDivide": ["Nothing left to divide for {month} — the party returns with the spoils."],
+  "returnPending": ["The spoils chest got stuck at the gate. Try again now to bring it home."]
+}

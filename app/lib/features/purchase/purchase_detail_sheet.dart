@@ -25,6 +25,7 @@ import '../../domain/state.dart';
 import '../../domain/value_types.dart';
 import '../../ui/theme.dart';
 import '../entry/expense_entry_view.dart' show formatMoney;
+import '../ocr/scan_issue_copy.dart';
 import '../settings/play_mode_providers.dart';
 
 /// Shows the detail sheet for [purchaseId]. It tracks live state, so an edit
@@ -421,6 +422,7 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
   /// Flow (b): after attaching a receipt to an existing purchase, offer a
   /// non-blocking "use scanned total?" suggestion — but only when OCR is
   /// available and the scanned total actually differs from the recorded amount.
+  /// When the scan cannot suggest a total, a snackbar says why in plain words.
   Future<void> _maybeSuggestScannedTotal(
     PurchaseState purchase,
     List<_PickedFile> picks,
@@ -433,24 +435,31 @@ class _PurchaseDetailSheetState extends ConsumerState<PurchaseDetailSheet> {
     );
     if (image.path == null) return;
 
-    try {
-      final scan = await ocr.scanImageFile(image.path!);
-      final total = scan.bestTotalCents;
-      if (total == null || total == purchase.amountCents || !mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Receipt scanned ${formatMoney(total)}'),
-          action: SnackBarAction(
-            label: 'Use total',
-            onPressed: () => _run(
-              (actions) => actions.amendPurchase(purchase, amountCents: total),
-            ),
+    final outcome = await ocr.scanImageFile(image.path!);
+    if (!mounted) return;
+    final total = outcome.scan.bestTotalCents;
+    if (total == null) {
+      // The receipt is already attached; just say plainly why no total came
+      // back, so a broken scanner is never invisible.
+      final problem = attachedScanProblemLine(outcome);
+      if (problem != null) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(problem)));
+      }
+      return;
+    }
+    if (total == purchase.amountCents) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Receipt scanned ${formatMoney(total)}'),
+        action: SnackBarAction(
+          label: 'Use total',
+          onPressed: () => _run(
+            (actions) => actions.amendPurchase(purchase, amountCents: total),
           ),
         ),
-      );
-    } on Object {
-      // A failed scan is silent — the receipt is already attached.
-    }
+      ),
+    );
   }
 
   /// Picks receipt files: camera/gallery on mobile, a file dialog on desktop.

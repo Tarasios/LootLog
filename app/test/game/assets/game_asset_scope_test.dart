@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lootlog/game/assets/art_source.dart';
 import 'package:lootlog/game/assets/asset_catalog.dart';
+import 'package:lootlog/game/assets/asset_key.dart';
 import 'package:lootlog/game/assets/asset_registry.dart';
 import 'package:lootlog/game/assets/game_asset_scope.dart';
 import 'package:lootlog/game/domain/game_values.dart';
@@ -23,6 +25,14 @@ void main() {
     final registry = await loadGameAssetRegistry();
     expect(registry.fileFor(GameAssetKeys.dungeonMonster),
         'monster_idle_4f.png');
+  });
+
+  test('loadGameAssetRegistry loads the regions of every bundled pack', () async {
+    final registry = await loadGameAssetRegistry();
+    final grass = registry.artFor(const AssetKey('town', 'ground', 'grass'));
+    expect(grass, isA<ArtRegion>());
+    expect((grass! as ArtRegion).region.sheetPath,
+        'packs/tiny_town/tilemap_packed.png');
   });
 
   testWidgets('AdventureSpriteScope passes the device tier and registry down',

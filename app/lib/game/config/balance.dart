@@ -95,6 +95,47 @@ abstract final class Balance {
   /// [maxFreezeTokens]: a full pouch never wastes a find.
   static const int tokenOverflowGems = 5;
 
+  // ---- Decorations from chests and milestones ---------------------------------
+
+  /// Chance (per mille) that a chest holds a decoration. The month-end spoils
+  /// chest always does.
+  static const Map<ChestType, int> chestDecorChancePermille = {
+    ChestType.wood: 350,
+    ChestType.party: 450,
+    ChestType.iron: 500,
+    ChestType.gold: 650,
+    ChestType.spoils: 1000,
+  };
+
+  /// Of a decoration drop: chance it is rare, then chance it is uncommon;
+  /// otherwise it is common.
+  static const Map<ChestType, int> chestRareChancePermille = {
+    ChestType.wood: 20,
+    ChestType.party: 40,
+    ChestType.iron: 50,
+    ChestType.gold: 100,
+    ChestType.spoils: 150,
+  };
+  static const Map<ChestType, int> chestUncommonChancePermille = {
+    ChestType.wood: 200,
+    ChestType.party: 300,
+    ChestType.iron: 300,
+    ChestType.gold: 400,
+    ChestType.spoils: 450,
+  };
+
+  /// Gems a duplicate decoration turns into, so no drop is ever wasted.
+  static const int duplicateDecorGems = 5;
+
+  /// Consecutive active days that unlock a title and an exclusive decoration.
+  static const List<int> streakMilestoneDays = [7, 30, 100];
+
+  static const Map<int, List<String>> streakMilestoneItemIds = {
+    7: ['streak_7_title', 'streak_7_item'],
+    30: ['streak_30_title', 'streak_30_item'],
+    100: ['streak_100_title', 'streak_100_item'],
+  };
+
   // ---- Plots --------------------------------------------------------------
 
   /// Hall plots unlocked before any `PlotUnlocked` event (indices
@@ -387,11 +428,24 @@ abstract final class Balance {
   /// ritual is what earns it, never the fight's outcome).
   static final Loot bossWinRewards = Loot(materials: _m(trophy: 1));
 
+  // ---- Month-end ritual bonus (cosmetic loot only) ---------------------------
+
+  /// Gems per consecutive on-time month-end ritual, capped.
+  static const int ritualBonusGemsPerOnTimeMonth = 3;
+  static const int ritualBonusMaxOnTimeMonths = 6;
+
+  /// Gems per point of hero gear power.
+  static const int ritualBonusGemsPerHeroPower = 1;
+
   // ---- Month-end and Vault rewards -----------------------------------------
 
   /// How many closed months back month-end rewards are still granted
   /// (bounds the catch-up over an existing ledger).
   static const int monthEndLookbackMonths = 2;
+
+  /// A reached goal earns a custom trophy (its own picture) when it took at
+  /// least this many month-end rituals — consistency, never a dollar amount.
+  static const int customTrophyMinRituals = 2;
 
   /// The gold chest is a bonus for a personal category that ended a closed
   /// month at or under its limit — but only for someone who logged on at
@@ -415,4 +469,13 @@ abstract final class Balance {
     6: 30,
     12: 60,
   };
+
+  // ---- Daily shop -----------------------------------------------------------
+
+  /// Items in the daily shop.
+  static const int shopSlotCount = 6;
+
+  /// The first slot always holds an item at or under this price, so there is
+  /// a small win every day.
+  static const int shopCheapMaxPriceGems = 10;
 }

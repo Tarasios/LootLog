@@ -17,14 +17,12 @@ extension _SpoilsRitual on _HouseholdStateBuilder {
     Map<String, int> carryOut,
   ) {
     final ritualOrder = figures.toList()
-      ..sort((first, second) {
-        final byPriority = _ritualRank(
-          first.config.priority,
-        ).compareTo(_ritualRank(second.config.priority));
-        return byPriority != 0
-            ? byPriority
-            : first.config.sliceId.compareTo(second.config.sliceId);
-      });
+      ..sort(
+        (first, second) => compareRitualOrder(
+          (priority: first.config.priority, sliceId: first.config.sliceId),
+          (priority: second.config.priority, sliceId: second.config.sliceId),
+        ),
+      );
     final graceDeadline = month.endInstantUtc().add(
       Duration(days: settings.spoilsGraceDays),
     );
@@ -233,10 +231,3 @@ extension _SpoilsRitual on _HouseholdStateBuilder {
     return lines;
   }
 }
-
-/// Resolution order in the ritual: fun first, necessities last.
-int _ritualRank(SlicePriority priority) => switch (priority) {
-  SlicePriority.fun => 0,
-  SlicePriority.important => 1,
-  SlicePriority.necessity => 2,
-};

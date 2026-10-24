@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lootlog/game/config/balance.dart';
 import 'package:lootlog/game/domain/commands/game_commands.dart';
 import 'package:lootlog/game/domain/reason_codes.dart';
 import 'package:lootlog/game/ui/hall_voice.dart';
@@ -26,7 +25,7 @@ void main() {
     }
   });
 
-  test('every reward reason code and seasonal boss has a name', () {
+  test('every reward reason code has a name', () {
     for (final code in [
       GameReasonCodes.dailyLog,
       GameReasonCodes.noSpendCheckIn,
@@ -38,15 +37,21 @@ void main() {
       GameReasonCodes.streakToken,
       GameReasonCodes.caravan,
       GameReasonCodes.ritualSpoils,
+      GameReasonCodes.ritualBonus,
       GameReasonCodes.monthGold,
       GameReasonCodes.vaultQuest,
       GameReasonCodes.vaultSavingsStreak,
     ]) {
       expect(voice.reasons[code], isNotNull, reason: code);
     }
-    for (final boss in Balance.bosses.values) {
-      expect(voice.bossNames[boss.key], isNotNull, reason: boss.key);
+  });
+
+  test('the dungeon entrance sets are in the file, and built in when not', () {
+    for (final name in HallVoice.fallbacks.keys) {
+      expect(voice.sets[name], isNotEmpty, reason: name);
+      expect(HallVoice.empty.line(name), HallVoice.fallbacks[name], reason: name);
     }
+    expect(HallVoice.empty.line('dungeonCalloutButton'), isNotEmpty);
   });
 
   test('nothing shames, blames or punishes', () {
@@ -78,19 +83,11 @@ void main() {
     }
   });
 
-  test('every losing line still promises the spoils', () {
-    for (final line in voice.sets['bossLoss']!) {
-      final l = line.toLowerCase();
-      expect(l.contains('spoils') || l.contains('chest'), isTrue,
-          reason: line);
-    }
-  });
-
   test('picks are stable for a seed and fill placeholders', () {
-    final a = voice.line('bossWin', seed: 'evt-1', fill: {'boss': 'Wyrm'});
-    final b = voice.line('bossWin', seed: 'evt-1', fill: {'boss': 'Wyrm'});
+    final a = voice.line('chestOpened', seed: 'evt-1', fill: {'chest': 'Wood chest'});
+    final b = voice.line('chestOpened', seed: 'evt-1', fill: {'chest': 'Wood chest'});
     expect(a, b);
-    expect(a, isNot(contains('{boss}')));
+    expect(a, isNot(contains('{chest}')));
     expect(voice.line('no-such-set'), '');
     expect(HallVoice.empty.rejection(GameRejection.notEnoughGems), isNotEmpty);
   });

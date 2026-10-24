@@ -5,6 +5,13 @@ that is fine — this document is written so you never have to guess. Every rule
 here exists so that whatever you draw *drops straight into the app and works*,
 even if you only ever finish one sprite.
 
+**Where things stand.** LootLog ships with real, free art: three CC0 packs by
+Kenney (Tiny Town, Tiny Dungeon and Roguelike Indoors, see §10) draw the town,
+the rooms and the month-end dungeon, so new devices open on pixel art. Your
+work *replaces or adds to* that art one key at a time: drop a PNG named after a
+key (§3) and it overrides the pack's picture for that key. Nothing here is
+required.
+
 Two things to hold onto before we start:
 
 1. **The art is a skin, never the game's brain.** LootLog is a real budgeting
@@ -61,23 +68,22 @@ Rules of thumb:
 
 ---
 
-## 2. Sizes — exactly two
-
-You only ever draw at two canvas sizes. That is the whole size system.
+## 2. Sizes — one tile, one portrait
 
 | Purpose | Canvas | Used for |
 |---------|--------|----------|
-| **Base sprite** | **32 × 32 px** | Monsters, quest bosses, coins, trophies, the pet/familiar on the floor, item icons — everything that lives *in* the dungeon. |
-| **Portrait** | **48 × 48 px** | Party-member face frames only (the adventurer/companion/familiar portraits along the edge of the screen). |
+| **Base tile** | **16 × 16 px** | Everything in the town, rooms and dungeon: ground, trees, buildings, furniture, characters, monsters, chests, items. |
+| **Portrait** | **48 × 48 px** | Party-member face frames only (the adventurer/companion/familiar portraits). |
 
-That's it. No other sizes. If something feels like it wants to be bigger (a boss,
-a homestead), draw it at 32×32 anyway and let the app scale it up in whole steps
-(see §4). Backgrounds are the one exception, noted in the backlog.
+Bigger things are whole multiples of the tile: a house or a bed is a
+**2 × 2** or **1 × 2** block of tiles (32×32, 16×32), exactly as the Kenney
+packs draw them. Draw those as one PNG of the full size. Backgrounds and
+9-slice panels are the other exceptions (§5, backlog).
 
-> **Why 32, not 16?** 32×32 gives a first-timer room to read shapes and add a
-> little shading without fighting for every pixel, while still being small enough
-> to finish. Every sprite the app references is authored on a 32×32 (or 48×48
-> portrait) grid.
+> **Why 16?** The bundled packs are 16×16 tile sets, so art you draw on the
+> same grid sits next to them without looking out of scale. (Older notes in
+> this guide said 32×32; the guild-hall and legacy dungeon files in §6–§9 that
+> are already 32×32 keep working and are scaled by the same whole-number rule.)
 
 ---
 
@@ -101,10 +107,9 @@ square frames in a single PNG, and the filename says how many frames:
 <name>_<N>f.png
 ```
 
-- `N` = number of frames. `monster_idle_4f.png` is a 4-frame strip, so the PNG is
-  **128 × 32** (four 32×32 frames left-to-right). `coin_spin_6f.png` is
-  **192 × 32**.
-- A **still** sprite uses `_1f`, e.g. `trophy_1f.png` (a single 32×32 frame).
+- `N` = number of frames. A 4-frame strip of 16×16 tiles is **64 × 16**; the
+  legacy `monster_idle_4f.png` is 4 frames of 32×32 (**128 × 32**).
+- A **still** sprite uses `_1f`, e.g. `trophy_1f.png` (a single frame).
 - Frames are square and equal: frame width = image width ÷ N = image height.
 - You can *always* start with `_1f` and add animation later by widening the strip
   and renaming — nothing else changes.
@@ -122,7 +127,9 @@ dots, `category.subject.variant.state`. For example:
 | `region.subscription_swamp.banner.idle` | the Subscription Swamp's banner |
 
 To ship art for a key, **name the PNG exactly after the key, plus the frame
-suffix**, and drop it straight into `app/assets/game/` (not a subfolder):
+suffix**, and drop it straight into `app/assets/game/` (not a subfolder). If the
+key is also mapped in a pack (§10), your PNG wins: an artist's file overrides
+the pack picture for that key.
 
 ```
 building.lumberyard.t2.idle_4f.png     (a 4-frame strip)
@@ -155,10 +162,10 @@ render through the exact same pixelated pipeline as your assets.
 
 The app **never** blurs your pixels. It draws every sprite with
 `FilterQuality.none` and only ever magnifies by **whole numbers** — 2×, 3×, 4× —
-never 1.5× or 2.3×. A 32×32 sprite shown at 3× is exactly 96×96 crisp pixels.
+never 1.5× or 2.3×. A 16×16 tile shown at 3× is exactly 48×48 crisp pixels.
 
-What this means for you: **draw at the true 32×32 (or 48×48) grid, one pixel per
-pixel.** Do not pre-scale, do not add anti-aliasing / soft edges, do not export at
+What this means for you: **draw at the true 16×16 tile grid (or 48×48 for
+portraits), one pixel per pixel.** Do not pre-scale, do not add anti-aliasing / soft edges, do not export at
 2×. The app handles all magnification. Soft/feathered edges will look muddy once
 magnified; hard single-pixel edges stay sharp.
 
@@ -206,8 +213,15 @@ missing panel is invisible-but-graceful, never a crash.
 
 ## 6. The first ten assets (draw them in this order)
 
-This is your prioritised worklist. Each one, dropped in, visibly improves the
-main screen. Do them top to bottom; stop whenever you like — every sprite above
+> **Legacy list.** These are the original dungeon-dashboard priorities, drawn at
+> 32×32. The pack art now covers the town, rooms and dungeon, so a better first
+> list today is the distinctive things in §10: `hero.portrait.default.idle`
+> (48×48), `building.central_hall.t1.idle`, `town.house.default.idle`,
+> `boss.overbudget.default.idle`, `chest.wood.closed.idle` and
+> `furniture.bed.default.idle`.
+
+This is the original prioritised worklist. Each one, dropped in, visibly improves
+the main screen. Do them top to bottom; stop whenever you like — every sprite above
 where you stop is already live in the app.
 
 | # | File | Size / kind | What it is |
@@ -285,7 +299,8 @@ done), `confetti_8f.png` (streak milestone).
 
 Every game surface renders at three tiers, decided **per asset, at runtime**:
 
-1. **Full pixel art** — your PNG exists and is drawn (this guide's target look).
+1. **Full pixel art** — your PNG or a pack region exists and is drawn (the
+   default look).
 2. **Partial** — a *specific* sprite is missing, so *that one* falls back to its
    text card (a tiny ASCII emblem with its name, e.g. a `/\` roof over
    "Lumberyard T2"); older dungeon sprites fall back to a labelled grey card.
@@ -369,3 +384,123 @@ the §6–§7 files: `dungeon.hero.a.idle`, `dungeon.hero.b.idle`,
 `dungeon.scroll_seal.default.idle`, `dungeon.supplies.default.idle`,
 `dungeon.writ.default.idle`. Not yet drawn: `dungeon.overbudget.default.idle`,
 `dungeon.campfire.default.idle`.
+
+---
+
+## 10. Packs, regions and the town, room and dungeon keys
+
+### The bundled packs (all CC0)
+
+Three sprite sheets by Kenney (kenney.nl), released under Creative Commons Zero
+(public domain; credit is appreciated but not required). Each lives in
+`app/assets/game/packs/<pack>/` with its `License.txt`:
+
+| Pack | Folder | Draws |
+|------|--------|-------|
+| Tiny Town | `tiny_town` | The town: ground, trees, buildings, plots, the dungeon gate, townsfolk, town decorations. |
+| Tiny Dungeon | `tiny_dungeon` | The month-end dungeon: floor, walls, torches, goal bosses, the OVERBUDGET, heroes, chests. |
+| Roguelike Indoors | `roguelike_indoors` | The decoratable rooms: floors, walls, furniture. |
+
+### `regions.json` — keys to sheet cells
+
+Every pack folder holds a `regions.json` that maps asset keys to cells of its
+sheet:
+
+```json
+{
+  "sheet": "tilemap_packed.png",
+  "cellSize": 16,
+  "spacing": 0,
+  "regions": {
+    "town.tree.default.idle": [4, 0],
+    "town.house.default.idle": [0, 6, 2, 2]
+  }
+}
+```
+
+- `cellSize` is the tile size in pixels (16) and `spacing` the gap between
+  neighbouring tiles on the sheet (0 for Tiny Town and Tiny Dungeon, 1 for
+  Roguelike Indoors).
+- A region is `[column, row]` for one tile, or `[column, row, columns, rows]`
+  for a block of tiles (the 2×2 house above). Columns and rows count from 0 at
+  the top left.
+- A malformed entry is skipped, so one typo never hides the whole pack.
+
+To find a cell, run the grid helper. It writes a 4× copy of the sheet with every
+cell labelled `column,row`:
+
+```
+cd app
+dart run tool/pack_grid.dart assets/game/packs/tiny_town/tilemap_packed.png 16 0 grid.png
+```
+
+(arguments: sheet, cell size, spacing, output image). Read the labels off
+`grid.png` and add or change a line in `regions.json`; no code change is
+needed.
+
+### An artist's PNG overrides the pack
+
+Lookup for a key walks the usual fallback chain (§3). At each step a PNG named
+after the key (`town.tree.default.idle_1f.png` in `app/assets/game/`) beats the
+pack region for the same key, and a region beats nothing. If neither exists, the
+key renders as its text card, and text tier never decodes any image.
+
+### Key list — town (Tiny Town)
+
+`town.ground.grass.idle`, `town.ground.path.idle`, `town.ground.water.idle`,
+`town.ground.square.idle`, `town.tree.default.idle`, `town.bush.default.idle`,
+`town.fence.default.idle`, `town.gate.dungeon.idle` (the month-end dungeon
+gate), `town.house.default.idle` (your house), `town.wagon.default.idle` (the
+supply caravan), `town.scaffold.default.idle` (a building under construction),
+`town.plot.empty.idle`, `town.plot.locked.idle`.
+
+Town decorations (placed in the town): `town_decor.flowerbed.default.idle`,
+`town_decor.lamp_post.default.idle`, `town_decor.bench.default.idle`,
+`town_decor.well.default.idle`, `town_decor.well.fountain.idle`,
+`town_decor.statue.default.idle` (a completed goal becomes a statue).
+
+Buildings: `building.<building>.t<1-5>.idle` for every building in §9
+(Central Hall, Scribe's Desk, Storehouse, Forge, Vault, Lumberyard, Quarry,
+Mine, Herb Garden, Hunter's Lodge, Arcane Well), typically 2×2 tiles.
+
+People: `npc.villager.a.idle`, `npc.villager.b.idle`, `npc.pet.default.idle`,
+`hero.body.default.idle` and the outfit bodies `hero.body.knight.idle`,
+`hero.body.ranger.idle`, `hero.body.rogue.idle`, `hero.body.wizard.idle`.
+
+### Key list — rooms (Roguelike Indoors)
+
+Room shell: `room.floor.wood.idle`, `room.wall.default.idle`.
+
+Furniture and decorations (each is a catalogue item, see below):
+`furniture.armchair.default.idle`, `furniture.bed.default.idle`,
+`furniture.bed.canopy.idle`, `furniture.bookshelf.default.idle`,
+`furniture.chair.default.idle`, `furniture.clock.default.idle`,
+`furniture.desk.default.idle`, `furniture.lamp.default.idle`,
+`furniture.lamp.crown.idle`, `furniture.lamp.ember.idle`,
+`furniture.painting.default.idle`, `furniture.painting.banner.idle`,
+`furniture.plant.default.idle`, `furniture.rug.default.idle`,
+`furniture.rug.dragon.idle`, `furniture.table.default.idle`,
+`furniture.trophy_stand.default.idle`, `furniture.wardrobe.default.idle`.
+
+The shop, chests and starter set draw from `app/assets/game/catalog.json`
+(item id, name, rarity, price, `asset` key, footprint in tiles). To add a
+decoration, add a catalogue entry and either a pack region or a key-named PNG
+for its `asset` key.
+
+### Key list — month-end dungeon (Tiny Dungeon)
+
+`dungeon.floor.default.idle`, `dungeon.wall.default.idle`,
+`dungeon.torch.default.idle`, `boss.goal.default.idle` (a savings goal as a
+boss; `boss.goal.<main_category>.idle` for housing, food, transport and
+entertainment), `boss.overbudget.default.idle` (the OVERBUDGET monster),
+`item.weapon.default.idle` (the leftover as a weapon),
+`chest.wood.closed.idle`, `chest.wood.open.idle`, `chest.gold.closed.idle`.
+
+Goal trophies in rooms use `furniture.trophy_stand.default.idle`, and a
+completed goal's town statue uses `town_decor.statue.default.idle`.
+
+### Still keyed the old way
+
+The guild-hall keys of §9 (materials, currency, gear, regions, panels,
+homestead) and the legacy `dungeon.*` keys keep working exactly as described
+there. Where a key has neither a pack region nor a file it shows its text card.

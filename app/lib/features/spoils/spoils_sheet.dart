@@ -16,30 +16,9 @@ import '../../ui/format.dart';
 import '../../ui/glossary.dart';
 import '../../ui/theme.dart';
 import 'spoils_model.dart';
+import 'spoils_move.dart';
 
-/// A recorded variable actual, part of the confirmed result.
-class TallyResult {
-  const TallyResult({required this.expenseId, required this.actualCents});
-  final String expenseId;
-  final int actualCents;
-}
-
-/// A confirmed per-slice allocation, part of the result.
-class SliceAllocationResult {
-  const SliceAllocationResult({
-    required this.sliceId,
-    required this.allocations,
-  });
-  final String sliceId;
-  final List<Allocation> allocations;
-}
-
-/// Everything the ritual produces on confirm.
-class SpoilsResult {
-  const SpoilsResult({required this.tallies, required this.allocations});
-  final List<TallyResult> tallies;
-  final List<SliceAllocationResult> allocations;
-}
+export 'spoils_move.dart' show TallyResult, SliceAllocationResult, SpoilsResult;
 
 /// Where the whole of a slice's leftover is directed. The ritual keeps a single
 /// destination per slice for a fast, legible split; the amount is the entire
@@ -54,17 +33,12 @@ class SpoilsSheetView extends StatefulWidget {
     required this.ritual,
     required this.onConfirm,
     this.onDismiss,
-    this.intro,
     this.isAdventure = false,
   });
 
   final SpoilsRitual ritual;
   final ValueChanged<SpoilsResult> onConfirm;
   final VoidCallback? onDismiss;
-
-  /// An optional scene rendered above the steps — the adventure skin uses it for
-  /// the "settling accounts with the quartermaster" opening. Null in Classic.
-  final Widget? intro;
 
   /// Whether the Adventure vocabulary applies. Classic (the default) speaks
   /// plain budgeting language; every flavor phrase routes through [Glossary].
@@ -135,7 +109,7 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
   }
 
   List<Allocation> _allocationsFor(SliceLeftover leftover) => [
-    ..._allowanceAllocations(leftover),
+    ...allocationsForChoice(leftover, _choiceFor(leftover)),
     ..._savingsAllocations(leftover),
   ];
 
@@ -163,54 +137,17 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
     ];
   }
 
-  List<Allocation> _allowanceAllocations(SliceLeftover leftover) {
+  /// The sheet's selection for [leftover] as the shared month-end choice.
+  SpoilsChoice _choiceFor(SliceLeftover leftover) => SpoilsChoice(
     switch (_dest[leftover.sliceId]!) {
-      case _Destination.carry:
-        return [
-          Allocation(
-            destination: const CarryInSlice(),
-            amountCents: leftover.leftoverCents,
-          ),
-        ];
-      case _Destination.discretionary:
-        return [
-          Allocation(
-            destination: const Discretionary(),
-            amountCents: leftover.leftoverCents,
-          ),
-        ];
-      case _Destination.quest:
-        final questId = _questChoice[leftover.sliceId];
-        return [
-          Allocation(
-            destination: questId == null
-                ? const Discretionary()
-                : QuestDestination(questId),
-            amountCents: leftover.leftoverCents,
-          ),
-        ];
-      case _Destination.overbudget:
-        final option = _chosenOverbudget(leftover);
-        if (option == null) {
-          return [
-            Allocation(
-              destination: const Discretionary(),
-              amountCents: leftover.leftoverCents,
-            ),
-          ];
-        }
-        // The whole leftover goes in as one payment. The reducer tithes it
-        // (unless the categories match), pays no more than the outstanding
-        // debt, and hands whatever is left to the pouch — so the OVERBUDGET
-        // never takes more than it needs.
-        return [
-          Allocation(
-            destination: OverbudgetPayment(option.sliceId),
-            amountCents: leftover.leftoverCents,
-          ),
-        ];
-    }
-  }
+      _Destination.overbudget => SpoilsMove.debt,
+      _Destination.carry => SpoilsMove.carry,
+      _Destination.quest => SpoilsMove.goal,
+      _Destination.discretionary => SpoilsMove.bank,
+    },
+    questId: _questChoice[leftover.sliceId],
+    overbudgetSliceId: _overbudgetChoice[leftover.sliceId],
+  );
 
   void _confirm() {
     final tallies = <TallyResult>[
@@ -332,10 +269,6 @@ class _SpoilsSheetViewState extends State<SpoilsSheetView> {
               AppSpacing.md,
             ),
             children: [
-              if (widget.intro != null) ...[
-                widget.intro!,
-                const SizedBox(height: AppSpacing.lg),
-              ],
               if (_hasStep1) ...[
                 _stepLabel(context, 1, 'Record variable actuals'),
                 for (final tally in ritual.variableTallies) _tallyTile(context, tally),

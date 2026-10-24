@@ -34,6 +34,9 @@ abstract final class GameReasonCodes {
   /// The spoils chest for finishing a month's ritual (win or lose).
   static const String ritualSpoils = 'ritual.spoils';
 
+  /// Bonus gems for finishing a month's ritual on time, plus hero gear.
+  static const String ritualBonus = 'ritual.bonus';
+
   /// The gold chest for a personal category that ended a closed month at or
   /// under its limit (a bonus, never a requirement).
   static const String monthGold = 'month.gold';

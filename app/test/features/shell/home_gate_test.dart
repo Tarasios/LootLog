@@ -10,8 +10,12 @@ import 'package:lootlog/features/settings/play_mode.dart';
 import 'package:lootlog/features/settings/play_mode_providers.dart';
 import 'package:lootlog/features/shell/home_gate.dart';
 import 'package:lootlog/features/shell/loading_screen.dart';
+import 'package:lootlog/game/domain/decor/catalog.dart';
 import 'package:lootlog/game/domain/game_event_store.dart';
+import 'package:lootlog/game/skin_prefs.dart';
 import 'package:lootlog/game/ui/game_home.dart';
+import 'package:lootlog/game/ui/town/town_shell.dart';
+import 'package:lootlog/game/ui/town/town_townsfolk.dart';
 
 import '../../game/ui/hall_harness.dart' show hallOverrides;
 
@@ -37,12 +41,22 @@ class _FakeLedger extends StatelessWidget {
       );
 }
 
-Future<void> pumpGate(WidgetTester tester, PlayPrefs? prefs) async {
+Future<void> pumpGate(
+  WidgetTester tester,
+  PlayPrefs? prefs, {
+  AdventureTier tier = AdventureTier.text,
+}) async {
   await tester.pumpWidget(ProviderScope(
     overrides: [
       playPrefsProvider.overrideWithValue(prefs),
       // The hall over an empty in-memory game log, no database needed.
-      ...hallOverrides(store: InMemoryGameEventStore()),
+      ...hallOverrides(
+        store: InMemoryGameEventStore(),
+        tier: tier,
+        // No catalogue: no starter set welcome dialog over the gate.
+        decorCatalog: Future.value(DecorCatalog.empty),
+      ),
+      townsfolkProvider.overrideWithValue(const []),
     ],
     child: MaterialApp(
       home: HomeGate(
@@ -50,9 +64,14 @@ Future<void> pumpGate(WidgetTester tester, PlayPrefs? prefs) async {
       ),
     ),
   ));
-  // A spinner never settles, so pump a frame rather than settling.
+  // A spinner never settles (nor does the town scene), so pump frames.
   await tester.pump();
-  if (prefs != null) await tester.pumpAndSettle();
+  if (prefs == null) return;
+  if (tier == AdventureTier.pixel) {
+    await tester.pump(const Duration(milliseconds: 200));
+  } else {
+    await tester.pumpAndSettle();
+  }
 }
 
 void main() {
@@ -62,6 +81,7 @@ void main() {
 
     expect(find.byType(LoadingScreen), findsOneWidget);
     expect(find.text('LEDGER'), findsNothing);
+    expect(find.byType(TownShell), findsNothing);
     expect(find.byType(GameHome), findsNothing);
   });
 
@@ -71,16 +91,37 @@ void main() {
         const PlayPrefs(mode: PlayMode.standard, home: AdventureHome.hall));
 
     expect(find.text('LEDGER'), findsOneWidget);
+    expect(find.byType(TownShell), findsNothing);
     expect(find.byType(GameHome), findsNothing);
     expect(find.byTooltip('Guild hall'), findsNothing,
         reason: 'Standard users see the app exactly as before');
   });
 
-  testWidgets('Adventure + Hall launches GameHome, which opens the ledger',
+  testWidgets('Adventure + Hall in pixel tier launches the town scene',
       (tester) async {
+    await pumpGate(
+        tester,
+        const PlayPrefs(mode: PlayMode.adventure, home: AdventureHome.hall),
+        tier: AdventureTier.pixel);
+
+    expect(find.byType(TownShell), findsOneWidget);
+    expect(find.byKey(const ValueKey('town-scene')), findsOneWidget);
+    expect(find.byType(GameHome), findsNothing);
+    expect(find.text('Log a purchase'), findsOneWidget);
+
+    await tester.tap(find.text('Budget'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('LEDGER'), findsOneWidget);
+  });
+
+  testWidgets(
+      'Adventure + Hall launches the town, whose text tier is the guild '
+      'hall, which opens the ledger', (tester) async {
     await pumpGate(tester,
         const PlayPrefs(mode: PlayMode.adventure, home: AdventureHome.hall));
 
+    expect(find.byType(TownShell), findsOneWidget);
     expect(find.byType(GameHome), findsOneWidget);
     expect(find.text('Log a purchase'), findsOneWidget);
     expect(find.text('LEDGER'), findsNothing);
@@ -106,6 +147,7 @@ void main() {
 
     await tester.tap(find.byTooltip('Guild hall'));
     await tester.pumpAndSettle();
+    expect(find.byType(TownShell), findsOneWidget);
     expect(find.byType(GameHome), findsOneWidget);
 
     await tester.tap(find.text('Ledger'));

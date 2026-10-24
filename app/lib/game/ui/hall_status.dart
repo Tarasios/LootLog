@@ -4,6 +4,7 @@ library;
 
 import '../../domain/time.dart';
 import '../config/balance.dart';
+import '../domain/commands/game_commands.dart' show spoilsChestId;
 import '../domain/game_state.dart';
 import '../domain/game_values.dart';
 import '../domain/reason_codes.dart';
@@ -63,10 +64,20 @@ List<Month> openRitualMonths(DateTime now) {
   return months;
 }
 
-/// The open months whose boss has not been fought yet, oldest first.
-List<Month> pendingRitualMonths(PersonState person, DateTime now) => [
+/// The open months whose month-end dungeon is not finished yet, oldest first.
+///
+/// A month is finished once its spoils chest has been granted (the dungeon's
+/// return to town) or, in older logs, once its seasonal boss was fought.
+/// Months before [firstBudgetMonth] (when given) are never pending: the
+/// household did not budget then.
+List<Month> pendingRitualMonths(PersonState person, DateTime now,
+        {Month? firstBudgetMonth}) =>
+    [
       for (final m in openRitualMonths(now).reversed)
-        if (person.ritual[m]?.boss == null) m,
+        if ((firstBudgetMonth == null || !m.isBefore(firstBudgetMonth)) &&
+            person.ritual[m]?.boss == null &&
+            !person.seenChestIds.contains(spoilsChestId(person.personId, m)))
+          m,
     ];
 
 /// Whether [person]'s [today] already counts toward their streak.

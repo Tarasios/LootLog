@@ -10,11 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/actions.dart';
 import '../../data/providers.dart';
-import '../../game/adventure_screen.dart' show customSpriteBlobsProvider;
-import '../../game/adventure_spoils.dart';
-import '../../game/game_sprite.dart';
-import '../../game/month_end_encounters.dart';
-import '../../ui/format.dart';
+import '../../game/ui/dungeon/dungeon_screen.dart';
 import '../../ui/theme.dart';
 import '../household_context.dart';
 import '../report/report_screen.dart';
@@ -22,45 +18,33 @@ import '../settings/play_mode_providers.dart';
 import 'spoils_model.dart';
 import 'spoils_sheet.dart';
 
-/// Opens the spoils ritual as a modal bottom sheet if one is pending. Safe to
-/// call unconditionally; it is a no-op when nothing is actionable.
-Future<void> openSpoilsRitual(BuildContext context, WidgetRef ref) async {
+/// Opens the month-end ritual if one is pending. In Adventure mode that is
+/// the month-end dungeon below the town gate (which also brings home the
+/// spoils chest when nothing is left to divide); in Standard mode it is the
+/// plain resumable sheet. Safe to call unconditionally: the sheet is a no-op
+/// when nothing is actionable. [asOf] defaults to now.
+Future<void> openSpoilsRitual(
+  BuildContext context,
+  WidgetRef ref, {
+  DateTime? asOf,
+}) async {
+  if (ref.read(isAdventureProvider)) {
+    await DungeonScreen.open(context);
+    return;
+  }
   final state = ref.read(householdStateProvider).value;
   final meUserId = ref.read(meUserIdProvider);
   final names = ref.read(userNamesProvider);
   final actions = ref.read(householdActionsProvider);
   if (state == null || meUserId == null || actions == null) return;
 
-  final ritual = buildSpoilsRitual(state, meUserId: meUserId, userNames: names);
-  if (ritual == null) return;
-
-  final adventure = ref.read(isAdventureProvider);
-  final intro = adventure ? AdventureSpoilsRecap(ritual: ritual) : null;
-
-  // Adventure mode replays the floor monster by monster before the division:
-  // spending less than a monster's max HP is the win state, and the walkthrough
-  // says so out loud. Pure display — the ritual sheet still owns every event.
-  if (adventure && context.mounted) {
-    final encounters = buildEncounters(state, ritual.month, meUserId);
-    if (encounters.isNotEmpty) {
-      final lines = await EncounterLines.load();
-      final blobs = ref.read(customSpriteBlobsProvider).value ?? const {};
-      if (!context.mounted) return;
-      final proceed = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(
-          builder: (routeContext) => MonthEndEncountersScreen(
-            encounters: encounters,
-            lines: lines,
-            monthLabel: monthLabel(ritual.month.year, ritual.month.month),
-            resolver: AssetSpriteResolver(customBlobs: blobs),
-            onFinished: () => Navigator.of(routeContext).pop(true),
-          ),
-        ),
-      );
-      // Backing out of the walkthrough leaves the ritual pending, untouched.
-      if (proceed != true || !context.mounted) return;
-    }
-  }
+  final ritual = buildSpoilsRitual(
+    state,
+    meUserId: meUserId,
+    userNames: names,
+    asOf: asOf,
+  );
+  if (ritual == null || !context.mounted) return;
 
   await showModalBottomSheet<void>(
     context: context,
@@ -77,13 +61,11 @@ Future<void> openSpoilsRitual(BuildContext context, WidgetRef ref) async {
         ),
         child: SpoilsSheetView(
           ritual: ritual,
-          intro: intro,
-          isAdventure: adventure,
           onDismiss: () => Navigator.of(context).maybePop(),
           onConfirm: (result) async {
             final navigator = Navigator.of(context);
             navigator.pop();
-            await _apply(actions, ritual, result);
+            await applySpoilsResult(actions, ritual, result);
             // Close the floor with the month's report — the ritual summary.
             if (navigator.mounted) {
               await ReportScreen.open(
@@ -98,7 +80,9 @@ Future<void> openSpoilsRitual(BuildContext context, WidgetRef ref) async {
   );
 }
 
-Future<void> _apply(
+/// Writes a confirmed ritual: variable actuals first, then one allocation per
+/// category. The one path every month-end surface uses.
+Future<void> applySpoilsResult(
   HouseholdActions actions,
   SpoilsRitual ritual,
   SpoilsResult result,

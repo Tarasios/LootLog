@@ -16,6 +16,7 @@ import 'package:lootlog/domain/value_types.dart';
 import 'package:lootlog/features/settings/play_mode.dart';
 import 'package:lootlog/features/settings/play_mode_providers.dart';
 import 'package:lootlog/features/sync/sync_status.dart';
+import 'package:lootlog/game/domain/decor/catalog.dart';
 import 'package:lootlog/game/domain/game_event.dart';
 import 'package:lootlog/game/domain/game_projection.dart';
 import 'package:lootlog/game/domain/game_state.dart';
@@ -166,5 +167,96 @@ void main() {
     await sync.importJsonl(jsonEncode(partnerBuy.toJson()));
     expect((await game()).person('u2').seenRewardIds,
         contains('log.daily:u2:${today.toKey()}'));
+  });
+
+  group('streak milestones', () {
+    final catalog = DecorCatalog.fromJson(
+        jsonDecode(File('assets/game/catalog.json').readAsStringSync())
+            as Map<String, dynamic>);
+
+    /// One purchase on each of the last [days] days, logged that day.
+    Future<void> logDays(int days) async {
+      final todayStart = DateTime.now().toUtc();
+      await db.eventsDao.appendEvents([
+        for (var back = days - 1; back >= 0; back--)
+          PurchaseAdded(
+            eventId: uuidv7(),
+            deviceId: 'dev',
+            userId: 'u1',
+            occurredAt: todayStart.subtract(Duration(days: back)),
+            createdAt: todayStart.subtract(Duration(days: back)),
+            purchaseId: 'p-$back',
+            target: const VaultCharge(),
+            amountCents: 100,
+          ),
+      ]);
+    }
+
+    Future<List<String>> acquiredItems() async =>
+        (await db.gameEventsDao.allGameEvents())
+            .whereType<ItemAcquired>()
+            .map((grant) => grant.itemId)
+            .toList();
+
+    test('seven logged days earn the title and the candle, once', () async {
+      var loads = 0;
+      final milestoneRunner = GameRewardRunner(
+        db: db,
+        deviceId: 'dev',
+        loadCatalog: () async {
+          loads++;
+          return catalog;
+        },
+      );
+      await logDays(7);
+      await milestoneRunner.run();
+      expect(await acquiredItems(),
+          unorderedEquals(['streak_7_title', 'streak_7_item']));
+
+      expect(await milestoneRunner.run(), 0);
+      expect(await acquiredItems(), hasLength(2));
+      expect(loads, 1, reason: 'the catalogue is loaded once and cached');
+    });
+
+    test('six logged days earn nothing', () async {
+      final milestoneRunner = GameRewardRunner(
+          db: db, deviceId: 'dev', loadCatalog: () async => catalog);
+      await logDays(6);
+      await milestoneRunner.run();
+      expect(await acquiredItems(), isEmpty);
+    });
+
+    test('an empty catalogue is not kept: milestones come on a later run',
+        () async {
+      var loads = 0;
+      final milestoneRunner = GameRewardRunner(
+        db: db,
+        deviceId: 'dev',
+        loadCatalog: () async => ++loads == 1 ? DecorCatalog.empty : catalog,
+      );
+      await logDays(7);
+      await milestoneRunner.run();
+      expect(await acquiredItems(), isEmpty);
+
+      await milestoneRunner.run();
+      expect(await acquiredItems(),
+          unorderedEquals(['streak_7_title', 'streak_7_item']));
+      expect(loads, 2);
+    });
+
+    test('a catalogue that fails to load never breaks the reward run',
+        () async {
+      final milestoneRunner = GameRewardRunner(
+        db: db,
+        deviceId: 'dev',
+        loadCatalog: () async => throw StateError('no assets'),
+      );
+      await logDays(7);
+      await milestoneRunner.run();
+      expect(await acquiredItems(), isEmpty);
+      // The ordinary rewards were still recorded.
+      expect((await db.gameEventsDao.allGameEvents()).whereType<RewardGranted>(),
+          isNotEmpty);
+    });
   });
 }

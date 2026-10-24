@@ -19,6 +19,7 @@
 library;
 
 import '../../domain/time.dart';
+import 'decor/decor_values.dart';
 import 'game_values.dart';
 
 /// The payload schema version this build writes. Bump it when a payload gains
@@ -43,6 +44,11 @@ const List<String> kGameEventTypes = [
   'BossFightResolved',
   'PartyJoined',
   'PartyLeft',
+  'ItemAcquired',
+  'ItemPurchased',
+  'ItemPlaced',
+  'ItemStored',
+  'ItemEquipped',
 ];
 
 /// Base class for every game event.
@@ -315,6 +321,45 @@ sealed class GameEvent {
           createdAt: createdAt,
           schemaVersion: schemaVersion,
           partyId: payload['partyId'] as String,
+        );
+      case 'ItemAcquired':
+        return ItemAcquired(
+          eventId: eventId, deviceId: deviceId, actorId: actorId,
+          occurredAt: occurredAt, createdAt: createdAt, schemaVersion: schemaVersion,
+          acquisitionId: payload['acquisitionId'] as String,
+          itemId: payload['itemId'] as String,
+          source: gameEnumByName(DecorSource.values, payload['source'] as String, 'decor source'),
+          toTown: payload['toTown'] as bool? ?? false,
+        );
+      case 'ItemPurchased':
+        return ItemPurchased(
+          eventId: eventId, deviceId: deviceId, actorId: actorId,
+          occurredAt: occurredAt, createdAt: createdAt, schemaVersion: schemaVersion,
+          itemId: payload['itemId'] as String,
+          gemCost: payload['gemCost'] as int,
+        );
+      case 'ItemPlaced':
+        return ItemPlaced(
+          eventId: eventId, deviceId: deviceId, actorId: actorId,
+          occurredAt: occurredAt, createdAt: createdAt, schemaVersion: schemaVersion,
+          placementId: payload['placementId'] as String,
+          itemId: payload['itemId'] as String,
+          space: gameEnumByName(DecorSpace.values, payload['space'] as String, 'decor space'),
+          column: payload['column'] as int,
+          row: payload['row'] as int,
+          rotation: payload['rotation'] as int? ?? 0,
+        );
+      case 'ItemStored':
+        return ItemStored(
+          eventId: eventId, deviceId: deviceId, actorId: actorId,
+          occurredAt: occurredAt, createdAt: createdAt, schemaVersion: schemaVersion,
+          placementId: payload['placementId'] as String,
+        );
+      case 'ItemEquipped':
+        return ItemEquipped(
+          eventId: eventId, deviceId: deviceId, actorId: actorId,
+          occurredAt: occurredAt, createdAt: createdAt, schemaVersion: schemaVersion,
+          itemId: payload['itemId'] as String,
         );
       default:
         return UnknownGameEvent._(envelope, type, payload);
@@ -819,6 +864,147 @@ class PartyLeft extends GameEvent {
 
   @override
   Map<String, dynamic> payload() => {'partyId': partyId};
+}
+
+/// An item reached [actorId] (or the shared town pool when [toTown]) from a
+/// chest, the starter set, a milestone or a goal trophy. [acquisitionId] is
+/// deterministic, so the same grant from two devices is credited once.
+class ItemAcquired extends GameEvent {
+  const ItemAcquired({
+    required super.eventId,
+    required super.deviceId,
+    required super.actorId,
+    required super.occurredAt,
+    required super.createdAt,
+    super.schemaVersion,
+    required this.acquisitionId,
+    required this.itemId,
+    required this.source,
+    this.toTown = false,
+  });
+
+  final String acquisitionId;
+  final String itemId;
+  final DecorSource source;
+  final bool toTown;
+
+  @override
+  String get type => 'ItemAcquired';
+
+  @override
+  Map<String, dynamic> payload() => {
+        'acquisitionId': acquisitionId,
+        'itemId': itemId,
+        'source': source.name,
+        'toTown': toTown,
+      };
+}
+
+/// [actorId] bought [itemId] from the daily shop for [gemCost] gems (town
+/// decorations go to the shared pool).
+class ItemPurchased extends GameEvent {
+  const ItemPurchased({
+    required super.eventId,
+    required super.deviceId,
+    required super.actorId,
+    required super.occurredAt,
+    required super.createdAt,
+    super.schemaVersion,
+    required this.itemId,
+    required this.gemCost,
+  });
+
+  final String itemId;
+  final int gemCost;
+
+  @override
+  String get type => 'ItemPurchased';
+
+  @override
+  Map<String, dynamic> payload() => {'itemId': itemId, 'gemCost': gemCost};
+}
+
+/// An owned item was placed (or moved/rotated, when [placementId] exists)
+/// at ([column], [row]) in the actor's room or the town.
+class ItemPlaced extends GameEvent {
+  const ItemPlaced({
+    required super.eventId,
+    required super.deviceId,
+    required super.actorId,
+    required super.occurredAt,
+    required super.createdAt,
+    super.schemaVersion,
+    required this.placementId,
+    required this.itemId,
+    required this.space,
+    required this.column,
+    required this.row,
+    this.rotation = 0,
+  });
+
+  final String placementId;
+  final String itemId;
+  final DecorSpace space;
+  final int column;
+  final int row;
+
+  /// Quarter turns clockwise, 0–3.
+  final int rotation;
+
+  @override
+  String get type => 'ItemPlaced';
+
+  @override
+  Map<String, dynamic> payload() => {
+        'placementId': placementId,
+        'itemId': itemId,
+        'space': space.name,
+        'column': column,
+        'row': row,
+        'rotation': rotation,
+      };
+}
+
+/// A placed item went back to its owner's inventory (or the town pool).
+class ItemStored extends GameEvent {
+  const ItemStored({
+    required super.eventId,
+    required super.deviceId,
+    required super.actorId,
+    required super.occurredAt,
+    required super.createdAt,
+    super.schemaVersion,
+    required this.placementId,
+  });
+
+  final String placementId;
+
+  @override
+  String get type => 'ItemStored';
+
+  @override
+  Map<String, dynamic> payload() => {'placementId': placementId};
+}
+
+/// [actorId] now wears [itemId] (an outfit) or shows it (a title).
+class ItemEquipped extends GameEvent {
+  const ItemEquipped({
+    required super.eventId,
+    required super.deviceId,
+    required super.actorId,
+    required super.occurredAt,
+    required super.createdAt,
+    super.schemaVersion,
+    required this.itemId,
+  });
+
+  final String itemId;
+
+  @override
+  String get type => 'ItemEquipped';
+
+  @override
+  Map<String, dynamic> payload() => {'itemId': itemId};
 }
 
 /// An event this build cannot interpret: an unknown type, or a known type

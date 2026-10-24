@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/domain/time.dart';
+import 'package:lootlog/game/domain/decor/decor_values.dart';
 import 'package:lootlog/game/domain/game_event.dart';
 import 'package:lootlog/game/domain/game_values.dart';
 
@@ -41,6 +42,55 @@ final List<GameEvent> _samples = [
   bossFight('e14', const Month(2026, 9), when: at(13), won: false, rewards: _loot),
   partyJoined('e15', 'party-1', when: at(14)),
   partyLeft('e16', 'party-1', when: at(15)),
+  ItemAcquired(
+    eventId: 'e17',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(16),
+    createdAt: at(16),
+    acquisitionId: 'chest-1',
+    itemId: 'rug_round',
+    source: DecorSource.chest,
+    toTown: true,
+  ),
+  ItemPurchased(
+    eventId: 'e18',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(17),
+    createdAt: at(17),
+    itemId: 'bed_simple',
+    gemCost: 8,
+  ),
+  ItemPlaced(
+    eventId: 'e19',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(18),
+    createdAt: at(18),
+    placementId: 'p1',
+    itemId: 'rug_round',
+    space: DecorSpace.room,
+    column: 3,
+    row: 4,
+    rotation: 1,
+  ),
+  ItemStored(
+    eventId: 'e20',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(19),
+    createdAt: at(19),
+    placementId: 'p1',
+  ),
+  ItemEquipped(
+    eventId: 'e21',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(20),
+    createdAt: at(20),
+    itemId: 'outfit_ranger',
+  ),
 ];
 
 void main() {

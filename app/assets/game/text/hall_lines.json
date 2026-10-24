@@ -1,5 +1,5 @@
 {
-  "_comment": "Game-voice lines for the guild hall (Adventure only, so game words are fine). Every set is listed in docs/voice-lines.md beside its trigger and intended outcome. Placeholders are filled by the app: {building} {tier} {region} {boss} {month} {n} {chest}. The design rules apply: never shame, never blame or name a quiet partner, and losing the boss fight is never a punishment. hall_voice_test.dart guards the shape and the banned words; run check.sh after editing.",
+  "_comment": "Game-voice lines for the guild hall (Adventure only, so game words are fine). Every set is listed in docs/voice-lines.md beside its trigger and intended outcome. Placeholders are filled by the app: {building} {tier} {region} {month} {n} {chest}. The design rules apply: never shame, never blame or name a quiet partner. hall_voice_test.dart guards the shape and the banned words; run check.sh after editing.",
   "greetings": [
     "The hall lamps are lit. Every honest entry keeps them burning.",
     "Smoke curls from the chimneys. The guild is open for business.",
@@ -90,66 +90,13 @@
     "The road to {region} calls. The hero answers.",
     "Adventure awaits in {region}."
   ],
-  "ritualStepDone": [
-    "One more rune lit on the ritual circle.",
-    "Step done. The spoils draw closer.",
-    "The ritual hums a little brighter.",
-    "Marked. The seasonal beast stirs.",
-    "A careful step, well taken.",
-    "The circle glows. Onward to the next step.",
-    "The month's pages settle into place.",
-    "Done. The boss can sense you coming."
+  "dungeonCallout": [
+    "{month}: the dungeon below the town gate is open. Aim each leftover at a goal boss or an OVERBUDGET, then return for the spoils chest."
   ],
-  "bossIntro": [
-    "{boss} rises from the month's shadows!",
-    "The ritual is complete. {boss} answers the call!",
-    "The ground trembles. {boss} has arrived.",
-    "{boss} blocks the way to the spoils. Steel yourself!",
-    "A roar shakes the hall. It is {boss}!",
-    "The circle flares and {boss} steps through.",
-    "{boss} has come to test the guild.",
-    "Out of the season's storm strides {boss}."
-  ],
-  "bossTurns": [
-    "The hero strikes true!",
-    "A clash of steel and claw.",
-    "The hero dodges and counters.",
-    "Gear gleams as the hero presses on.",
-    "A well-logged month lends the hero strength.",
-    "{boss} reels from the blow.",
-    "The hero finds an opening.",
-    "Sparks fly as the hero lands a hit."
-  ],
-  "bossWin": [
-    "{boss} falls! A trophy for the mantel.",
-    "Victory! {boss} is felled and the spoils are yours.",
-    "{boss} is vanquished. The guild cheers.",
-    "The beast is down. The month is won.",
-    "{boss} crumbles. Raise the banners!",
-    "A clean victory over {boss}. Glory to the guild.",
-    "{boss} is defeated. Another month conquered.",
-    "The hall will sing of the fall of {boss}."
-  ],
-  "bossLoss": [
-    "{boss} retreats into the mist. The spoils are yours all the same.",
-    "{boss} lives to fight another season, but the ritual is done and the chest is earned.",
-    "A hard fight. {boss} slips away, and the spoils chest arrives anyway.",
-    "{boss} withdraws, wounded. Your ritual earned the spoils regardless.",
-    "The beast escapes this time. The month's work still earns the spoils in full.",
-    "{boss} limps off. Better gear next month, and the chest is yours now.",
-    "No trophy today, but the ritual was the real victory. Open your chest.",
-    "{boss} holds the field for now. The spoils chest is already on its way."
-  ],
-  "spoilsChest": [
-    "The spoils chest awaits in your inbox.",
-    "A spoils chest arrives at the hall.",
-    "The month's spoils are packed and delivered.",
-    "Your spoils chest is ready to open.",
-    "The quartermaster sets a spoils chest at your feet.",
-    "A spoils chest, earned by the ritual.",
-    "Spoils delivered. Go see what's inside.",
-    "The ritual's reward is waiting in the inbox."
-  ],
+  "dungeonCalloutButton": ["Enter the dungeon"],
+  "dungeonPlaceDone": ["All done for now. The next one opens when the month ends."],
+  "dungeonPlaceReadyOne": ["{n} month ready for the dungeon"],
+  "dungeonPlaceReadyMany": ["{n} months ready for the dungeon"],
   "caravan": [
     "The supply caravan keeps the party's stores stocked.",
     "Supply carts roll in, courtesy of the caravan.",
@@ -160,12 +107,6 @@
     "Fresh supplies from the caravan reach the yard.",
     "The caravan is the backbone of the party's stores."
   ],
-  "bossNames": {
-    "frostWyrm": "the Frost Wyrm",
-    "thawHydra": "the Thaw Hydra",
-    "sunDrake": "the Sun Drake",
-    "harvestLich": "the Harvest Lich"
-  },
   "reasons": {
     "log.daily": "Showed up today",
     "checkin.no_spend": "Checked in on a quiet day",
@@ -177,6 +118,7 @@
     "streak.token": "Streak milestone",
     "caravan.supply": "Supply caravan",
     "ritual.spoils": "Finished the month's ritual",
+    "ritual.bonus": "Bonus: month-end rituals on time",
     "month.gold": "Bonus: a budget finished on target",
     "vault.quest": "Savings goal milestone",
     "vault.consistency": "Months of saving in a row"
@@ -197,6 +139,7 @@
     "nothingToCollect": "Nothing ready yet. Check back in a little while.",
     "storehouseFull": "The Storehouse is full. Spend some materials or upgrade the Storehouse to make room.",
     "unknownChest": "That chest has already been opened.",
+    "catalogNotReady": "The chest is still being unpacked. Give it a moment and try again.",
     "unknownReward": "That reward has already been claimed.",
     "unknownGearSlot": "That gear slot doesn't exist.",
     "unknownGearType": "That slot doesn't take that kind of gear.",
@@ -213,7 +156,18 @@
     "ritualStepOutOfOrder": "Take the steps in order. One at a time.",
     "ritualIncomplete": "Finish all four ritual steps to summon the boss.",
     "bossAlreadyFought": "This month's boss has already been faced.",
+    "ritualAlreadyFinished": "This month's spoils are already home.",
     "alreadyInParty": "Already in the party.",
-    "notInParty": "Not in the party right now."
+    "notInParty": "Not in the party right now.",
+    "unknownItem": "That item isn't in the catalogue.",
+    "notInShopToday": "That one has left the shop. A new set arrives tomorrow.",
+    "itemNotOwned": "You don't have a spare one of those yet. The shop or a chest might.",
+    "cellOccupied": "Something's already there. Try a free spot.",
+    "outOfBounds": "That doesn't quite fit there. Try a spot with a bit more room.",
+    "wrongSpace": "That one belongs somewhere else. Rooms take furniture, the town takes garden pieces and statues.",
+    "unknownPlacement": "That piece isn't on display any more.",
+    "notYourRoom": "This is someone else's room. Yours is waiting for you.",
+    "notEquippable": "Only outfits and titles can be worn.",
+    "starterAlreadyClaimed": "Your starter set is already home."
   }
 }

@@ -6,6 +6,7 @@ library;
 
 import '../config/balance.dart';
 import '../config/narration.dart';
+import '../domain/decor/catalog.dart';
 import '../domain/game_values.dart';
 
 abstract final class HallNames {
@@ -146,6 +147,28 @@ abstract final class HallNames {
       if (!loot.materials.isEmpty) bundle(loot.materials),
     ];
     return parts.isEmpty ? 'a handshake' : parts.join(', ');
+  }
+
+  /// The line a chest celebration adds when it also held a decoration:
+  /// "...and a Round rug for your home!".
+  static String decorFound(DecorItem item) {
+    final name = item.name;
+    return switch (item.kind) {
+      DecorKind.townDecor ||
+      DecorKind.statue =>
+        '…and ${_withArticle(name)} for the town!',
+      DecorKind.outfit => '…and an outfit: $name!',
+      DecorKind.title => '…and the title $name!',
+      DecorKind.furniture ||
+      DecorKind.trophy =>
+        '…and ${_withArticle(name)} for your home!',
+    };
+  }
+
+  static String _withArticle(String name) {
+    final first = name.isEmpty ? '' : name[0].toLowerCase();
+    final article = 'aeiou'.contains(first) && first.isNotEmpty ? 'an' : 'a';
+    return '$article $name';
   }
 
   static String gems(int n) => '$n gem${n == 1 ? '' : 's'}';

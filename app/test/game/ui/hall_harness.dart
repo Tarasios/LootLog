@@ -3,6 +3,7 @@
 /// view and fake habit actions — no database, no plugins, no art.
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -14,6 +15,7 @@ import 'package:lootlog/game/assets/asset_registry.dart';
 import 'package:lootlog/game/assets/game_asset_scope.dart';
 import 'package:lootlog/game/data/game_providers.dart';
 import 'package:lootlog/game/domain/clock.dart';
+import 'package:lootlog/game/domain/decor/catalog.dart';
 import 'package:lootlog/game/domain/game_event.dart';
 import 'package:lootlog/game/domain/game_event_stamp.dart';
 import 'package:lootlog/game/domain/game_event_store.dart';
@@ -26,6 +28,7 @@ import 'package:lootlog/game/ui/game_home.dart';
 import 'package:lootlog/game/ui/hall_habits.dart';
 import 'package:lootlog/game/ui/hall_ledger_view.dart';
 import 'package:lootlog/game/ui/hall_voice.dart';
+import 'package:lootlog/game/ui/town/log_celebration.dart';
 import 'package:lootlog/ui/theme.dart';
 
 import '../domain/game_fixtures.dart';
@@ -86,7 +89,8 @@ HallVoice diskVoice() =>
     HallVoice.parse(File(kHallLinesAsset).readAsStringSync());
 
 /// Robin (Adventure, this device) and Sam (Standard: the supply caravan).
-HallLedgerView sampleView({bool habits = true}) => HallLedgerView(
+HallLedgerView sampleView({bool habits = true, Month? firstBudgetMonth}) =>
+    HallLedgerView(
       meId: robin,
       adults: const [
         HallAdult(memberId: robin, name: 'Robin', inAdventure: true),
@@ -103,6 +107,7 @@ HallLedgerView sampleView({bool habits = true}) => HallLedgerView(
       ],
       savingsRunMonths: 4,
       habitsAvailable: habits,
+      firstBudgetMonth: firstBudgetMonth,
     );
 
 /// A lived-in hall: 130 gems, a token, a three-day streak, a Lumberyard that
@@ -166,30 +171,63 @@ Future<InMemoryGameEventStore> storeWith(List<GameEvent> events) async {
 Future<GameState> stateOf(GameEventStore store) async =>
     projectGameState(await store.all());
 
-/// The hall's provider overrides.
+/// The shipped decoration catalogue, read straight from disk.
+final DecorCatalog kShippedCatalog = DecorCatalog.fromJson(
+    jsonDecode(File('assets/game/catalog.json').readAsStringSync())
+        as Map<String, dynamic>);
+
+/// Stands in for the ledger's count of this adult's purchases: [log] is a
+/// purchase being logged.
+class LoggedPurchases extends Notifier<int?> {
+  @override
+  int? build() => 0;
+
+  void log() => state = (state ?? 0) + 1;
+}
+
+final testLoggedPurchasesProvider =
+    NotifierProvider<LoggedPurchases, int?>(LoggedPurchases.new);
+
+/// The hall's provider overrides. [decorCatalog] is what the catalogue
+/// provider resolves to (default: the shipped one, already loaded); pass a
+/// not-yet-completed future to test the "still unpacking" state.
 List<Override> hallOverrides({
   required InMemoryGameEventStore store,
   HallLedgerView? view,
   AdventureTier tier = AdventureTier.text,
   HallHabits? habits,
+  AssetRegistry registry = AssetRegistry.bundled,
+  bool registryFails = false,
+  AdventureTierNotifier? tierNotifier,
+  GameCommandsService? service,
+  Future<DecorCatalog>? decorCatalog,
 }) {
   var ids = 0;
   return [
+    decorCatalogProvider
+        .overrideWith((ref) => decorCatalog ?? Future.value(kShippedCatalog)),
     gameEventStoreProvider.overrideWithValue(store),
     gameClockProvider.overrideWithValue(FixedClock(kHallNow)),
-    gameCommandsServiceProvider.overrideWithValue(GameCommandsService(
-      store: store,
-      actorId: robin,
-      clock: FixedClock(kHallNow),
-      stamp: GameEventStamp(
-          deviceId: 'test',
-          newEventId: () => 'z${(ids++).toString().padLeft(4, '0')}'),
-    )),
+    gameCommandsServiceProvider.overrideWithValue(service ??
+        GameCommandsService(
+          store: store,
+          actorId: robin,
+          clock: FixedClock(kHallNow),
+          stamp: GameEventStamp(
+              deviceId: 'test',
+              newEventId: () => 'z${(ids++).toString().padLeft(4, '0')}'),
+          catalog: kShippedCatalog,
+        )),
     hallLedgerViewProvider.overrideWithValue(view ?? sampleView()),
     hallVoiceProvider.overrideWith((ref) async => diskVoice()),
     hallHabitsProvider.overrideWithValue(habits ?? FakeHabits()),
-    adventureTierProvider.overrideWith(() => FixedTier(tier)),
-    gameAssetRegistryProvider.overrideWith((ref) async => AssetRegistry.bundled),
+    loggedPurchaseCountProvider
+        .overrideWith((ref) => ref.watch(testLoggedPurchasesProvider)),
+    adventureTierProvider.overrideWith(() => tierNotifier ?? FixedTier(tier)),
+    gameAssetRegistryProvider.overrideWith((ref) async {
+      if (registryFails) throw StateError('asset manifest unreadable');
+      return registry;
+    }),
   ];
 }
 
@@ -204,6 +242,7 @@ Future<void> pumpHall(
   LinkLog? links,
   Widget? home,
   Size size = const Size(420, 2600),
+  Future<DecorCatalog>? decorCatalog,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
@@ -212,7 +251,11 @@ Future<void> pumpHall(
   final log = links ?? LinkLog();
   await tester.pumpWidget(ProviderScope(
     overrides: hallOverrides(
-        store: store, view: view, tier: tier, habits: habits),
+        store: store,
+        view: view,
+        tier: tier,
+        habits: habits,
+        decorCatalog: decorCatalog),
     child: MaterialApp(
       theme: AppTheme.light(),
       debugShowCheckedModeBanner: false,

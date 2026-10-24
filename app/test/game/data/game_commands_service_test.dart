@@ -19,6 +19,26 @@ import 'package:lootlog/game/domain/game_values.dart';
 
 const _me = 'u1';
 
+/// Reads take a moment, so two unqueued commands would both read the state
+/// before either appends.
+class SlowReadStore implements GameEventStore {
+  SlowReadStore(this.inner);
+
+  final GameEventStore inner;
+
+  @override
+  Future<void> append(Iterable<GameEvent> events) => inner.append(events);
+
+  @override
+  Future<List<GameEvent>> all() async {
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    return inner.all();
+  }
+
+  @override
+  Stream<List<GameEvent>> watchAll() => inner.watchAll();
+}
+
 /// Early October 2026: September is a closed month.
 final DateTime _now = DateTime.utc(2026, 10, 3, 18);
 
@@ -26,9 +46,14 @@ void main() {
   late InMemoryGameEventStore store;
   var ids = 0;
 
-  GameCommandsService service({List<Event> ledger = const []}) =>
+  GameCommandsService service({
+    List<Event> ledger = const [],
+    GameCommandQueue? queue,
+    GameEventStore? over,
+  }) =>
       GameCommandsService(
-        store: store,
+        queue: queue,
+        store: over ?? store,
         actorId: _me,
         clock: FixedClock(_now),
         stamp: GameEventStamp(
@@ -88,6 +113,50 @@ void main() {
     // 25 gems buy the first plot (20) but not the second.
     expect(results.map((r) => r.accepted), [true, false]);
     expect((await state()).person(_me).gems, 5);
+  });
+
+  test('a rebuilt service shares the queue, so commands across both never race',
+      () async {
+    await store.append([
+      RewardGranted(
+        eventId: 'a0',
+        deviceId: 'dev',
+        actorId: _me,
+        occurredAt: _now.subtract(const Duration(hours: 1)),
+        createdAt: _now,
+        rewardId: 'r',
+        kind: 'gems',
+        gems: 25,
+        materials: const MaterialBundle.empty(),
+        tokens: 0,
+        reasonCode: 'test',
+        sourceLedgerEventIds: const [],
+      ),
+      RewardClaimed(
+        eventId: 'a1',
+        deviceId: 'dev',
+        actorId: _me,
+        occurredAt: _now.subtract(const Duration(hours: 1)),
+        createdAt: _now,
+        rewardId: 'r',
+      ),
+    ]);
+    final queue = GameCommandQueue();
+    final slow = SlowReadStore(store);
+    final before = service(queue: queue, over: slow);
+    final rebuilt = service(queue: queue, over: slow);
+    final results = await Future.wait([before.unlockPlot(3), rebuilt.unlockPlot(3)]);
+    // The second sees the first's unlock: one plot, paid for once.
+    expect(results.map((r) => r.accepted), [true, false]);
+    expect((await state()).person(_me).gems, 5);
+  });
+
+  test('the provider keeps one queue across service rebuilds', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final queue = container.read(gameCommandQueueProvider);
+    container.invalidate(gameCommandsServiceProvider);
+    expect(container.read(gameCommandQueueProvider), same(queue));
   });
 
   test('the boss fight reads the month\'s logged days from the ledger',

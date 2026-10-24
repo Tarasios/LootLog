@@ -11,6 +11,8 @@ library;
 
 import '../../domain/time.dart';
 import '../config/balance.dart';
+import 'decor/decor_state.dart';
+import 'decor/decor_values.dart';
 import 'game_event.dart';
 import 'game_state.dart';
 import 'game_values.dart';
@@ -48,7 +50,7 @@ GameState applyGameEvent(GameState state, GameEvent event) {
           '${cursor.eventId}; rebuild with projectGameState.');
     }
   }
-  final draft = _GameStateDraft(state, event.eventId);
+  final draft = _GameStateDraft(state, event.eventId, event.occurredAt);
   _apply(draft, event);
   return draft.build(event);
 }
@@ -277,6 +279,67 @@ void _apply(_GameStateDraft draft, GameEvent event) {
       }
       draft.put(person.copyWith(partyId: null));
 
+    case ItemAcquired acquisition:
+      if (draft.decor.seenAcquisitionIds.contains(acquisition.acquisitionId)) {
+        draft.warn(GameWarningCode.duplicateAcquisition, acquisition.acquisitionId);
+        return;
+      }
+      draft.decor = draft.decor.acquire(
+        personId: actor,
+        itemId: acquisition.itemId,
+        toTown: acquisition.toTown,
+        acquisitionId: acquisition.acquisitionId,
+      );
+
+    case ItemPurchased purchase:
+      draft.adjustGems(actor, -purchase.gemCost);
+      draft.decor = draft.decor.acquire(
+        personId: actor,
+        itemId: purchase.itemId,
+        toTown: purchase.itemId.startsWith('town_'),
+      );
+
+    case ItemPlaced placement:
+      final isTown = placement.space == DecorSpace.town;
+      final existing = draft.decor.placements[placement.placementId];
+      // Only a move within the same space reuses the copy already placed; a
+      // placementId reused across spaces needs a free copy in the destination.
+      final movingSameItem = existing != null &&
+          existing.itemId == placement.itemId &&
+          existing.space == placement.space;
+      final available = isTown
+          ? draft.decor.townAvailableCount(placement.itemId)
+          : draft.decor.availableCount(actor, placement.itemId);
+      if (!movingSameItem && available <= 0) {
+        draft.warn(GameWarningCode.decorNotOwned, '${placement.itemId} for $actor');
+        return;
+      }
+      draft.decor = draft.decor.place(Placement(
+        placementId: placement.placementId,
+        itemId: placement.itemId,
+        space: placement.space,
+        ownerId: isTown ? '' : (movingSameItem ? existing.ownerId : actor),
+        column: placement.column,
+        row: placement.row,
+        rotation: placement.rotation,
+      ));
+
+    case ItemStored storage:
+      if (!draft.decor.placements.containsKey(storage.placementId)) {
+        draft.warn(GameWarningCode.unknownPlacement, storage.placementId);
+        return;
+      }
+      draft.decor = draft.decor.store(storage.placementId);
+
+    case ItemEquipped equip:
+      // The projection has no catalogue, so it reads the id naming the
+      // catalogue file test enforces; an id of neither shape is ignored.
+      if (equip.itemId.endsWith('_title') || equip.itemId.startsWith('title_')) {
+        draft.decor = draft.decor.equipTitle(actor, equip.itemId);
+      } else if (equip.itemId.startsWith('outfit_')) {
+        draft.decor = draft.decor.equipOutfit(actor, equip.itemId);
+      }
+
     case UnknownGameEvent _:
       return;
   }
@@ -284,8 +347,9 @@ void _apply(_GameStateDraft draft, GameEvent event) {
 
 /// One event's worth of changes, applied copy-on-write to the prior state.
 class _GameStateDraft {
-  _GameStateDraft(GameState prior, this.eventId)
+  _GameStateDraft(GameState prior, this.eventId, this.at)
       : hall = prior.hall,
+        decor = prior.decor,
         _people = prior.people,
         _warnings = prior.warnings;
 
@@ -294,6 +358,7 @@ class _GameStateDraft {
   /// The applied event's instant (Storehouse capacity is read as of it).
   final DateTime at;
   HallState hall;
+  DecorState decor;
   Map<String, PersonState> _people;
   List<GameWarning> _warnings;
 
@@ -334,10 +399,23 @@ class _GameStateDraft {
     if (delta.isEmpty) return;
     final next = Map.of(hall.materials.amounts);
     final short = <String>[];
+    final over = <String>[];
+    final capacity = hall.storageCapacityAt(at);
     for (final entry in delta.amounts.entries) {
-      final adjusted = (next[entry.key] ?? 0) + sign * entry.value;
-      if (adjusted < 0) short.add('${entry.key.name} ${-adjusted}');
-      next[entry.key] = adjusted < 0 ? 0 : adjusted;
+      final held = next[entry.key] ?? 0;
+      var adjusted = held + sign * entry.value;
+      if (adjusted < 0) {
+        short.add('${entry.key.name} ${-adjusted}');
+        adjusted = 0;
+      }
+      if (sign > 0 && !Balance.uncappedMaterials.contains(entry.key)) {
+        final cap = held > capacity ? held : capacity;
+        if (adjusted > cap) {
+          over.add('${entry.key.name} ${adjusted - cap}');
+          adjusted = cap;
+        }
+      }
+      next[entry.key] = adjusted;
     }
     if (short.isNotEmpty) {
       warn(GameWarningCode.materialsClamped, short.join(', '));
@@ -365,6 +443,7 @@ class _GameStateDraft {
         people: _people,
         warnings: _warnings,
         cursor: applied,
+        decor: decor,
       );
 }
 

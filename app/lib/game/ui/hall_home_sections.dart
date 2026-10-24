@@ -5,6 +5,8 @@
 /// habit actions.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -14,21 +16,26 @@ import '../../ui/theme.dart';
 import '../assets/asset_catalog.dart';
 import '../assets/asset_key.dart';
 import '../config/balance.dart';
+import '../data/game_providers.dart';
 import '../domain/game_event.dart';
 import '../domain/game_state.dart';
 import '../domain/game_values.dart';
 import '../domain/hall_rules.dart';
 import '../game_sprite.dart';
 import 'building_sheet.dart';
+import 'decor/room_screen.dart';
+import 'decor/shop_screen.dart';
+import 'decor/wardrobe_sheet.dart';
+import 'dungeon/dungeon_screen.dart';
 import 'expeditions_screen.dart';
 import 'forge_screen.dart';
+import 'habit_actions.dart';
 import 'hall_common.dart';
-import 'hall_habits.dart';
 import 'hall_ledger_view.dart';
 import 'hall_names.dart';
 import 'hall_status.dart';
 import 'hall_voice.dart';
-import 'ritual_screen.dart';
+import 'town/town_decor_text_screen.dart';
 import 'vault_screen.dart';
 
 /// What every home section is handed.
@@ -204,129 +211,42 @@ class _MemberRow extends StatelessWidget {
 // Today: the Scribe's Desk, no-spend check-in, weekly reconcile
 // ---------------------------------------------------------------------------
 
-class HabitPanel extends ConsumerStatefulWidget {
+class HabitPanel extends StatelessWidget {
   const HabitPanel(this.data, {super.key});
 
   final HallHomeData data;
 
-  @override
-  ConsumerState<HabitPanel> createState() => _HabitPanelState();
-}
-
-class _HabitPanelState extends ConsumerState<HabitPanel> {
-  bool _busy = false;
-  bool _checkedIn = false;
-  bool _reconciled = false;
-
-  static const unavailableNote =
-      'Check-ins and weekly reconciles switch on once your household adopts '
-      'the savings rules in Settings (update every device first).';
+  static Widget _button(BuildContext context, HabitActionView action) =>
+      OutlinedButton.icon(
+        onPressed: action.onPressed,
+        icon: Icon(action.icon),
+        label: Text(action.label),
+      );
 
   @override
-  Widget build(BuildContext context) {
-    final data = widget.data;
-    final available = data.view.habitsAvailable;
-    final covered = _checkedIn || todayCovered(data.me, data.today);
-    final reconciled = _reconciled || weekReconciled(data.me, data.today);
-    return HallSection(
-      title: 'Today',
-      icon: Icons.edit_note,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _ScribeRow(data: data),
-          const SizedBox(height: AppSpacing.md),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              OutlinedButton.icon(
-                onPressed: available && !covered && !_busy ? _noSpend : null,
-                icon: Icon(covered ? Icons.check : Icons.nights_stay_outlined),
-                label: Text(covered ? 'Today already counts' : 'No spend today'),
-              ),
-              OutlinedButton.icon(
-                onPressed:
-                    available && !reconciled && !_busy ? _reconcile : null,
-                icon: Icon(reconciled ? Icons.check : Icons.fact_check_outlined),
-                label: Text(reconciled
-                    ? 'Week reconciled'
-                    : 'Reconcile this week'),
-              ),
+  Widget build(BuildContext context) => HallSection(
+        title: 'Today',
+        icon: Icons.edit_note,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _ScribeRow(data: data),
+            const SizedBox(height: AppSpacing.md),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                NoSpendCheckIn(data: data, builder: _button),
+                WeeklyReconcile(data: data, builder: _button),
+              ],
+            ),
+            if (!data.view.habitsAvailable) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(kHabitsUnavailableNote, style: hallMutedStyle(context)),
             ],
-          ),
-          if (!available) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Text(unavailableNote, style: hallMutedStyle(context)),
           ],
-        ],
-      ),
-    );
-  }
-
-  Future<void> _noSpend() async {
-    final habits = ref.read(hallHabitsProvider);
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    if (habits == null) return;
-    setState(() => _busy = true);
-    final ok = await habits.checkInNoSpend();
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _checkedIn = ok;
-    });
-    messenger?.showSnackBar(SnackBar(
-      content: Text(ok
-          ? widget.data.voice
-              .line('noSpendDone', seed: widget.data.today.toKey())
-          : unavailableNote),
-    ));
-  }
-
-  Future<void> _reconcile() async {
-    final habits = ref.read(hallHabitsProvider);
-    if (habits == null) return;
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    final choice = await showDialog<String>(
-      context: context,
-      builder: (context) => HallScope(
-          child: AlertDialog(
-        title: const Text('Reconcile this week?'),
-        content: const Text(
-            "Check this week's entries against your receipts or bank, add "
-            'anything missing, then mark the week done.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop('ledger'),
-            child: const Text('Open the ledger'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop('done'),
-            child: const Text('Mark reconciled'),
-          ),
-        ],
-      )),
-    );
-    if (!mounted) return;
-    if (choice == 'ledger') {
-      widget.data.onOpenLedger();
-      return;
-    }
-    if (choice != 'done') return;
-    setState(() => _busy = true);
-    final ok = await habits.completeReconcile(widget.data.today);
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _reconciled = ok;
-    });
-    messenger?.showSnackBar(SnackBar(
-      content: Text(ok
-          ? widget.data.voice.line('reconcileDone',
-              seed: widget.data.today.weekStart.toKey())
-          : unavailableNote),
-    ));
-  }
+        ),
+      );
 }
 
 class _ScribeRow extends StatelessWidget {
@@ -390,6 +310,10 @@ class InboxPanel extends ConsumerWidget {
         final t = a.grantedAt.compareTo(b.grantedAt);
         return t != 0 ? t : a.rewardId.compareTo(b.rewardId);
       });
+    // A chest opened before the decoration catalogue loads would lose its
+    // decoration for good (the roll is stored in the event), so wait.
+    final decorsReady =
+        ref.watch(decorCatalogProvider).value?.items.isNotEmpty ?? false;
     if (chests.isEmpty && rewards.isEmpty) {
       return HallSection(
         title: 'Inbox',
@@ -416,8 +340,10 @@ class InboxPanel extends ConsumerWidget {
                   label: HallNames.chest(c.value), scale: 1),
               title: HallNames.chest(c.value),
               subtitle: _chestReason(c.key),
-              action: 'Open',
-              onPressed: () => _open(context, ref, c.key, c.value),
+              action: decorsReady ? 'Open' : 'Unpacking…',
+              onPressed: decorsReady
+                  ? () => _open(context, ref, c.key, c.value)
+                  : null,
             ),
           for (final r in rewards.take(maxRewardRows))
             _InboxRow(
@@ -455,13 +381,20 @@ class InboxPanel extends ConsumerWidget {
     if (r == null || !r.accepted || !context.mounted) return;
     final opened = r.events.whereType<ChestOpened>().firstOrNull;
     if (opened == null) return;
+    final droppedItemId = r.events.whereType<ItemAcquired>().firstOrNull?.itemId;
+    final droppedItem = droppedItemId == null
+        ? null
+        : ref.read(decorCatalogProvider).value?.itemFor(droppedItemId);
     await showHallCelebration(
       context,
       sprite: GameAssetKeys.chest(type, open: true),
       title: data.voice.line('chestOpened',
               seed: opened.eventId,
               fill: {'chest': HallNames.chest(type).toLowerCase()}),
-      lines: ['Inside: ${HallNames.loot(opened.contents)}.'],
+      lines: [
+        'Inside: ${HallNames.loot(opened.contents)}.',
+        if (droppedItem != null) HallNames.decorFound(droppedItem),
+      ],
     );
   }
 
@@ -516,7 +449,7 @@ class _InboxRow extends StatelessWidget {
   final String title;
   final String subtitle;
   final String action;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -552,13 +485,11 @@ class RitualCallout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pending = pendingRitualMonths(data.me, data.now);
+    final pending = pendingRitualMonths(data.me, data.now,
+        firstBudgetMonth: data.view.firstBudgetMonth);
     if (pending.isEmpty) return const SizedBox.shrink();
-    // A ritual already under way first; otherwise the month just ended.
-    final month = pending.firstWhere(
-        (m) => (data.me.ritual[m]?.steps.length ?? 0) > 0,
-        orElse: () => pending.last);
-    final done = data.me.ritual[month]?.steps.length ?? 0;
+    // The month that just ended.
+    final month = pending.last;
     final scheme = Theme.of(context).colorScheme;
     return HallSection(
       title: 'The ${Glossary.monthRitual.adventure} awaits',
@@ -568,16 +499,16 @@ class RitualCallout extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${monthLabel(month.year, month.month)}: $done of '
-            '${RitualStep.values.length} steps done. Finish them to face the '
-            'seasonal boss and earn the spoils chest.',
+            data.voice.line('dungeonCallout',
+                seed: month.toKey(),
+                fill: {'month': monthLabel(month.year, month.month)}),
             style: hallBodyStyle(context),
           ),
           const SizedBox(height: AppSpacing.sm),
           FilledButton.icon(
-            onPressed: () => openRitual(context, data),
+            onPressed: () => unawaited(openDungeon(context)),
             icon: const Icon(Icons.auto_awesome),
-            label: Text(done == 0 ? 'Begin the ritual' : 'Continue the ritual'),
+            label: Text(data.voice.line('dungeonCalloutButton')),
           ),
         ],
       ),
@@ -585,10 +516,8 @@ class RitualCallout extends StatelessWidget {
   }
 }
 
-/// Pushes the ritual screen.
-void openRitual(BuildContext context, HallHomeData data) =>
-    pushHallScreen(context,
-        RitualScreen(onOpenLedger: data.onOpenLedger, links: data.links));
+/// Opens the month-end dungeon (the ritual's battle).
+Future<void> openDungeon(BuildContext context) => DungeonScreen.open(context);
 
 // ---------------------------------------------------------------------------
 // The shared stores
@@ -796,7 +725,8 @@ class PlacesPanel extends StatelessWidget {
     } else {
       tripStatus = 'Back from ${HallNames.region(trip.region)} with a report!';
     }
-    final pending = pendingRitualMonths(me, data.now);
+    final pending = pendingRitualMonths(me, data.now,
+        firstBudgetMonth: data.view.firstBudgetMonth);
     return HallSection(
       title: 'Around the hall',
       icon: Icons.signpost_outlined,
@@ -824,13 +754,42 @@ class PlacesPanel extends StatelessWidget {
                 context, VaultScreen(onOpenLedger: data.onOpenLedger)),
           ),
           _PlaceTile(
+            icon: Icons.storefront_outlined,
+            title: 'Shop',
+            subtitle: 'A new set of decorations arrives every day',
+            onTap: () => unawaited(ShopScreen.open(context)),
+          ),
+          if (data.view.meId case final String meId when meId.isNotEmpty) ...[
+            _PlaceTile(
+              icon: Icons.chair_outlined,
+              title: 'Your room',
+              subtitle: 'Arrange your furniture and trophies',
+              onTap: () => unawaited(RoomScreen.open(context, meId)),
+            ),
+            _PlaceTile(
+              icon: Icons.checkroom_outlined,
+              title: 'Wardrobe',
+              subtitle: 'Wear an outfit or a title you own',
+              onTap: () => unawaited(showWardrobeSheet(context, meId)),
+            ),
+          ],
+          _PlaceTile(
+            icon: Icons.park_outlined,
+            title: 'Town decorations',
+            subtitle: 'Place and put away decorations and statues',
+            onTap: () => unawaited(TownDecorTextScreen.open(context)),
+          ),
+          _PlaceTile(
             icon: Icons.auto_awesome,
             title: _cap(Glossary.monthRitual.adventure),
             subtitle: pending.isEmpty
-                ? 'All done for now. The next one opens when the month ends.'
-                : '${pending.length} month${pending.length == 1 ? '' : 's'} '
-                    'ready for the ritual',
-            onTap: () => openRitual(context, data),
+                ? data.voice.line('dungeonPlaceDone')
+                : data.voice.line(
+                    pending.length == 1
+                        ? 'dungeonPlaceReadyOne'
+                        : 'dungeonPlaceReadyMany',
+                    fill: {'n': '${pending.length}'}),
+            onTap: () => unawaited(openDungeon(context)),
           ),
         ],
       ),
