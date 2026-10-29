@@ -206,10 +206,12 @@ it.
 
 ## Distribution
 
-LootLog ships through GitHub Releases only. Pushing a `v*` tag runs
+LootLog ships through GitHub Releases only. Running the **Build and release**
+workflow from the Actions tab (or pushing a `v*` tag) runs
 [`.github/workflows/release.yml`](.github/workflows/release.yml), which builds
-a signed Android APK plus Windows, macOS, and Linux bundles and attaches them
-to one release. Sharing the app means sharing a release link.
+a signed Android APK plus Windows, macOS, and Linux bundles from the latest
+commit and attaches them to a new release. Sharing the app means sharing a
+release link.
 
 There is no telemetry, no analytics, no crash reporter, and no phone-home of
 any kind. User counts come from the public GitHub download statistics:

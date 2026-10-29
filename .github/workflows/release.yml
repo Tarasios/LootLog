@@ -1,13 +1,24 @@
-# Build every LootLog artifact on a version tag and attach them to a GitHub
-# Release, so that "sharing the app" is only ever "sharing a release link".
+# Build every LootLog artifact and attach them to a GitHub Release, so that
+# "sharing the app" is only ever "sharing a release link".
 #
 # Distribution is GitHub Releases only (see docs/distribution.md). There is no
 # store account, no server, and no telemetry: the release download counts ARE
 # the metrics (tool/release_downloads.dart).
 #
-# Trigger: push a tag like `v1.0.0`. Each platform builds on its own native
-# runner (Flutter does not cross-compile desktop binaries), uploads its artifact,
-# and a final job gathers them into one Release.
+# Triggers:
+#   - "Run workflow" from the Actions tab: builds the chosen branch (main by
+#     default) at its CURRENT head and publishes a new release tagged
+#     `v<pubspec version>-build.<run number>`, marked Latest. Leave the tag
+#     input blank for this. (Note: "Re-run jobs" on an old run rebuilds that
+#     run's original commit, not the latest code. Start a new run instead.)
+#   - Push a tag like `v1.0.0`: builds that tag and publishes its release.
+#   - "Run workflow" with a tag input: rebuilds that existing tag.
+# Each platform builds on its own native runner (Flutter does not
+# cross-compile desktop binaries), uploads its artifact, and a final job
+# gathers them into one Release.
+#
+# Every build gets `--build-number=<run number>`, so the Android versionCode
+# always goes up and a new APK installs as an update over the previous one.
 #
 # The Android job produces a *signed, sideloadable* APK only when the repository
 # has the four ANDROID_* signing secrets set; otherwise it falls back to Flutter's
@@ -16,7 +27,7 @@
 # platform code-signing/notarization is documented as an optional local step in
 # docs/distribution.md.
 
-name: Release
+name: Build and release
 
 on:
   push:
@@ -25,8 +36,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing tag to build a release for (e.g. v1.0.0)'
-        required: true
+        description: 'Leave blank to build the selected branch as a new release. Or an existing tag to rebuild (e.g. v1.0.0).'
+        required: false
+        default: ''
 
 # Pin the toolchain so tagged builds are reproducible. Keep this in lockstep
 # with FLUTTER_VERSION in tool/setup-env.sh and the pin in docs/distribution.md.
@@ -42,19 +54,51 @@ jobs:
     outputs:
       tag: ${{ steps.v.outputs.tag }}
       version: ${{ steps.v.outputs.version }}
+      build_name: ${{ steps.v.outputs.build_name }}
+      build_number: ${{ steps.v.outputs.build_number }}
+      sha: ${{ steps.v.outputs.sha }}
     steps:
+      # A tag input pins the build to that tag; otherwise this is the pushed
+      # tag or the head of the dispatched branch.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.sha }}
       - id: v
         shell: bash
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
-          tag="${{ github.event.inputs.tag || github.ref_name }}"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          base="$(sed -n 's/^version: *\([0-9][0-9.]*\).*/\1/p' app/pubspec.yaml)"
+          if [ -n "$INPUT_TAG" ]; then
+            tag="$INPUT_TAG"
+          elif [ "$GITHUB_REF_TYPE" = tag ]; then
+            tag="$GITHUB_REF_NAME"
+          else
+            tag="v$base-build.$GITHUB_RUN_NUMBER"
+          fi
+          version="${tag#v}"
+          # Store and desktop version fields need a plain x.y.z.
+          build_name="${version%%-*}"
+          if ! [[ "$build_name" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            build_name="$base"
+          fi
+          {
+            echo "tag=$tag"
+            echo "version=$version"
+            echo "build_name=$build_name"
+            echo "build_number=$GITHUB_RUN_NUMBER"
+            echo "sha=$(git rev-parse HEAD)"
+          } >> "$GITHUB_OUTPUT"
+          echo "Building $tag ($build_name+$GITHUB_RUN_NUMBER) from $(git rev-parse --short HEAD)" >> "$GITHUB_STEP_SUMMARY"
 
   android:
     needs: version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.sha }}
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -86,7 +130,9 @@ jobs:
         working-directory: app
         run: |
           flutter pub get
-          flutter build apk --release
+          flutter build apk --release \
+            --build-name=${{ needs.version.outputs.build_name }} \
+            --build-number=${{ needs.version.outputs.build_number }}
       - name: Stage artifact
         shell: bash
         run: |
@@ -107,6 +153,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.sha }}
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -115,7 +163,7 @@ jobs:
         working-directory: app
         run: |
           flutter pub get
-          flutter build windows --release
+          flutter build windows --release --build-name=${{ needs.version.outputs.build_name }} --build-number=${{ needs.version.outputs.build_number }}
       - name: Package (zip the Release folder)
         shell: pwsh
         run: |
@@ -133,6 +181,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.sha }}
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -141,7 +191,9 @@ jobs:
         working-directory: app
         run: |
           flutter pub get
-          flutter build macos --release
+          flutter build macos --release \
+            --build-name=${{ needs.version.outputs.build_name }} \
+            --build-number=${{ needs.version.outputs.build_number }}
       - name: Package (.app zip + .dmg)
         shell: bash
         run: |
@@ -164,6 +216,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.sha }}
       - name: Install desktop build deps
         run: |
           sudo apt-get update
@@ -177,7 +231,9 @@ jobs:
         working-directory: app
         run: |
           flutter pub get
-          flutter build linux --release
+          flutter build linux --release \
+            --build-name=${{ needs.version.outputs.build_name }} \
+            --build-number=${{ needs.version.outputs.build_number }}
       - name: Package (tarball of the bundle)
         shell: bash
         run: |
@@ -206,11 +262,17 @@ jobs:
           cp artifacts/android/lootlog-*-android.apk artifacts/lootlog-android.apk
           cp artifacts/windows/lootlog-*-windows-x64.zip artifacts/lootlog-windows-x64.zip
           cp artifacts/linux/lootlog-*-linux-x64.tar.gz artifacts/lootlog-linux-x64.tar.gz
+      # A new tag is created at the exact commit that was built; an existing
+      # tag keeps pointing where it was.
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.version.outputs.tag }}
+          target_commitish: ${{ needs.version.outputs.sha }}
           name: LootLog ${{ needs.version.outputs.tag }}
+          body: |
+            Built from commit ${{ needs.version.outputs.sha }} (app version ${{ needs.version.outputs.build_name }}+${{ needs.version.outputs.build_number }}).
           generate_release_notes: true
+          make_latest: true
           fail_on_unmatched_files: true
           files: artifacts/**/*
