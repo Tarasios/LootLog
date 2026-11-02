@@ -13,9 +13,10 @@
 #     run's original commit, not the latest code. Start a new run instead.)
 #   - Push a tag like `v1.0.0`: builds that tag and publishes its release.
 #   - "Run workflow" with a tag input: rebuilds that existing tag.
-# Each platform builds on its own native runner (Flutter does not
-# cross-compile desktop binaries), uploads its artifact, and a final job
-# gathers them into one Release.
+# CI builds the two targeted platforms, Android and Windows, each on its own
+# native runner (Flutter does not cross-compile desktop binaries); a final job
+# gathers them into one Release. macOS and Linux bundles can still be built by
+# hand (docs/distribution.md).
 #
 # Every build gets `--build-number=<run number>`, so the Android versionCode
 # always goes up and a new APK installs as an update over the previous one.
@@ -176,78 +177,8 @@ jobs:
           path: dist/*.zip
           if-no-files-found: error
 
-  macos:
-    needs: version
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.version.outputs.sha }}
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-      - name: Build macOS
-        working-directory: app
-        run: |
-          flutter pub get
-          flutter build macos --release \
-            --build-name=${{ needs.version.outputs.build_name }} \
-            --build-number=${{ needs.version.outputs.build_number }}
-      - name: Package (.app zip + .dmg)
-        shell: bash
-        run: |
-          mkdir -p dist
-          app_path="app/build/macos/Build/Products/Release/lootlog.app"
-          v="${{ needs.version.outputs.version }}"
-          ditto -c -k --keepParent "$app_path" "dist/lootlog-$v-macos.app.zip"
-          hdiutil create -volname LootLog -srcfolder "$app_path" \
-            -ov -format UDZO "dist/lootlog-$v-macos.dmg"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: macos
-          path: |
-            dist/*.dmg
-            dist/*.zip
-          if-no-files-found: error
-
-  linux:
-    needs: version
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.version.outputs.sha }}
-      - name: Install desktop build deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config \
-            libgtk-3-dev liblzma-dev libsqlite3-dev
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-      - name: Build Linux
-        working-directory: app
-        run: |
-          flutter pub get
-          flutter build linux --release \
-            --build-name=${{ needs.version.outputs.build_name }} \
-            --build-number=${{ needs.version.outputs.build_number }}
-      - name: Package (tarball of the bundle)
-        shell: bash
-        run: |
-          mkdir -p dist
-          tar -czf "dist/lootlog-${{ needs.version.outputs.version }}-linux-x64.tar.gz" \
-            -C app/build/linux/x64/release/bundle .
-      - uses: actions/upload-artifact@v4
-        with:
-          name: linux
-          path: dist/*.tar.gz
-          if-no-files-found: error
-
   release:
-    needs: [version, android, windows, macos, linux]
+    needs: [version, android, windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -261,7 +192,6 @@ jobs:
           set -euo pipefail
           cp artifacts/android/lootlog-*-android.apk artifacts/lootlog-android.apk
           cp artifacts/windows/lootlog-*-windows-x64.zip artifacts/lootlog-windows-x64.zip
-          cp artifacts/linux/lootlog-*-linux-x64.tar.gz artifacts/lootlog-linux-x64.tar.gz
       # A new tag is created at the exact commit that was built; an existing
       # tag keeps pointing where it was.
       - name: Publish GitHub Release
