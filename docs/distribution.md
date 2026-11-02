@@ -66,8 +66,7 @@ Before packaging anything, from the repo root:
 ```
 
 Desktop binaries are **not** cross-compiled: each desktop platform must be built
-**on that platform** (that is why CI fans out to Windows, macOS, and Linux
-runners).
+**on that platform** (that is why CI builds Windows on a Windows runner).
 
 ---
 
@@ -104,8 +103,9 @@ so each APK's `versionCode` is higher than the last one and installs as an
 update. The workflow:
 
 1. resolves the tag, version and exact commit,
-2. builds all four artifacts in parallel on native runners
-   (`ubuntu-latest` for Android + Linux, `windows-latest`, `macos-latest`),
+2. builds the Android APK (`ubuntu-latest`) and the Windows zip
+   (`windows-latest`) in parallel on native runners. macOS and Linux are not
+   built in CI; build them by hand (below) if you need them,
 3. uploads each as a workflow artifact, and
 4. gathers them into a single **GitHub Release** for the tag
    (`softprops/action-gh-release`, with auto-generated release notes and the
@@ -307,7 +307,7 @@ not counted — only the binaries we upload are.
 2. Bump `version:` in `app/pubspec.yaml`; commit (`pubspec.lock` unchanged).
 3. Confirm the four signing secrets exist if you want a signed Android APK.
 4. Tag and push: `git tag v<version> && git push origin v<version>`.
-5. Watch the **Build and release** workflow build all four platforms and create the
+5. Watch the **Build and release** workflow build Android and Windows and create the
    Release. Confirm each artifact is attached and named
    `lootlog-<version>-<platform>.<ext>`.
 6. Smoke-test at least one desktop build and the APK:

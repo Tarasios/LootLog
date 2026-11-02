@@ -27,7 +27,6 @@ direct links always point at the newest version:
 
 - [Android APK](https://github.com/Tarasios/LootLog/releases/latest/download/lootlog-android.apk)
 - [Windows](https://github.com/Tarasios/LootLog/releases/latest/download/lootlog-windows-x64.zip)
-- [Linux](https://github.com/Tarasios/LootLog/releases/latest/download/lootlog-linux-x64.tar.gz)
 
 The phone app is fully self-sufficient. You can budget on a single phone
 forever. Installing the desktop app on a machine that stays home gives you a
@@ -209,8 +208,9 @@ it.
 LootLog ships through GitHub Releases only. Running the **Build and release**
 workflow from the Actions tab (or pushing a `v*` tag) runs
 [`.github/workflows/release.yml`](.github/workflows/release.yml), which builds
-a signed Android APK plus Windows, macOS, and Linux bundles from the latest
-commit and attaches them to a new release. Sharing the app means sharing a
+a signed Android APK and a Windows bundle from the latest commit and
+attaches them to a new release. macOS and Linux bundles can be built by hand
+(see the distribution guide). Sharing the app means sharing a
 release link.
 
 There is no telemetry, no analytics, no crash reporter, and no phone-home of
