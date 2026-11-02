@@ -93,15 +93,23 @@ script can bucket downloads by platform.
 
 ## The CI release pipeline
 
-`.github/workflows/release.yml` runs on every pushed `v*` tag (and can be
-re-run manually via **workflow_dispatch** with a tag input). It:
+`.github/workflows/release.yml` (**Build and release** in the Actions tab)
+runs on every pushed `v*` tag and on **Run workflow**. A manual run with the
+tag input left blank builds the selected branch at its current head and
+publishes a new release tagged `v<pubspec version>-build.<run number>`, marked
+Latest. Give it an existing tag instead to rebuild that tag. Don't use
+**Re-run jobs** on an old run to pick up new code: a re-run rebuilds the
+commit that run started on. Every build passes `--build-number=<run number>`,
+so each APK's `versionCode` is higher than the last one and installs as an
+update. The workflow:
 
-1. resolves `version` from the tag,
+1. resolves the tag, version and exact commit,
 2. builds all four artifacts in parallel on native runners
    (`ubuntu-latest` for Android + Linux, `windows-latest`, `macos-latest`),
 3. uploads each as a workflow artifact, and
 4. gathers them into a single **GitHub Release** for the tag
-   (`softprops/action-gh-release`, with auto-generated release notes).
+   (`softprops/action-gh-release`, with auto-generated release notes and the
+   commit it was built from).
 
 ### Android signing secrets
 
@@ -299,7 +307,7 @@ not counted — only the binaries we upload are.
 2. Bump `version:` in `app/pubspec.yaml`; commit (`pubspec.lock` unchanged).
 3. Confirm the four signing secrets exist if you want a signed Android APK.
 4. Tag and push: `git tag v<version> && git push origin v<version>`.
-5. Watch the **Release** workflow build all four platforms and create the
+5. Watch the **Build and release** workflow build all four platforms and create the
    Release. Confirm each artifact is attached and named
    `lootlog-<version>-<platform>.<ext>`.
 6. Smoke-test at least one desktop build and the APK:
