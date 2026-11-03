@@ -58,6 +58,7 @@ void main() {
   });
 
   testWidgets('works in text tier too', (tester) async {
+    final semantics = tester.ensureSemantics();
     final harness = await TownTestHarness.create(gems: 100);
     await tester.pumpWidget(
       ProviderScope(
@@ -68,6 +69,8 @@ void main() {
     await tester.pumpAndSettle();
     final shop = harness.container.read(todaysShopProvider);
     expect(find.byKey(ValueKey('decor-name-${shop.first.id}')), findsOneWidget);
-    expect(find.text('You have 100 gems'), findsOneWidget);
+    expect(tester.widget<Text>(find.byKey(const ValueKey('shop-gems'))).data, '100');
+    expect(find.bySemanticsLabel('You have 100 gems'), findsOneWidget);
+    semantics.dispose();
   });
 }

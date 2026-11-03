@@ -770,7 +770,7 @@ class PlacesPanel extends StatelessWidget {
               icon: Icons.checkroom_outlined,
               title: 'Wardrobe',
               subtitle: 'Wear an outfit or a title you own',
-              onTap: () => unawaited(showWardrobeSheet(context, meId)),
+              onTap: () => unawaited(showWardrobeDialog(context, meId)),
             ),
           ],
           _PlaceTile(
