@@ -522,7 +522,7 @@ columns × 7 rows of 32 × 32 cells, no spacing, 416 × 224 px) with its
 | `ui.panel.wood.idle` | `[1, 0]` | brown square in a brown frame |
 | `ui.panel.slate.idle` | `[2, 0]` | light blue-grey square in a slate frame |
 | `ui.panel.ornate.idle` | `[4, 1]` | brown square with grey-blue brackets in the four corners |
-| `ui.panel.inset.idle` | `[0, 2]` | cream square with a 3×3 grid, for inset wells |
+| `ui.panel.inset.idle` | `[0, 1]` | plain worn cream square in a brown frame (no grid), for inset wells |
 | `ui.banner.ribbon.idle` | `[4, 3, 3, 1]` | red ribbon, 3 cells wide (96 × 32), pins at the top corners |
 | `ui.banner.plain.idle` | `[4, 6, 3, 1]` | flat red banner with a blue-grey fill, 3 cells wide (96 × 32) |
 | `ui.button.round.idle` | `[0, 3]` | round cream button in a brown ring |
