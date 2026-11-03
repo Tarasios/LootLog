@@ -16,12 +16,13 @@ import 'package:lootlog/game/domain/game_event.dart';
 import 'package:lootlog/game/domain/game_values.dart';
 import 'package:lootlog/game/skin_prefs.dart';
 import 'package:lootlog/game/text_mode/text_battle.dart';
-import 'package:lootlog/game/ui/dungeon/battle_turn_sheet.dart';
+import 'package:lootlog/game/ui/dungeon/battle_turn_panel.dart';
 import 'package:lootlog/game/ui/dungeon/dungeon_commit.dart';
 import 'package:lootlog/game/ui/dungeon/dungeon_providers.dart';
 import 'package:lootlog/game/ui/dungeon/dungeon_screen.dart';
 import 'package:lootlog/game/ui/dungeon/dungeon_voice.dart';
 import 'package:lootlog/game/ui/hall_voice.dart';
+import 'package:lootlog/game/ui/kit/kit.dart';
 import 'package:lootlog/ui/format.dart';
 
 import '../../../features/spoils/spoils_fixtures.dart';
@@ -98,13 +99,30 @@ MonthEndBattle fixtureBattle() {
   return MonthEndBattle.from(ritual, household)!;
 }
 
+/// Swings the weapon on the card at its selected target.
+Future<void> strike(WidgetTester tester) async {
+  await tester.ensureVisible(find.text('Strike'));
+  await tester.tap(find.text('Strike'));
+  await pumpFrames(tester);
+}
+
+/// Picks the target button labelled [label] for the weapon on the card.
+Future<void> aimAt(WidgetTester tester, String label) async {
+  await tester.ensureVisible(find.text(label));
+  await tester.tap(find.text(label));
+  await pumpFrames(tester);
+}
+
 Future<void> strikeEveryWeapon(WidgetTester tester, MonthEndBattle battle) async {
   for (var turn = 0; turn < battle.weapons.length; turn++) {
-    await tester.tap(find.byKey(const ValueKey('next-weapon')));
-    await pumpFrames(tester);
-    await tester.tap(find.text('Strike'));
-    await pumpFrames(tester);
+    await strike(tester);
   }
+}
+
+/// Taps "Return to town" (scrolling it into view first).
+Future<void> returnToTown(WidgetTester tester) async {
+  await tester.ensureVisible(find.text('Return to town'));
+  await tester.tap(find.text('Return to town'));
 }
 
 void main() {
@@ -119,18 +137,12 @@ void main() {
     final battle = MonthEndBattle.from(ritualOn(household), household)!;
     await pumpDungeon(tester, battle: battle);
     // Food's $30 strikes the $50 OVERBUDGET first (the pre-selected move).
-    await tester.tap(find.byKey(const ValueKey('next-weapon')));
-    await pumpFrames(tester);
-    await tester.tap(find.text('Strike'));
-    await pumpFrames(tester);
+    await strike(tester);
     // Hygiene's $40 now meets $20 of debt.
-    await tester.tap(find.byKey(const ValueKey('next-weapon')));
-    await pumpFrames(tester);
     final shown = tester.widget<Text>(find.byKey(const ValueKey('battle-preview'))).data!;
     expect(shown, startsWith('${money(2000)} lands.'));
     expect(find.text('That finishes it!'), findsOneWidget);
-    await tester.tap(find.text('Strike'));
-    await pumpFrames(tester);
+    await strike(tester);
     // The victory tally agrees: the OVERBUDGET is cleared, not over-paid.
     expect(find.text('Cleared!'), findsOneWidget);
   });
@@ -144,7 +156,7 @@ void main() {
       final (harness, writes) = await pumpDungeon(tester, battle: battle, firstBudgetMonth: september);
       expect(find.byKey(const ValueKey('spoils-return')), findsOneWidget);
       expect(find.textContaining('September 2026'), findsOneWidget);
-      await tester.tap(find.text('Return to town'));
+      await returnToTown(tester);
       await pumpFrames(tester);
       expect(writes, isEmpty, reason: 'nothing is written to the ledger');
       final chests = (await tester.runAsync(harness.store.all))!.whereType<ChestGranted>().toList();
@@ -167,7 +179,7 @@ void main() {
     testWidgets('the oldest waiting month comes home first', (tester) async {
       final (harness, _) = await pumpDungeon(tester);
       expect(find.textContaining('August 2026'), findsOneWidget);
-      await tester.tap(find.text('Return to town'));
+      await returnToTown(tester);
       await pumpFrames(tester);
       final chests = (await tester.runAsync(harness.store.all))!.whereType<ChestGranted>().toList();
       expect(chests.single.chestId, spoilsChestId(harness.meId, const Month(2026, 8)));
@@ -179,10 +191,10 @@ void main() {
         firstBudgetMonth: september,
         onTimeMonths: FlakyOnTimeMonths(failures: 1),
       );
-      await tester.tap(find.text('Return to town'));
+      await returnToTown(tester);
       await pumpFrames(tester);
       expect(find.byKey(const ValueKey('chest-pending')), findsOneWidget);
-      await tester.tap(find.text('Return to town'));
+      await returnToTown(tester);
       await pumpFrames(tester);
       final chests = (await tester.runAsync(harness.store.all))!.whereType<ChestGranted>();
       expect(chests, hasLength(1));
@@ -199,18 +211,37 @@ void main() {
     await pumpDungeon(tester, battle: battle);
     expect(find.byKey(const ValueKey('dungeon-scene')), findsOneWidget);
     final weapon = battle.weapons.first;
-    expect(find.text('${weapon.name}: ${money(weapon.valueCents)}'), findsOneWidget);
+    final card = find.byKey(const ValueKey('next-weapon'));
+    expect(find.descendant(of: card, matching: find.text(weapon.name)), findsOneWidget);
+    expect(find.descendant(of: card, matching: find.text(money(weapon.valueCents))), findsOneWidget);
+  });
+
+  testWidgets('the party frames show every adventurer around the floor', (tester) async {
+    await pumpDungeon(tester, battle: fixtureBattle());
+    expect(find.text('Alex'), findsOneWidget);
+    expect(find.text('Sam'), findsOneWidget);
+  });
+
+  testWidgets('a second Strike before the card changes swings only one weapon', (tester) async {
+    final household = reduce(twoLeftoversOneDebtLedger().events, asOf: ritualInstant);
+    final battle = MonthEndBattle.from(ritualOn(household), household)!;
+    await pumpDungeon(tester, battle: battle);
+    final strikeButton = find.text('Strike');
+    await tester.ensureVisible(strikeButton);
+    final strikeAt = tester.getCenter(strikeButton);
+    await tester.tapAt(strikeAt);
+    await tester.tapAt(strikeAt);
+    await pumpFrames(tester);
+    final card = find.byKey(const ValueKey('next-weapon'));
+    expect(find.descendant(of: card, matching: find.text(battle.weapons[1].name)), findsOneWidget);
   });
 
   testWidgets('a turn previews exactly what the shared move module computes', (tester) async {
     final battle = fixtureBattle();
     await pumpDungeon(tester, battle: battle);
-    await tester.tap(find.byKey(const ValueKey('next-weapon')));
-    await pumpFrames(tester);
     final weapon = battle.weapons.first;
     final goal = battle.bosses.first;
-    await tester.tap(find.text('Toward ${goal.name}'));
-    await pumpFrames(tester);
+    await aimAt(tester, 'Toward ${goal.name}');
     final preview = previewSpoilsChoice(weapon.leftover, SpoilsChoice(SpoilsMove.goal, questId: goal.questId));
     final shown = tester.widget<Text>(find.byKey(const ValueKey('battle-preview'))).data!;
     expect(shown, startsWith('${money(preview.landsCents)} lands.'));
@@ -219,14 +250,10 @@ void main() {
   testWidgets('a strike at a goal is logged with the real split', (tester) async {
     final battle = fixtureBattle();
     await pumpDungeon(tester, battle: battle);
-    await tester.tap(find.byKey(const ValueKey('next-weapon')));
-    await pumpFrames(tester);
     final weapon = battle.weapons.first;
     final goal = battle.bosses.first;
-    await tester.tap(find.text('Toward ${goal.name}'));
-    await pumpFrames(tester);
-    await tester.tap(find.text('Strike'));
-    await pumpFrames(tester);
+    await aimAt(tester, 'Toward ${goal.name}');
+    await strike(tester);
     final preview = previewSpoilsChoice(weapon.leftover, SpoilsChoice(SpoilsMove.goal, questId: goal.questId));
     final logged = tester.widget<Text>(find.byKey(const ValueKey('dungeon-log'))).data!;
     expect(logged, contains(money(preview.landsCents)));
@@ -238,7 +265,7 @@ void main() {
     final (harness, writes) = await pumpDungeon(tester, battle: battle);
     await strikeEveryWeapon(tester, battle);
     expect(writes, isEmpty);
-    await tester.tap(find.text('Return to town'));
+    await returnToTown(tester);
     await pumpFrames(tester);
     expect(writes, hasLength(1));
     expect(writes.single.ritual, same(battle.ritual));
@@ -260,10 +287,7 @@ void main() {
   testWidgets('leaving early writes nothing', (tester) async {
     final battle = fixtureBattle();
     final (harness, writes) = await pumpDungeon(tester, battle: battle);
-    await tester.tap(find.byKey(const ValueKey('next-weapon')));
-    await pumpFrames(tester);
-    await tester.tap(find.text('Strike'));
-    await pumpFrames(tester);
+    await strike(tester);
     await tester.pageBack();
     await pumpFrames(tester);
     expect(writes, isEmpty);
@@ -276,10 +300,11 @@ void main() {
     final (_, writes) = await pumpDungeon(tester, battle: battle);
     final tally = battle.upkeep.single;
     await tester.enterText(find.byKey(ValueKey('upkeep-${tally.expenseId}')), '91.23');
+    await tester.ensureVisible(find.text('Descend'));
     await tester.tap(find.text('Descend'));
     await pumpFrames(tester);
     await strikeEveryWeapon(tester, battle);
-    await tester.tap(find.text('Return to town'));
+    await returnToTown(tester);
     await pumpFrames(tester);
     final written = writes.single.result.tallies.single;
     expect(written.expenseId, tally.expenseId);
@@ -316,7 +341,7 @@ void main() {
       final onTime = FlakyOnTimeMonths(failures: 1);
       final (harness, writes) = await pumpDungeon(tester, battle: battle, onTimeMonths: onTime);
       await strikeEveryWeapon(tester, battle);
-      await tester.tap(find.text('Return to town'));
+      await returnToTown(tester);
       await pumpFrames(tester);
       expect(writes, hasLength(1));
       expect(await chestsIn(tester, harness), isEmpty);
@@ -324,7 +349,7 @@ void main() {
       expect(note, contains('divided and saved'));
       expect(find.text('The spoils are home'), findsNothing);
 
-      await tester.tap(find.text('Return to town'));
+      await returnToTown(tester);
       await pumpFrames(tester);
       expect(writes, hasLength(1), reason: 'the ledger is written once per battle');
       expect(await chestsIn(tester, harness), hasLength(1));
@@ -337,7 +362,7 @@ void main() {
           await pumpDungeon(tester, battle: battle, onTimeMonths: FlakyOnTimeMonths(failures: 99));
       await strikeEveryWeapon(tester, battle);
       for (var attempt = 0; attempt < 3; attempt++) {
-        await tester.tap(find.text('Return to town'));
+        await returnToTown(tester);
         await pumpFrames(tester);
       }
       expect(writes, hasLength(1));
@@ -376,6 +401,7 @@ void main() {
     final (_, writes) = await pumpDungeon(tester, battle: battle, writer: (ritual, result) => release.future);
     await strikeEveryWeapon(tester, battle);
     final returnButton = find.text('Return to town');
+    await tester.ensureVisible(returnButton);
     await tester.tap(returnButton);
     await tester.tap(returnButton, warnIfMissed: false);
     release.complete();
@@ -391,35 +417,47 @@ void main() {
     await tester.enterText(field, 'eighty');
     await pumpFrames(tester);
     expect(find.text('Enter an amount, like 82.50'), findsOneWidget);
-    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Descend')).onPressed, isNull);
+    expect(tester.widget<WoodButton>(find.widgetWithText(WoodButton, 'Descend')).onPressed, isNull);
     await tester.enterText(field, '80');
     await pumpFrames(tester);
     expect(find.text('Enter an amount, like 82.50'), findsNothing);
-    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Descend')).onPressed, isNotNull);
+    expect(tester.widget<WoodButton>(find.widgetWithText(WoodButton, 'Descend')).onPressed, isNotNull);
   });
 
-  group('the turn sheet', () {
-    Future<void> openSheet(WidgetTester tester, MonthEndBattle battle,
-        {required List<GoalBoss> bosses, required List<DebtMonster> debts}) async {
+  group('the turn panel', () {
+    Future<void> pumpPanel(
+      WidgetTester tester,
+      BattleWeapon weapon, {
+      required List<GoalBoss> bosses,
+      required List<DebtMonster> debts,
+      void Function(SpoilsChoice choice)? onStrike,
+    }) async {
       await tester.pumpWidget(MaterialApp(
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: TextButton(
-              onPressed: () => showBattleTurnSheet(
-                context,
-                weapon: battle.weapons.first,
-                bosses: bosses,
-                debts: debts,
-                isAdventure: true,
-              ),
-              child: const Text('turn'),
+        home: Scaffold(
+          // A bounded slot, as the battle layout gives it.
+          body: Align(
+            alignment: Alignment.topCenter,
+            child: BattleTurnPanel(
+              weapon: weapon,
+              bosses: bosses,
+              debts: debts,
+              isAdventure: true,
+              onStrike: onStrike ?? (_) {},
             ),
           ),
         ),
       ));
-      await tester.tap(find.text('turn'));
       await tester.pumpAndSettle();
     }
+
+    Future<void> openSheet(WidgetTester tester, MonthEndBattle battle,
+            {required List<GoalBoss> bosses, required List<DebtMonster> debts}) =>
+        pumpPanel(tester, battle.weapons.first, bosses: bosses, debts: debts);
+
+    SpoilsChoice selectedTarget(WidgetTester tester) => tester
+        .widgetList<BattleTargetButton>(find.byType(BattleTargetButton))
+        .singleWhere((button) => button.selected)
+        .choice;
 
     testWidgets('a debt an earlier weapon cleared is not offered, and the default banks instead', (tester) async {
       final (household, ritual) = ritualFixtureWithDebt();
@@ -448,21 +486,8 @@ void main() {
       final weapon = BattleWeapon(leftover: leftover, defaultChoice: defaultSpoilsChoice(leftover));
       const fun = DebtMonster(sliceId: 'fun', name: 'Fun', outstandingCents: 0);
       const toys = DebtMonster(sliceId: 'toys', name: 'Toys', outstandingCents: 1000);
-      await tester.pumpWidget(MaterialApp(
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: TextButton(
-              onPressed: () => showBattleTurnSheet(context,
-                  weapon: weapon, bosses: const [], debts: const [fun, toys], isAdventure: true),
-              child: const Text('turn'),
-            ),
-          ),
-        ),
-      ));
-      await tester.tap(find.text('turn'));
-      await tester.pumpAndSettle();
-      final radio = tester.widget<RadioGroup<SpoilsChoice>>(find.byType(RadioGroup<SpoilsChoice>));
-      expect(radio.groupValue, const SpoilsChoice(SpoilsMove.debt, overbudgetSliceId: 'toys'));
+      await pumpPanel(tester, weapon, bosses: const [], debts: const [fun, toys]);
+      expect(selectedTarget(tester), const SpoilsChoice(SpoilsMove.debt, overbudgetSliceId: 'toys'));
       final shown = tester.widget<Text>(find.byKey(const ValueKey('battle-preview'))).data!;
       expect(shown, startsWith('${money(1000)} lands.'));
     });
@@ -479,6 +504,20 @@ void main() {
       final goal = battle.bosses.first;
       await openSheet(tester, battle, bosses: [goal.afterLanding(goal.targetCents)], debts: const []);
       expect(find.text('Toward ${goal.name}'), findsNothing);
+    });
+
+    testWidgets('Strike hands back the target picked on the card', (tester) async {
+      final battle = fixtureBattle();
+      final goal = battle.bosses.first;
+      final struck = <SpoilsChoice>[];
+      await pumpPanel(tester, battle.weapons.first, bosses: battle.bosses, debts: const [], onStrike: struck.add);
+      await tester.tap(find.text('Keep it in ${battle.weapons.first.name}'));
+      await tester.pump();
+      expect(selectedTarget(tester).move, SpoilsMove.carry);
+      await tester.tap(find.text('Toward ${goal.name}'));
+      await tester.pump();
+      await tester.tap(find.text('Strike'));
+      expect(struck, [SpoilsChoice(SpoilsMove.goal, questId: goal.questId)]);
     });
   });
 

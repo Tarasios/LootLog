@@ -9,6 +9,10 @@
 /// ledger has nothing left to divide for a finished month (all spent, past
 /// the grace period, or already divided in the ledger) and its chest has not
 /// come home, the dungeon is a short victory that grants only the chest.
+///
+/// This file holds the battle's state and its one ledger write; the framed
+/// layout ([DungeonBattleLayout]), the turn ([BattleTurnPanel]) and the
+/// panels around it draw what it holds.
 library;
 
 import 'dart:async';
@@ -17,33 +21,28 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../data/providers.dart';
 import '../../../domain/time.dart';
-import '../../../features/household_context.dart';
-import '../../../features/report/report_screen.dart';
-import '../../../features/spoils/spoils_model.dart';
 import '../../../features/spoils/spoils_move.dart';
 import '../../../ui/format.dart';
-import '../../assets/asset_catalog.dart';
-import '../../assets/asset_key.dart';
-import '../../assets/asset_registry.dart';
 import '../../assets/game_asset_scope.dart';
 import '../../battle/month_end_battle.dart';
 import '../../data/game_providers.dart';
 import '../../domain/decor/catalog.dart';
-import '../../domain/game_state.dart';
-import '../../domain/game_values.dart';
-import '../../game_sprite.dart';
 import '../../scenes/dungeon/dungeon_game.dart';
 import '../../scenes/dungeon/dungeon_scene_view.dart';
-import '../../scenes/pack_atlas.dart';
 import '../../skin_prefs.dart';
-import '../../text_mode/text_battle.dart';
 import '../hall_ledger_view.dart';
 import '../hall_status.dart';
-import 'battle_turn_sheet.dart';
+import '../kit/kit.dart';
+import 'battle_turn_panel.dart';
+import 'dungeon_battle_layout.dart';
 import 'dungeon_commit.dart';
+import 'dungeon_move_line.dart';
+import 'dungeon_panels.dart';
+import 'dungeon_party.dart';
 import 'dungeon_providers.dart';
+import 'dungeon_scene_loader.dart';
+import 'dungeon_text_tier.dart';
 import 'dungeon_voice.dart';
 import 'upkeep_step.dart';
 
@@ -111,81 +110,28 @@ class _DungeonScreenState extends ConsumerState<DungeonScreen> {
     unawaited(_buildGame(battle));
   }
 
-  Future<Map<String, ui.Image>> _decodePictures(MonthEndBattle battle) async {
-    final pictures = <String, ui.Image>{};
-    for (final boss in battle.bosses) {
-      final sha = boss.pictureSha256;
-      if (sha == null) continue;
-      try {
-        final codec = await ui.instantiateImageCodec(await ref.read(blobStoreProvider).read(sha));
-        pictures[boss.questId] = (await codec.getNextFrame()).image;
-      } on Object {
-        // A missing or unreadable picture just leaves the boss on its own.
-        continue;
-      }
-    }
-    return pictures;
-  }
-
   Future<void> _buildGame(MonthEndBattle battle) async {
-    final pictures = await _decodePictures(battle);
+    final load = await loadDungeonScene(ProviderScope.containerOf(context, listen: false), battle);
     if (!mounted) {
-      for (final picture in pictures.values) {
+      for (final picture in load.pictures.values) {
         picture.dispose();
       }
       return;
     }
-    _pictures.addAll(pictures);
-    AssetRegistry registry;
-    try {
-      registry = await ref.read(gameAssetRegistryProvider.future);
-    } on Object {
-      registry = AssetRegistry.bundled;
-    }
-    if (!mounted) return;
-    final game = ref.read(gameStateProvider).value ?? GameState.initial();
-    final meId = ref.read(meUserIdProvider) ?? '';
-    final catalog = ref.read(decorCatalogProvider).value ?? DecorCatalog.empty;
-    final outfitId = game.decor.outfitOf(meId);
-    setState(() => _game = DungeonGame(
-          atlas: PackAtlas.shared(registry),
-          bosses: battle.bosses,
-          debts: battle.debts,
-          heroKey: (outfitId == null ? null : catalog.itemFor(outfitId)?.assetKey) ?? const AssetKey('hero', 'body'),
-          pictures: pictures,
-          moneyLabel: money,
-        ));
+    _pictures.addAll(load.pictures);
+    setState(() => _game = load.game);
   }
 
   String _seed(String part) => '${_battle?.ritual.month.toKey()}:$part';
 
-  /// The log line for one confirmed move, in game voice, with the real split.
-  String _moveLine(DungeonVoice voice, BattleWeapon weapon, SpoilsChoice choice, SpoilsMovePreview preview) {
-    final seed = _seed(weapon.sliceId);
-    final amount = money(preview.landsCents);
-    final lines = <String>[
-      switch (choice.move) {
-        SpoilsMove.goal => voice.line('hitGoal',
-            seed: seed, fill: {'amount': amount, 'target': _bossName(choice.questId) ?? weapon.name}),
-        SpoilsMove.debt => voice.line('hitDebt',
-            seed: seed, fill: {'amount': amount, 'target': _debtName(choice.overbudgetSliceId) ?? weapon.name}),
-        SpoilsMove.bank => voice.line('bank', seed: seed, fill: {'amount': amount}),
-        SpoilsMove.carry => voice.line('carry', seed: seed, fill: {'amount': amount, 'name': weapon.name}),
-      },
-      if (preview.taxCents > 0) voice.line('taxFlies', seed: seed, fill: {'amount': money(preview.taxCents)}),
-      if (choice.move == SpoilsMove.goal && preview.completesTarget)
-        voice.line('bossFalls', seed: seed, fill: {'target': _bossName(choice.questId) ?? weapon.name}),
-    ];
-    return lines.join(' ');
-  }
-
-  String? _bossName(String? questId) => _bosses.where((boss) => boss.questId == questId).firstOrNull?.name;
-
-  String? _debtName(String? sliceId) => _debts.where((debt) => debt.sliceId == sliceId).firstOrNull?.name;
-
-  Future<void> _takeTurn(BattleWeapon weapon) async {
-    final choice = await showBattleTurnSheet(context, weapon: weapon, bosses: _bosses, debts: _debts, isAdventure: true);
-    if (choice == null || !mounted) return;
+  /// Swings [weapon] at [choice]. A strike for a weapon that is no longer on
+  /// the card (a second tap before the card changed) is ignored, so each
+  /// weapon is swung exactly once, in turn order.
+  Future<void> _takeTurn(BattleWeapon weapon, SpoilsChoice choice) async {
+    final battle = _battle!;
+    if (_stage != _DungeonStage.battle || _turn >= battle.weapons.length || battle.weapons[_turn] != weapon) {
+      return;
+    }
     // Against where earlier weapons left the goals and debts, as the ledger
     // will apply the allocations in turn order.
     final preview = previewSpoilsChoice(leftoverAgainst(weapon.leftover, bosses: _bosses, debts: _debts), choice);
@@ -195,14 +141,22 @@ class _DungeonScreenState extends ConsumerState<DungeonScreen> {
       SpoilsMove.debt => choice.overbudgetSliceId,
       _ => null,
     };
-    final line = _moveLine(voice, weapon, choice, preview);
+    final line = dungeonMoveLine(
+      voice,
+      seed: _seed(weapon.sliceId),
+      weapon: weapon,
+      choice: choice,
+      preview: preview,
+      bosses: _bosses,
+      debts: _debts,
+    );
     _choices[weapon.sliceId] = choice;
     setState(() {
       _bosses = [for (final boss in _bosses) boss.questId == targetId ? boss.afterLanding(preview.landsCents) : boss];
       _debts = [for (final debt in _debts) debt.sliceId == targetId ? debt.afterLanding(preview.landsCents) : debt];
       _log.add(line);
       _turn++;
-      if (_turn >= _battle!.weapons.length) _stage = _DungeonStage.victory;
+      if (_turn >= battle.weapons.length) _stage = _DungeonStage.victory;
     });
     final game = _game;
     if (game != null) {
@@ -235,9 +189,15 @@ class _DungeonScreenState extends ConsumerState<DungeonScreen> {
         return;
       }
     }
+    await _bringChestHome(container, battle.ritual.month, seed: _seed('victory'));
+  }
+
+  /// Grants [month]'s spoils chest and celebrates, then leaves. A failed
+  /// chest keeps the screen open with a note; the next tap tries again.
+  Future<void> _bringChestHome(ProviderContainer container, Month month, {required String seed}) async {
     final MonthEndGameOutcome outcome;
     try {
-      outcome = await finishMonthEndGame(container, battle.ritual.month);
+      outcome = await finishMonthEndGame(container, month);
     } on Object {
       if (!mounted) return;
       setState(() {
@@ -247,7 +207,7 @@ class _DungeonScreenState extends ConsumerState<DungeonScreen> {
       return;
     }
     if (!mounted) return;
-    await showMonthEndCelebration(context, container, outcome, seed: _seed('victory'));
+    await showMonthEndCelebration(context, container, outcome, seed: seed);
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -265,26 +225,12 @@ class _DungeonScreenState extends ConsumerState<DungeonScreen> {
   }
 
   /// Nothing left to divide in the ledger: brings [month]'s chest home and
-  /// writes nothing to the ledger. A failed chest keeps the screen open with
-  /// a note; the next tap tries again.
+  /// writes nothing to the ledger.
   Future<void> _returnWithSpoils(Month month) async {
     if (_saving) return;
     final container = ProviderScope.containerOf(context, listen: false);
     setState(() => _saving = true);
-    final MonthEndGameOutcome outcome;
-    try {
-      outcome = await finishMonthEndGame(container, month);
-    } on Object {
-      if (!mounted) return;
-      setState(() {
-        _saving = false;
-        _chestPending = true;
-      });
-      return;
-    }
-    if (!mounted) return;
-    await showMonthEndCelebration(context, container, outcome, seed: '${month.toKey()}:victory');
-    if (mounted) Navigator.of(context).pop();
+    await _bringChestHome(container, month, seed: '${month.toKey()}:victory');
   }
 
   @override
@@ -300,9 +246,10 @@ class _DungeonScreenState extends ConsumerState<DungeonScreen> {
     if (battle != null) _requestGame(battle);
     return AdventureSpriteScope(
       child: Scaffold(
+        backgroundColor: kDungeonStone,
         appBar: AppBar(title: const Text('The dungeon')),
         body: switch ((battle, _stage)) {
-          (null, _) when returnMonth != null => _SpoilsReturn(
+          (null, _) when returnMonth != null => SpoilsReturnPanel(
               headline: voice.line('nothingToDivide',
                   seed: '${returnMonth.toKey()}:return',
                   fill: {'month': monthLabel(returnMonth.year, returnMonth.month)}),
@@ -310,7 +257,7 @@ class _DungeonScreenState extends ConsumerState<DungeonScreen> {
               saving: _saving,
               onReturn: () => unawaited(_returnWithSpoils(returnMonth)),
             ),
-          (null, _) => _GateClosed(line: voice.line('gateClosed')),
+          (null, _) => DungeonGateClosed(line: voice.line('gateClosed')),
           (final MonthEndBattle open, _DungeonStage.upkeep) => UpkeepStep(
               tallies: open.upkeep,
               intro: voice.line('upkeep', seed: _seed('upkeep')),
@@ -319,231 +266,73 @@ class _DungeonScreenState extends ConsumerState<DungeonScreen> {
                 _stage = _DungeonStage.battle;
               }),
             ),
-          (final MonthEndBattle open, final _DungeonStage stage) => Column(children: [
-              Expanded(
-                flex: 3,
-                child: _game == null
-                    ? const ColoredBox(color: Color(0xFF140C1C), child: SizedBox.expand())
-                    : DungeonSceneView(key: const ValueKey('dungeon-scene'), game: _game!),
-              ),
-              if (stage == _DungeonStage.victory)
-                Expanded(
-                  flex: 2,
-                  child: _Victory(
-                    battle: open,
-                    bosses: _bosses,
-                    debts: _debts,
-                    headline: voice.line('victory', seed: _seed('victory')),
-                    pendingNote: _chestPending ? voice.line('chestPending') : null,
-                    saving: _saving,
-                    onReturn: _returnToTown,
-                  ),
-                )
-              else
-                _TurnPanel(
-                  log: _log,
-                  intro: open.weapons.isEmpty
-                      ? voice.line('noLeftovers', seed: _seed('none'))
-                      : _turn == 0 && _log.isEmpty
-                          ? voice.line('gateOpen', seed: _seed('open'))
-                          : null,
-                  weapon: open.weapons.isEmpty ? null : open.weapons[_turn],
-                  weaponLine: open.weapons.isEmpty
-                      ? null
-                      : voice.line('weaponReady', seed: _seed(open.weapons[_turn].sliceId), fill: {
-                          'name': open.weapons[_turn].name,
-                          'amount': money(open.weapons[_turn].valueCents),
-                        }),
-                  onTakeTurn: _takeTurn,
-                  headBackLabel: voice.line('headBack'),
-                  onHeadBack: () => setState(() => _stage = _DungeonStage.victory),
-                ),
-            ]),
+          (final MonthEndBattle open, final _DungeonStage stage) => DungeonBattleLayout(
+              party: _partyFrames(open),
+              floorRows: DungeonGame.rowsFor(open.bosses.length + open.debts.length),
+              floorTitle: monthLabel(open.ritual.month.year, open.ritual.month.month),
+              floor: _game == null
+                  ? const ColoredBox(color: Color(0xFF140C1C), child: SizedBox.expand())
+                  : DungeonSceneView(key: const ValueKey('dungeon-scene'), game: _game!),
+              turn: stage == _DungeonStage.victory ? _victory(open, voice) : _turnArea(open, voice),
+              logLines: [
+                open.weapons.isEmpty
+                    ? voice.line('noLeftovers', seed: _seed('none'))
+                    : voice.line('gateOpen', seed: _seed('open')),
+                ..._log,
+              ],
+            ),
         },
       ),
     );
   }
-}
 
-/// The text tier's battle: the turn-based text view for [ritual]. Its
-/// result is written through the shared spoils path, then the spoils chest,
-/// the celebration and the month's report follow.
-Widget textTierBattle(BuildContext context, SpoilsRitual ritual) => TextBattleView(
-      ritual: ritual,
-      onDismiss: () => Navigator.of(context).maybePop(),
-      onConfirm: (result) => unawaited(_finishTextBattle(context, ritual, result)),
+  /// The party around the floor: every adult, this one swinging the weapons.
+  List<DungeonPartyFrame> _partyFrames(MonthEndBattle battle) {
+    final view = ref.watch(hallLedgerViewProvider);
+    final game = ref.watch(gameStateProvider).value;
+    final catalog = ref.watch(decorCatalogProvider).value ?? DecorCatalog.empty;
+    return dungeonPartyFrames(
+      adults: [
+        for (final adult in view.adults) (memberId: adult.memberId, name: adult.name, inAdventure: adult.inAdventure),
+      ],
+      meId: view.meId,
+      weaponsSwung: _turn,
+      weaponCount: battle.weapons.length,
+      outfitOf: (memberId) => game == null ? null : outfitKeyOf(game, catalog, memberId),
     );
-
-/// The text battle pops on confirm (so it can't be confirmed twice), writes
-/// the ledger once, then brings the chest home. A failed chest never undoes
-/// or repeats the ledger write: a dialog says the leftovers are saved and
-/// offers to retry the chest alone.
-Future<void> _finishTextBattle(BuildContext context, SpoilsRitual ritual, SpoilsResult result) async {
-  final navigator = Navigator.of(context);
-  final container = ProviderScope.containerOf(context, listen: false);
-  navigator.pop();
-  try {
-    await writeMonthEndLedger(container, ritual, result);
-  } on Object {
-    if (navigator.mounted) showMonthEndSaveFailed(navigator.context, container);
-    return;
   }
-  MonthEndGameOutcome? outcome;
-  while (outcome == null && navigator.mounted) {
-    try {
-      outcome = await finishMonthEndGame(container, ritual.month);
-    } on Object {
-      if (!navigator.mounted || !await askRetryChest(navigator.context, container)) break;
+
+  /// The weapon on the card and its targets, or — with nothing left over —
+  /// the way back up.
+  Widget _turnArea(MonthEndBattle battle, DungeonVoice voice) {
+    if (battle.weapons.isEmpty) {
+      return WoodButton(
+        label: voice.line('headBack'),
+        expand: true,
+        onPressed: () => setState(() => _stage = _DungeonStage.victory),
+      );
     }
-  }
-  if (!navigator.mounted) return;
-  if (outcome != null) {
-    await showMonthEndCelebration(navigator.context, container, outcome, seed: '${ritual.month.toKey()}:victory');
-  }
-  if (navigator.mounted) await ReportScreen.open(navigator.context, initialMonth: ritual.month);
-}
-
-class _GateClosed extends StatelessWidget {
-  const _GateClosed({required this.line});
-
-  final String line;
-
-  @override
-  Widget build(BuildContext context) => Padding(padding: const EdgeInsets.all(24), child: Text(line));
-}
-
-/// A finished month with nothing left to divide: the party comes home with
-/// the spoils chest anyway.
-class _SpoilsReturn extends StatelessWidget {
-  const _SpoilsReturn({
-    required this.headline,
-    required this.pendingNote,
-    required this.saving,
-    required this.onReturn,
-  });
-
-  final String headline;
-  final String? pendingNote;
-  final bool saving;
-  final VoidCallback onReturn;
-
-  @override
-  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(24), children: [
-        Center(
-          child: GameSprite.fromKey(GameAssetKeys.chest(ChestType.spoils), label: 'Spoils chest'),
-        ),
-        const SizedBox(height: 16),
-        Text(headline, key: const ValueKey('spoils-return'), style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 16),
-        if (pendingNote case final String note) ...[
-          Text(note, key: const ValueKey('chest-pending')),
-          const SizedBox(height: 8),
-        ],
-        FilledButton(onPressed: saving ? null : onReturn, child: const Text('Return to town')),
-      ]);
-}
-
-/// Under the scene while weapons remain: the last move's line, the next
-/// weapon, and the button that aims it.
-class _TurnPanel extends StatelessWidget {
-  const _TurnPanel({
-    required this.log,
-    required this.intro,
-    required this.weapon,
-    required this.weaponLine,
-    required this.onTakeTurn,
-    required this.headBackLabel,
-    required this.onHeadBack,
-  });
-
-  final String headBackLabel;
-  final List<String> log;
-  final String? intro;
-  final BattleWeapon? weapon;
-  final String? weaponLine;
-  final void Function(BattleWeapon weapon) onTakeTurn;
-  final VoidCallback onHeadBack;
-
-  @override
-  Widget build(BuildContext context) {
-    final next = weapon;
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          if (log.isNotEmpty) Text(log.last, key: const ValueKey('dungeon-log')),
-          if (intro case final String line) Text(line),
-          if (weaponLine case final String line) ...[
-            const SizedBox(height: 8),
-            Text(line, style: Theme.of(context).textTheme.titleSmall),
-          ],
-          const SizedBox(height: 12),
-          if (next == null)
-            FilledButton(onPressed: onHeadBack, child: Text(headBackLabel))
-          else
-            FilledButton(
-              key: const ValueKey('next-weapon'),
-              onPressed: () => onTakeTurn(next),
-              child: Text('${next.name}: ${money(next.valueCents)}'),
-            ),
-        ]),
-      ),
+    final weapon = battle.weapons[_turn];
+    return BattleTurnPanel(
+      key: ValueKey('turn-${weapon.sliceId}'),
+      weapon: weapon,
+      bosses: _bosses,
+      debts: _debts,
+      isAdventure: true,
+      compact: MediaQuery.sizeOf(context).width < kDungeonWideBreakpoint,
+      flavourLine: voice.line('weaponReady',
+          seed: _seed(weapon.sliceId), fill: {'name': weapon.name, 'amount': money(weapon.valueCents)}),
+      onStrike: (choice) => unawaited(_takeTurn(weapon, choice)),
     );
   }
-}
 
-class _Victory extends StatelessWidget {
-  const _Victory({
-    required this.battle,
-    required this.bosses,
-    required this.debts,
-    required this.headline,
-    required this.pendingNote,
-    required this.saving,
-    required this.onReturn,
-  });
-
-  /// Shown when the leftovers are saved but the chest has not arrived.
-  final String? pendingNote;
-
-  final MonthEndBattle battle;
-  final List<GoalBoss> bosses;
-  final List<DebtMonster> debts;
-  final String headline;
-  final bool saving;
-  final VoidCallback onReturn;
-
-  @override
-  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(16), children: [
-        Text(headline, style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 12),
-        for (final boss in bosses)
-          ListTile(
-            title: Text(boss.name),
-            subtitle: LinearProgressIndicator(value: boss.revealFraction),
-            trailing: Text(boss.remainingCents == 0 ? 'Done!' : '${money(boss.remainingCents)} to go'),
-          ),
-        for (final debt in debts)
-          ListTile(
-            title: Text('OVERBUDGET on ${debt.name}'),
-            trailing: Text(debt.outstandingCents == 0 ? 'Cleared!' : '${money(debt.outstandingCents)} left to clear'),
-          ),
-        if (battle.groupFlows.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Text('Shared budgets march in on their own', style: Theme.of(context).textTheme.titleSmall),
-          for (final flow in battle.groupFlows)
-            ListTile(
-              dense: true,
-              title: Text(flow.name),
-              trailing: Text('${money(flow.leftoverCents)} to the war chest'),
-            ),
-        ],
-        const SizedBox(height: 12),
-        if (pendingNote case final String note) ...[
-          Text(note, key: const ValueKey('chest-pending')),
-          const SizedBox(height: 8),
-        ],
-        FilledButton(onPressed: saving ? null : onReturn, child: const Text('Return to town')),
-      ]);
+  Widget _victory(MonthEndBattle battle, DungeonVoice voice) => DungeonVictoryPanel(
+        battle: battle,
+        bosses: _bosses,
+        debts: _debts,
+        headline: voice.line('victory', seed: _seed('victory')),
+        pendingNote: _chestPending ? voice.line('chestPending') : null,
+        saving: _saving,
+        onReturn: _returnToTown,
+      );
 }

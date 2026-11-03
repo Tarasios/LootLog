@@ -19,11 +19,13 @@ import '../../../domain/time.dart';
 import '../../../features/spoils/spoils_model.dart';
 import '../../../features/spoils/spoils_move.dart';
 import '../../assets/asset_catalog.dart';
+import '../../assets/pack_sprite.dart';
 import '../../data/game_providers.dart';
 import '../../domain/game_event.dart';
 import '../../domain/game_values.dart';
-import '../hall_common.dart';
 import '../hall_voice.dart';
+import '../kit/kit.dart';
+import 'dungeon_battle_layout.dart' show kDungeonStone;
 import 'dungeon_providers.dart';
 import 'dungeon_voice.dart';
 
@@ -84,24 +86,44 @@ List<String> monthEndCelebrationLines(
   ];
 }
 
-/// Shows the celebration for a finished dungeon.
+/// Shows the celebration for a finished dungeon: the spoils chest in a
+/// framed game dialog.
 Future<void> showMonthEndCelebration(
   BuildContext context,
   ProviderContainer container,
   MonthEndGameOutcome outcome, {
   required Object seed,
-}) =>
-    showHallCelebration(
-      context,
-      sprite: GameAssetKeys.chest(ChestType.spoils),
+}) {
+  final lines = monthEndCelebrationLines(
+    outcome,
+    dungeonVoice: _dungeonVoice(container),
+    hallVoice: container.read(hallVoiceProvider).value ?? HallVoice.empty,
+    seed: seed,
+  );
+  return showGameDialog<void>(
+    context,
+    builder: (dialogContext) => GameDialog(
       title: 'The spoils are home',
-      lines: monthEndCelebrationLines(
-        outcome,
-        dungeonVoice: _dungeonVoice(container),
-        hallVoice: container.read(hallVoiceProvider).value ?? HallVoice.empty,
-        seed: seed,
+      scene: ColoredBox(
+        color: kDungeonStone,
+        child: Center(
+          child: PackSprite(assetKey: GameAssetKeys.chest(ChestType.spoils), scale: 3, label: 'Spoils chest'),
+        ),
       ),
-    );
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final line in lines)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AdventureTokens.gap / 2),
+              child: Text(line, textAlign: TextAlign.center),
+            ),
+        ],
+      ),
+      actions: [WoodButton(label: 'Huzzah!', onPressed: () => Navigator.of(dialogContext).pop())],
+    ),
+  );
+}
 
 DungeonVoice _dungeonVoice(ProviderContainer container) =>
     container.read(dungeonVoiceProvider).value ?? DungeonVoice.empty;
@@ -115,14 +137,18 @@ void showMonthEndSaveFailed(BuildContext context, ProviderContainer container) =
 /// The ledger write succeeded but the chest did not arrive: asks whether to
 /// try the chest again. True to retry.
 Future<bool> askRetryChest(BuildContext context, ProviderContainer container) async =>
-    await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('The leftovers are divided'),
-        content: Text(_dungeonVoice(container).line('chestPending'), key: const ValueKey('chest-pending')),
+    await showGameDialog<bool>(
+      context,
+      builder: (dialogContext) => GameDialog(
+        title: 'Leftovers divided',
+        body: Text(_dungeonVoice(container).line('chestPending'), key: const ValueKey('chest-pending')),
         actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Not now')),
-          FilledButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('Try again')),
+          WoodButton(
+            label: 'Not now',
+            tone: WoodButtonTone.secondary,
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+          ),
+          WoodButton(label: 'Try again', onPressed: () => Navigator.of(dialogContext).pop(true)),
         ],
       ),
     ) ??
