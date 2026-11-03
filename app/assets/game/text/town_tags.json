@@ -1,0 +1,9 @@
+{
+  "_comment": "Floating tags over the Adventure town (game words are fine). Every line is listed in docs/voice-lines.md beside its trigger. Placeholders filled by the app: {count} {name} {days} {percent}. Keep them short (a tag is a few words) and never shame: tags are only for good news and things you can act on. A missing key falls back to the built-in line.",
+  "toDivide": "{count} to divide",
+  "billDue": "{name} in {days}d",
+  "billDueToday": "{name} today",
+  "goalProgress": "{name} {percent}%",
+  "chestWaiting": "Chest waiting",
+  "upgradeReady": "Ready to upgrade"
+}
