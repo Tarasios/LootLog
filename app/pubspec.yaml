@@ -115,9 +115,21 @@ flutter:
     - assets/game/packs/tiny_town/
     - assets/game/packs/tiny_dungeon/
     - assets/game/packs/roguelike_indoors/
+    # Kenney CC0 UI Pack - Pixel Adventure (32px frames, banners, buttons).
+    - assets/game/packs/ui_pixel_adventure/
     # App icon + splash master art (placeholders). Regenerate the platform
     # launcher icons and the splash logo with tool/generate_branding.dart.
     - assets/branding/
+
+  # Kenney CC0 pixel fonts (licence: assets/fonts/License.txt). Pixel UI fonts for the Adventure widget kit: LootPixel is the proportional
+  # display/body face, LootPixelMono the fixed-width one for numbers and tables.
+  fonts:
+    - family: LootPixel
+      fonts:
+        - asset: assets/fonts/KenneyPixel.ttf
+    - family: LootPixelMono
+      fonts:
+        - asset: assets/fonts/KenneyMiniSquare.ttf
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
