@@ -13,10 +13,6 @@ import 'package:flutter/material.dart';
 import 'adventure_tokens.dart';
 import 'pixel_frame.dart';
 
-/// Kenney Pixel's native size: it renders crisp at whole multiples of 16 and
-/// soft in between, so kit controls use 16 (and 32 for the big HUD button).
-const double _kPixelFontSize = 16;
-
 /// The smallest a [WoodButton] gets: a comfortable touch target.
 const Size _kWoodButtonMinimum = Size(64, 44);
 
@@ -172,7 +168,7 @@ class WoodButton extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: AdventureTokens.label(context).copyWith(color: foreground, fontSize: _kPixelFontSize),
+                style: AdventureTokens.label(context).copyWith(color: foreground),
               ),
             ),
           ),
@@ -207,12 +203,8 @@ class HudButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final labelStyle = large
-        ? AdventureTokens.title(
-            context,
-          ).copyWith(color: AdventureTokens.parchment, fontSize: _kPixelFontSize * 2)
-        : AdventureTokens.label(
-            context,
-          ).copyWith(color: AdventureTokens.parchment, fontSize: _kPixelFontSize);
+        ? AdventureTokens.title(context).copyWith(color: AdventureTokens.parchment)
+        : AdventureTokens.label(context).copyWith(color: AdventureTokens.parchment);
     final content = large
         ? Row(
             mainAxisSize: MainAxisSize.min,
@@ -279,11 +271,6 @@ class _BadgePill extends StatelessWidget {
       border: Border.all(color: AdventureTokens.woodDark, width: 2),
       borderRadius: BorderRadius.circular(10),
     ),
-    child: Text(
-      text,
-      style: AdventureTokens.label(
-        context,
-      ).copyWith(color: AdventureTokens.parchment, fontSize: _kPixelFontSize),
-    ),
+    child: Text(text, style: AdventureTokens.label(context).copyWith(color: AdventureTokens.parchment)),
   );
 }

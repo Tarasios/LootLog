@@ -18,7 +18,7 @@ const double _kBannerCapSource = 32;
 /// The banner's source height (one cell).
 const int _kBannerSourceHeight = 32;
 
-/// Banners draw at twice their source size: room for a 20 px pixel title.
+/// Banners draw at twice their source size: room for a 32 px pixel title.
 const int _kBannerScale = 2;
 
 /// A brown wood board: the backdrop for a screen section or a sheet.

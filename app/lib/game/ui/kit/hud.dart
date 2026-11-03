@@ -13,10 +13,6 @@ import 'adventure_tokens.dart';
 import 'buttons.dart';
 import 'pixel_frame.dart';
 
-/// Kenney Pixel's native size: it renders crisp at whole multiples of 16 and
-/// soft in between, so kit controls use 16 (and 32 for the big HUD button).
-const double _kPixelFontSize = 16;
-
 /// The outline every drawn HUD piece wears.
 const Color _kOutline = AdventureTokens.woodDark;
 
@@ -68,9 +64,7 @@ class HudChip extends StatelessWidget {
             Text(
               label,
               maxLines: 1,
-              style: AdventureTokens.label(
-                context,
-              ).copyWith(color: AdventureTokens.inkMuted, fontSize: _kPixelFontSize),
+              style: AdventureTokens.label(context).copyWith(color: AdventureTokens.inkMuted),
             ),
           ],
         ],
@@ -182,13 +176,7 @@ class FloatingTag extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (icon != null) ...[Icon(icon, size: 14, color: foreground), const SizedBox(width: 3)],
-                Text(
-                  text,
-                  maxLines: 1,
-                  style: AdventureTokens.label(
-                    context,
-                  ).copyWith(color: foreground, fontSize: _kPixelFontSize),
-                ),
+                Text(text, maxLines: 1, style: AdventureTokens.label(context).copyWith(color: foreground)),
               ],
             ),
           ),

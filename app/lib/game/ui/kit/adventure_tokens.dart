@@ -54,6 +54,11 @@ abstract final class AdventureTokens {
   /// The standard spacing between kit elements, and the larger section gap.
   static const double gap = 8, gapLarge = 16;
 
+  /// The pixel fonts' native size: the LootPixel family renders crisp only at
+  /// whole multiples of this (16, 32, …) and soft in between, so every pixel
+  /// text size in the kit is a multiple of it.
+  static const double pixelFontStep = 16;
+
   /// Kenney Pixel, declared in pubspec as `LootPixel`.
   static const String pixelFont = 'LootPixel';
 
@@ -63,7 +68,7 @@ abstract final class AdventureTokens {
   /// Screen and panel headings, in the pixel font.
   static TextStyle title(BuildContext context) => _base(context).copyWith(
         fontFamily: pixelFont,
-        fontSize: 20,
+        fontSize: pixelFontStep * 2,
         height: 1.1,
         color: ink,
       );
@@ -71,7 +76,7 @@ abstract final class AdventureTokens {
   /// Labels, chips and buttons, in the pixel font.
   static TextStyle label(BuildContext context) => _base(context).copyWith(
         fontFamily: pixelFont,
-        fontSize: 14,
+        fontSize: pixelFontStep,
         height: 1.1,
         color: ink,
       );
