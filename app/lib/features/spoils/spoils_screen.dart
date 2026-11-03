@@ -124,6 +124,9 @@ class SpoilsEntryButton extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(right: AppSpacing.sm),
       child: FilledButton.tonalIcon(
+        // App-bar actions have unbounded width: drop the theme's full-width
+        // minimum or the whole toolbar fails layout and paints blank.
+        style: FilledButton.styleFrom(minimumSize: const Size(0, 40)),
         onPressed: () => unawaited(openSpoilsRitual(context, ref)),
         icon: const Icon(Icons.auto_awesome, size: 18),
         label: Text(adventure ? 'Divide the spoils' : 'Divide leftovers'),
