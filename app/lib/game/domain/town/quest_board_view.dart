@@ -32,7 +32,7 @@ class QuestBoardGoal {
   final String questId;
   final String name;
 
-  /// Progress toward [target], 0–100, as the Standard dashboard shows it.
+  /// Progress toward [target], 0–100, rounded down: 100 only once reached.
   final int percent;
 
   /// What's still needed to reach [target].
@@ -77,7 +77,11 @@ class QuestBoardMonster {
 
 /// An OVERBUDGET: overspending still to be repaid on a category.
 class QuestBoardDebt {
-  const QuestBoardDebt({required this.categoryId, required this.name, required this.outstanding});
+  const QuestBoardDebt({
+    required this.categoryId,
+    required this.name,
+    required this.outstanding,
+  });
 
   final String categoryId;
   final String name;
@@ -86,7 +90,11 @@ class QuestBoardDebt {
 
 /// One recent purchase.
 class QuestBoardEntry {
-  const QuestBoardEntry({required this.label, required this.amount, required this.occurredAt});
+  const QuestBoardEntry({
+    required this.label,
+    required this.amount,
+    required this.occurredAt,
+  });
 
   /// The merchant when one was recorded, otherwise what it was charged to.
   final String label;
@@ -94,6 +102,8 @@ class QuestBoardEntry {
   final DateTime occurredAt;
 }
 
+/// Everything the town's quest board shows, built by [QuestBoardView.from]
+/// on every read from the household state; never stored.
 class QuestBoardView {
   const QuestBoardView({
     this.goals = const [],
@@ -140,29 +150,39 @@ class QuestBoardView {
     return QuestBoardView(
       goals: List.unmodifiable(_goals(state, names)),
       debts: List.unmodifiable([
-        for (final debt
-            in buildOverbudgetCards(state, meUserId: meId, userNames: names, includeOtherAdults: showOtherAdults))
+        for (final debt in buildOverbudgetCards(
+          state,
+          meUserId: meId,
+          userNames: names,
+          includeOtherAdults: showOtherAdults,
+        ))
           QuestBoardDebt(
             categoryId: debt.sliceId,
             name: debt.categoryName,
             outstanding: Money(debt.outstandingCents),
           ),
       ]),
-      pendingWrits: _pendingWithdrawalCount(state) +
+      pendingWrits:
+          _pendingWithdrawalCount(state) +
           buildPendingAdvances(state, meUserId: meId, userNames: names).length,
       monsters: List.unmodifiable(_monsters(rings)),
-      recent: List.unmodifiable(_recent(state, meId: meId, showOtherAdults: showOtherAdults)),
+      recent: List.unmodifiable(
+        _recent(state, meId: meId, showOtherAdults: showOtherAdults),
+      ),
     );
   }
 
-  static List<QuestBoardGoal> _goals(HouseholdState state, Map<String, String> names) {
+  static List<QuestBoardGoal> _goals(
+    HouseholdState state,
+    Map<String, String> names,
+  ) {
     final goals = [
       for (final card in buildQuestCards(state, userNames: names))
         if (!card.completed)
           QuestBoardGoal(
             questId: card.questId,
             name: card.name,
-            percent: card.pctComplete,
+            percent: _percent(card),
             remaining: Money(card.remainingCents),
             target: Money(card.targetCents),
             shared: card.isShared,
@@ -176,11 +196,20 @@ class QuestBoardView {
     return goals;
   }
 
+  /// Whole percent toward the target, rounded down like the guild hall's
+  /// goal list so a goal only reads 100% once it is actually reached.
+  static int _percent(QuestCard card) {
+    if (card.completed) return 100;
+    if (card.targetCents <= 0) return 0;
+    return (card.totalContributedCents * 100 ~/ card.targetCents).clamp(0, 99);
+  }
+
   static List<QuestBoardMonster> _monsters(List<SliceRing> rings) {
     // The dashboard lists other adults' categories before group ones; the
     // board puts the household's shared ones right after mine.
     int rank(SliceRing ring) => ring.mine ? 0 : (ring.isGroup ? 1 : 2);
-    final ordered = [...rings]..sort((first, second) {
+    final ordered = [...rings]
+      ..sort((first, second) {
         final byRank = rank(first).compareTo(rank(second));
         return byRank != 0 ? byRank : first.name.compareTo(second.name);
       });
@@ -199,11 +228,15 @@ class QuestBoardView {
   }
 
   /// Misc's colour, for a category with no main category.
-  static final int _fallbackColorArgb =
-      defaultMainCategories.firstWhere((main) => main.id == 'misc').colorArgb;
+  static final int _fallbackColorArgb = defaultMainCategories
+      .firstWhere((main) => main.id == 'misc')
+      .colorArgb;
 
-  static int _pendingWithdrawalCount(HouseholdState state) =>
-      state.withdrawals.values.where((withdrawal) => withdrawal.status == WithdrawalStatus.pending).length;
+  static int _pendingWithdrawalCount(HouseholdState state) => state
+      .withdrawals
+      .values
+      .where((withdrawal) => withdrawal.status == WithdrawalStatus.pending)
+      .length;
 
   static List<QuestBoardEntry> _recent(
     HouseholdState state, {
@@ -213,18 +246,25 @@ class QuestBoardView {
     bool hidden(PurchaseState purchase) {
       if (showOtherAdults) return false;
       final target = purchase.target;
+      // Only personal categories (and debts) are hidden by the toggle, so
+      // other adults' vault, goal, reserve and trip purchases stay visible.
       if (target is! SliceCharge) return false;
       final category = state.slices[target.sliceId];
-      return category != null && !category.isGroup && category.ownerUserId != meId;
+      return category != null &&
+          !category.isGroup &&
+          category.ownerUserId != meId;
     }
 
-    final purchases = [
-      for (final purchase in state.purchases.values)
-        if (!purchase.voided && !hidden(purchase)) purchase,
-    ]..sort((first, second) {
-        final byTime = second.occurredAt.compareTo(first.occurredAt);
-        return byTime != 0 ? byTime : second.purchaseId.compareTo(first.purchaseId);
-      });
+    final purchases =
+        [
+          for (final purchase in state.purchases.values)
+            if (!purchase.voided && !hidden(purchase)) purchase,
+        ]..sort((first, second) {
+          final byTime = second.occurredAt.compareTo(first.occurredAt);
+          return byTime != 0
+              ? byTime
+              : second.purchaseId.compareTo(first.purchaseId);
+        });
     return [
       for (final purchase in purchases.take(recentLimit))
         QuestBoardEntry(
@@ -241,10 +281,16 @@ class QuestBoardView {
     return switch (purchase.target) {
       SliceCharge(:final sliceId) => state.slices[sliceId]?.name ?? 'A budget',
       VaultCharge() => Glossary.capitalize(
-          Glossary.vaultLabel(isAdventure: true, savingsRules: state.savingsRules != null)),
+        Glossary.vaultLabel(
+          isAdventure: true,
+          savingsRules: state.savingsRules != null,
+        ),
+      ),
       QuestCharge(:final questId) => state.quests[questId]?.name ?? 'A goal',
-      EmergencyCharge(:final fundId) => state.emergencyFunds[fundId]?.name ?? 'A reserve',
-      VacationCharge(:final vacationId) => state.vacations[vacationId]?.name ?? 'An expedition',
+      EmergencyCharge(:final fundId) =>
+        state.emergencyFunds[fundId]?.name ?? 'A reserve',
+      VacationCharge(:final vacationId) =>
+        state.vacations[vacationId]?.name ?? 'An expedition',
     };
   }
 }

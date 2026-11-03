@@ -19,7 +19,8 @@ class PlotAnchor extends TownTagAnchor {
   final int plotIndex;
 
   @override
-  bool operator ==(Object other) => other is PlotAnchor && other.plotIndex == plotIndex;
+  bool operator ==(Object other) =>
+      other is PlotAnchor && other.plotIndex == plotIndex;
 
   @override
   int get hashCode => Object.hash(PlotAnchor, plotIndex);
@@ -33,7 +34,8 @@ class HouseAnchor extends TownTagAnchor {
   final String personId;
 
   @override
-  bool operator ==(Object other) => other is HouseAnchor && other.personId == personId;
+  bool operator ==(Object other) =>
+      other is HouseAnchor && other.personId == personId;
 
   @override
   int get hashCode => Object.hash(HouseAnchor, personId);
@@ -60,7 +62,8 @@ class StatueAnchor extends TownTagAnchor {
   final String questId;
 
   @override
-  bool operator ==(Object other) => other is StatueAnchor && other.questId == questId;
+  bool operator ==(Object other) =>
+      other is StatueAnchor && other.questId == questId;
 
   @override
   int get hashCode => Object.hash(StatueAnchor, questId);
@@ -70,7 +73,11 @@ class StatueAnchor extends TownTagAnchor {
 }
 
 class TownTag {
-  const TownTag({required this.anchor, required this.text, this.urgent = false});
+  const TownTag({
+    required this.anchor,
+    required this.text,
+    this.urgent = false,
+  });
 
   final TownTagAnchor anchor;
   final String text;
@@ -81,7 +88,10 @@ class TownTag {
 
   @override
   bool operator ==(Object other) =>
-      other is TownTag && other.anchor == anchor && other.text == text && other.urgent == urgent;
+      other is TownTag &&
+      other.anchor == anchor &&
+      other.text == text &&
+      other.urgent == urgent;
 
   @override
   int get hashCode => Object.hash(anchor, text, urgent);
@@ -154,7 +164,14 @@ class TownTagLines {
       other.upgradeReady == upgradeReady;
 
   @override
-  int get hashCode => Object.hash(toDivide, billDue, billDueToday, goalProgress, chestWaiting, upgradeReady);
+  int get hashCode => Object.hash(
+    toDivide,
+    billDue,
+    billDueToday,
+    goalProgress,
+    chestWaiting,
+    upgradeReady,
+  );
 }
 
 /// A recurring bill as the tags need it: [ownerId] is the adult whose
@@ -187,27 +204,41 @@ List<TownTag> townTags({
   const hall = PlotAnchor(kCentralHallPlotIndex);
 
   if (leftoversToDivide > 0) {
-    candidates.add(TownTag(
-      anchor: const GateAnchor(),
-      text: _fill(lines.toDivide, {'count': '$leftoversToDivide'}),
-      urgent: true,
-    ));
+    candidates.add(
+      TownTag(
+        anchor: const GateAnchor(),
+        text: _fill(lines.toDivide, {'count': '$leftoversToDivide'}),
+        urgent: true,
+      ),
+    );
   }
 
   final residents = {for (final resident in view.residents) resident.personId};
-  final dueSoon = [
-    for (final bill in upcomingBills)
-      if (bill.daysUntilDue >= 0 && bill.daysUntilDue <= kTownBillTagDays) bill,
-  ]..sort((first, second) => first.daysUntilDue.compareTo(second.daysUntilDue));
+  final dueSoon =
+      [
+        for (final bill in upcomingBills)
+          if (bill.daysUntilDue >= 0 && bill.daysUntilDue <= kTownBillTagDays)
+            bill,
+      ]..sort((first, second) {
+        final byDays = first.daysUntilDue.compareTo(second.daysUntilDue);
+        return byDays != 0 ? byDays : first.name.compareTo(second.name);
+      });
   for (final bill in dueSoon) {
     final owner = bill.ownerId;
-    candidates.add(TownTag(
-      anchor: owner != null && residents.contains(owner) ? HouseAnchor(owner) : hall,
-      text: bill.daysUntilDue == 0
-          ? _fill(lines.billDueToday, {'name': bill.name})
-          : _fill(lines.billDue, {'name': bill.name, 'days': '${bill.daysUntilDue}'}),
-      urgent: bill.daysUntilDue <= 1,
-    ));
+    candidates.add(
+      TownTag(
+        anchor: owner != null && residents.contains(owner)
+            ? HouseAnchor(owner)
+            : hall,
+        text: bill.daysUntilDue == 0
+            ? _fill(lines.billDueToday, {'name': bill.name})
+            : _fill(lines.billDue, {
+                'name': bill.name,
+                'days': '${bill.daysUntilDue}',
+              }),
+        urgent: bill.daysUntilDue <= 1,
+      ),
+    );
   }
 
   if (unopenedChests > 0) {
@@ -216,19 +247,27 @@ List<TownTag> townTags({
 
   for (final plot in view.plots) {
     if (plot.unlocked && upgradeReadyPlots.contains(plot.plotIndex)) {
-      candidates.add(TownTag(anchor: PlotAnchor(plot.plotIndex), text: lines.upgradeReady));
+      candidates.add(
+        TownTag(anchor: PlotAnchor(plot.plotIndex), text: lines.upgradeReady),
+      );
     }
   }
 
+  // The board already lists goals by percent, furthest along first.
   final goalsWithProgress = [
     for (final goal in board.goals)
       if (goal.percent > 0) goal,
-  ]..sort((first, second) => second.percent.compareTo(first.percent));
+  ];
   for (final goal in goalsWithProgress.take(view.layout.statueSpots.length)) {
-    candidates.add(TownTag(
-      anchor: StatueAnchor(goal.questId),
-      text: _fill(lines.goalProgress, {'name': goal.name, 'percent': '${goal.percent}'}),
-    ));
+    candidates.add(
+      TownTag(
+        anchor: StatueAnchor(goal.questId),
+        text: _fill(lines.goalProgress, {
+          'name': goal.name,
+          'percent': '${goal.percent}',
+        }),
+      ),
+    );
   }
 
   // Urgent first; the stable sort keeps the priority order within each.
@@ -245,6 +284,8 @@ List<TownTag> townTags({
 
 String _fill(String template, Map<String, String> values) {
   var text = template;
-  values.forEach((placeholder, value) => text = text.replaceAll('{$placeholder}', value));
+  values.forEach(
+    (placeholder, value) => text = text.replaceAll('{$placeholder}', value),
+  );
   return text;
 }

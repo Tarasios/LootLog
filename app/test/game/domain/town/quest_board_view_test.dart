@@ -18,36 +18,50 @@ const names = {'alex': 'Alex', 'sam': 'Sam'};
 
 DateTime octoberAt(int day, int hour) => DateTime.utc(2026, 10, day, hour);
 
-void groupCategory(TestLedger ledger, String sliceId, {int limitCents = 30000}) =>
-    ledger.events.add(BudgetSliceSet(
-      eventId: 'group-$sliceId',
-      deviceId: 'd',
-      userId: 'alex',
-      occurredAt: setupInstant,
-      createdAt: setupInstant,
-      sliceId: sliceId,
-      name: sliceId,
-      ownership: const GroupSlice(),
-      limitCents: limitCents,
-      poolTithePct: 0,
-      defaultLeftoverPolicy: const Discretionary(),
-      taxDeductibleByDefault: false,
-      mainCategoryId: 'food',
-    ));
+void groupCategory(
+  TestLedger ledger,
+  String sliceId, {
+  int limitCents = 30000,
+}) => ledger.events.add(
+  BudgetSliceSet(
+    eventId: 'group-$sliceId',
+    deviceId: 'd',
+    userId: 'alex',
+    occurredAt: setupInstant,
+    createdAt: setupInstant,
+    sliceId: sliceId,
+    name: sliceId,
+    ownership: const GroupSlice(),
+    limitCents: limitCents,
+    poolTithePct: 0,
+    defaultLeftoverPolicy: const Discretionary(),
+    taxDeductibleByDefault: false,
+    mainCategoryId: 'food',
+  ),
+);
 
-void boughtAt(TestLedger ledger, String purchaseId, String who, String sliceId, int cents, DateTime when,
-        {String? merchant, bool voided = false}) =>
-    ledger.events.add(PurchaseAdded(
-      eventId: 'buy-$purchaseId',
-      deviceId: 'd',
-      userId: who,
-      occurredAt: when,
-      createdAt: when,
-      purchaseId: purchaseId,
-      target: SliceCharge(sliceId),
-      amountCents: cents,
-      merchant: merchant,
-    ));
+void boughtAt(
+  TestLedger ledger,
+  String purchaseId,
+  String who,
+  String sliceId,
+  int cents,
+  DateTime when, {
+  String? merchant,
+  bool voided = false,
+}) => ledger.events.add(
+  PurchaseAdded(
+    eventId: 'buy-$purchaseId',
+    deviceId: 'd',
+    userId: who,
+    occurredAt: when,
+    createdAt: when,
+    purchaseId: purchaseId,
+    target: SliceCharge(sliceId),
+    amountCents: cents,
+    merchant: merchant,
+  ),
+);
 
 /// Alex and Sam. Alex has Fun (overspent this month) and Food; Sam has Games
 /// (overspent in September with an empty pouch, so its OVERBUDGET stands);
@@ -57,9 +71,20 @@ TestLedger boardLedger() {
   final ledger = TestLedger()
     ..adult('alex')
     ..adult('sam')
-    ..category('fun', owner: 'alex', limitCents: 20000, mainCategoryId: 'entertainment')
+    ..category(
+      'fun',
+      owner: 'alex',
+      limitCents: 20000,
+      mainCategoryId: 'entertainment',
+    )
     ..category('food', owner: 'alex', limitCents: 40000, mainCategoryId: 'food')
-    ..category('games', owner: 'sam', limitCents: 10000, mainCategoryId: 'entertainment', since: dayOf(2026, 9, 1))
+    ..category(
+      'games',
+      owner: 'sam',
+      limitCents: 10000,
+      mainCategoryId: 'entertainment',
+      since: dayOf(2026, 9, 1),
+    )
     ..quest('canoe', 130000, ownership: const PersonalParty('alex'))
     ..quest('jacket', 50000, pictureSha256: 'jacket-picture')
     ..quest('boat', 100000)
@@ -79,13 +104,22 @@ TestLedger boardLedger() {
   boughtAt(ledger, 'p1', 'alex', 'fun', 25000, octoberAt(1, 15));
   boughtAt(ledger, 'p2', 'alex', 'food', 10000, octoberAt(1, 16));
   boughtAt(ledger, 'p3', 'sam', 'games', 2000, octoberAt(1, 17));
-  boughtAt(ledger, 'p4', 'alex', 'groceries', 3000, octoberAt(2, 15), merchant: 'Corner Market');
+  boughtAt(
+    ledger,
+    'p4',
+    'alex',
+    'groceries',
+    3000,
+    octoberAt(2, 15),
+    merchant: 'Corner Market',
+  );
   boughtAt(ledger, 'p5', 'alex', 'food', 1000, octoberAt(2, 16));
   boughtAt(ledger, 'p6', 'sam', 'groceries', 500, octoberAt(2, 17));
   return ledger;
 }
 
-QuestBoardView boardFor(HouseholdState state, {bool showOtherAdults = true}) => QuestBoardView.from(
+QuestBoardView boardFor(HouseholdState state, {bool showOtherAdults = true}) =>
+    QuestBoardView.from(
       state,
       meId: 'alex',
       month: october,
@@ -103,39 +137,94 @@ void main() {
       expect(goals.map((goal) => goal.percent), [50, 10, 0]);
     });
 
-    test('carry the target, what is left to reach it, ownership and picture', () {
-      final jacket = boardFor(household).goals.first;
-      expect(jacket.name, 'jacket');
-      expect(jacket.target, const Money(50000));
-      expect(jacket.remaining, const Money(25000));
-      expect(jacket.shared, isTrue);
-      expect(jacket.pictureSha256, 'jacket-picture');
-      final canoe = boardFor(household).goals[1];
-      expect(canoe.shared, isFalse);
-      expect(canoe.pictureSha256, isNull);
+    test(
+      'carry the target, what is left to reach it, ownership and picture',
+      () {
+        final jacket = boardFor(household).goals.first;
+        expect(jacket.name, 'jacket');
+        expect(jacket.target, const Money(50000));
+        expect(jacket.remaining, const Money(25000));
+        expect(jacket.shared, isTrue);
+        expect(jacket.pictureSha256, 'jacket-picture');
+        final canoe = boardFor(household).goals[1];
+        expect(canoe.shared, isFalse);
+        expect(canoe.pictureSha256, isNull);
+      },
+    );
+
+    test('an almost-reached goal reads 99%, never 100%', () {
+      final ledger = TestLedger()
+        ..adult('alex')
+        ..category(
+          'big',
+          owner: 'alex',
+          limitCents: 100000,
+          since: dayOf(2026, 9, 1),
+        )
+        ..quest('kayak', 100000)
+        ..allocate('alex', 'big', september, const [
+          Allocation(
+            destination: QuestDestination('kayak'),
+            amountCents: 99600,
+          ),
+          Allocation(destination: Discretionary(), amountCents: 400),
+        ]);
+      final goals = boardFor(reduce(ledger.events, asOf: boardInstant)).goals;
+      expect(goals.single.percent, 99);
+      expect(goals.single.remaining, const Money(400));
     });
   });
 
   group('monsters', () {
     test('mine first, then group, then the other adults', () {
       final monsters = boardFor(household).monsters;
-      expect(monsters.map((monster) => monster.categoryId), ['food', 'fun', 'groceries', 'games']);
-      expect(monsters.map((monster) => monster.group), [false, false, true, false]);
+      expect(monsters.map((monster) => monster.categoryId), [
+        'food',
+        'fun',
+        'groceries',
+        'games',
+      ]);
+      expect(monsters.map((monster) => monster.group), [
+        false,
+        false,
+        true,
+        false,
+      ]);
     });
 
-    test('remaining and limit match the Standard dashboard for the same category', () {
-      final dashboard =
-          buildDashboardModel(household, meUserId: 'alex', userNames: names, asOf: boardInstant);
-      for (final monster in boardFor(household).monsters) {
-        final ring = dashboard.slices.singleWhere((ring) => ring.sliceId == monster.categoryId);
-        expect(monster.remaining, Money(ring.remainingCents), reason: monster.categoryId);
-        expect(monster.limit, Money(ring.effectiveLimitCents), reason: monster.categoryId);
-        expect(monster.enraged, ring.overspent, reason: monster.categoryId);
-      }
-    });
+    test(
+      'remaining and limit match the Standard dashboard for the same category',
+      () {
+        final dashboard = buildDashboardModel(
+          household,
+          meUserId: 'alex',
+          userNames: names,
+          asOf: boardInstant,
+        );
+        for (final monster in boardFor(household).monsters) {
+          final ring = dashboard.slices.singleWhere(
+            (ring) => ring.sliceId == monster.categoryId,
+          );
+          expect(
+            monster.remaining,
+            Money(ring.remainingCents),
+            reason: monster.categoryId,
+          );
+          expect(
+            monster.limit,
+            Money(ring.effectiveLimitCents),
+            reason: monster.categoryId,
+          );
+          expect(monster.enraged, ring.overspent, reason: monster.categoryId);
+        }
+      },
+    );
 
     test('an overspent category is enraged; one within its limit is calm', () {
-      final monsters = {for (final monster in boardFor(household).monsters) monster.categoryId: monster};
+      final monsters = {
+        for (final monster in boardFor(household).monsters)
+          monster.categoryId: monster,
+      };
       expect(monsters['fun']!.enraged, isTrue);
       expect(monsters['fun']!.remaining, Money.zero);
       expect(monsters['food']!.enraged, isFalse);
@@ -143,24 +232,39 @@ void main() {
     });
 
     test('carries its main category colour', () {
-      final fun = boardFor(household).monsters.singleWhere((monster) => monster.categoryId == 'fun');
-      expect(fun.colorArgb, household.mainCategories['entertainment']!.colorArgb);
+      final fun = boardFor(
+        household,
+      ).monsters.singleWhere((monster) => monster.categoryId == 'fun');
+      expect(
+        fun.colorArgb,
+        household.mainCategories['entertainment']!.colorArgb,
+      );
     });
 
-    test('hiding other adults drops their personal categories but keeps group ones', () {
-      final monsters = boardFor(household, showOtherAdults: false).monsters;
-      expect(monsters.map((monster) => monster.categoryId), ['food', 'fun', 'groceries']);
-    });
+    test(
+      'hiding other adults drops their personal categories but keeps group ones',
+      () {
+        final monsters = boardFor(household, showOtherAdults: false).monsters;
+        expect(monsters.map((monster) => monster.categoryId), [
+          'food',
+          'fun',
+          'groceries',
+        ]);
+      },
+    );
   });
 
   group('debts', () {
-    test('an OVERBUDGET is listed with its category and what is outstanding', () {
-      final debts = boardFor(household).debts;
-      expect(debts, hasLength(1));
-      expect(debts.single.categoryId, 'games');
-      expect(debts.single.name, 'games');
-      expect(debts.single.outstanding, const Money(5000));
-    });
+    test(
+      'an OVERBUDGET is listed with its category and what is outstanding',
+      () {
+        final debts = boardFor(household).debts;
+        expect(debts, hasLength(1));
+        expect(debts.single.categoryId, 'games');
+        expect(debts.single.name, 'games');
+        expect(debts.single.outstanding, const Money(5000));
+      },
+    );
 
     test('follows the visibility preference like the Standard dashboard', () {
       expect(boardFor(household, showOtherAdults: false).debts, isEmpty);
@@ -178,18 +282,37 @@ void main() {
     test('the five newest, newest first, labelled by merchant or category', () {
       final recent = boardFor(household).recent;
       expect(recent, hasLength(5));
-      expect(recent.map((entry) => entry.label), ['groceries', 'food', 'Corner Market', 'games', 'food']);
+      expect(recent.map((entry) => entry.label), [
+        'groceries',
+        'food',
+        'Corner Market',
+        'games',
+        'food',
+      ]);
       expect(recent.first.amount, const Money(500));
       expect(recent.first.occurredAt, octoberAt(2, 17));
-      expect(recent.map((entry) => entry.occurredAt).toList(),
-          [octoberAt(2, 17), octoberAt(2, 16), octoberAt(2, 15), octoberAt(1, 17), octoberAt(1, 16)]);
+      expect(recent.map((entry) => entry.occurredAt).toList(), [
+        octoberAt(2, 17),
+        octoberAt(2, 16),
+        octoberAt(2, 15),
+        octoberAt(1, 17),
+        octoberAt(1, 16),
+      ]);
     });
 
-    test('hiding other adults drops purchases on their personal categories', () {
-      final recent = boardFor(household, showOtherAdults: false).recent;
-      expect(recent.map((entry) => entry.occurredAt).toList(),
-          [octoberAt(2, 17), octoberAt(2, 16), octoberAt(2, 15), octoberAt(1, 16), octoberAt(1, 15)]);
-    });
+    test(
+      'hiding other adults drops purchases on their personal categories',
+      () {
+        final recent = boardFor(household, showOtherAdults: false).recent;
+        expect(recent.map((entry) => entry.occurredAt).toList(), [
+          octoberAt(2, 17),
+          octoberAt(2, 16),
+          octoberAt(2, 15),
+          octoberAt(1, 16),
+          octoberAt(1, 15),
+        ]);
+      },
+    );
   });
 
   group('pending writs', () {
@@ -199,52 +322,63 @@ void main() {
 
     test('counts pending war-chest withdrawals and allowance advances', () {
       final ledger = boardLedger()
-        ..setting('savingsRules', {'fromMonth': '2026-10', 'generalTithePct': 20});
+        ..setting('savingsRules', {
+          'fromMonth': '2026-10',
+          'generalTithePct': 20,
+        });
       ledger.events
-        ..add(PoolWithdrawalProposed(
-          eventId: 'writ-1',
-          deviceId: 'd',
-          userId: 'alex',
-          occurredAt: octoberAt(2, 18),
-          createdAt: octoberAt(2, 18),
-          proposalId: 'writ-1',
-          byUserId: 'alex',
-          amountCents: 1000,
-          purpose: 'New boots',
-          destination: const UserVaultDestination('alex'),
-        ))
-        ..add(PoolWithdrawalProposed(
-          eventId: 'writ-2',
-          deviceId: 'd',
-          userId: 'sam',
-          occurredAt: octoberAt(2, 18),
-          createdAt: octoberAt(2, 18),
-          proposalId: 'writ-2',
-          byUserId: 'sam',
-          amountCents: 2000,
-          purpose: 'Repairs',
-          destination: const ExternalDestination(),
-        ))
-        ..add(PoolWithdrawalCancelled(
-          eventId: 'writ-2-cancel',
-          deviceId: 'd',
-          userId: 'sam',
-          occurredAt: octoberAt(2, 19),
-          createdAt: octoberAt(2, 19),
-          proposalId: 'writ-2',
-        ))
-        ..add(AllowanceAdvanceProposed(
-          eventId: 'advance-1',
-          deviceId: 'd',
-          userId: 'sam',
-          occurredAt: octoberAt(2, 18),
-          createdAt: octoberAt(2, 18),
-          advanceId: 'advance-1',
-          byUserId: 'sam',
-          sliceId: 'games',
-          amountCents: 3000,
-          months: 2,
-        ));
+        ..add(
+          PoolWithdrawalProposed(
+            eventId: 'writ-1',
+            deviceId: 'd',
+            userId: 'alex',
+            occurredAt: octoberAt(2, 18),
+            createdAt: octoberAt(2, 18),
+            proposalId: 'writ-1',
+            byUserId: 'alex',
+            amountCents: 1000,
+            purpose: 'New boots',
+            destination: const UserVaultDestination('alex'),
+          ),
+        )
+        ..add(
+          PoolWithdrawalProposed(
+            eventId: 'writ-2',
+            deviceId: 'd',
+            userId: 'sam',
+            occurredAt: octoberAt(2, 18),
+            createdAt: octoberAt(2, 18),
+            proposalId: 'writ-2',
+            byUserId: 'sam',
+            amountCents: 2000,
+            purpose: 'Repairs',
+            destination: const ExternalDestination(),
+          ),
+        )
+        ..add(
+          PoolWithdrawalCancelled(
+            eventId: 'writ-2-cancel',
+            deviceId: 'd',
+            userId: 'sam',
+            occurredAt: octoberAt(2, 19),
+            createdAt: octoberAt(2, 19),
+            proposalId: 'writ-2',
+          ),
+        )
+        ..add(
+          AllowanceAdvanceProposed(
+            eventId: 'advance-1',
+            deviceId: 'd',
+            userId: 'sam',
+            occurredAt: octoberAt(2, 18),
+            createdAt: octoberAt(2, 18),
+            advanceId: 'advance-1',
+            byUserId: 'sam',
+            sliceId: 'games',
+            amountCents: 3000,
+            months: 2,
+          ),
+        );
       final state = reduce(ledger.events, asOf: boardInstant);
       expect(boardFor(state).pendingWrits, 2);
     });

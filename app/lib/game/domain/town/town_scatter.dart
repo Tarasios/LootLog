@@ -41,15 +41,29 @@ class TownScatter {
 /// grass is grass not covered by a plot, a house, the gate, a statue spot or
 /// one of the layout's own trees, so props never land on a path or a
 /// building.
-TownScatter scatterTown(TownLayout layout, {required int seed, int borderWidth = 6}) {
+TownScatter scatterTown(
+  TownLayout layout, {
+  required int seed,
+  int borderWidth = 6,
+}) {
   final random = Random(seed);
   final props = <TownProp>[];
 
   for (var row = -borderWidth; row < layout.rows + borderWidth; row++) {
-    for (var column = -borderWidth; column < layout.columns + borderWidth; column++) {
-      final insideGrid = column >= 0 && column < layout.columns && row >= 0 && row < layout.rows;
+    for (
+      var column = -borderWidth;
+      column < layout.columns + borderWidth;
+      column++
+    ) {
+      final insideGrid =
+          column >= 0 &&
+          column < layout.columns &&
+          row >= 0 &&
+          row < layout.rows;
       if (insideGrid) continue;
-      final key = random.nextDouble() < TownScatter.borderTreeShare ? TownScatter.treeKey : TownScatter.bushKey;
+      final key = random.nextDouble() < TownScatter.borderTreeShare
+          ? TownScatter.treeKey
+          : TownScatter.bushKey;
       props.add((column: column, row: row, assetKey: key));
     }
   }
@@ -58,9 +72,13 @@ TownScatter scatterTown(TownLayout layout, {required int seed, int borderWidth =
   for (var row = 0; row < layout.rows; row++) {
     for (var column = 0; column < layout.columns; column++) {
       final cell = TownCell(column, row);
-      if (layout.groundAt(cell) != TownGround.grass || occupied.contains(cell)) continue;
+      final freeGrass =
+          layout.groundAt(cell) == TownGround.grass && !occupied.contains(cell);
+      if (!freeGrass) continue;
       if (random.nextDouble() >= TownScatter.inTownDensity) continue;
-      final key = random.nextDouble() < TownScatter.inTownBushShare ? TownScatter.bushKey : TownScatter.treeKey;
+      final key = random.nextDouble() < TownScatter.inTownBushShare
+          ? TownScatter.bushKey
+          : TownScatter.treeKey;
       props.add((column: column, row: row, assetKey: key));
     }
   }
@@ -70,10 +88,11 @@ TownScatter scatterTown(TownLayout layout, {required int seed, int borderWidth =
 
 /// Every cell something already stands on.
 Set<TownCell> _occupiedCells(TownLayout layout) => {
-      for (final origin in [...layout.plotOrigins, ...layout.houseOrigins])
-        for (var column = 0; column < TownLayout.footprint; column++)
-          for (var row = 0; row < TownLayout.footprint; row++) TownCell(origin.column + column, origin.row + row),
-      layout.gate,
-      ...layout.statueSpots,
-      ...layout.treeCells,
-    };
+  for (final origin in [...layout.plotOrigins, ...layout.houseOrigins])
+    for (var column = 0; column < TownLayout.footprint; column++)
+      for (var row = 0; row < TownLayout.footprint; row++)
+        TownCell(origin.column + column, origin.row + row),
+  layout.gate,
+  ...layout.statueSpots,
+  ...layout.treeCells,
+};
