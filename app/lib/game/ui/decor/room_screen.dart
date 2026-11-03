@@ -26,7 +26,6 @@ import '../hall_common.dart';
 import '../hall_ledger_view.dart';
 import '../kit/kit.dart';
 import 'cell_picker.dart';
-import 'decor_header.dart';
 import 'goal_pictures.dart';
 import 'inventory_tray.dart';
 import 'room_board.dart';
@@ -197,7 +196,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
         backgroundColor: AdventureTokens.parchmentDark,
         body: Column(
           children: [
-            DecorScreenHeader(
+            GameScreenHeader(
               title: view.titleName == null ? "$ownerName's room" : '$ownerName, ${view.titleName}',
               trailing: [
                 if (view.editable) ...[

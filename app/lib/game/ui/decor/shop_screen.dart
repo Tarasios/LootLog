@@ -15,7 +15,6 @@ import '../../domain/decor/catalog.dart';
 import '../hall_common.dart';
 import '../hall_ledger_view.dart';
 import '../kit/kit.dart';
-import 'decor_header.dart';
 import 'shop_slot_card.dart';
 
 /// The counter never grows wider than this, so slots stay card-sized.
@@ -54,7 +53,7 @@ class ShopScreen extends ConsumerWidget {
         backgroundColor: AdventureTokens.parchmentDark,
         body: Column(
           children: [
-            DecorScreenHeader(
+            GameScreenHeader(
               title: 'Shop',
               trailing: [
                 Semantics(

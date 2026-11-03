@@ -1,5 +1,5 @@
-/// The wood header bar of the full-screen decoration screens (the shop, a
-/// room): a back button when there is somewhere to go back to, the screen's
+/// The wood header bar of the Adventure full-screen pages (the shop, a room,
+/// the vault, the forge, expeditions): a back button when there is somewhere to go back to, the screen's
 /// name on a ribbon, and the screen's own buttons or chips on the right.
 ///
 /// On a narrow screen with more than one trailing control, the controls drop
@@ -8,13 +8,16 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../kit/kit.dart';
+import 'adventure_tokens.dart';
+import 'buttons.dart';
+import 'hud.dart';
+import 'panels.dart';
 
 /// Below this width a header with several trailing controls uses two rows.
 const double _kTwoRowBreakpoint = 600;
 
-class DecorScreenHeader extends StatelessWidget {
-  const DecorScreenHeader({
+class GameScreenHeader extends StatelessWidget {
+  const GameScreenHeader({
     super.key,
     required this.title,
     this.trailing = const [],
@@ -35,7 +38,7 @@ class DecorScreenHeader extends StatelessWidget {
         ? Tooltip(
             message: MaterialLocalizations.of(context).backButtonTooltip,
             child: HudButton(
-              key: const ValueKey('decor-back'),
+              key: const ValueKey('game-back'),
               label: 'Back',
               icon: Icons.arrow_back,
               onPressed: () => Navigator.of(context).maybePop(),
@@ -43,14 +46,14 @@ class DecorScreenHeader extends StatelessWidget {
           )
         : null;
     final ribbon = Expanded(child: Center(child: RibbonTitle(title)));
-    final trailingRow = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (final (index, control) in trailing.indexed) ...[
-          if (index > 0) const SizedBox(width: AdventureTokens.gap),
-          control,
-        ],
-      ],
+    // A wrap, so a screen with many chips (the forge's materials) flows onto
+    // more lines instead of overflowing.
+    final trailingRow = Wrap(
+      alignment: WrapAlignment.end,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: AdventureTokens.gap,
+      runSpacing: AdventureTokens.gap,
+      children: trailing,
     );
     return WoodPanel(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
