@@ -1,8 +1,9 @@
 /// The Material theme an Adventure player's app runs under: wood bars,
 /// parchment surfaces and cards, ribbon-red accents, square-ish frames, and
-/// the pixel font for headings, titles and labels — always at a whole multiple
-/// of [AdventureTokens.pixelFontStep] so it stays crisp. Body text (and the
-/// amounts in it) keeps the default face so money stays legible.
+/// the pixel font for headlines, titles and labels — always at a whole
+/// multiple of [AdventureTokens.pixelFontStep] so it stays crisp. Body text
+/// and every role money is drawn in keeps the default face, so amounts stay
+/// legible and never get a synthetic pixel bold.
 ///
 /// Imports only Flutter and the kit tokens, so the app root can choose it
 /// without pulling in any game state.
@@ -53,7 +54,9 @@ abstract final class AdventureTheme {
     return ThemeData(
       colorScheme: colorScheme,
       textTheme: textTheme,
-      scaffoldBackgroundColor: AdventureTokens.grass,
+      // Plain screens sit on shaded parchment; full-screen game routes (the
+      // town, the dungeon) paint their own backdrops.
+      scaffoldBackgroundColor: AdventureTokens.parchmentDark,
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: AdventureTokens.wood,
@@ -161,8 +164,10 @@ abstract final class AdventureTheme {
     );
   }
 
-  /// [base] in ink, with the pixel font on every display, headline, title and
-  /// label role at a crisp size; body roles keep the default face.
+  /// [base] in ink, with the pixel font on the headline, large and small
+  /// title, and label roles at a crisp size. The display roles and
+  /// `titleMedium` carry money (`AppText.amount`, `heroAmount`, `metricValue`
+  /// build on them, bold), so they keep the default face, as body roles do.
   static TextTheme _textTheme(TextTheme base) {
     const step = AdventureTokens.pixelFontStep;
     TextStyle? pixel(TextStyle? style, double size) => style?.copyWith(
@@ -173,14 +178,10 @@ abstract final class AdventureTheme {
         );
     return base
         .copyWith(
-          displayLarge: pixel(base.displayLarge, step * 4),
-          displayMedium: pixel(base.displayMedium, step * 3),
-          displaySmall: pixel(base.displaySmall, step * 3),
           headlineLarge: pixel(base.headlineLarge, step * 2),
           headlineMedium: pixel(base.headlineMedium, step * 2),
           headlineSmall: pixel(base.headlineSmall, step * 2),
           titleLarge: pixel(base.titleLarge, step * 2),
-          titleMedium: pixel(base.titleMedium, step),
           titleSmall: pixel(base.titleSmall, step),
           labelLarge: pixel(base.labelLarge, step),
           labelMedium: pixel(base.labelMedium, step),

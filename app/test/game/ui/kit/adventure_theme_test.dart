@@ -15,9 +15,8 @@ void main() {
     final textTheme = AdventureTheme.build().textTheme;
     expect(textTheme.titleLarge!.fontFamily, 'LootPixel');
     final pixelStyles = [
-      textTheme.displayLarge, textTheme.displayMedium, textTheme.displaySmall,
       textTheme.headlineLarge, textTheme.headlineMedium, textTheme.headlineSmall,
-      textTheme.titleLarge, textTheme.titleMedium, textTheme.titleSmall,
+      textTheme.titleLarge, textTheme.titleSmall,
       textTheme.labelLarge, textTheme.labelMedium, textTheme.labelSmall,
     ];
     for (final style in pixelStyles) {
@@ -29,12 +28,22 @@ void main() {
     }
   });
 
+  test('the roles money is drawn in keep the default face', () {
+    // AppText.amount, heroAmount and metricValue build on these, bold.
+    final textTheme = AdventureTheme.build().textTheme;
+    for (final style in [
+      textTheme.displayLarge, textTheme.displayMedium, textTheme.displaySmall, textTheme.titleMedium,
+    ]) {
+      expect(style!.fontFamily, isNot(AdventureTokens.pixelFont));
+    }
+  });
+
   test('wood, parchment and ribbon drive the colour scheme', () {
     final theme = AdventureTheme.build();
     expect(theme.colorScheme.surface, AdventureTokens.parchment);
     expect(theme.colorScheme.onSurface, AdventureTokens.ink);
     expect(theme.colorScheme.primary, AdventureTokens.ribbon);
-    expect(theme.scaffoldBackgroundColor, AdventureTokens.grass);
+    expect(theme.scaffoldBackgroundColor, AdventureTokens.parchmentDark);
   });
 
   testWidgets('a FilledButton lays out in app-bar actions under the Adventure theme', (tester) async {
