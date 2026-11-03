@@ -9,6 +9,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show OverflowBoxFit;
 
 import 'adventure_tokens.dart';
 import 'pixel_frame.dart';
@@ -33,13 +34,23 @@ typedef KitPressableBuilder = Widget Function(BuildContext context, bool pressed
 /// state, a dimmed look and no taps when [onPressed] is null, and a [builder]
 /// told whether a pointer is holding the control down.
 class KitPressable extends StatefulWidget {
-  const KitPressable({super.key, required this.onPressed, required this.builder, this.semanticsLabel});
+  const KitPressable({
+    super.key,
+    required this.onPressed,
+    required this.builder,
+    this.semanticsLabel,
+    this.minHitSize,
+  });
 
   final VoidCallback? onPressed;
   final KitPressableBuilder builder;
 
   /// Overrides the label read from the content, e.g. to add a badge count.
   final String? semanticsLabel;
+
+  /// Grows the tappable area (not the drawn control, which stays centred in
+  /// it) to at least this size, for controls smaller than a touch target.
+  final Size? minHitSize;
 
   @override
   State<KitPressable> createState() => _KitPressableState();
@@ -58,7 +69,7 @@ class _KitPressableState extends State<KitPressable> {
   @override
   Widget build(BuildContext context) {
     final enabled = widget.onPressed != null;
-    final content = DecoratedBox(
+    Widget content = DecoratedBox(
       position: DecorationPosition.foreground,
       decoration: _focused
           ? BoxDecoration(
@@ -67,24 +78,37 @@ class _KitPressableState extends State<KitPressable> {
           : const BoxDecoration(),
       child: widget.builder(context, _pressed),
     );
-    return Semantics(
-      button: true,
-      enabled: enabled,
-      label: widget.semanticsLabel,
-      excludeSemantics: widget.semanticsLabel != null,
-      child: Opacity(
-        opacity: enabled ? 1 : _kDisabledOpacity,
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            onTap: widget.onPressed,
-            onHighlightChanged: (pressed) => setState(() => _pressed = pressed),
-            onFocusChange: (focused) => setState(() => _focused = focused),
-            splashFactory: NoSplash.splashFactory,
-            highlightColor: Colors.transparent,
-            hoverColor: Colors.transparent,
-            focusColor: Colors.transparent,
-            child: content,
+    final minHitSize = widget.minHitSize;
+    if (minHitSize != null) {
+      content = ConstrainedBox(
+        constraints: BoxConstraints(minWidth: minHitSize.width, minHeight: minHitSize.height),
+        child: Center(widthFactor: 1, heightFactor: 1, child: content),
+      );
+    }
+    // One merged node: label, button, enabled, focus and the tap action. The
+    // tap action is set here too because a [semanticsLabel] excludes the
+    // content's semantics, the InkWell's own action among them.
+    return MergeSemantics(
+      child: Semantics(
+        button: true,
+        enabled: enabled,
+        label: widget.semanticsLabel,
+        onTap: widget.onPressed,
+        excludeSemantics: widget.semanticsLabel != null,
+        child: Opacity(
+          opacity: enabled ? 1 : _kDisabledOpacity,
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              onTap: widget.onPressed,
+              onHighlightChanged: (pressed) => setState(() => _pressed = pressed),
+              onFocusChange: (focused) => setState(() => _focused = focused),
+              splashFactory: NoSplash.splashFactory,
+              highlightColor: Colors.transparent,
+              hoverColor: Colors.transparent,
+              focusColor: Colors.transparent,
+              child: content,
+            ),
           ),
         ),
       ),
@@ -182,8 +206,9 @@ class WoodButton extends StatelessWidget {
 /// A chunky wood button for the town HUD's corners: the [icon] over a pixel
 /// [label], or — when [large], for "Log purchase" — a wider button with the
 /// icon beside a bigger label. A [badge] (a count, "!") rides the top-right
-/// corner as a small red pill. The content scales down rather than overflow
-/// a short slot such as an app bar.
+/// corner as a small red pill. The label ellipsizes when the width runs out;
+/// a slot shorter than the content (fits a 56 px app bar) clips the label's
+/// foot. The pixel font is never scaled, so it stays crisp.
 class HudButton extends StatelessWidget {
   const HudButton({
     super.key,
@@ -205,21 +230,30 @@ class HudButton extends StatelessWidget {
     final labelStyle = large
         ? AdventureTokens.title(context).copyWith(color: AdventureTokens.parchment)
         : AdventureTokens.label(context).copyWith(color: AdventureTokens.parchment);
+    // Rich text keeps the large button's icon and label on one line that
+    // ellipsizes in a bounded width and lays out in an unbounded one.
     final content = large
-        ? Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 28, color: AdventureTokens.parchment),
-              const SizedBox(width: 8),
-              Text(label, maxLines: 1, style: labelStyle),
-            ],
+        ? Text.rich(
+            TextSpan(
+              children: [
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.middle,
+                  child: Icon(icon, size: 28, color: AdventureTokens.parchment),
+                ),
+                const WidgetSpan(child: SizedBox(width: 8)),
+                TextSpan(text: label),
+              ],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: labelStyle,
           )
         : Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, size: 22, color: AdventureTokens.parchment),
               const SizedBox(height: 2),
-              Text(label, maxLines: 1, style: labelStyle),
+              Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: labelStyle),
             ],
           );
     final badge = this.badge;
@@ -241,9 +275,19 @@ class HudButton extends StatelessWidget {
               child: Center(
                 widthFactor: 1,
                 heightFactor: 1,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: _Sink(pressed: pressed, child: content),
+                // Clip rather than overflow (or scale the pixel font) when
+                // the slot is shorter than the content.
+                child: _Sink(
+                  pressed: pressed,
+                  child: ClipRect(
+                    child: OverflowBox(
+                      fit: OverflowBoxFit.deferToChild,
+                      alignment: Alignment.topCenter,
+                      minHeight: 0,
+                      maxHeight: double.infinity,
+                      child: content,
+                    ),
+                  ),
                 ),
               ),
             ),

@@ -13,6 +13,9 @@ import 'adventure_tokens.dart';
 import 'buttons.dart';
 import 'pixel_frame.dart';
 
+/// The smallest tappable area a tappable chip gets.
+const Size _kMinTouchTarget = Size(44, 44);
+
 /// The outline every drawn HUD piece wears.
 const Color _kOutline = AdventureTokens.woodDark;
 
@@ -74,6 +77,8 @@ class HudChip extends StatelessWidget {
     if (onTap == null) return chip;
     return KitPressable(
       onPressed: onTap,
+      // The chip draws about 26 px tall; the touch target is a full 44.
+      minHitSize: _kMinTouchTarget,
       builder: (context, pressed) => Transform.translate(offset: Offset(0, pressed ? 1 : 0), child: chip),
     );
   }
