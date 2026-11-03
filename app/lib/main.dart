@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app_router.dart';
 import 'data/app_runtime.dart';
 import 'data/sync/sync_service.dart';
+import 'features/settings/play_mode_providers.dart';
+import 'game/ui/kit/adventure_theme.dart';
 import 'ui/theme.dart';
 
 Future<void> main() async {
@@ -14,8 +16,17 @@ Future<void> main() async {
   runApp(ProviderScope(overrides: overrides, child: const LootLogApp()));
 }
 
-/// Root of the LootLog application. All screens build from the shared
-/// [AppTheme]; go_router routes between first-run setup and the main shell.
+/// The theme this device's adult sees: the [AdventureTheme] (one look for
+/// both brightnesses) when they play Adventure, otherwise the Standard
+/// [AppTheme] for [brightness], untouched.
+ThemeData appThemeFor({required bool adventure, required Brightness brightness}) {
+  if (adventure) return AdventureTheme.build();
+  return brightness == Brightness.dark ? AppTheme.dark() : AppTheme.light();
+}
+
+/// Root of the LootLog application. Screens build from the shared [AppTheme]
+/// for a Standard adult and from the [AdventureTheme] for an Adventure one;
+/// go_router routes between first-run setup and the main shell.
 class LootLogApp extends ConsumerWidget {
   const LootLogApp({super.key});
 
@@ -29,10 +40,11 @@ class LootLogApp extends ConsumerWidget {
     if (syncService != null) {
       unawaited(syncService.start());
     }
+    final adventure = ref.watch(isAdventureProvider);
     return MaterialApp.router(
       title: 'LootLog',
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
+      theme: appThemeFor(adventure: adventure, brightness: Brightness.light),
+      darkTheme: appThemeFor(adventure: adventure, brightness: Brightness.dark),
       routerConfig: router,
     );
   }
