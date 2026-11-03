@@ -231,6 +231,12 @@ class QuestCard {
   }
 
   int get pctComplete => (progress * 100).round();
+
+  /// What's still needed to reach the target; zero once it's reached (the
+  /// same figure as the month-end battle's goal-boss HP).
+  int get remainingCents => totalContributedCents >= targetCents
+      ? 0
+      : targetCents - totalContributedCents;
 }
 
 /// A pending war-chest withdrawal (writ).
@@ -461,52 +467,15 @@ DashboardModel buildDashboardModel(
   final savingsRules = state.savingsRules != null;
   String? nameOf(String id) => userNames[id];
   String? petName(String? id) => id == null ? null : state.pets[id]?.name;
-  int? mainColor(String? id) =>
-      id == null ? null : state.mainCategories[id]?.colorArgb;
 
   // ---- Slice rings -------------------------------------------------------
-  // With the household-visibility toggle off, other adults' personal budgets
-  // stay off this device's dashboard (shared/group ones always show).
-  final rings = <SliceRing>[];
-  for (final sliceConfig in state.slices.values) {
-    if (sliceConfig.createdMonth.isAfter(month)) continue;
-    if (!includeOtherAdults &&
-        !sliceConfig.isGroup &&
-        sliceConfig.ownerUserId != meUserId) {
-      continue;
-    }
-    final sliceMonth = state.sliceMonth(sliceConfig.sliceId, month);
-    rings.add(
-      SliceRing(
-        sliceId: sliceConfig.sliceId,
-        name: sliceConfig.name,
-        isGroup: sliceConfig.isGroup,
-        spentCents: sliceMonth == null
-            ? 0
-            : sliceMonth.spentCents -
-                  sliceMonth.coveredCents -
-                  sliceMonth.fromSavingsCents,
-        effectiveLimitCents:
-            sliceMonth?.effectiveLimitCents ??
-            sliceConfig.baseEffectiveLimitCents,
-        overspendCents: sliceMonth?.overspendCents ?? 0,
-        lockedCents: sliceMonth?.lockedCents ?? 0,
-        savingsCents: sliceMonth?.savingsCents ?? 0,
-        mine: !sliceConfig.isGroup && sliceConfig.ownerUserId == meUserId,
-        ownerName: sliceConfig.isGroup
-            ? null
-            : nameOf(sliceConfig.ownerUserId ?? ''),
-        petName: petName(sliceConfig.petId),
-        mainCategoryColorArgb: mainColor(sliceConfig.mainCategoryId),
-      ),
-    );
-  }
-  rings.sort((first, second) {
-    // My personal slices first, then my partner's, then group slices; name ties.
-    int rank(SliceRing ring) => ring.isGroup ? 2 : (ring.mine ? 0 : 1);
-    final comparison = rank(first).compareTo(rank(second));
-    return comparison != 0 ? comparison : first.name.compareTo(second.name);
-  });
+  final rings = buildSliceRings(
+    state,
+    meUserId: meUserId,
+    month: month,
+    userNames: userNames,
+    includeOtherAdults: includeOtherAdults,
+  );
 
   // ---- Equipment maintenance --------------------------------------------
   final maintenance = <MaintenanceItem>[];
@@ -582,38 +551,7 @@ DashboardModel buildDashboardModel(
   );
 
   // ---- Quests ------------------------------------------------------------
-  final quests = <QuestCard>[];
-  for (final quest in state.quests.values) {
-    if (quest.abandoned) continue;
-    final contributors = <ContributorShare>[
-      for (final entry in quest.contributions.entries)
-        if (entry.value != 0)
-          ContributorShare(
-            name: nameOf(entry.key) ?? 'Someone',
-            cents: entry.value,
-          ),
-    ]..sort((first, second) => second.cents.compareTo(first.cents));
-    quests.add(
-      QuestCard(
-        questId: quest.questId,
-        name: quest.name,
-        targetCents: quest.targetCents,
-        balanceCents: quest.balanceCents,
-        totalContributedCents: quest.totalContributedCents,
-        completed: quest.completed,
-        isShared: quest.ownership is SharedParty,
-        contributors: contributors,
-      ),
-    );
-  }
-  quests.sort((first, second) {
-    // In-progress before completed; then by remaining-to-target.
-    final comparison = (first.completed ? 1 : 0).compareTo(
-      second.completed ? 1 : 0,
-    );
-    if (comparison != 0) return comparison;
-    return first.name.compareTo(second.name);
-  });
+  final quests = buildQuestCards(state, userNames: userNames);
 
   // ---- War chest ---------------------------------------------------------
   final pendingForMe = <WithdrawalCard>[];
@@ -709,24 +647,12 @@ DashboardModel buildDashboardModel(
   );
 
   // ---- Outstanding overspending to repay ----------------------------------
-  final overbudgets =
-      <OverbudgetCard>[
-        for (final debt in state.outstandingOverbudgets)
-          if (includeOtherAdults || debt.ownerUserId == meUserId)
-            OverbudgetCard(
-              sliceId: debt.sliceId,
-              categoryName: state.slices[debt.sliceId]?.name ?? debt.sliceId,
-              outstandingCents: debt.outstandingCents,
-              accruedCents: debt.accruedCents,
-              mine: debt.ownerUserId == meUserId,
-              ownerName: nameOf(debt.ownerUserId),
-            ),
-      ]..sort((first, second) {
-        final comparison = (first.mine ? 0 : 1).compareTo(second.mine ? 0 : 1);
-        return comparison != 0
-            ? comparison
-            : first.categoryName.compareTo(second.categoryName);
-      });
+  final overbudgets = buildOverbudgetCards(
+    state,
+    meUserId: meUserId,
+    userNames: userNames,
+    includeOtherAdults: includeOtherAdults,
+  );
 
   return DashboardModel(
     currentMonth: month,
@@ -767,3 +693,132 @@ DashboardModel buildDashboardModel(
     ),
   );
 }
+
+/// The per-category rings for [month], in dashboard order: [meUserId]'s
+/// personal categories, then other adults', then group ones; name breaks
+/// ties. With [includeOtherAdults] off (the household-visibility toggle),
+/// other adults' personal budgets stay off this device's dashboard; group
+/// ones always show. Shared with the Adventure quest board so both read the
+/// same figures.
+List<SliceRing> buildSliceRings(
+  HouseholdState state, {
+  required String meUserId,
+  required Month month,
+  required Map<String, String> userNames,
+  bool includeOtherAdults = true,
+}) {
+  String? nameOf(String id) => userNames[id];
+  String? petName(String? id) => id == null ? null : state.pets[id]?.name;
+  int? mainColor(String? id) =>
+      id == null ? null : state.mainCategories[id]?.colorArgb;
+
+  final rings = <SliceRing>[];
+  for (final sliceConfig in state.slices.values) {
+    if (sliceConfig.createdMonth.isAfter(month)) continue;
+    if (!includeOtherAdults &&
+        !sliceConfig.isGroup &&
+        sliceConfig.ownerUserId != meUserId) {
+      continue;
+    }
+    final sliceMonth = state.sliceMonth(sliceConfig.sliceId, month);
+    rings.add(
+      SliceRing(
+        sliceId: sliceConfig.sliceId,
+        name: sliceConfig.name,
+        isGroup: sliceConfig.isGroup,
+        spentCents: sliceMonth == null
+            ? 0
+            : sliceMonth.spentCents -
+                  sliceMonth.coveredCents -
+                  sliceMonth.fromSavingsCents,
+        effectiveLimitCents:
+            sliceMonth?.effectiveLimitCents ??
+            sliceConfig.baseEffectiveLimitCents,
+        overspendCents: sliceMonth?.overspendCents ?? 0,
+        lockedCents: sliceMonth?.lockedCents ?? 0,
+        savingsCents: sliceMonth?.savingsCents ?? 0,
+        mine: !sliceConfig.isGroup && sliceConfig.ownerUserId == meUserId,
+        ownerName: sliceConfig.isGroup
+            ? null
+            : nameOf(sliceConfig.ownerUserId ?? ''),
+        petName: petName(sliceConfig.petId),
+        mainCategoryColorArgb: mainColor(sliceConfig.mainCategoryId),
+      ),
+    );
+  }
+  rings.sort((first, second) {
+    // My personal slices first, then my partner's, then group slices; name ties.
+    int rank(SliceRing ring) => ring.isGroup ? 2 : (ring.mine ? 0 : 1);
+    final comparison = rank(first).compareTo(rank(second));
+    return comparison != 0 ? comparison : first.name.compareTo(second.name);
+  });
+  return rings;
+}
+
+/// Every goal that hasn't been abandoned, in progress before completed, then
+/// by name. Shared with the Adventure quest board.
+List<QuestCard> buildQuestCards(
+  HouseholdState state, {
+  required Map<String, String> userNames,
+}) {
+  final quests = <QuestCard>[];
+  for (final quest in state.quests.values) {
+    if (quest.abandoned) continue;
+    final contributors = <ContributorShare>[
+      for (final entry in quest.contributions.entries)
+        if (entry.value != 0)
+          ContributorShare(
+            name: userNames[entry.key] ?? 'Someone',
+            cents: entry.value,
+          ),
+    ]..sort((first, second) => second.cents.compareTo(first.cents));
+    quests.add(
+      QuestCard(
+        questId: quest.questId,
+        name: quest.name,
+        targetCents: quest.targetCents,
+        balanceCents: quest.balanceCents,
+        totalContributedCents: quest.totalContributedCents,
+        completed: quest.completed,
+        isShared: quest.ownership is SharedParty,
+        contributors: contributors,
+      ),
+    );
+  }
+  quests.sort((first, second) {
+    // In-progress before completed; then by remaining-to-target.
+    final comparison = (first.completed ? 1 : 0).compareTo(
+      second.completed ? 1 : 0,
+    );
+    if (comparison != 0) return comparison;
+    return first.name.compareTo(second.name);
+  });
+  return quests;
+}
+
+/// Outstanding overspending to repay, [meUserId]'s first, then by category
+/// name. With [includeOtherAdults] off only [meUserId]'s own debts show.
+/// Shared with the Adventure quest board.
+List<OverbudgetCard> buildOverbudgetCards(
+  HouseholdState state, {
+  required String meUserId,
+  required Map<String, String> userNames,
+  bool includeOtherAdults = true,
+}) =>
+    <OverbudgetCard>[
+      for (final debt in state.outstandingOverbudgets)
+        if (includeOtherAdults || debt.ownerUserId == meUserId)
+          OverbudgetCard(
+            sliceId: debt.sliceId,
+            categoryName: state.slices[debt.sliceId]?.name ?? debt.sliceId,
+            outstandingCents: debt.outstandingCents,
+            accruedCents: debt.accruedCents,
+            mine: debt.ownerUserId == meUserId,
+            ownerName: userNames[debt.ownerUserId],
+          ),
+    ]..sort((first, second) {
+      final comparison = (first.mine ? 0 : 1).compareTo(second.mine ? 0 : 1);
+      return comparison != 0
+          ? comparison
+          : first.categoryName.compareTo(second.categoryName);
+    });
