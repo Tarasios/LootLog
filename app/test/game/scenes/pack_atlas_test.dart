@@ -1,3 +1,5 @@
+import 'dart:ui' show Canvas, Image, Paint, Rect;
+
 import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
@@ -24,6 +26,18 @@ AssetRegistry registryWithMissingSheet() => AssetRegistry({}, {
       row: 0,
     ),
 });
+
+/// Records every image copy; ignores everything else.
+class _RecordingCanvas implements Canvas {
+  final List<(Rect, Rect)> imageCopies = [];
+
+  @override
+  void drawImageRect(Image image, Rect source, Rect destination, Paint paint) =>
+      imageCopies.add((source, destination));
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
+}
 
 PackAtlas atlasFor(AssetRegistry registry) =>
     PackAtlas(registry, Images(prefix: 'assets/game/'));
@@ -89,4 +103,33 @@ void main() {
       expect(placeholder.children.whereType<TextComponent>(), isNotEmpty);
     },
   );
+
+  testWidgets('a multi-cell region on a spaced sheet draws cell by cell, with no seam', (
+    tester,
+  ) async {
+    const table = AssetKey('furniture', 'table');
+    final registry = AssetRegistry({}, {
+      table.value: const SpriteRegion(
+        sheetPath: 'packs/roguelike_indoors/roguelikeIndoor_transparent.png',
+        column: 3,
+        row: 0,
+        columns: 2,
+        rows: 2,
+        spacing: 1,
+      ),
+    });
+    final atlas = atlasFor(registry);
+    await tester.runAsync(() => atlas.preload([table]));
+    final sprite = atlas.spriteFor(table)!;
+    expect(sprite.srcSize, Vector2.all(32), reason: 'two cells, no gap');
+
+    final canvas = _RecordingCanvas();
+    sprite.render(canvas, size: Vector2.all(64));
+    expect(canvas.imageCopies, [
+      (const Rect.fromLTWH(51, 0, 16, 16), const Rect.fromLTWH(0, 0, 32, 32)),
+      (const Rect.fromLTWH(68, 0, 16, 16), const Rect.fromLTWH(32, 0, 32, 32)),
+      (const Rect.fromLTWH(51, 17, 16, 16), const Rect.fromLTWH(0, 32, 32, 32)),
+      (const Rect.fromLTWH(68, 17, 16, 16), const Rect.fromLTWH(32, 32, 32, 32)),
+    ]);
+  });
 }

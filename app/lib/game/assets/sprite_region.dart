@@ -31,6 +31,10 @@ class SpriteRegion {
   int get width => columns * cellSize + (columns - 1) * spacing;
   int get height => rows * cellSize + (rows - 1) * spacing;
 
+  /// The drawn size: the cells packed edge to edge, without the sheet's gaps.
+  int get packedWidth => columns * cellSize;
+  int get packedHeight => rows * cellSize;
+
   @override
   bool operator ==(Object other) =>
       other is SpriteRegion &&

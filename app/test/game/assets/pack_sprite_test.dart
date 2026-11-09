@@ -30,6 +30,20 @@ void main() {
     expect(find.byKey(const ValueKey('pack-sprite-region')), findsOneWidget);
   });
 
+  testWidgets('a two-cell region from a spaced sheet is sized without the gap', (tester) async {
+    const spacedBed = AssetRegistry({}, {
+      'furniture.bed.default.idle': SpriteRegion(
+        sheetPath: 'packs/roguelike_indoors/roguelikeIndoor_transparent.png',
+        column: 14,
+        row: 6,
+        columns: 2,
+        spacing: 1,
+      ),
+    });
+    await tester.pumpWidget(host(AdventureTier.pixel, spacedBed));
+    expect(tester.getSize(find.byType(PackSprite)), const Size(64, 32));
+  });
+
   testWidgets('text tier shows the text card even when art exists', (tester) async {
     await tester.pumpWidget(host(AdventureTier.text, withRegion));
     expect(find.byKey(const ValueKey('pack-sprite-text')), findsOneWidget);

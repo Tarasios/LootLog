@@ -11,6 +11,7 @@ import '../skin_prefs.dart';
 import 'art_source.dart';
 import 'asset_key.dart';
 import 'asset_registry.dart';
+import 'region_cells.dart';
 import 'sheet_image.dart';
 import 'sprite_region.dart';
 import 'text_sprite.dart';
@@ -61,8 +62,8 @@ class _RegionImage extends StatelessWidget {
   Widget build(BuildContext context) => SheetImageBuilder(
         assetPath: '${AssetRegistry.assetDir}${region.sheetPath}',
         builder: (context, sheet) => SizedBox(
-          width: (region.width * scale).toDouble(),
-          height: (region.height * scale).toDouble(),
+          width: (region.packedWidth * scale).toDouble(),
+          height: (region.packedHeight * scale).toDouble(),
           child: sheet == null ? null : CustomPaint(painter: _RegionPainter(sheet, region)),
         ),
       );
@@ -73,12 +74,10 @@ class _RegionPainter extends CustomPainter {
   final ui.Image sheet;
   final SpriteRegion region;
 
+  /// Cell by cell, so a spaced sheet's gaps never show as seams.
   @override
-  void paint(Canvas canvas, Size size) {
-    final source = Rect.fromLTWH(region.left.toDouble(), region.top.toDouble(),
-        region.width.toDouble(), region.height.toDouble());
-    canvas.drawImageRect(sheet, source, Offset.zero & size, Paint()..filterQuality = FilterQuality.none);
-  }
+  void paint(Canvas canvas, Size size) => drawRegionCells(
+      canvas, sheet, region, Offset.zero & size, Paint()..filterQuality = FilterQuality.none);
 
   @override
   bool shouldRepaint(_RegionPainter oldDelegate) =>
