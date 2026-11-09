@@ -144,4 +144,26 @@ void main() {
       expect(regions.containsKey(key), isTrue, reason: key);
     }
   });
+
+  group('townScatterSeed', () {
+    test('every device of a household agrees, whatever the roster order', () {
+      expect(
+        townScatterSeed(['sam', 'alex']),
+        townScatterSeed(['alex', 'sam']),
+      );
+    });
+
+    test('is a fixed hash, not a per-run hash code', () {
+      // FNV-1a (32-bit) of "alex".
+      expect(townScatterSeed(['alex']), 0xe5a4f945);
+    });
+
+    test('different households grow different towns', () {
+      expect(townScatterSeed(['alex']), isNot(townScatterSeed(['robin'])));
+    });
+
+    test('no adults yet is the constant 0', () {
+      expect(townScatterSeed(const []), 0);
+    });
+  });
 }

@@ -216,6 +216,11 @@ void main() {
             reason: monster.categoryId,
           );
           expect(monster.enraged, ring.overspent, reason: monster.categoryId);
+          expect(
+            monster.overspend,
+            Money(ring.overspendCents),
+            reason: monster.categoryId,
+          );
         }
       },
     );
@@ -229,6 +234,8 @@ void main() {
       expect(monsters['fun']!.remaining, Money.zero);
       expect(monsters['food']!.enraged, isFalse);
       expect(monsters['food']!.remaining, const Money(29000));
+      expect(monsters['fun']!.overspend, const Money(5000));
+      expect(monsters['food']!.overspend, Money.zero);
     });
 
     test('carries its main category colour', () {

@@ -96,3 +96,21 @@ Set<TownCell> _occupiedCells(TownLayout layout) => {
   ...layout.statueSpots,
   ...layout.treeCells,
 };
+
+/// A scatter seed every device of a household agrees on: the 32-bit FNV-1a
+/// hash of the smallest of [memberIds] (the roster order differs per device,
+/// the smallest id never does), or 0 before there is anyone. A fixed hash,
+/// never `String.hashCode`, so it is the same on every platform and run.
+int townScatterSeed(Iterable<String> memberIds) {
+  if (memberIds.isEmpty) return 0;
+  final smallest = memberIds.reduce(
+    (first, second) => first.compareTo(second) <= 0 ? first : second,
+  );
+  const offsetBasis = 0x811c9dc5;
+  const prime = 0x01000193;
+  var hash = offsetBasis;
+  for (final codeUnit in smallest.codeUnits) {
+    hash = ((hash ^ codeUnit) * prime) & 0xffffffff;
+  }
+  return hash;
+}

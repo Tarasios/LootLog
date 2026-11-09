@@ -54,6 +54,7 @@ class QuestBoardMonster {
     required this.enraged,
     required this.group,
     required this.colorArgb,
+    this.overspend = Money.zero,
   });
 
   final String categoryId;
@@ -67,6 +68,9 @@ class QuestBoardMonster {
 
   /// Spending went past the limit: drama, never shame.
   final bool enraged;
+
+  /// How far spending went past the limit (zero while within it).
+  final Money overspend;
 
   /// A household (group) category rather than one adult's.
   final bool group;
@@ -221,6 +225,7 @@ class QuestBoardView {
           remaining: Money(ring.remainingCents),
           limit: Money(ring.effectiveLimitCents),
           enraged: ring.overspent,
+          overspend: Money(ring.overspendCents),
           group: ring.isGroup,
           colorArgb: ring.mainCategoryColorArgb ?? _fallbackColorArgb,
         ),

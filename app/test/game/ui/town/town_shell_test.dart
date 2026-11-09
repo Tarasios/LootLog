@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/domain/time.dart';
-import 'package:lootlog/features/settings/play_mode_switch.dart';
 import 'package:lootlog/game/battle/month_end_battle.dart';
 import 'package:lootlog/game/domain/decor/catalog.dart';
 import 'package:lootlog/game/domain/decor/decor_values.dart';
@@ -20,7 +19,9 @@ import 'package:lootlog/game/ui/dungeon/dungeon_screen.dart';
 import 'package:lootlog/game/ui/game_home.dart';
 import 'package:lootlog/game/ui/hall_habits.dart';
 import 'package:lootlog/game/ui/hall_ledger_view.dart';
+import 'package:lootlog/game/ui/kit/kit.dart';
 import 'package:lootlog/game/ui/logged_voice.dart';
+import 'package:lootlog/game/ui/town/quest_board.dart';
 import 'package:lootlog/game/ui/town/town_place_openers.dart';
 import 'package:lootlog/game/ui/town/town_shell.dart';
 
@@ -91,8 +92,12 @@ Future<void> pumpUi(WidgetTester tester) async {
   }
 }
 
-Future<void> pumpShell(WidgetTester tester, Widget shell) async {
-  tester.view.physicalSize = const Size(420, 900);
+Future<void> pumpShell(
+  WidgetTester tester,
+  Widget shell, {
+  Size size = const Size(420, 900),
+}) async {
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(shell);
@@ -101,7 +106,7 @@ Future<void> pumpShell(WidgetTester tester, Widget shell) async {
 }
 
 void main() {
-  testWidgets('pixel tier shows the town scene and the four bottom actions', (
+  testWidgets('pixel tier shows the town scene with the HUD over it', (
     tester,
   ) async {
     var purchasesOpened = 0;
@@ -113,10 +118,13 @@ void main() {
       ),
     );
     expect(find.byKey(const ValueKey('town-scene')), findsOneWidget);
-    for (final label in ['Log a purchase', 'Shop', 'Inbox', 'Budget']) {
-      expect(find.text(label), findsOneWidget);
+    for (final label in ['Log purchase', 'Shop', 'Inbox', 'Ledger', 'Menu']) {
+      expect(find.textContaining(label), findsOneWidget, reason: label);
     }
-    await tester.tap(find.text('Log a purchase'));
+    expect(find.byType(AppBar), findsNothing);
+    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.byType(BottomNavigationBar), findsNothing);
+    await tester.tap(find.textContaining('Log purchase'));
     expect(purchasesOpened, 1);
   });
 
@@ -128,30 +136,124 @@ void main() {
     expect(find.byKey(const ValueKey('town-scene')), findsNothing);
   });
 
-  testWidgets('the top bar shows gems and a live streak', (tester) async {
+  testWidgets('the HUD shows the date, gems, a live streak and the purses', (
+    tester,
+  ) async {
     await pumpShell(tester, host(tier: AdventureTier.pixel));
     expect(find.byKey(const ValueKey('town-gems')), findsOneWidget);
     expect(find.byKey(const ValueKey('town-streak')), findsOneWidget);
     expect(find.text('130'), findsOneWidget, reason: 'sample hall gems');
     expect(find.text('3-day streak'), findsOneWidget);
+    expect(find.text('Oct · day 3'), findsOneWidget);
+    expect(find.text(r'$70.00'), findsOneWidget, reason: 'gold pouch');
+    expect(find.text(r'$1234.56'), findsOneWidget, reason: 'war chest');
   });
 
-  testWidgets('the menu offers the mode switch', (tester) async {
-    await pumpShell(tester, host(tier: AdventureTier.pixel));
-    expect(find.byType(PlayModeMenuButton), findsOneWidget);
-    await tester.tap(find.byType(PlayModeMenuButton));
-    await pumpUi(tester);
-    expect(find.textContaining('Standard'), findsWidgets);
-  });
+  group('the Menu', () {
+    Future<void> openMenu(WidgetTester tester) async {
+      await tester.tap(find.byKey(const ValueKey('town-menu')));
+      await pumpUi(tester);
+    }
 
-  testWidgets('the Text mode button toggles the render tier', (tester) async {
-    final tier = RecordingTier(AdventureTier.pixel);
-    await pumpShell(
+    testWidgets('is a game dialog with settings and the mode switch', (
       tester,
-      host(tier: AdventureTier.pixel, tierNotifier: tier),
-    );
-    await tester.tap(find.byTooltip('Text mode'));
-    expect(tier.toggles, 1);
+    ) async {
+      await pumpShell(tester, host(tier: AdventureTier.pixel));
+      await openMenu(tester);
+      expect(find.byType(GameDialog), findsOneWidget);
+      for (final label in [
+        'Settings',
+        'Switch to Standard',
+        'Text mode',
+        'Decorate town',
+        'Trophies',
+      ]) {
+        expect(find.textContaining(label), findsOneWidget, reason: label);
+      }
+    });
+
+    testWidgets('Text mode toggles the render tier and closes the menu', (
+      tester,
+    ) async {
+      final tier = RecordingTier(AdventureTier.pixel);
+      await pumpShell(
+        tester,
+        host(tier: AdventureTier.pixel, tierNotifier: tier),
+      );
+      await openMenu(tester);
+      await tester.tap(find.textContaining('Text mode'));
+      await pumpUi(tester);
+      expect(tier.toggles, 1);
+      expect(find.byType(GameDialog), findsNothing);
+    });
+  });
+
+  group('the quest board', () {
+    testWidgets('docks beside the town on a wide window', (tester) async {
+      await pumpShell(
+        tester,
+        host(tier: AdventureTier.pixel),
+        size: const Size(1280, 800),
+      );
+      expect(find.text('Quest board'), findsOneWidget);
+      expect(find.text('Quests'), findsNothing, reason: 'already docked');
+    });
+
+    testWidgets('shows a seeded goal with its percent', (tester) async {
+      await pumpShell(
+        tester,
+        host(tier: AdventureTier.pixel),
+        size: const Size(1280, 800),
+      );
+      expect(find.text('Canoe'), findsOneWidget);
+      expect(find.text('40%'), findsOneWidget);
+    });
+
+    testWidgets('a goal opens the Goals pane', (tester) async {
+      var goalsOpened = 0;
+      await pumpShell(
+        tester,
+        host(
+          tier: AdventureTier.pixel,
+          links: HallLinks(openGoals: (_) => goalsOpened++),
+        ),
+        size: const Size(1280, 800),
+      );
+      await tester.tap(find.text('Canoe'));
+      expect(goalsOpened, 1);
+    });
+
+    testWidgets('folds away behind a Quests button and comes back', (
+      tester,
+    ) async {
+      await pumpShell(
+        tester,
+        host(tier: AdventureTier.pixel),
+        size: const Size(1280, 800),
+      );
+      await tester.tap(find.byKey(const ValueKey('quest-board-collapse')));
+      await pumpUi(tester);
+      expect(find.text('Quest board'), findsNothing);
+      await tester.tap(find.text('Quests'));
+      await pumpUi(tester);
+      expect(find.text('Quest board'), findsOneWidget);
+    });
+
+    testWidgets('on a phone it waits behind Quests as a sheet', (
+      tester,
+    ) async {
+      await pumpShell(
+        tester,
+        host(tier: AdventureTier.pixel),
+        size: const Size(390, 844),
+      );
+      expect(find.text('Quest board'), findsNothing);
+      await tester.tap(find.text('Quests'));
+      await pumpUi(tester);
+      expect(find.byType(QuestBoard), findsOneWidget);
+      expect(find.text('Quest board'), findsOneWidget);
+      expect(find.text('Canoe'), findsOneWidget);
+    });
   });
 
   group('the dungeon gate', () {
@@ -206,6 +308,20 @@ void main() {
       await pumpUi(tester);
       expect(find.byType(DungeonScreen), findsOneWidget);
     });
+
+    testWidgets('leftovers waiting hang a sign over the gate', (tester) async {
+      final (household, ritual) = ritualFixture();
+      await pumpShell(
+        tester,
+        host(
+          tier: AdventureTier.pixel,
+          battle: MonthEndBattle.from(ritual, household),
+        ),
+        size: const Size(1280, 800),
+      );
+      expect(scene(tester).tags.map((tag) => tag.text), contains('2 to divide'));
+      expect(find.text('2 to divide'), findsOneWidget);
+    });
   });
 
   testWidgets('Shop without a shop yet explains what is coming', (
@@ -242,14 +358,14 @@ void main() {
   });
 
   testWidgets(
-    'Log a purchase falls back to the ledger when no entry link is wired',
+    'Log purchase falls back to the ledger when no entry link is wired',
     (tester) async {
       var ledgerOpened = 0;
       await pumpShell(
         tester,
         host(tier: AdventureTier.pixel, onOpenLedger: () => ledgerOpened++),
       );
-      await tester.tap(find.text('Log a purchase'));
+      await tester.tap(find.textContaining('Log purchase'));
       expect(ledgerOpened, 1);
     },
   );
@@ -391,10 +507,10 @@ void main() {
   group('habits in the town', () {
     Finder noSpendChip() => find.descendant(
       of: find.byKey(const ValueKey('town-no-spend')),
-      matching: find.byType(ActionChip),
+      matching: find.byType(HudChip),
     );
 
-    testWidgets('"No spend today" sits beside Log a purchase and checks in', (
+    testWidgets('"No spend today" sits above Log purchase and checks in', (
       tester,
     ) async {
       final habits = FakeHabits();
@@ -417,7 +533,7 @@ void main() {
     testWidgets('a covered day shows the check-in as done', (tester) async {
       await pumpShell(tester, host(tier: AdventureTier.pixel));
       expect(find.text('Today already counts'), findsOneWidget);
-      expect(tester.widget<ActionChip>(noSpendChip()).onPressed, isNull);
+      expect(tester.widget<HudChip>(noSpendChip()).onTap, isNull);
     });
 
     testWidgets('before the savings rules a tap explains why, writing nothing', (

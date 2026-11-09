@@ -40,4 +40,68 @@ void main() {
       const TownCell(15, 10),
     );
   });
+
+  group('fitting the town to the window', () {
+    test('the largest whole zoom where the world height fits, 2 to 5', () {
+      int fit(double height) =>
+          CameraControls.fitZoom(viewportHeight: height, worldHeight: 20 * kTileSize);
+      expect(fit(900), 2);
+      expect(fit(1000), 3);
+      expect(fit(1700), 5);
+      expect(fit(4000), 5, reason: 'never past 5');
+      expect(fit(400), 2, reason: 'never below 2');
+    });
+  });
+
+  group('a known viewport and a forest margin', () {
+    CameraControls framedCamera() => CameraControls(
+      worldWidth: 28 * kTileSize,
+      worldHeight: 20 * kTileSize,
+      zoom: 2,
+      margin: 6 * kTileSize,
+    )..setViewport(400, 300);
+
+    test('panning stops where the forest margin ends', () {
+      final camera = framedCamera()..panByScreen(100000, 100000);
+      // Half the viewport (200 x 150 screen px) is 100 x 75 world px.
+      expect(camera.centerX, -6 * kTileSize + 100);
+      expect(camera.centerY, -6 * kTileSize + 75);
+      camera.panByScreen(-100000, -100000);
+      expect(camera.centerX, 34 * kTileSize - 100);
+      expect(camera.centerY, 26 * kTileSize - 75);
+    });
+
+    test('a viewport wider than world and margin keeps the world centred', () {
+      final camera = framedCamera()
+        ..setViewport(4000, 3000)
+        ..panByScreen(500, 500);
+      expect(camera.centerX, 14 * kTileSize);
+      expect(camera.centerY, 10 * kTileSize);
+    });
+
+    test('zooming out re-clamps the centre', () {
+      final camera = framedCamera()..panByScreen(100000, 0);
+      camera.zoomTo(1);
+      expect(camera.centerX, -6 * kTileSize + 200);
+    });
+  });
+
+  group('world to screen', () {
+    test('the camera centre is the viewport centre', () {
+      final point = townCamera().worldToScreen(14 * kTileSize, 10 * kTileSize, 400, 300);
+      expect(point.x, 200);
+      expect(point.y, 150);
+    });
+
+    test('one tile right of centre at zoom 3 is 48 screen pixels right', () {
+      final point = townCamera().worldToScreen(15 * kTileSize, 10 * kTileSize, 400, 300);
+      expect(point.x, 248);
+    });
+
+    test('inverts cellAt', () {
+      final camera = townCamera()..panByScreen(-37, 22);
+      final point = camera.worldToScreen(5 * kTileSize + 1, 7 * kTileSize + 1, 400, 300);
+      expect(camera.cellAt(point.x, point.y, 400, 300), const TownCell(5, 7));
+    });
+  });
 }

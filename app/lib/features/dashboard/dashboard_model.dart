@@ -160,6 +160,7 @@ class UpcomingPayment {
     required this.dueDay,
     required this.daysUntilDue,
     this.dueMonth,
+    this.ownerUserId,
   });
 
   final String name;
@@ -173,6 +174,9 @@ class UpcomingPayment {
 
   /// Whole days until the next occurrence of this bill.
   final int daysUntilDue;
+
+  /// The adult whose personal bill this is; null for a shared one.
+  final String? ownerUserId;
 }
 
 /// The vault (gold pouch) card.
@@ -452,6 +456,37 @@ class DashboardModel {
   final SpoilsRitual? spoils;
 }
 
+/// The recurring bills active in [now]'s month, soonest due first (name
+/// breaks ties): the dashboard's "Upcoming payments" strip, also read by the
+/// Adventure town's bill tags. The household-local date drives the countdown.
+List<UpcomingPayment> buildUpcomingPayments(
+  HouseholdState state, {
+  required DateTime now,
+}) {
+  final utcNow = now.toUtc();
+  final month = Month.fromInstant(utcNow);
+  final localNow = utcNow.add(vancouverUtcOffset(utcNow));
+  final upcoming = <UpcomingPayment>[
+    for (final expense in state.recurringExpenses.values)
+      if (expense.activeIn(month))
+        UpcomingPayment(
+          name: expense.name,
+          amountCents: expense.amountCents,
+          isAnnual: expense.isAnnual,
+          isShared: expense.isShared,
+          dueDay: expense.dueDay,
+          dueMonth: expense.dueMonth,
+          daysUntilDue: expense.daysUntilDue(localNow),
+          ownerUserId: expense.ownerUserId,
+        ),
+  ];
+  upcoming.sort((first, second) {
+    final comparison = first.daysUntilDue.compareTo(second.daysUntilDue);
+    return comparison != 0 ? comparison : first.name.compareTo(second.name);
+  });
+  return upcoming;
+}
+
 /// Builds the dashboard model for [meUserId] as of [asOf] (now by default).
 DashboardModel buildDashboardModel(
   HouseholdState state, {
@@ -507,27 +542,7 @@ DashboardModel buildDashboardModel(
   maintenance.sort((first, second) => first.name.compareTo(second.name));
 
   // ---- Upcoming payments strip ------------------------------------------
-  // Household-local "today" drives the due-date countdown.
-  final localNow = now.add(vancouverUtcOffset(now));
-  final upcoming = <UpcomingPayment>[];
-  for (final expense in state.recurringExpenses.values) {
-    if (!expense.activeIn(month)) continue;
-    upcoming.add(
-      UpcomingPayment(
-        name: expense.name,
-        amountCents: expense.amountCents,
-        isAnnual: expense.isAnnual,
-        isShared: expense.isShared,
-        dueDay: expense.dueDay,
-        dueMonth: expense.dueMonth,
-        daysUntilDue: expense.daysUntilDue(localNow),
-      ),
-    );
-  }
-  upcoming.sort((first, second) {
-    final comparison = first.daysUntilDue.compareTo(second.daysUntilDue);
-    return comparison != 0 ? comparison : first.name.compareTo(second.name);
-  });
+  final upcoming = buildUpcomingPayments(state, now: now);
 
   // ---- Vault + projected spoils -----------------------------------------
   var projLeftover = 0;

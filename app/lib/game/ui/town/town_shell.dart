@@ -1,6 +1,7 @@
-/// The Adventure home: the town scene under a top bar and above a bottom
-/// bar. In text tier it is the guild-hall text screens instead (asset
-/// ladder tier 3).
+/// The Adventure home: the living town fills the window, with the HUD
+/// floating over it and, on a wide window, the quest board docked on the
+/// right ([TownHomeLayout]). In text tier it is the guild-hall text screens
+/// instead (asset ladder tier 3).
 library;
 
 import 'dart:async';
@@ -8,18 +9,23 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../features/menu/manage_screen.dart';
+import '../../../features/rewards/trophy_hall_screen.dart';
+import '../../../features/settings/play_mode.dart';
 import '../../../features/settings/play_mode_switch.dart';
-import '../../assets/asset_catalog.dart';
+import '../../../ui/format.dart';
 import '../../assets/asset_registry.dart';
 import '../../assets/game_asset_scope.dart';
 import '../../data/game_providers.dart';
-import '../../domain/commands/decor_commands.dart' show starterAcquisitionId;
 import '../../domain/decor/catalog.dart';
 import '../../domain/decor/decor_values.dart';
 import '../../domain/game_state.dart';
 import '../../domain/game_values.dart';
-import '../../domain/town/town_layout.dart' show TownCell;
+import '../../domain/town/town_layout.dart' show TownCell, TownLayout;
+import '../../domain/town/town_scatter.dart';
+import '../../domain/town/town_tags.dart';
 import '../../domain/town/town_view.dart';
+import '../../scenes/town/town_game.dart' show TownGame;
 import '../../scenes/town/town_scene_view.dart';
 import '../../skin_prefs.dart';
 import '../building_sheet.dart';
@@ -35,13 +41,15 @@ import '../hall_home_sections.dart' show HallHomeData;
 import '../hall_ledger_view.dart';
 import '../hall_status.dart';
 import '../hall_voice.dart';
-import '../logged_voice.dart';
-import 'log_celebration.dart';
-import 'town_bottom_bar.dart';
+import '../kit/kit.dart' show HudChip;
 import 'town_decorate_panel.dart';
+import 'town_home_layout.dart';
+import 'town_hud.dart';
 import 'town_inbox_sheet.dart';
+import 'town_ledger_provider.dart';
+import 'town_menu_dialog.dart';
 import 'town_place_openers.dart';
-import 'town_top_bar.dart';
+import 'town_shell_events.dart';
 import 'town_townsfolk.dart';
 
 /// The town with every place wired up. Later tasks add their opener here.
@@ -71,7 +79,8 @@ class TownShell extends ConsumerStatefulWidget {
   /// Opens the budgeting ledger.
   final VoidCallback onOpenLedger;
 
-  /// Direct links into ledger screens (quick entry, the ritual's steps).
+  /// Direct links into ledger screens (quick entry, the Goals pane, the
+  /// ritual's steps).
   final HallLinks links;
 
   /// What the houses, the gate and the Shop button open.
@@ -84,84 +93,24 @@ class TownShell extends ConsumerStatefulWidget {
   ConsumerState<TownShell> createState() => _TownShellState();
 }
 
-class _TownShellState extends ConsumerState<TownShell> {
-  /// Set once the starter claim has been scheduled, so it runs at most once
-  /// per visit (the claim is idempotent anyway).
-  bool _starterClaimScheduled = false;
-
+class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<TownShell> {
   /// "Decorate town" mode: taps place the picked item instead of opening
   /// buildings.
   bool _decorating = false;
   DecorItem? _picked;
 
-  /// The latest log the town celebrates, and a counter telling pulses apart.
-  LogPulse? _logPulse;
-  int _pulseSequence = 0;
+  /// The forest around the town, grown once per household seed.
+  TownScatter? _scatter;
+  int? _scatterSeed;
 
-  /// Celebrates a log by this device's adult: gems flying to their house (a
-  /// sparkle when the log brought none) in the pixel tier, a short line in
-  /// the text tier. Display only.
-  void _celebrateLog({required int gems, required bool purchaseLogged}) {
-    final meId = ref.read(hallLedgerViewProvider).meId;
-    if (meId == null || meId.isEmpty || !mounted) return;
-    if (ref.read(adventureTierProvider) == AdventureTier.text) {
-      if (!purchaseLogged) return;
-      final voice = ref.read(loggedVoiceProvider).value ?? LoggedVoice.empty;
-      final today = GameDay.fromInstant(ref.read(gameClockProvider).now());
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(content: Text(voice.line(seed: '${today.toKey()}:${_pulseSequence++}'))),
-      );
-      return;
+  /// The same trees and bushes on every device of the household.
+  TownScatter _scatterFor(Iterable<String> adultIds) {
+    final seed = townScatterSeed(adultIds);
+    if (_scatterSeed != seed || _scatter == null) {
+      _scatterSeed = seed;
+      _scatter = scatterTown(TownLayout.standard, seed: seed);
     }
-    if (!_townIsCurrent) {
-      // A screen (the entry screen, say) covers the town and the scene keeps
-      // ticking underneath: hold the celebration until the town is back.
-      _heldLog = (personId: meId, gems: (_heldLog?.gems ?? 0) + gems);
-      return;
-    }
-    _playLog(meId, gems);
-  }
-
-  void _playLog(String personId, int gems) => setState(
-    () => _logPulse = LogPulse(personId: personId, gems: gems, sequence: ++_pulseSequence),
-  );
-
-  /// Whether the town's route is on top, as of the last build. The build
-  /// depends on the route, so a covering route's pop rebuilds it.
-  bool _townIsCurrent = true;
-
-  /// A log celebrated while the town was covered, waiting to play.
-  ({String personId, int gems})? _heldLog;
-
-  /// Notes whether the town is on top and, once it is again, plays a held
-  /// celebration after this frame.
-  void _trackRoute() {
-    _townIsCurrent = ModalRoute.of(context)?.isCurrent ?? true;
-    final held = _heldLog;
-    if (!_townIsCurrent || held == null) return;
-    _heldLog = null;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _playLog(held.personId, held.gems);
-    });
-  }
-
-  void _listenForLogs() {
-    // The first game state is the baseline: only rewards granted after it
-    // are celebrated.
-    ref.listen(gameStateProvider, (previous, next) {
-      final before = previous?.value;
-      final after = next.value;
-      final meId = ref.read(hallLedgerViewProvider).meId;
-      if (before == null || after == null || meId == null) return;
-      final gems = newLoggingGems(before, after, meId);
-      if (gems > 0) _celebrateLog(gems: gems, purchaseLogged: false);
-    });
-    ref.listen(loggedPurchaseCountProvider, (previous, next) {
-      if (previous == null || next == null || next <= previous) return;
-      _celebrateLog(gems: 0, purchaseLogged: true);
-    });
-    // Load the lines before the first log needs one.
-    ref.watch(loggedVoiceProvider);
+    return _scatter!;
   }
 
   Future<void> _placeInTown(TownCell cell) async {
@@ -185,53 +134,12 @@ class _TownShellState extends ConsumerState<TownShell> {
     _picked = null;
   });
 
-  /// Gives a player the starter furniture they have not yet received, once the
-  /// catalogue and their game state have loaded. Quiet: never blocks the
-  /// scene, and a refusal (already claimed) shows nothing.
-  void _claimStarterSetWhenReady(GameState game, String? meId) {
-    if (_starterClaimScheduled || meId == null || meId.isEmpty) return;
-    final catalog = ref.read(decorCatalogProvider).value;
-    if (catalog == null || catalog.starterSet.isEmpty) return;
-    if (!ref.read(gameStateProvider).hasValue) return;
-    final starterPending = catalog.starterSet.any(
-      (item) => !game.decor.seenAcquisitionIds.contains(
-        starterAcquisitionId(meId, item.id),
-      ),
-    );
-    if (!starterPending) return;
-    _starterClaimScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) => _claimStarterSet());
-  }
-
-  Future<void> _claimStarterSet() async {
-    final service = ref.read(gameCommandsServiceProvider);
-    if (service == null) {
-      _starterClaimScheduled = false;
-      return;
-    }
-    try {
-      final result = await service.claimStarterSet();
-      if (!result.accepted || result.events.isEmpty || !mounted) return;
-    } on Object {
-      // Silent: a later rebuild tries again.
-      _starterClaimScheduled = false;
-      return;
-    }
-    await showHallCelebration(
-      context,
-      sprite: GameAssetKeys.chest(ChestType.wood),
-      title: 'Welcome home',
-      lines: const ['Your first furniture is waiting inside your house.'],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    _trackRoute();
-    _listenForLogs();
+    trackRoute();
+    listenForLogs();
     final onOpenLedger = widget.onOpenLedger;
     final links = widget.links;
-    final openers = widget.openers;
     final textTier = ref.watch(adventureTierProvider) == AdventureTier.text;
     if (textTier) return GameHome(onOpenLedger: onOpenLedger, links: links);
 
@@ -240,190 +148,202 @@ class _TownShellState extends ConsumerState<TownShell> {
     final goalPictures = ref.watch(goalPictureImagesProvider).unwrapPrevious().value ?? const {};
     final game = ref.watch(gameStateProvider).value ?? GameState.initial();
     final ledgerView = ref.watch(hallLedgerViewProvider);
-    _claimStarterSetWhenReady(game, ledgerView.meId);
+    claimStarterSetWhenReady(game, ledgerView.meId);
     final townsfolk = ref.watch(townsfolkProvider);
     final registryLoad = ref.watch(gameAssetRegistryProvider);
     final clock = ref.watch(gameClockProvider);
-    final battleWaiting = ref.watch(monthEndBattleProvider) != null;
+    final battle = ref.watch(monthEndBattleProvider);
     final voice = ref.watch(hallVoiceProvider).value ?? HallVoice.empty;
-
-    void openTarget(TownTarget target) => switch (target) {
-      PlotTarget(:final plotIndex) => showBuildingSheet(
-        context,
-        plotIndex: plotIndex,
-        onOpenLedger: onOpenLedger,
-        links: links,
-      ),
-      HouseTarget(:final personId) =>
-        openers.openRoom != null
-            ? openers.openRoom!(context, personId)
-            : showPlaceComingSheet(
-                context,
-                title: 'Home',
-                body: 'Rooms you can decorate are on their way.',
-              ),
-      GateTarget() =>
-        openers.openDungeon != null
-            ? openers.openDungeon!(context)
-            : showPlaceComingSheet(
-                context,
-                title: 'The dungeon gate',
-                body: 'Each month the gate opens for dividing your leftovers.',
-              ),
-    };
-
-    void openInbox() =>
-        showTownInbox(context, onOpenLedger: onOpenLedger, links: links);
-
-    void logPurchase() {
-      final openEntry = links.logPurchase;
-      if (openEntry != null) {
-        openEntry(context);
-      } else {
-        onOpenLedger();
-      }
-    }
-
-    void openShop() => openers.openShop != null
-        ? openers.openShop!(context)
-        : showPlaceComingSheet(
-            context,
-            title: 'Shop',
-            body: 'A new set of decorations arrives every day — opening soon.',
-          );
-
+    final ledger = ref.watch(townLedgerProvider);
+    final tagLines = ref.watch(townTagLinesProvider).value ?? TownTagLines.defaults;
+    final scatter = _scatterFor(ledgerView.adults.map((adult) => adult.memberId));
     final me = game.person(ledgerView.meId ?? '');
+
     return AdventureSpriteScope(
       child: HallTicker(
         builder: (context) {
           final now = clock.now();
+          final today = GameDay.fromInstant(now);
           // The gate opens while leftovers wait to be divided, and also for
           // a finished month whose spoils chest has not come home yet (the
           // chest never depends on there being leftovers).
           final dungeonOpen =
-              battleWaiting ||
-              pendingRitualMonths(
-                me,
-                now,
-                firstBudgetMonth: ledgerView.firstBudgetMonth,
-              ).isNotEmpty;
+              battle != null ||
+              pendingRitualMonths(me, now, firstBudgetMonth: ledgerView.firstBudgetMonth).isNotEmpty;
           final townView = TownView.from(
             game,
             [
               for (final adult in ledgerView.adults)
-                TownAdult(
-                  memberId: adult.memberId,
-                  name: adult.name,
-                  inAdventure: adult.inAdventure,
-                ),
+                TownAdult(memberId: adult.memberId, name: adult.name, inAdventure: adult.inAdventure),
             ],
             now,
             dungeonOpen: dungeonOpen,
             goalPictures: goalPictureShas,
           );
+          final tags = townTags(
+            view: townView,
+            board: ledger.board,
+            leftoversToDivide: battle?.weapons.length ?? 0,
+            upcomingBills: ledger.bills,
+            unopenedChests: me.unopenedChests.length,
+            lines: tagLines,
+          );
+          final scene = registryLoad.isLoading && !registryLoad.hasValue
+              // The scene reads its art once, so wait for the registry.
+              ? const ColoredBox(color: TownGame.forestColour)
+              // A new household seed grows a new forest: rebuild the scene.
+              : KeyedSubtree(
+                  key: ValueKey(_scatterSeed),
+                  child: TownSceneView(
+                    key: const ValueKey('town-scene'),
+                    view: townView,
+                    registry: registryLoad.value ?? AssetRegistry.bundled,
+                    onTarget: _openTarget,
+                    ambientLife: widget.ambientLife,
+                    townsfolk: townsfolk,
+                    catalog: catalog,
+                    pictures: goalPictures,
+                    onCellTap: _decorating ? (cell) => unawaited(_placeInTown(cell)) : null,
+                    logPulse: logPulse,
+                    scatter: scatter,
+                    tags: _decorating ? const [] : tags,
+                  ),
+                );
           return Scaffold(
-            body: Stack(
-              children: [
-                Positioned.fill(
-                  child: registryLoad.isLoading && !registryLoad.hasValue
-                      // The scene reads its art once, so wait for the registry.
-                      ? const ColoredBox(color: Color(0xFF30346D))
-                      : TownSceneView(
-                          key: const ValueKey('town-scene'),
-                          view: townView,
-                          registry: registryLoad.value ?? AssetRegistry.bundled,
-                          onTarget: openTarget,
-                          ambientLife: widget.ambientLife,
-                          townsfolk: townsfolk,
-                          catalog: catalog,
-                          pictures: goalPictures,
-                          onCellTap: _decorating ? (cell) => unawaited(_placeInTown(cell)) : null,
-                          logPulse: _logPulse,
-                        ),
+            backgroundColor: TownGame.forestColour,
+            body: TownHomeLayout(
+              scene: scene,
+              onOpenGoals: _openGoals,
+              onOpenLedger: onOpenLedger,
+              buildHud: (onQuests) => TownHud(
+                figures: TownHudFigures(
+                  dateLabel: '${monthAbbreviation(today.month)} · day ${today.day}',
+                  streak: liveStreak(me.streak, today, tokens: me.freezeTokens),
+                  freezeTokens: me.freezeTokens,
+                  gems: me.gems,
+                  inboxCount: me.unopenedChests.length + me.unclaimedRewards.length,
+                  goldPouch: ledger.goldPouch,
+                  warChest: ledger.warChest,
                 ),
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: TownTopBar(
-                    me: me,
-                    hall: game.hall,
-                    streak: liveStreak(
-                      me.streak,
-                      GameDay.fromInstant(now),
-                      tokens: me.freezeTokens,
-                    ),
-                    actions: [
-                      PopupMenuButton<String>(
-                        key: const ValueKey('town-menu'),
-                        tooltip: 'Town menu',
-                        icon: const Icon(Icons.park),
-                        onSelected: (_) => _toggleDecorating(),
-                        itemBuilder: (_) => [
-                          PopupMenuItem<String>(
-                            value: 'decorate',
-                            child: Text(
-                              _decorating ? 'Done decorating' : 'Decorate town',
-                            ),
-                          ),
-                        ],
-                      ),
-                      IconButton(
-                        tooltip: 'Text mode',
-                        icon: const Icon(Icons.notes),
-                        color: Colors.white,
-                        onPressed: () =>
-                            ref.read(adventureTierProvider.notifier).toggle(),
-                      ),
-                      const PlayModeMenuButton(),
-                    ],
+                onQuests: onQuests,
+                noSpendCheckIn: NoSpendCheckIn(
+                  key: const ValueKey('town-no-spend'),
+                  explainWhenUnavailable: true,
+                  data: HallHomeData(
+                    game: game,
+                    view: ledgerView,
+                    voice: voice,
+                    now: now,
+                    onOpenLedger: onOpenLedger,
+                    links: links,
                   ),
+                  builder: (context, action) =>
+                      HudChip(icon: action.icon, value: action.label, onTap: action.onPressed),
                 ),
-                if (!_decorating)
-                  Positioned(
-                    left: 8,
-                    bottom: 8,
-                    child: NoSpendCheckIn(
-                      key: const ValueKey('town-no-spend'),
-                      explainWhenUnavailable: true,
-                      data: HallHomeData(
-                        game: game,
-                        view: ledgerView,
-                        voice: voice,
-                        now: now,
-                        onOpenLedger: onOpenLedger,
-                        links: links,
-                      ),
-                      builder: (context, action) => ActionChip(
-                        avatar: Icon(action.icon, size: 18),
-                        label: Text(action.label),
-                        onPressed: action.onPressed,
-                      ),
-                    ),
-                  ),
-                if (_decorating)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: TownDecoratePanel(
-                      personId: ledgerView.meId ?? '',
-                      picked: _picked,
-                      onPick: (item) => setState(() => _picked = item),
-                    ),
-                  ),
-              ],
-            ),
-            bottomNavigationBar: TownBottomBar(
-              onLogPurchase: logPurchase,
-              onShop: openShop,
-              onInbox: openInbox,
-              onBudget: onOpenLedger,
-              inboxCount: me.unopenedChests.length + me.unclaimedRewards.length,
+                onLogPurchase: _logPurchase,
+                onShop: _openShop,
+                onInbox: () => showTownInbox(context, onOpenLedger: onOpenLedger, links: links),
+                onLedger: onOpenLedger,
+                onMenu: _openMenu,
+                decoratePanel: _decorating
+                    ? TownDecoratePanel(
+                        personId: ledgerView.meId ?? '',
+                        picked: _picked,
+                        onPick: (item) => setState(() => _picked = item),
+                      )
+                    : null,
+              ),
             ),
           );
         },
       ),
     );
   }
+
+  void _openTarget(TownTarget target) {
+    final openers = widget.openers;
+    switch (target) {
+      case PlotTarget(:final plotIndex):
+        unawaited(
+          showBuildingSheet(
+            context,
+            plotIndex: plotIndex,
+            onOpenLedger: widget.onOpenLedger,
+            links: widget.links,
+          ),
+        );
+      case HouseTarget(:final personId):
+        final openRoom = openers.openRoom;
+        if (openRoom != null) {
+          openRoom(context, personId);
+        } else {
+          unawaited(
+            showPlaceComingSheet(context, title: 'Home', body: 'Rooms you can decorate are on their way.'),
+          );
+        }
+      case GateTarget():
+        final openDungeon = openers.openDungeon;
+        if (openDungeon != null) {
+          openDungeon(context);
+        } else {
+          unawaited(
+            showPlaceComingSheet(
+              context,
+              title: 'The dungeon gate',
+              body: 'Each month the gate opens for dividing your leftovers.',
+            ),
+          );
+        }
+    }
+  }
+
+  /// Quick entry: one tap from the town (the ledger when no link is wired).
+  void _logPurchase() {
+    final openEntry = widget.links.logPurchase;
+    if (openEntry != null) {
+      openEntry(context);
+    } else {
+      widget.onOpenLedger();
+    }
+  }
+
+  /// The ledger's Goals pane (the ledger when no link is wired).
+  void _openGoals() {
+    final openGoalsPane = widget.links.openGoals;
+    if (openGoalsPane != null) {
+      openGoalsPane(context);
+    } else {
+      widget.onOpenLedger();
+    }
+  }
+
+  void _openShop() {
+    final openShop = widget.openers.openShop;
+    if (openShop != null) {
+      openShop(context);
+    } else {
+      unawaited(
+        showPlaceComingSheet(
+          context,
+          title: 'Shop',
+          body: 'A new set of decorations arrives every day — opening soon.',
+        ),
+      );
+    }
+  }
+
+  void _openMenu() => unawaited(
+    showTownMenu(
+      context,
+      TownMenuActions(
+        decorating: _decorating,
+        openSettings: () => unawaited(ManageScreen.open(context)),
+        switchToStandard: () =>
+            unawaited(confirmAndSwitchPlayMode(context, ref, PlayMode.standard, returnHome: true)),
+        toggleTextMode: () => ref.read(adventureTierProvider.notifier).toggle(),
+        toggleDecorating: _toggleDecorating,
+        openTrophies: () => unawaited(TrophyHallScreen.open(context)),
+      ),
+    ),
+  );
 }

@@ -107,9 +107,9 @@ void main() {
     expect(find.byType(TownShell), findsOneWidget);
     expect(find.byKey(const ValueKey('town-scene')), findsOneWidget);
     expect(find.byType(GameHome), findsNothing);
-    expect(find.text('Log a purchase'), findsOneWidget);
+    expect(find.textContaining('Log purchase'), findsOneWidget);
 
-    await tester.tap(find.text('Budget'));
+    await tester.tap(find.text('Ledger'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('LEDGER'), findsOneWidget);

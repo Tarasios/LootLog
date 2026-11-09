@@ -41,6 +41,16 @@ HallLinks ledgerHallLinks(VoidCallback openLedger) => HallLinks(
       // dungeon, which also brings home the spoils chest when the ledger has
       // nothing left to divide.
       divideLeftovers: (context, month) => unawaited(DungeonScreen.open(context)),
+      // The ledger at its Goals pane, pushed over the hall; its hall button
+      // pops back.
+      openGoals: (context) => unawaited(Navigator.of(context).push<void>(
+            MaterialPageRoute(
+              builder: (routeContext) => AppShell(
+                initialPane: ShellPane.goals,
+                onOpenHall: Navigator.of(routeContext).pop,
+              ),
+            ),
+          )),
     );
 
 class HomeGate extends ConsumerWidget {

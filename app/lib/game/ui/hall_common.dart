@@ -47,10 +47,14 @@ class HallLinks {
     this.reviewMonth,
     this.planMonth,
     this.divideLeftovers,
+    this.openGoals,
   });
 
   /// Opens quick entry straight away (one tap from the hall).
   final HallContextAction? logPurchase;
+
+  /// Opens the ledger on its Goals pane (from the town's quest board).
+  final HallContextAction? openGoals;
 
   /// Ritual step 1: checking the month's entries and bill actuals.
   final HallMonthAction? reconcileMonth;
