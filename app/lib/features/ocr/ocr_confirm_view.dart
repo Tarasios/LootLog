@@ -9,7 +9,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../data/ocr/receipt_scan_outcome.dart';
 import '../../ui/theme.dart';
@@ -79,20 +78,10 @@ class _OcrConfirmViewState extends State<OcrConfirmView> {
   }
 
   KeyEventResult _onHardwareKey(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-      return KeyEventResult.ignored;
-    }
-    final key = event.logicalKey;
-    final digit = digitForKey(key);
-    if (digit != null) {
-      setState(() => _cents = applyDigit(_cents, digit));
-      return KeyEventResult.handled;
-    }
-    if (key == LogicalKeyboardKey.backspace) {
-      setState(() => _cents = applyBackspace(_cents));
-      return KeyEventResult.handled;
-    }
-    return KeyEventResult.ignored;
+    final next = amountAfterKeyEvent(event, _cents);
+    if (next == null) return KeyEventResult.ignored;
+    setState(() => _cents = next);
+    return KeyEventResult.handled;
   }
 
   Future<void> _pickDate() async {

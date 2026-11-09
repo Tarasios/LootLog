@@ -8,12 +8,12 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../domain/money.dart';
 import '../../ui/theme.dart';
 import 'amount_keypad.dart';
 import 'charge_choice.dart';
+import 'charge_picker.dart';
 
 /// Everything the screen needs to record a purchase, gathered by the view.
 class EntryDraft {
@@ -57,8 +57,6 @@ class ExpenseEntryView extends StatefulWidget {
 }
 
 class _ExpenseEntryViewState extends State<ExpenseEntryView> {
-  bool _showMore = false;
-
   late int _cents = widget.initialCents;
   bool _shared = false;
   String? _merchant;
@@ -79,19 +77,10 @@ class _ExpenseEntryViewState extends State<ExpenseEntryView> {
   void _onKey(int cents) => setState(() => _cents = cents);
 
   KeyEventResult _onHardwareKey(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-      return KeyEventResult.ignored;
-    }
-    final digit = digitForKey(event.logicalKey);
-    if (digit != null) {
-      setState(() => _cents = applyDigit(_cents, digit));
-      return KeyEventResult.handled;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.backspace) {
-      setState(() => _cents = applyBackspace(_cents));
-      return KeyEventResult.handled;
-    }
-    return KeyEventResult.ignored;
+    final next = amountAfterKeyEvent(event, _cents);
+    if (next == null) return KeyEventResult.ignored;
+    setState(() => _cents = next);
+    return KeyEventResult.handled;
   }
 
   void _commit(ChargeChoice choice) {
@@ -280,22 +269,7 @@ class _ExpenseEntryViewState extends State<ExpenseEntryView> {
     );
   }
 
-  /// Everyday spending targets show immediately; the vault and quests are
-  /// rarer, deliberate moves and stay behind "More targets" so the everyday
-  /// screen reads as "which budget did this come from".
-  static bool _isAdvanced(ChargeGroup group) =>
-      group.kind == ChargeGroupKind.vault ||
-      group.kind == ChargeGroupKind.quest;
-
   Widget _chargeArea(BuildContext context) {
-    final primary = [
-      for (final group in widget.groups)
-        if (!_isAdvanced(group)) group,
-    ];
-    final advanced = [
-      for (final group in widget.groups)
-        if (_isAdvanced(group)) group,
-    ];
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
@@ -303,155 +277,7 @@ class _ExpenseEntryViewState extends State<ExpenseEntryView> {
         AppSpacing.lg,
         AppSpacing.xl,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-            child: Text('Charge to', style: AppText.sectionLabel(context)),
-          ),
-          for (final group in primary) _groupSection(context, group),
-          if (advanced.isNotEmpty && !_showMore)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.sm),
-              child: TextButton.icon(
-                onPressed: () => setState(() => _showMore = true),
-                icon: const Icon(Icons.unfold_more),
-                label: Text(
-                  'More targets '
-                  '(${advanced.map((group) => group.label.toLowerCase()).join(', ')})',
-                ),
-              ),
-            ),
-          if (_showMore)
-            for (final group in advanced) _groupSection(context, group),
-        ],
-      ),
-    );
-  }
-
-  Widget _groupSection(BuildContext context, ChargeGroup group) {
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.sm),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-            child: Text(group.label, style: AppText.sectionLabel(context)),
-          ),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              for (final choice in group.choices)
-                _ChargeChip(choice: choice, onTap: () => _commit(choice)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// One tappable charge destination, tinted by its kind so groups read as
-/// distinct at a glance.
-class _ChargeChip extends StatelessWidget {
-  const _ChargeChip({required this.choice, required this.onTap});
-
-  final ChargeChoice choice;
-  final VoidCallback onTap;
-
-  ({Color bg, Color fg}) _colors(ColorScheme scheme) {
-    switch (choice.kind) {
-      case ChargeGroupKind.personalSlice:
-        return (bg: scheme.primaryContainer, fg: scheme.onPrimaryContainer);
-      case ChargeGroupKind.groupSlice:
-        return (bg: scheme.tertiaryContainer, fg: scheme.onTertiaryContainer);
-      case ChargeGroupKind.vault:
-        return (bg: scheme.secondaryContainer, fg: scheme.onSecondaryContainer);
-      case ChargeGroupKind.quest:
-        return (bg: scheme.surfaceContainerHighest, fg: scheme.onSurface);
-      case ChargeGroupKind.emergency:
-        return (bg: scheme.errorContainer, fg: scheme.onErrorContainer);
-      case ChargeGroupKind.vacation:
-        return (bg: scheme.tertiaryContainer, fg: scheme.onTertiaryContainer);
-    }
-  }
-
-  IconData get _icon {
-    switch (choice.kind) {
-      case ChargeGroupKind.personalSlice:
-        return Icons.account_balance_wallet_outlined;
-      case ChargeGroupKind.groupSlice:
-        return Icons.groups_outlined;
-      case ChargeGroupKind.vault:
-        return Icons.savings_outlined;
-      case ChargeGroupKind.quest:
-        return Icons.flag_outlined;
-      case ChargeGroupKind.emergency:
-        return Icons.emergency_outlined;
-      case ChargeGroupKind.vacation:
-        return Icons.beach_access_outlined;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final colors = _colors(scheme);
-    return Material(
-      color: colors.bg,
-      borderRadius: AppRadii.card,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: 108, maxWidth: 200),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(_icon, size: 18, color: colors.fg),
-                    const SizedBox(width: AppSpacing.xs),
-                    Flexible(
-                      child: Text(
-                        choice.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: colors.fg,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                if (choice.subtitle != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.xxs),
-                    child: Text(
-                      choice.subtitle!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colors.fg.withValues(alpha: 0.85),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
+      child: ChargePicker(groups: widget.groups, onPick: _commit),
     );
   }
 }
