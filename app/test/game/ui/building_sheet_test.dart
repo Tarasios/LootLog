@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/game/domain/game_event.dart';
 import 'package:lootlog/game/domain/game_values.dart';
 import 'package:lootlog/game/skin_prefs.dart';
+import 'package:lootlog/game/ui/kit/kit.dart';
 
 import 'hall_harness.dart';
 
@@ -111,5 +112,34 @@ void main() {
     await openPlot(tester, 'Empty plot');
     expect(tester.takeException(), isNull);
     expect(find.text('Build Quarry'), findsOneWidget);
+  });
+
+  testWidgets('the pixel tier opens a framed game dialog that builds and closes',
+      (tester) async {
+    final store = await storeWith(sampleEvents());
+    await pumpHall(tester, store: store, tier: AdventureTier.pixel);
+    await openPlot(tester, 'Empty plot');
+
+    expect(find.byType(GameDialog), findsOneWidget);
+    expect(find.byType(BottomSheet), findsNothing);
+    expect(find.text('Plot 3 — empty'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Build Quarry'));
+    await tester.tap(find.widgetWithText(WoodButton, 'Build Quarry'));
+    await settle(tester);
+    expect((await store.all()).whereType<BuildingStarted>().last.buildingType,
+        BuildingType.quarry);
+    expect(find.text('Quarry — tier 1'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(WoodButton, 'Close'));
+    await settle(tester);
+    expect(find.byType(GameDialog), findsNothing);
+  });
+
+  testWidgets('the text tier keeps the bottom sheet', (tester) async {
+    await pumpHall(tester, store: await storeWith(sampleEvents()));
+    await openPlot(tester, 'Empty plot');
+    expect(find.byType(GameDialog), findsNothing);
+    expect(find.byType(BottomSheet), findsOneWidget);
   });
 }

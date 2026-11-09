@@ -8,26 +8,37 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../ui/theme.dart';
+import '../../assets/asset_catalog.dart';
 import '../../data/game_providers.dart';
+import '../../domain/game_values.dart';
+import '../../game_sprite.dart';
 import '../habit_actions.dart';
 import '../hall_common.dart';
+import '../hall_framed.dart';
 import '../hall_home_sections.dart';
 import '../hall_ledger_view.dart';
 import '../hall_voice.dart';
+import '../kit/kit.dart';
 
+/// Opens the Inbox: a framed game dialog in the pixel tier, the original
+/// bottom sheet in the text tier.
 Future<void> showTownInbox(
   BuildContext context, {
   required VoidCallback onOpenLedger,
   required HallLinks links,
-}) => showModalBottomSheet<void>(
-  context: context,
-  isScrollControlled: true,
-  showDragHandle: true,
-  constraints: const BoxConstraints(maxWidth: 640),
-  builder: (sheetContext) => HallScope(
-    child: TownInboxSheet(onOpenLedger: onOpenLedger, links: links),
-  ),
-);
+}) {
+  final sheet = TownInboxSheet(onOpenLedger: onOpenLedger, links: links);
+  if (!hallDeviceTextTier(context)) {
+    return showGameDialog<void>(context, builder: (_) => sheet);
+  }
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    constraints: const BoxConstraints(maxWidth: 640),
+    builder: (sheetContext) => HallScope(child: sheet),
+  );
+}
 
 class TownInboxSheet extends ConsumerWidget {
   const TownInboxSheet({
@@ -55,11 +66,34 @@ class TownInboxSheet extends ConsumerWidget {
           onOpenLedger: onOpenLedger,
           links: links,
         );
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [InboxPanel(data), _ThisWeek(data)],
+        if (hallTextTier(context)) {
+          return SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [InboxPanel(data), _ThisWeek(data)],
+            ),
+          );
+        }
+        return GameDialog(
+          title: 'Inbox',
+          scene: Center(
+            child: GameSprite.fromKey(GameAssetKeys.chest(ChestType.wood), label: 'Inbox', scale: 5),
           ),
+          onClose: () => Navigator.of(context).pop(),
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              InboxPanel(data, framed: true),
+              _ThisWeek(data),
+            ],
+          ),
+          actions: [
+            WoodButton(
+              label: 'Close',
+              tone: WoodButtonTone.secondary,
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
         );
       },
     );
@@ -73,7 +107,7 @@ class _ThisWeek extends StatelessWidget {
   final HallHomeData data;
 
   @override
-  Widget build(BuildContext context) => HallSection(
+  Widget build(BuildContext context) => FramedSection(
     title: 'This week',
     icon: Icons.fact_check_outlined,
     child: Column(
@@ -82,15 +116,21 @@ class _ThisWeek extends StatelessWidget {
         WeeklyReconcile(
           key: const ValueKey('inbox-reconcile'),
           data: data,
-          builder: (context, action) => OutlinedButton.icon(
-            onPressed: action.onPressed,
-            icon: Icon(action.icon),
-            label: Text(action.label),
-          ),
+          builder: (context, action) => hallTextTier(context)
+              ? OutlinedButton.icon(
+                  onPressed: action.onPressed,
+                  icon: Icon(action.icon),
+                  label: Text(action.label),
+                )
+              : FramedButton(
+                  label: action.label,
+                  secondary: true,
+                  onPressed: action.onPressed,
+                ),
         ),
         if (!data.view.habitsAvailable) ...[
           const SizedBox(height: AppSpacing.sm),
-          Text(kHabitsUnavailableNote, style: hallMutedStyle(context)),
+          Text(kHabitsUnavailableNote, style: framedMutedStyle(context)),
         ],
       ],
     ),

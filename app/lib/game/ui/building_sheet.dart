@@ -23,31 +23,51 @@ import '../game_sprite.dart';
 import 'expeditions_screen.dart';
 import 'forge_screen.dart';
 import 'hall_common.dart';
+import 'hall_framed.dart';
 import 'hall_ledger_view.dart';
 import 'hall_names.dart';
 import 'hall_voice.dart';
+import 'kit/kit.dart';
 import 'vault_screen.dart';
 
-/// Opens the sheet for [plotIndex].
+/// Opens the sheet for [plotIndex]: a framed game dialog in the pixel tier,
+/// the original bottom sheet in the text tier.
 Future<void> showBuildingSheet(
   BuildContext context, {
   required int plotIndex,
   required VoidCallback onOpenLedger,
   HallLinks links = const HallLinks(),
-}) =>
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      constraints: const BoxConstraints(maxWidth: 640),
-      builder: (context) => HallScope(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.85),
-          child: BuildingSheet(plotIndex: plotIndex, onOpenLedger: onOpenLedger),
-        ),
+}) {
+  final sheet = BuildingSheet(plotIndex: plotIndex, onOpenLedger: onOpenLedger);
+  if (!hallDeviceTextTier(context)) {
+    return showGameDialog<void>(context, builder: (_) => sheet);
+  }
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    constraints: const BoxConstraints(maxWidth: 640),
+    builder: (context) => HallScope(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.85),
+        child: sheet,
       ),
-    );
+    ),
+  );
+}
+
+/// What one plot's sheet shows: a [title] and [subtitle] for the header, the
+/// picture [sprite] at a given scale, and the [children] below.
+typedef _SheetContent = ({
+  String title,
+  String subtitle,
+  Widget Function(int scale) sprite,
+  List<Widget> children,
+});
+
+/// The building picture's scale in the dialog's scene strip (16 px art).
+const int _kSceneSpriteScale = 5;
 
 class BuildingSheet extends ConsumerWidget {
   const BuildingSheet({
@@ -75,44 +95,75 @@ class BuildingSheet extends ConsumerWidget {
         preview: (cmd) => previewRejection(game, view.meId, clock, cmd),
       );
       final plot = game.hall.plots[plotIndex];
-      final List<Widget> body;
+      final _SheetContent content;
       if (plot == null) {
-        body = _locked(context, ref, ctx);
+        content = _locked(context, ref, ctx);
       } else if (plot.building == null) {
-        body = _empty(context, ref, ctx);
+        content = _empty(context, ref, ctx);
       } else {
-        body = _built(context, ref, ctx, plot.building!);
+        content = _built(context, ref, ctx, plot.building!);
       }
-      return SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.xl),
-        child: Column(
+      if (hallTextTier(context)) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.xl),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _Header(
+                sprite: content.sprite(3),
+                title: content.title,
+                subtitle: content.subtitle,
+              ),
+              ...content.children,
+            ],
+          ),
+        );
+      }
+      return GameDialog(
+        title: content.title,
+        scene: Center(child: content.sprite(_kSceneSpriteScale)),
+        onClose: () => Navigator.of(context).pop(),
+        body: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: body,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
+              child: Text(content.subtitle, style: framedMutedStyle(context)),
+            ),
+            ...content.children,
+          ],
         ),
+        actions: [
+          WoodButton(
+            label: 'Close',
+            tone: WoodButtonTone.secondary,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
       );
     });
   }
 
   // ---- Locked ---------------------------------------------------------------
 
-  List<Widget> _locked(BuildContext context, WidgetRef ref, _SheetContext c) {
+  _SheetContent _locked(BuildContext context, WidgetRef ref, _SheetContext c) {
     final cost = Balance.plotUnlockCost(plotIndex);
     final rejection = c.preview((g) => g.unlockPlot(plotIndex));
-    return [
-      _Header(
-        sprite: GameSprite.fromKey(GameAssetKeys.panel('hall_plot'),
-            label: 'Locked', scale: 3),
-        title: 'Plot ${plotIndex + 1} — locked',
-        subtitle: 'Open it up to make room for another building.',
-      ),
+    return (
+      title: 'Plot ${plotIndex + 1} — locked',
+      subtitle: 'Open it up to make room for another building.',
+      sprite: (scale) => GameSprite.fromKey(GameAssetKeys.panel('hall_plot'),
+          label: 'Locked', scale: scale),
+      children: [
       if (cost != null) ...[
         Text('Unlock cost: ${HallNames.gems(cost)} '
             '(you have ${HallNames.gems(c.me.gems)}).',
-            style: hallBodyStyle(context)),
+            style: framedBodyStyle(context)),
         const SizedBox(height: AppSpacing.sm),
         _Gate(rejection: rejection, voice: c.voice),
-        FilledButton.icon(
+        _ActionButton(
+          primary: true,
           onPressed: rejection == null
               ? () async {
                   final r = await runHallCommand(
@@ -123,30 +174,30 @@ class BuildingSheet extends ConsumerWidget {
                   }
                 }
               : null,
-          icon: const Icon(Icons.lock_open),
-          label: Text('Unlock for ${HallNames.gems(cost)}'),
+          icon: Icons.lock_open,
+          label: 'Unlock for ${HallNames.gems(cost)}',
         ),
       ],
-    ];
+      ],
+    );
   }
 
   // ---- Empty ----------------------------------------------------------------
 
-  List<Widget> _empty(BuildContext context, WidgetRef ref, _SheetContext c) {
+  _SheetContent _empty(BuildContext context, WidgetRef ref, _SheetContext c) {
     final options = [
       for (final t in BuildingType.values)
         if (c.game.hall.plotOf(t) == null) t,
     ];
-    return [
-      _Header(
-        sprite: GameSprite.fromKey(GameAssetKeys.panel('hall_plot'),
-            label: 'Empty', scale: 3),
-        title: 'Plot ${plotIndex + 1} — empty',
-        subtitle: 'Choose what to build. Each building gets one plot.',
-      ),
+    return (
+      title: 'Plot ${plotIndex + 1} — empty',
+      subtitle: 'Choose what to build. Each building gets one plot.',
+      sprite: (scale) => GameSprite.fromKey(GameAssetKeys.panel('hall_plot'),
+          label: 'Empty', scale: scale),
+      children: [
       if (options.isEmpty)
         Text('Every building already stands in the hall.',
-            style: hallMutedStyle(context)),
+            style: framedMutedStyle(context)),
       for (final t in options)
         _BuildOption(
           type: t,
@@ -154,12 +205,13 @@ class BuildingSheet extends ConsumerWidget {
           context: c,
           onBuild: () => _build(context, ref, c, t, 1),
         ),
-    ];
+      ],
+    );
   }
 
   // ---- Built ----------------------------------------------------------------
 
-  List<Widget> _built(
+  _SheetContent _built(
       BuildContext context, WidgetRef ref, _SheetContext c, BuildingState b) {
     final now = c.now;
     final complete = b.isCompleteAt(now);
@@ -168,18 +220,7 @@ class BuildingSheet extends ConsumerWidget {
     final next = b.tier + 1;
     final hall = c.game.hall;
 
-    final widgets = <Widget>[
-      _Header(
-        sprite: GameSprite.fromKey(
-          GameAssetKeys.building(b.type, b.tier,
-              state: complete ? 'idle' : 'constructing'),
-          label: HallNames.building(b.type),
-          scale: 3,
-        ),
-        title: '${HallNames.building(b.type)} — tier ${b.tier}',
-        subtitle: HallNames.buildingBlurb(b.type),
-      ),
-    ];
+    final widgets = <Widget>[];
 
     if (!complete) {
       final total = b.completesAt.difference(b.startedAt);
@@ -190,9 +231,9 @@ class BuildingSheet extends ConsumerWidget {
                 ? 'Under construction · ready in ${HallNames.duration(left)}'
                 : 'Upgrading to tier ${b.tier} · ready in '
                     '${HallNames.duration(left)}',
-            style: hallBodyStyle(context, weight: FontWeight.w700)),
+            style: framedBodyStyle(context, weight: FontWeight.w700)),
         const SizedBox(height: AppSpacing.xs),
-        HallBar(total.inSeconds == 0
+        FramedMeter(total.inSeconds == 0
             ? 1
             : 1 - left.inSeconds / total.inSeconds),
         const SizedBox(height: AppSpacing.md),
@@ -228,10 +269,11 @@ class BuildingSheet extends ConsumerWidget {
     };
     if (link != null) {
       widgets.addAll([
-        OutlinedButton.icon(
+        _ActionButton(
+          primary: false,
           onPressed: link.$3,
-          icon: Icon(link.$2),
-          label: Text(link.$1),
+          icon: link.$2,
+          label: link.$1,
         ),
         const SizedBox(height: AppSpacing.md),
       ]);
@@ -240,7 +282,7 @@ class BuildingSheet extends ConsumerWidget {
     if (b.type == BuildingType.storehouse) {
       widgets.add(Text(
           'Holds up to ${hall.storageCapacityAt(now)} of each material.',
-          style: hallBodyStyle(context)));
+          style: framedBodyStyle(context)));
       widgets.add(const SizedBox(height: AppSpacing.md));
     }
 
@@ -253,7 +295,7 @@ class BuildingSheet extends ConsumerWidget {
           e.key: inService < 1 ? 0 : e.value[inService - 1],
       };
       widgets.addAll([
-        HallSection(
+        FramedSection(
           title: 'Production',
           icon: Icons.factory_outlined,
           child: Column(
@@ -266,17 +308,18 @@ class BuildingSheet extends ConsumerWidget {
                           for (final e in rates.entries)
                             '${e.value} ${HallNames.material(e.key)}'
                         ].join(' and ')} an hour.',
-                  style: hallBodyStyle(context)),
+                  style: framedBodyStyle(context)),
               const SizedBox(height: AppSpacing.xs),
               MaterialLine(fits, prefix: 'Ready to collect: '),
               if (made != fits && !made.isEmpty)
                 Text(
                     'The Storehouse has room for only part of the '
                     '${HallNames.bundle(made)} made.',
-                    style: hallMutedStyle(context)),
+                    style: framedMutedStyle(context)),
               const SizedBox(height: AppSpacing.sm),
               _Gate(rejection: rejection, voice: c.voice),
-              FilledButton.icon(
+              _ActionButton(
+                primary: true,
                 onPressed: rejection == null
                     ? () async {
                         final r = await runHallCommand(context, ref,
@@ -291,8 +334,8 @@ class BuildingSheet extends ConsumerWidget {
                         }
                       }
                     : null,
-                icon: const Icon(Icons.move_to_inbox),
-                label: const Text('Collect'),
+                icon: Icons.move_to_inbox,
+                label: 'Collect',
               ),
             ],
           ),
@@ -304,11 +347,11 @@ class BuildingSheet extends ConsumerWidget {
     if (next > Balance.maxBuildingTier) {
       widgets.add(Text(
           'At its finest: tier ${Balance.maxBuildingTier} is the top.',
-          style: hallMutedStyle(context)));
+          style: framedMutedStyle(context)));
     } else {
       final cost = Balance.buildingCost(b.type, next);
       final rejection = c.preview((g) => g.startBuilding(plotIndex, b.type));
-      widgets.add(HallSection(
+      widgets.add(FramedSection(
         title: 'Upgrade to tier $next',
         icon: Icons.upgrade,
         child: Column(
@@ -316,28 +359,39 @@ class BuildingSheet extends ConsumerWidget {
           children: [
             CostLine(cost),
             Text('Build time: ${HallNames.buildTime(next)}',
-                style: hallBodyStyle(context)),
+                style: framedBodyStyle(context)),
             if (spec.isProducer && complete)
               Text("Upgrading collects what's ready first.",
-                  style: hallMutedStyle(context)),
+                  style: framedMutedStyle(context)),
             const SizedBox(height: AppSpacing.sm),
             _Gate(
               rejection: rejection,
               voice: c.voice,
               detail: _detail(rejection, c, cost, b.type, next),
             ),
-            FilledButton.icon(
+            _ActionButton(
+              primary: true,
               onPressed: rejection == null
                   ? () => _build(context, ref, c, b.type, next)
                   : null,
-              icon: const Icon(Icons.construction),
-              label: Text('Upgrade to tier $next'),
+              icon: Icons.construction,
+              label: 'Upgrade to tier $next',
             ),
           ],
         ),
       ));
     }
-    return widgets;
+    return (
+      title: '${HallNames.building(b.type)} — tier ${b.tier}',
+      subtitle: HallNames.buildingBlurb(b.type),
+      sprite: (scale) => GameSprite.fromKey(
+        GameAssetKeys.building(b.type, b.tier,
+            state: complete ? 'idle' : 'constructing'),
+        label: HallNames.building(b.type),
+        scale: scale,
+      ),
+      children: widgets,
+    );
   }
 
   Future<void> _build(BuildContext context, WidgetRef ref, _SheetContext c,
@@ -426,10 +480,10 @@ class _Header extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title,
-                      style: hallBodyStyle(context, weight: FontWeight.w800)
+                      style: framedBodyStyle(context, weight: FontWeight.w800)
                           .copyWith(fontSize: 18)),
                   const SizedBox(height: AppSpacing.xs),
-                  Text(subtitle, style: hallMutedStyle(context)),
+                  Text(subtitle, style: framedMutedStyle(context)),
                 ],
               ),
             ),
@@ -456,9 +510,8 @@ class _Gate extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(voice.rejection(r),
-              style: hallBodyStyle(context,
-                  color: Theme.of(context).colorScheme.tertiary)),
-          if (detail != null) Text(detail!, style: hallMutedStyle(context)),
+              style: framedGateStyle(context)),
+          if (detail != null) Text(detail!, style: framedMutedStyle(context)),
         ],
       ),
     );
@@ -481,7 +534,7 @@ class _BuildOption extends StatelessWidget {
   @override
   Widget build(BuildContext buildContext) {
     final cost = Balance.buildingCost(type, 1);
-    return HallSection(
+    return FramedSection(
       title: HallNames.building(type),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -494,11 +547,11 @@ class _BuildOption extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(HallNames.buildingBlurb(type),
-                    style: hallMutedStyle(buildContext)),
+                    style: framedMutedStyle(buildContext)),
                 const SizedBox(height: AppSpacing.xs),
                 CostLine(cost),
                 Text('Build time: ${HallNames.buildTime(1)}',
-                    style: hallBodyStyle(buildContext)),
+                    style: framedBodyStyle(buildContext)),
                 const SizedBox(height: AppSpacing.sm),
                 _Gate(
                   rejection: rejection,
@@ -507,9 +560,10 @@ class _BuildOption extends StatelessWidget {
                 ),
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: FilledButton(
+                  child: _ActionButton(
+                    primary: true,
                     onPressed: rejection == null ? onBuild : null,
-                    child: Text('Build ${HallNames.building(type)}'),
+                    label: 'Build ${HallNames.building(type)}',
                   ),
                 ),
               ],
@@ -518,5 +572,45 @@ class _BuildOption extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// An action inside the sheet: a wood [FramedButton] in the pixel tier (parchment
+/// when not [primary]; text only, so its label stays one findable string), the
+/// Material button with its icon in the text tier.
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.primary,
+    required this.onPressed,
+    required this.label,
+    this.icon,
+  });
+
+  final bool primary;
+  final VoidCallback? onPressed;
+  final String label;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!hallTextTier(context)) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: FramedButton(
+          label: label,
+          onPressed: onPressed,
+          secondary: !primary,
+        ),
+      );
+    }
+    final iconData = icon;
+    if (iconData == null) {
+      return FilledButton(onPressed: onPressed, child: Text(label));
+    }
+    return primary
+        ? FilledButton.icon(
+            onPressed: onPressed, icon: Icon(iconData), label: Text(label))
+        : OutlinedButton.icon(
+            onPressed: onPressed, icon: Icon(iconData), label: Text(label));
   }
 }

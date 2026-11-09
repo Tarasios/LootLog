@@ -31,10 +31,12 @@ import 'expeditions_screen.dart';
 import 'forge_screen.dart';
 import 'habit_actions.dart';
 import 'hall_common.dart';
+import 'hall_framed.dart';
 import 'hall_ledger_view.dart';
 import 'hall_names.dart';
 import 'hall_status.dart';
 import 'hall_voice.dart';
+import 'kit/kit.dart';
 import 'town/town_decor_text_screen.dart';
 import 'vault_screen.dart';
 
@@ -293,9 +295,13 @@ class _ScribeRow extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class InboxPanel extends ConsumerWidget {
-  const InboxPanel(this.data, {super.key});
+  const InboxPanel(this.data, {super.key, this.framed = false});
 
   final HallHomeData data;
+
+  /// Inside a game dialog's parchment (the town's Inbox): no section frame of
+  /// its own, rows as parchment cards with wood buttons. Text tier unchanged.
+  final bool framed;
 
   /// The most rewards listed one by one; the rest fold into "Claim all".
   static const maxRewardRows = 5;
@@ -314,12 +320,38 @@ class InboxPanel extends ConsumerWidget {
     // decoration for good (the roll is stored in the event), so wait.
     final decorsReady =
         ref.watch(decorCatalogProvider).value?.items.isNotEmpty ?? false;
+    final framedRows = framed && !hallTextTier(context);
     if (chests.isEmpty && rewards.isEmpty) {
+      if (framedRows) {
+        return Text('Nothing waiting. Log something and see what turns up.',
+            style: framedMutedStyle(context));
+      }
       return HallSection(
         title: 'Inbox',
         icon: Icons.inbox_outlined,
         child: Text('Nothing waiting. Log something and see what turns up.',
             style: hallMutedStyle(context)),
+      );
+    }
+    final claimAll = rewards.length > 1
+        ? (framedRows
+            ? WoodButton(
+                label: 'Claim all (${rewards.length})',
+                tone: WoodButtonTone.secondary,
+                onPressed: () => _claimAll(context, ref, rewards),
+              )
+            : TextButton(
+                onPressed: () => _claimAll(context, ref, rewards),
+                child: Text('Claim all (${rewards.length})'),
+              ))
+        : null;
+    if (framedRows) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ..._rows(context, ref, chests, rewards, decorsReady, framed: true),
+          if (claimAll != null) Align(alignment: Alignment.centerRight, child: claimAll),
+        ],
       );
     }
     return HallSection(
@@ -333,41 +365,56 @@ class InboxPanel extends ConsumerWidget {
           : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final c in chests)
-            _InboxRow(
-              sprite: GameSprite.fromKey(GameAssetKeys.chest(c.value),
-                  label: HallNames.chest(c.value), scale: 1),
-              title: HallNames.chest(c.value),
-              subtitle: _chestReason(c.key),
-              action: decorsReady ? 'Open' : 'Unpacking…',
-              onPressed: decorsReady
-                  ? () => _open(context, ref, c.key, c.value)
-                  : null,
-            ),
-          for (final r in rewards.take(maxRewardRows))
-            _InboxRow(
-              sprite: GameSprite.fromKey(
-                  r.loot.gems > 0
-                      ? GameAssetKeys.gem
-                      : r.loot.tokens > 0
-                          ? GameAssetKeys.freezeToken
-                          : GameAssetKeys.material(
-                              r.loot.materials.amounts.keys.isEmpty
-                                  ? MaterialKind.lumber
-                                  : r.loot.materials.amounts.keys.first),
-                  scale: 1),
-              title: data.voice.reason(r.reasonCode),
-              subtitle: HallNames.loot(r.loot),
-              action: 'Claim',
-              onPressed: () => _claim(context, ref, r),
-            ),
-          if (rewards.length > maxRewardRows)
-            Text('…and ${rewards.length - maxRewardRows} more',
-                style: hallMutedStyle(context)),
-        ],
+        children: _rows(context, ref, chests, rewards, decorsReady),
       ),
     );
+  }
+
+  /// The chest and reward rows, with a note when more rewards wait than fit.
+  List<Widget> _rows(
+    BuildContext context,
+    WidgetRef ref,
+    List<MapEntry<String, ChestType>> chests,
+    List<PendingReward> rewards,
+    bool decorsReady, {
+    bool framed = false,
+  }) {
+    final mutedStyle = framed ? framedMutedStyle(context) : hallMutedStyle(context);
+    return [
+      for (final c in chests)
+        _InboxRow(
+          framed: framed,
+          sprite: GameSprite.fromKey(GameAssetKeys.chest(c.value),
+              label: HallNames.chest(c.value), scale: framed ? 2 : 1),
+          title: HallNames.chest(c.value),
+          subtitle: _chestReason(c.key),
+          action: decorsReady ? 'Open' : 'Unpacking…',
+          onPressed: decorsReady
+              ? () => _open(context, ref, c.key, c.value)
+              : null,
+        ),
+      for (final r in rewards.take(maxRewardRows))
+        _InboxRow(
+          framed: framed,
+          sprite: GameSprite.fromKey(
+              r.loot.gems > 0
+                  ? GameAssetKeys.gem
+                  : r.loot.tokens > 0
+                      ? GameAssetKeys.freezeToken
+                      : GameAssetKeys.material(
+                          r.loot.materials.amounts.keys.isEmpty
+                              ? MaterialKind.lumber
+                              : r.loot.materials.amounts.keys.first),
+              scale: framed ? 2 : 1),
+          title: data.voice.reason(r.reasonCode),
+          subtitle: HallNames.loot(r.loot),
+          action: 'Claim',
+          onPressed: () => _claim(context, ref, r),
+        ),
+      if (rewards.length > maxRewardRows)
+        Text('…and ${rewards.length - maxRewardRows} more',
+            style: mutedStyle),
+    ];
   }
 
   String _chestReason(String chestId) {
@@ -443,6 +490,7 @@ class _InboxRow extends StatelessWidget {
     required this.subtitle,
     required this.action,
     required this.onPressed,
+    this.framed = false,
   });
 
   final Widget sprite;
@@ -451,27 +499,57 @@ class _InboxRow extends StatelessWidget {
   final String action;
   final VoidCallback? onPressed;
 
+  /// A parchment card with a wood button, for the town's Inbox dialog.
+  final bool framed;
+
   @override
-  Widget build(BuildContext context) => Padding(
+  Widget build(BuildContext context) {
+    if (framed) {
+      return Padding(
         padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-        child: Row(
-          children: [
-            sprite,
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title,
-                      style: hallBodyStyle(context, weight: FontWeight.w700)),
-                  Text(subtitle, style: hallMutedStyle(context)),
-                ],
+        child: ParchmentCard(
+          child: Row(
+            children: [
+              sprite,
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: framedBodyStyle(context, weight: FontWeight.w700)),
+                    Text(subtitle, style: framedMutedStyle(context)),
+                  ],
+                ),
               ),
-            ),
-            FilledButton.tonal(onPressed: onPressed, child: Text(action)),
-          ],
+              const SizedBox(width: AppSpacing.sm),
+              WoodButton(label: action, onPressed: onPressed),
+            ],
+          ),
         ),
       );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Row(
+        children: [
+          sprite,
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: hallBodyStyle(context, weight: FontWeight.w700)),
+                Text(subtitle, style: hallMutedStyle(context)),
+              ],
+            ),
+          ),
+          FilledButton.tonal(onPressed: onPressed, child: Text(action)),
+        ],
+      ),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

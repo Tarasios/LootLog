@@ -81,6 +81,13 @@ class HallLinks {
 bool hallTextTier(BuildContext context) =>
     GameSpriteScope.maybeOf(context)?.tier == AdventureTier.text;
 
+/// Whether this device renders the text tier, read from the providers rather
+/// than a scope: for deciding how to open a pop-up before it has a scope.
+bool hallDeviceTextTier(BuildContext context) =>
+    ProviderScope.containerOf(context, listen: false)
+        .read(adventureTierProvider) ==
+    AdventureTier.text;
+
 /// The body style for hall copy: monospace in the text tier.
 TextStyle hallBodyStyle(BuildContext context, {Color? color, FontWeight? weight}) {
   if (hallTextTier(context)) {

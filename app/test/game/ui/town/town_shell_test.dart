@@ -354,7 +354,10 @@ void main() {
     await pumpShell(tester, host(tier: AdventureTier.pixel));
     await tester.tap(find.text('Inbox'));
     await pumpUi(tester);
-    expect(find.text('Wood chest'), findsOneWidget);
+    expect(find.byType(GameDialog), findsOneWidget);
+    expect(find.text('Inbox'), findsWidgets);
+    // The row's title, plus the sprite's text card when there is no art.
+    expect(find.text('Wood chest'), findsWidgets);
   });
 
   testWidgets(
@@ -483,24 +486,24 @@ void main() {
 
     testWidgets('opening a chest removes its row', (tester) async {
       await pumpLiveShell(tester);
-      expect(find.widgetWithText(FilledButton, 'Open'), findsOneWidget);
+      expect(find.widgetWithText(WoodButton, 'Open'), findsOneWidget);
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Open'));
+      await tester.tap(find.widgetWithText(WoodButton, 'Open'));
       await pumpUi(tester);
       await tester.tap(find.text('Huzzah!'));
       await pumpUi(tester);
 
-      expect(find.widgetWithText(FilledButton, 'Open'), findsNothing);
+      expect(find.widgetWithText(WoodButton, 'Open'), findsNothing);
     });
 
     testWidgets('claiming a reward removes its row', (tester) async {
       await pumpLiveShell(tester);
-      expect(find.widgetWithText(FilledButton, 'Claim'), findsOneWidget);
+      expect(find.widgetWithText(WoodButton, 'Claim'), findsOneWidget);
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Claim'));
+      await tester.tap(find.widgetWithText(WoodButton, 'Claim'));
       await pumpUi(tester);
 
-      expect(find.widgetWithText(FilledButton, 'Claim'), findsNothing);
+      expect(find.widgetWithText(WoodButton, 'Claim'), findsNothing);
     });
   });
 
@@ -588,10 +591,10 @@ void main() {
       );
       await tester.tap(find.text('Inbox'));
       await pumpUi(tester);
-      final reconcile = tester.widget<OutlinedButton>(
+      final reconcile = tester.widget<WoodButton>(
         find.ancestor(
           of: find.text('Reconcile this week'),
-          matching: find.byWidgetPredicate((widget) => widget is OutlinedButton),
+          matching: find.byType(WoodButton),
         ),
       );
       expect(reconcile.onPressed, isNull);
