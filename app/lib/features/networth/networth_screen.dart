@@ -166,7 +166,9 @@ class _TotalCard extends StatelessWidget {
             Text(
               signedMoney(netWorth.totalCents),
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: netWorth.totalCents >= 0 ? scheme.primary : scheme.error,
+                    color: netWorth.totalCents >= 0
+                        ? MoneyTones.gainOf(context)
+                        : scheme.error,
                   ),
             ),
             const SizedBox(height: AppSpacing.sm),

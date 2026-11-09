@@ -81,8 +81,9 @@ class AppShell extends ConsumerStatefulWidget {
 
   final ShellPane initialPane;
 
-  /// Opens the guild hall. Set only for Adventure-mode users (by the home
-  /// gate); null in Standard mode, where no hall entry point is shown.
+  /// Goes back to the town (the Adventure header's "Town" button). Set only
+  /// for Adventure-mode users (by the home gate); Standard shows no way into
+  /// the town.
   final VoidCallback? onOpenHall;
 
   @override
@@ -111,19 +112,17 @@ class _AppShellState extends ConsumerState<AppShell> {
     }
   }
 
-  /// "Funds" in Standard, "Treasury" in Adventure (from the glossary).
-  String _fundsLabel(bool adventure) =>
-      Glossary.funds.label(isAdventure: adventure);
+  /// "Funds" (the glossary's Classic name for the hub).
+  static final String _fundsLabel = Glossary.funds.classic;
 
-  String _title(bool adventure) => _titleFor(_pane, adventure);
-
-  String _titleFor(ShellPane pane, bool adventure) => switch (pane) {
+  /// The Standard app bar's title for the open pane.
+  String get _title => switch (_pane) {
     ShellPane.dashboard => 'LootLog',
     ShellPane.ledger => 'Ledger',
     ShellPane.goals => 'Savings goals',
-    ShellPane.funds => _fundsLabel(adventure),
+    ShellPane.funds => _fundsLabel,
     ShellPane.trophies => 'Trophy hall',
-    ShellPane.activity => adventure ? 'Adventure log' : 'Activity',
+    ShellPane.activity => 'Activity',
   };
 
   @override
@@ -149,15 +148,15 @@ class _AppShellState extends ConsumerState<AppShell> {
           child: adventure
               ? _buildAdventure(context, wide: wide)
               : wide
-              ? _buildWide(context, adventure)
-              : _buildNarrow(context, adventure),
+              ? _buildWide(context)
+              : _buildNarrow(context),
         ),
       ),
     );
   }
 
   // ---- Narrow: bottom navigation, single pane ---------------------------
-  Widget _buildNarrow(BuildContext context, bool adventure) {
+  Widget _buildNarrow(BuildContext context) {
     // On phones the dashboard folds the activity feed into itself. The bottom
     // bar carries five panes; Funds opens the war chest, emergency funds,
     // vacations and homestead, and Goals links the trophy hall.
@@ -165,9 +164,8 @@ class _AppShellState extends ConsumerState<AppShell> {
     final index = tabs.contains(_pane) ? tabs.indexOf(_pane) : 0;
     return Scaffold(
       appBar: AppBar(
-        title: Text(_title(adventure)),
+        title: Text(_title),
         actions: [
-          ..._hallAction(),
           const SpoilsEntryButton(),
           _manageAction(context),
           const PlayModeMenuButton(),
@@ -197,7 +195,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           NavigationDestination(
             icon: const Icon(Icons.account_balance_outlined),
             selectedIcon: const Icon(Icons.account_balance),
-            label: _fundsLabel(adventure),
+            label: _fundsLabel,
           ),
           const NavigationDestination(
             icon: Icon(Icons.forum_outlined),
@@ -210,16 +208,15 @@ class _AppShellState extends ConsumerState<AppShell> {
   }
 
   // ---- Wide: navigation rail, two panes (pane | activity) ---------------
-  Widget _buildWide(BuildContext context, bool adventure) {
+  Widget _buildWide(BuildContext context) {
     // The rail switches the left pane; activity is pinned on the right.
     const leftPanes = kWidePanes;
     final railIndex = leftPanes.contains(_pane) ? leftPanes.indexOf(_pane) : 0;
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: Text(_title(adventure)),
+        title: Text(_title),
         actions: [
-          ..._hallAction(),
           const SpoilsEntryButton(),
           _manageAction(context),
           const PlayModeMenuButton(),
@@ -251,7 +248,7 @@ class _AppShellState extends ConsumerState<AppShell> {
               NavigationRailDestination(
                 icon: const Icon(Icons.account_balance_outlined),
                 selectedIcon: const Icon(Icons.account_balance),
-                label: Text(_fundsLabel(adventure)),
+                label: Text(_fundsLabel),
               ),
               const NavigationRailDestination(
                 icon: Icon(Icons.emoji_events_outlined),
@@ -285,20 +282,21 @@ class _AppShellState extends ConsumerState<AppShell> {
         : _pane;
     final selectedTab = panes.indexOf(shownPane);
     return AdventureShellScaffold(
-      title: _titleFor(shownPane, true),
+      title: _adventureName(shownPane, title: true),
       wide: wide,
       tabs: [
         for (final pane in panes)
           AdventureShellTab(
             key: ValueKey('shell-tab-${pane.name}'),
-            label: _adventureTabLabel(pane),
+            label: _adventureName(pane),
             icon: _tabIcon(pane),
           ),
       ],
       selectedTab: selectedTab < 0 ? null : selectedTab,
       onSelectTab: (index) => _select(panes[index]),
-      pane: _paneBody(shownPane, showActivity: !wide),
-      adventureLog: wide ? const ActivityScreen() : null,
+      pane: _adventurePaneBody(shownPane, wide: wide),
+      // The panel's ribbon names the feed, so it drops its own heading.
+      adventureLog: wide ? const ActivityScreen(showHeader: false) : null,
       onOpenTown: widget.onOpenHall,
       onOpenManage: () => ManageScreen.open(context),
       onLogPurchase: () => ExpenseEntryScreen.open(context),
@@ -306,16 +304,28 @@ class _AppShellState extends ConsumerState<AppShell> {
     );
   }
 
-  /// A pane's Adventure tab label (Standard spells its destinations out
-  /// above).
-  String _adventureTabLabel(ShellPane pane) => switch (pane) {
-    ShellPane.dashboard => 'Dashboard',
+  /// A pane's Adventure tab label, or with [title] its header ribbon: the
+  /// glossary's flavour name where it has one (Quests, Treasury, Adventure
+  /// log), so a pane is called the same on its tab and its ribbon.
+  String _adventureName(ShellPane pane, {bool title = false}) => switch (pane) {
+    ShellPane.dashboard => title ? 'LootLog' : 'Dashboard',
     ShellPane.ledger => 'Ledger',
-    ShellPane.goals => 'Goals',
-    ShellPane.funds => _fundsLabel(true),
-    ShellPane.trophies => 'Trophies',
-    ShellPane.activity => 'Activity',
+    ShellPane.goals => '${Glossary.capitalize(Glossary.quest.adventure)}s',
+    ShellPane.funds => Glossary.funds.adventure,
+    ShellPane.trophies => title ? 'Trophy hall' : 'Trophies',
+    ShellPane.activity => Glossary.activityFeed.adventure,
   };
+
+  /// The Adventure pane bodies: Standard's panes, except that Goals and the
+  /// trophy hall come without their own app bars (the wood header titles
+  /// them) and the feed without its own heading.
+  Widget _adventurePaneBody(ShellPane pane, {required bool wide}) =>
+      switch (pane) {
+        ShellPane.goals => const QuestsScreen(embedded: true),
+        ShellPane.trophies => const TrophyHallScreen(embedded: true),
+        ShellPane.activity => const ActivityScreen(showHeader: false),
+        _ => _paneBody(pane, showActivity: !wide),
+      };
 
   /// A pane's Adventure tab icon.
   IconData _tabIcon(ShellPane pane) => switch (pane) {
@@ -333,16 +343,6 @@ class _AppShellState extends ConsumerState<AppShell> {
     icon: const Icon(Icons.menu),
     onPressed: () => ManageScreen.open(context),
   );
-
-  /// The guild-hall entry point, present only in Adventure mode.
-  List<Widget> _hallAction() => [
-    if (widget.onOpenHall != null)
-      IconButton(
-        tooltip: 'Guild hall',
-        icon: const Icon(Icons.castle_outlined),
-        onPressed: widget.onOpenHall,
-      ),
-  ];
 
   /// Builds the current workbook and hands it to the isolated Sheets gate,
   /// which only pushes when the user has enabled "also push after each sync".

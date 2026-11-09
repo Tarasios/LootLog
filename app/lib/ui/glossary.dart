@@ -235,6 +235,15 @@ abstract final class Glossary {
     helper: 'Shared savings, emergency funds and vacations in one place.',
   );
 
+  /// The household's newest-first feed of what everyone has done.
+  static const activityFeed = GlossaryTerm(
+    internal: 'activityFeed',
+    classic: 'Activity',
+    adventure: 'Adventure log',
+    helper: 'Everything the household has recorded, newest first: purchases, '
+        'gifts, goals and more.',
+  );
+
   /// A trip sub-budget drawn from a savings goal or emergency fund.
   static const vacation = GlossaryTerm(
     internal: 'vacation',
@@ -409,6 +418,7 @@ abstract final class Glossary {
     carryTax,
     advance,
     funds,
+    activityFeed,
     vacation,
     recurring,
     income,

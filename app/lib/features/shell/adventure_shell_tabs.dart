@@ -2,7 +2,7 @@
 /// Trophies (plus Activity on a phone) as wood buttons. The open pane's tab is
 /// dark wood with a gold marker under it; the rest are parchment. On desktop
 /// the strip sits under the header with icons; on a phone it is the bottom
-/// bar, labels only, spread across the width.
+/// bar: labels only, dense buttons, spread across the width.
 library;
 
 import 'package:flutter/material.dart';
@@ -102,6 +102,7 @@ class _ShellTabButton extends StatelessWidget {
             key: tab.key,
             label: tab.label,
             icon: compact ? null : tab.icon,
+            dense: compact,
             tone: selected ? WoodButtonTone.primary : WoodButtonTone.secondary,
             onPressed: onPressed,
           ),

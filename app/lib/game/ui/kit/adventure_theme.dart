@@ -5,12 +5,15 @@
 /// and every role money is drawn in keeps the default face, so amounts stay
 /// legible and never get a synthetic pixel bold.
 ///
-/// Imports only Flutter and the kit tokens, so the app root can choose it
-/// without pulling in any game state.
+/// Gains are drawn green ([MoneyTones]), never in the ribbon-red primary.
+///
+/// Imports only Flutter, the kit tokens and the UI layer's [MoneyTones], so
+/// the app root can choose it without pulling in any game state.
 library;
 
 import 'package:flutter/material.dart';
 
+import '../../../ui/money_tones.dart';
 import 'adventure_tokens.dart';
 
 /// Corner radius of themed buttons, cards, dialogs and sheets: square-ish, to
@@ -54,6 +57,7 @@ abstract final class AdventureTheme {
     return ThemeData(
       colorScheme: colorScheme,
       textTheme: textTheme,
+      extensions: const [MoneyTones(gain: AdventureTokens.gainInk)],
       // Plain screens sit on shaded parchment; full-screen game routes (the
       // town, the dungeon) paint their own backdrops.
       scaffoldBackgroundColor: AdventureTokens.parchmentDark,

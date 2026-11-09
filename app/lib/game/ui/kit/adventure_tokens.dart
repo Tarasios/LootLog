@@ -48,6 +48,10 @@ abstract final class AdventureTokens {
   static const Color hpGreen = Color(0xFF72B84E);
   static const Color hpBlue = Color(0xFF63AFF3);
 
+  /// Gains (money in, a rising balance) as text and lines on parchment: the
+  /// healthy-HP green darkened to about 4.6:1 against [parchment].
+  static const Color gainInk = Color(0xFF3F7A2A);
+
   /// The Tiny Town grass, for backdrops behind panels.
   static const Color grass = Color(0xFF84C669);
 

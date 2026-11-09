@@ -12,7 +12,11 @@ import 'activity_model.dart';
 import 'activity_view.dart';
 
 class ActivityScreen extends ConsumerWidget {
-  const ActivityScreen({super.key});
+  const ActivityScreen({super.key, this.showHeader = true});
+
+  /// False where the host already names the feed (the Adventure shell's
+  /// "Adventure log" ribbon), so it is not headed twice.
+  final bool showHeader;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -31,6 +35,6 @@ class ActivityScreen extends ConsumerWidget {
       meUserId: meUserId,
       isAdventure: ref.watch(isAdventureProvider),
     );
-    return ActivityFeedView(items: items);
+    return ActivityFeedView(items: items, header: showHeader);
   }
 }

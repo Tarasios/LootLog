@@ -109,7 +109,9 @@ class _ChangeLogTile extends StatelessWidget {
           : Text(
               signedMoney(amount),
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: amount < 0 ? scheme.error : scheme.primary,
+                    color: amount < 0
+                        ? scheme.error
+                        : MoneyTones.gainOf(context),
                     fontWeight: FontWeight.w600,
                   ),
             ),

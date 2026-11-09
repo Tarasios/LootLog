@@ -185,12 +185,19 @@ void main() {
       );
       expect(find.byType(NavigationRail), findsNothing);
       expect(find.byType(NavigationBar), findsNothing);
+      // The log is named once, by its ribbon; the feed drops its heading.
       expect(find.text('Adventure log'), findsOneWidget);
+      expect(find.text('Activity'), findsNothing);
+      // The goals pane is embedded: no app bar of its own, its actions in
+      // the body.
+      expect(find.byType(AppBar), findsNothing);
+      expect(find.text('New goal'), findsOneWidget);
+      expect(find.text('Trophy hall'), findsOneWidget);
       final tabs = find.byType(AdventureTabStrip);
       for (final label in [
         'Dashboard',
         'Ledger',
-        'Goals',
+        'Quests',
         'Treasury',
         'Trophies',
       ]) {
@@ -204,6 +211,11 @@ void main() {
       await settle(tester);
       expect(find.byType(LedgerScreen), findsOneWidget);
       expect(find.text('Corner bakery'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('shell-tab-trophies')));
+      await settle(tester);
+      expect(find.byType(AppBar), findsNothing);
+      expect(find.text('Trophy hall'), findsOneWidget);
 
       await tester.tap(find.byKey(const ValueKey('shell-town')));
       await settle(tester);
@@ -239,9 +251,11 @@ void main() {
       await done(tester);
     });
 
-    testWidgets('phone: wood tabs at the bottom, Activity among them', (
+    testWidgets('phone: wood tabs at the bottom, the log among them', (
       tester,
     ) async {
+      // The real pixel font, so the tabs are measured as a player sees them.
+      await tester.runAsync(_loadPixelFonts);
       await pumpShell(
         tester,
         size: _phone,
@@ -256,18 +270,32 @@ void main() {
       for (final label in [
         'Dashboard',
         'Ledger',
-        'Goals',
+        'Quests',
         'Treasury',
-        'Activity',
+        'Adventure log',
       ]) {
         expect(
           find.descendant(of: tabs, matching: _tab(label)),
           findsOneWidget,
         );
       }
+      // All five tabs fit across a phone, so none hides off the edge.
+      final tabsRight = tester.getRect(tabs).right;
+      for (final pane in ShellPane.values.where(kNarrowPanes.contains)) {
+        expect(
+          tester.getRect(find.byKey(ValueKey('shell-tab-${pane.name}'))).right,
+          lessThanOrEqualTo(tabsRight),
+          reason: '${pane.name} tab is on screen',
+        );
+      }
       await tester.tap(find.byKey(const ValueKey('shell-tab-ledger')));
       await settle(tester);
       expect(find.byType(LedgerScreen), findsOneWidget);
+
+      // The log tab: named once, on the ribbon and the tab.
+      await tester.tap(find.byKey(const ValueKey('shell-tab-activity')));
+      await settle(tester);
+      expect(find.text('Activity'), findsNothing);
       await done(tester);
     });
 

@@ -134,7 +134,9 @@ class _Sink extends StatelessWidget {
 enum WoodButtonTone { primary, secondary }
 
 /// A framed text button with an optional leading icon. At least 64 × 44;
-/// with [expand] it fills the available width (which must then be bounded).
+/// with [expand] it fills the available width (which must then be bounded);
+/// [dense] narrows its side padding, for a row of many buttons (the phone's
+/// tab bar).
 class WoodButton extends StatelessWidget {
   const WoodButton({
     super.key,
@@ -143,6 +145,7 @@ class WoodButton extends StatelessWidget {
     this.icon,
     this.tone = WoodButtonTone.primary,
     this.expand = false,
+    this.dense = false,
   });
 
   final String label;
@@ -150,6 +153,7 @@ class WoodButton extends StatelessWidget {
   final IconData? icon;
   final WoodButtonTone tone;
   final bool expand;
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
@@ -167,7 +171,7 @@ class WoodButton extends StatelessWidget {
           assetKey: primary ? KitKeys.wood : KitKeys.parchment,
           fallbackFill: primary ? AdventureTokens.wood : AdventureTokens.parchment,
           fallbackBorder: AdventureTokens.woodDark,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          padding: EdgeInsets.symmetric(horizontal: dense ? 9 : 14, vertical: 8),
           // One rich text (icon as a span) rather than a row: it lays out in
           // unbounded slots such as app-bar actions, reports intrinsic sizes
           // for dialogs, and ellipsizes when the width runs out.

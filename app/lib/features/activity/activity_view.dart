@@ -112,7 +112,7 @@ class _ActivityTile extends StatelessWidget {
           Text(
             signedMoney(amount),
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: positive ? scheme.primary : scheme.onSurface,
+              color: positive ? MoneyTones.gainOf(context) : scheme.onSurface,
               fontWeight: FontWeight.w600,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),

@@ -106,7 +106,7 @@ class AdventureShellScaffold extends StatelessWidget {
                 ],
               ),
               bottomNavigationBar: WoodPanel(
-                padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
+                padding: const EdgeInsets.fromLTRB(4, 10, 4, 10),
                 child: SafeArea(top: false, child: tabStrip),
               ),
               floatingActionButton: quickActions,
