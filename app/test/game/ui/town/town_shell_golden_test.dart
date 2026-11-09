@@ -58,7 +58,6 @@ final TownLedger _goldenLedger = TownLedger(
   ),
   goldPouch: kSampleTownLedger.goldPouch,
   warChest: kSampleTownLedger.warChest,
-  bills: const [(name: 'Rent', daysUntilDue: 1, ownerId: robin)],
 );
 
 Future<void> _loadPixelFonts() async {
@@ -93,6 +92,7 @@ void main() {
               tier: AdventureTier.pixel,
               registry: registry,
               ledger: _goldenLedger,
+              billsOn: (today) => const [(name: 'Rent', daysUntilDue: 1, ownerId: robin)],
               battle: MonthEndBattle.from(ritual, household),
             ),
             if (folded) questBoardCollapsedProvider.overrideWith(_FoldedBoard.new),

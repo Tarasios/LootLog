@@ -1,6 +1,7 @@
 /// The ledger figures the Adventure town shows around the scene: the quest
-/// board, this adult's gold pouch, the household war chest and the bills
-/// coming due within a few days (for the town's tags).
+/// board, this adult's gold pouch and the household war chest; and
+/// [townBillsDueSoon], the bills coming due within a few days (for the town's
+/// tags), read per day so their countdowns never go stale.
 ///
 /// Every figure is read from the same read models the Standard dashboard uses
 /// ([QuestBoardView.from], [buildUpcomingPayments], the reducer's vault and
@@ -20,7 +21,6 @@ class TownLedger {
     this.board = const QuestBoardView(),
     this.goldPouch,
     this.warChest,
-    this.bills = const [],
   });
 
   /// Nothing known yet (before setup, or while the ledger loads).
@@ -34,43 +34,50 @@ class TownLedger {
   /// The household's shared savings; null while unknown.
   final Money? warChest;
 
-  /// Bills due within [kTownBillTagDays] days, soonest first.
-  final List<TownBill> bills;
-
   /// Reads the town's figures for [meId] as of [now]. With [showOtherAdults]
-  /// off, other adults' personal categories, debts and bills stay off this
-  /// device's town (display only; shared ones always show).
+  /// off, other adults' personal categories and debts stay off this device's
+  /// town (display only; shared ones always show).
   static TownLedger from(
     HouseholdState state, {
     required String meId,
     required Map<String, String> names,
     required bool showOtherAdults,
     required DateTime now,
-  }) {
-    bool visible(UpcomingPayment payment) {
-      final owner = payment.ownerUserId;
-      return showOtherAdults || owner == null || owner == meId;
-    }
+  }) => TownLedger(
+    board: QuestBoardView.from(
+      state,
+      meId: meId,
+      month: Month.fromInstant(now.toUtc()),
+      showOtherAdults: showOtherAdults,
+      names: names,
+    ),
+    goldPouch: Money(state.vaultOf(meId)),
+    warChest: Money(state.warChest.balanceCents),
+  );
+}
 
-    return TownLedger(
-      board: QuestBoardView.from(
-        state,
-        meId: meId,
-        month: Month.fromInstant(now.toUtc()),
-        showOtherAdults: showOtherAdults,
-        names: names,
-      ),
-      goldPouch: Money(state.vaultOf(meId)),
-      warChest: Money(state.warChest.balanceCents),
-      bills: List.unmodifiable([
-        for (final payment in buildUpcomingPayments(state, now: now))
-          if (payment.daysUntilDue <= kTownBillTagDays && visible(payment))
-            (
-              name: payment.name,
-              daysUntilDue: payment.daysUntilDue,
-              ownerId: payment.ownerUserId,
-            ),
-      ]),
-    );
+/// The bills due within [kTownBillTagDays] days of [now], soonest first, as
+/// the Standard dashboard lists them. With [showOtherAdults] off, other
+/// adults' personal bills stay off this device's town (shared ones always
+/// show).
+List<TownBill> townBillsDueSoon(
+  HouseholdState state, {
+  required String meId,
+  required bool showOtherAdults,
+  required DateTime now,
+}) {
+  bool visible(UpcomingPayment payment) {
+    final owner = payment.ownerUserId;
+    return showOtherAdults || owner == null || owner == meId;
   }
+
+  return List.unmodifiable([
+    for (final payment in buildUpcomingPayments(state, now: now))
+      if (payment.daysUntilDue <= kTownBillTagDays && visible(payment))
+        (
+          name: payment.name,
+          daysUntilDue: payment.daysUntilDue,
+          ownerId: payment.ownerUserId,
+        ),
+  ]);
 }

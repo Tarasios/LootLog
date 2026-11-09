@@ -6,12 +6,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/domain/time.dart';
 import 'package:lootlog/game/battle/month_end_battle.dart';
+import 'package:lootlog/game/domain/clock.dart';
 import 'package:lootlog/game/domain/decor/catalog.dart';
 import 'package:lootlog/game/domain/decor/decor_values.dart';
 import 'package:lootlog/game/domain/game_event.dart';
 import 'package:lootlog/game/domain/game_event_store.dart';
 import 'package:lootlog/game/domain/game_state.dart';
 import 'package:lootlog/game/domain/reason_codes.dart';
+import 'package:lootlog/game/domain/town/town_tags.dart';
 import 'package:lootlog/game/domain/town/town_view.dart';
 import 'package:lootlog/game/scenes/town/town_scene_view.dart';
 import 'package:lootlog/game/skin_prefs.dart';
@@ -32,6 +34,7 @@ import '../hall_harness.dart'
         FixedTier,
         before,
         granted,
+        kHallNow,
         robin,
         testLoggedPurchasesProvider,
         kShippedCatalog,
@@ -62,9 +65,13 @@ Widget host({
   GameState? game,
   HallHabits? habits,
   HallLedgerView? view,
+  List<TownBill> Function(CalendarDay today)? billsOn,
+  Clock? clock,
 }) => ProviderScope(
   overrides: townTestOverrides(
     tier: tier,
+    billsOn: billsOn,
+    clock: clock,
     battle: battle,
     game: game,
     habits: habits,
@@ -83,6 +90,15 @@ Widget host({
     ),
   ),
 );
+
+/// A clock the test moves forward by hand.
+class SteppingClock implements Clock {
+  SteppingClock(this.current);
+  DateTime current;
+
+  @override
+  DateTime now() => current;
+}
 
 /// The Flame scene ticks forever, so pumpAndSettle never settles: advance
 /// time in fixed steps instead (enough for a sheet or menu to finish opening).
@@ -147,6 +163,30 @@ void main() {
     expect(find.text('Oct · day 3'), findsOneWidget);
     expect(find.text(r'$70.00'), findsOneWidget, reason: 'gold pouch');
     expect(find.text(r'$1234.56'), findsOneWidget, reason: 'war chest');
+  });
+
+  testWidgets('bill tags count down when the day rolls over', (tester) async {
+    // kHallNow is Oct 3 in Vancouver; rent falls due on Oct 5.
+    final clock = SteppingClock(kHallNow);
+    const rentDay = CalendarDay(2026, 10, 5);
+    await pumpShell(
+      tester,
+      host(
+        tier: AdventureTier.pixel,
+        clock: clock,
+        billsOn: (today) => [(name: 'Rent', daysUntilDue: today.daysUntil(rentDay), ownerId: null)],
+      ),
+    );
+    List<String> tagTexts() => [
+      for (final tag in tester.widget<TownSceneView>(find.byKey(const ValueKey('town-scene'))).tags)
+        tag.text,
+    ];
+    expect(tagTexts(), contains('Rent in 2d'));
+
+    clock.current = kHallNow.add(const Duration(days: 1));
+    await tester.pump(const Duration(seconds: 31));
+    expect(tagTexts(), contains('Rent in 1d'));
+    expect(find.text('Oct · day 4'), findsOneWidget, reason: 'the date chip moved on too');
   });
 
   group('the Menu', () {

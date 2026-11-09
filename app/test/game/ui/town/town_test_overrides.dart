@@ -47,7 +47,9 @@ import '../hall_harness.dart';
 /// The decoration catalogue defaults to [DecorCatalog.empty] so the shell
 /// tests never claim a starter set; hand in [catalog] to opt in. [view] and
 /// [service] replace the hall harness's Robin view and command service.
-/// [ledger] is the town's ledger figures (default: [kSampleTownLedger]).
+/// [ledger] is the town's ledger figures (default: [kSampleTownLedger]);
+/// [billsOn] gives the bills due soon as of a day (default: none). [clock]
+/// replaces the harness's fixed clock.
 /// Robin's town ledger: a Canoe goal 40% of the way, one calm and one
 /// enraged monster, $70 in the gold pouch and $1234.56 in the war chest.
 const TownLedger kSampleTownLedger = TownLedger(
@@ -102,6 +104,8 @@ List<Override> townTestOverrides({
   MonthEndBattle? battle,
   HallHabits? habits,
   TownLedger ledger = kSampleTownLedger,
+  List<TownBill> Function(CalendarDay today)? billsOn,
+  Clock? clock,
 }) {
   final state = game ?? projectGameState(sampleEvents());
   return [
@@ -115,12 +119,14 @@ List<Override> townTestOverrides({
       service: service,
       habits: habits,
       decorCatalog: Future.value(catalog),
+      clock: clock,
     ),
     if (liveStore == null)
       gameStateProvider.overrideWith((ref) => Stream.value(state)),
     townsfolkProvider.overrideWithValue(townsfolk),
     monthEndBattleProvider.overrideWithValue(battle),
     townLedgerProvider.overrideWithValue(ledger),
+    townBillsProvider.overrideWith((ref, today) => billsOn?.call(today) ?? const []),
     townTagLinesProvider.overrideWith((ref) async => TownTagLines.defaults),
   ];
 }

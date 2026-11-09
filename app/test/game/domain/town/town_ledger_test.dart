@@ -5,6 +5,7 @@ import 'package:lootlog/domain/reducer.dart';
 import 'package:lootlog/domain/time.dart';
 import 'package:lootlog/domain/value_types.dart';
 import 'package:lootlog/game/domain/town/town_ledger.dart';
+import 'package:lootlog/game/domain/town/town_tags.dart';
 
 import '../../../features/spoils/spoils_fixtures.dart';
 
@@ -77,21 +78,33 @@ void main() {
     expect(goals.single.percent, 10);
   });
 
+  List<TownBill> billsFor({bool showOtherAdults = true, DateTime? now}) => townBillsDueSoon(
+    household,
+    meId: 'alex',
+    showOtherAdults: showOtherAdults,
+    now: now ?? ledgerInstant,
+  );
+
   test('bills due within three days, soonest first, with their owner', () {
-    final bills = ledgerFor().bills;
+    final bills = billsFor();
     expect(bills.map((bill) => bill.name), ['gym', 'rent', 'internet']);
     expect(bills.map((bill) => bill.daysUntilDue), [0, 1, 3]);
     expect(bills.map((bill) => bill.ownerId), ['sam', 'alex', null]);
   });
 
   test("hiding other adults' budgets hides their personal bills", () {
-    final bills = ledgerFor(showOtherAdults: false).bills;
+    final bills = billsFor(showOtherAdults: false);
     expect(bills.map((bill) => bill.name), ['rent', 'internet']);
   });
 
   test('the empty ledger shows nothing yet', () {
     expect(TownLedger.empty.goldPouch, isNull);
     expect(TownLedger.empty.board.goals, isEmpty);
-    expect(TownLedger.empty.bills, isEmpty);
+  });
+
+  test('a day later every countdown is a day shorter', () {
+    final tomorrow = billsFor(now: ledgerInstant.add(const Duration(days: 1)));
+    expect(tomorrow.map((bill) => bill.name), ['rent', 'internet']);
+    expect(tomorrow.map((bill) => bill.daysUntilDue), [0, 2]);
   });
 }

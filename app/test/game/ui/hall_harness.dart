@@ -201,13 +201,14 @@ List<Override> hallOverrides({
   AdventureTierNotifier? tierNotifier,
   GameCommandsService? service,
   Future<DecorCatalog>? decorCatalog,
+  Clock? clock,
 }) {
   var ids = 0;
   return [
     decorCatalogProvider
         .overrideWith((ref) => decorCatalog ?? Future.value(kShippedCatalog)),
     gameEventStoreProvider.overrideWithValue(store),
-    gameClockProvider.overrideWithValue(FixedClock(kHallNow)),
+    gameClockProvider.overrideWithValue(clock ?? FixedClock(kHallNow)),
     gameCommandsServiceProvider.overrideWithValue(service ??
         GameCommandsService(
           store: store,

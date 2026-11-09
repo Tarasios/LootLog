@@ -161,7 +161,9 @@ class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<Town
 
     return AdventureSpriteScope(
       child: HallTicker(
-        builder: (context) {
+        // A Consumer under the ticker, so what depends on the date (the bill
+        // countdowns) is read again on every tick, not only on ledger changes.
+        builder: (context) => Consumer(builder: (context, tickRef, _) {
           final now = clock.now();
           final today = GameDay.fromInstant(now);
           // The gate opens while leftovers wait to be divided, and also for
@@ -184,7 +186,7 @@ class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<Town
             view: townView,
             board: ledger.board,
             leftoversToDivide: battle?.weapons.length ?? 0,
-            upcomingBills: ledger.bills,
+            upcomingBills: tickRef.watch(townBillsProvider(today)),
             unopenedChests: me.unopenedChests.length,
             lines: tagLines,
           );
@@ -255,7 +257,7 @@ class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<Town
               ),
             ),
           );
-        },
+        }),
       ),
     );
   }
