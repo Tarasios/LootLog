@@ -1,10 +1,19 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lootlog/data/actions.dart';
+import 'package:lootlog/data/blobs/blob_store.dart';
+import 'package:lootlog/data/db/database.dart';
+import 'package:lootlog/data/providers.dart';
+import 'package:lootlog/domain/reducer.dart';
 import 'package:lootlog/domain/time.dart';
+import 'package:lootlog/features/menu/manage_screen.dart';
+import 'package:lootlog/features/settings/play_mode_providers.dart';
 import 'package:lootlog/game/battle/month_end_battle.dart';
 import 'package:lootlog/game/domain/clock.dart';
 import 'package:lootlog/game/domain/decor/catalog.dart';
@@ -26,6 +35,7 @@ import 'package:lootlog/game/ui/logged_voice.dart';
 import 'package:lootlog/game/ui/town/quest_board.dart';
 import 'package:lootlog/game/ui/town/town_place_openers.dart';
 import 'package:lootlog/game/ui/town/town_shell.dart';
+import 'package:lootlog/ui/glossary.dart';
 
 import '../../../features/spoils/spoils_fixtures.dart';
 import '../hall_harness.dart'
@@ -67,20 +77,24 @@ Widget host({
   HallLedgerView? view,
   List<TownBill> Function(CalendarDay today)? billsOn,
   Clock? clock,
+  List<Override> extraOverrides = const [],
 }) => ProviderScope(
-  overrides: townTestOverrides(
-    tier: tier,
-    billsOn: billsOn,
-    clock: clock,
-    battle: battle,
-    game: game,
-    habits: habits,
-    view: view,
-    catalog: catalog,
-    tierNotifier: tierNotifier,
-    liveStore: liveStore,
-    registryFails: registryFails,
-  ),
+  overrides: [
+    ...extraOverrides,
+    ...townTestOverrides(
+      tier: tier,
+      billsOn: billsOn,
+      clock: clock,
+      battle: battle,
+      game: game,
+      habits: habits,
+      view: view,
+      catalog: catalog,
+      tierNotifier: tierNotifier,
+      liveStore: liveStore,
+      registryFails: registryFails,
+    ),
+  ],
   child: MaterialApp(
     home: TownShell(
       onOpenLedger: onOpenLedger ?? () {},
@@ -210,6 +224,68 @@ void main() {
       ]) {
         expect(find.textContaining(label), findsOneWidget, reason: label);
       }
+    });
+
+    testWidgets('Settings closes the menu and opens the Manage screen', (
+      tester,
+    ) async {
+      await pumpShell(
+        tester,
+        host(
+          tier: AdventureTier.pixel,
+          extraOverrides: [
+            householdStateProvider.overrideWith((ref) => Stream.value(reduce(const []))),
+            isAdventureProvider.overrideWithValue(true),
+          ],
+        ),
+      );
+      await openMenu(tester);
+      await tester.tap(find.textContaining('Settings'));
+      await pumpUi(tester);
+      expect(find.byType(GameDialog), findsNothing);
+      expect(find.byType(ManageScreen), findsOneWidget);
+    });
+
+    testWidgets('Switch to Standard closes the menu and asks to confirm the switch', (
+      tester,
+    ) async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      await pumpShell(
+        tester,
+        host(
+          tier: AdventureTier.pixel,
+          extraOverrides: [
+            householdActionsProvider.overrideWithValue(HouseholdActions(
+              db: db,
+              blobs: BlobStore(Directory.systemTemp.createTempSync('lootlog_town_menu')),
+              deviceId: 'test',
+              meUserId: robin,
+            )),
+          ],
+        ),
+      );
+      await openMenu(tester);
+      await tester.tap(find.textContaining('Switch to Standard'));
+      await pumpUi(tester);
+      expect(find.byType(GameDialog), findsNothing);
+      final confirm = find.byType(AlertDialog);
+      expect(confirm, findsOneWidget);
+      expect(
+        find.descendant(
+          of: confirm,
+          matching: find.text('${Glossary.switchPlayModeLabel(toAdventure: false)}?'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text(Glossary.playModeSwitchReassurance), findsOneWidget);
+
+      // Cancelling leaves the mode alone: nothing is written.
+      await tester.tap(find.text('Cancel'));
+      await pumpUi(tester);
+      expect(find.byType(AlertDialog), findsNothing);
+      final written = await tester.runAsync(() => db.eventsDao.allEvents());
+      expect(written, isEmpty);
     });
 
     testWidgets('Text mode toggles the render tier and closes the menu', (
