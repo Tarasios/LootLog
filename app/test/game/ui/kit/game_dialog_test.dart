@@ -119,6 +119,22 @@ void main() {
     expect(find.byIcon(Icons.close), findsNothing);
   });
 
+  testWidgets('the X sits clear of the scene well and the body', (tester) async {
+    await tester.pumpWidget(_launcher(
+      results: [],
+      dialog: (context) => GameDialog(
+        title: 'Closable',
+        scene: const ColoredBox(color: Colors.black),
+        body: const Text('body'),
+        onClose: () {},
+      ),
+    ));
+    await _open(tester);
+    final closeButton = tester.getRect(find.byKey(const ValueKey('game-dialog-close')));
+    final wellTop = tester.getRect(find.byType(InsetWell)).top;
+    expect(closeButton.bottom, lessThanOrEqualTo(wellTop));
+  });
+
   testWidgets('Escape closes a dismissible dialog only', (tester) async {
     final results = <Object?>[];
     await tester.pumpWidget(_launcher(

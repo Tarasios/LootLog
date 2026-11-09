@@ -36,7 +36,7 @@ const Duration _kTransition = Duration(milliseconds: 160);
 /// [scene] strip in an [InsetWell], [body] on a [ParchmentCard] (scrollable
 /// when the screen is short), and [actions] — usually [WoodButton]s — right
 /// aligned in a wrapping row, or stacked full width on a narrow screen. With
-/// [onClose] an X button sits in the board's top-right corner. At most
+/// [onClose] an X button sits on the board's top-right corner. At most
 /// [maxWidth] wide.
 class GameDialog extends StatelessWidget {
   const GameDialog({
@@ -86,9 +86,11 @@ class GameDialog extends StatelessWidget {
                     right: ribbonInset,
                     child: Center(child: RibbonTitle(title)),
                   ),
+                  // Like the ribbon, the X straddles the board's top edge, so
+                  // it stays clear of the scene well and the body below.
                   if (onClose != null)
                     Positioned(
-                      top: _kRibbonHeight / 2 + 6,
+                      top: (_kRibbonHeight - _kCloseSize) / 2,
                       right: 6,
                       child: _CloseButton(onPressed: onClose),
                     ),
@@ -177,6 +179,7 @@ class _CloseButton extends StatelessWidget {
         onPressed: onPressed,
         semanticsLabel: MaterialLocalizations.of(context).closeButtonLabel,
         builder: (context, pressed) => SizedBox.square(
+          key: const ValueKey('game-dialog-close'),
           dimension: _kCloseSize,
           child: PixelFrame(
             assetKey: KitKeys.wood,
