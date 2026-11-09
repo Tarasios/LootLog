@@ -34,6 +34,12 @@ const double _kKeypadWidth = 280;
 /// Narrower than this, destination chips go one to a row.
 const double _kMinChipWidth = 140;
 
+/// The nudge when a destination is tapped before any amount.
+const String _kAskForAmount = 'Type the amount first';
+
+/// The nudge when the purchase could not be written.
+const String _kCommitFailed = 'Couldn’t log that — try again';
+
 /// The amount readout's size: the app's default face, so any size is crisp.
 const double _kAmountFontSize = 32;
 
@@ -67,7 +73,8 @@ class LogPurchaseView extends StatefulWidget {
 
 class _LogPurchaseViewState extends State<LogPurchaseView> {
   late int _cents = widget.initialCents;
-  bool _askForAmount = false;
+  /// The nudge under the amount, or null.
+  String? _notice;
   bool _committing = false;
   final FocusNode _rootFocus = FocusNode(debugLabel: 'log purchase');
   final FocusNode _destinationsFocus = FocusNode(
@@ -84,7 +91,7 @@ class _LogPurchaseViewState extends State<LogPurchaseView> {
 
   void _setAmount(int cents) => setState(() {
     _cents = cents;
-    if (cents > 0) _askForAmount = false;
+    if (cents > 0 && _notice == _kAskForAmount) _notice = null;
   });
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
@@ -100,7 +107,7 @@ class _LogPurchaseViewState extends State<LogPurchaseView> {
       return KeyEventResult.ignored;
     }
     if (_cents <= 0) {
-      setState(() => _askForAmount = true);
+      setState(() => _notice = _kAskForAmount);
     } else {
       _destinationsFocus.traversalDescendants.firstOrNull?.requestFocus();
     }
@@ -110,11 +117,14 @@ class _LogPurchaseViewState extends State<LogPurchaseView> {
   Future<void> _pick(ChargeChoice choice) async {
     if (_committing) return;
     if (_cents <= 0) {
-      setState(() => _askForAmount = true);
+      setState(() => _notice = _kAskForAmount);
       return;
     }
     // One purchase per dialog, however fast the taps come.
-    setState(() => _committing = true);
+    setState(() {
+      _committing = true;
+      _notice = null;
+    });
     try {
       await widget.onCommit(
         EntryDraft(
@@ -124,9 +134,15 @@ class _LogPurchaseViewState extends State<LogPurchaseView> {
           occurredAt: widget.now ?? DateTime.now(),
         ),
       );
-    } catch (_) {
-      if (mounted) setState(() => _committing = false);
-      rethrow;
+    } on Object {
+      // The write failed: stay open with the amount kept, so a tap retries.
+      if (mounted) {
+        setState(() {
+          _committing = false;
+          _notice = _kCommitFailed;
+        });
+      }
+      return;
     }
     // Close only this dialog, and only if nothing (Escape) closed it first.
     if (mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
@@ -154,12 +170,12 @@ class _LogPurchaseViewState extends State<LogPurchaseView> {
             label: 'More details',
             icon: Icons.edit_note,
             tone: WoodButtonTone.secondary,
-            onPressed: () => widget.onMoreDetails(_cents),
+            onPressed: _committing ? null : () => widget.onMoreDetails(_cents),
           ),
         ],
         body: LayoutBuilder(
           builder: (context, constraints) {
-            final amount = _AmountWell(cents: _cents, askForAmount: _askForAmount);
+            final amount = _AmountWell(cents: _cents, notice: _notice);
             if (constraints.maxWidth < _kSideBySideWidth) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -234,16 +250,17 @@ class _LogPurchaseViewState extends State<LogPurchaseView> {
   }
 }
 
-/// The typed amount in an inset well, with a gentle nudge under it when a
-/// destination was tapped before any amount.
+/// The typed amount in an inset well, with a gentle [notice] under it (a
+/// destination tapped before any amount, or a write that failed).
 class _AmountWell extends StatelessWidget {
-  const _AmountWell({required this.cents, required this.askForAmount});
+  const _AmountWell({required this.cents, required this.notice});
 
   final int cents;
-  final bool askForAmount;
+  final String? notice;
 
   @override
   Widget build(BuildContext context) {
+    final notice = this.notice;
     final style = AdventureTokens.amount(context).copyWith(
       fontSize: _kAmountFontSize,
       color: cents == 0 ? AdventureTokens.inkMuted : AdventureTokens.ink,
@@ -256,9 +273,10 @@ class _AmountWell extends StatelessWidget {
             fit: BoxFit.scaleDown,
             child: Text('\$${Money(cents).format()}', maxLines: 1, style: style),
           ),
-          if (askForAmount)
+          if (notice != null)
             Text(
-              'Type the amount first',
+              notice,
+              textAlign: TextAlign.center,
               style: AdventureTokens.label(context).copyWith(color: AdventureTokens.ink),
             ),
         ],

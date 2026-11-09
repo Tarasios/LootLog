@@ -47,6 +47,28 @@ class _ShowEveryone extends ShowHouseholdBudgets {
   bool build() => true;
 }
 
+/// The real actions, except that writing a purchase fails (a full disk, a
+/// locked database).
+class _FailingActions extends HouseholdActions {
+  _FailingActions({
+    required super.db,
+    required super.blobs,
+    required super.deviceId,
+    required super.meUserId,
+  });
+
+  @override
+  Future<String> addPurchase({
+    required ChargeTarget target,
+    required int amountCents,
+    bool shared = false,
+    String? merchant,
+    String? note,
+    bool? taxDeductible,
+    DateTime? occurredAt,
+  }) async => throw StateError('database is locked');
+}
+
 /// [text] inside the log-purchase dialog (the town behind it may show the
 /// same names on its quest board).
 Finder inDialog(Finder text) =>
@@ -120,7 +142,8 @@ void main() {
       (await tester.runAsync(db.eventsDao.allEvents))!.whereType<PurchaseAdded>().toList();
 
   /// The Adventure town on a desktop window, wired to the real hall links.
-  Future<void> pumpTown(WidgetTester tester) async {
+  /// With [failWrites] every purchase write throws.
+  Future<void> pumpTown(WidgetTester tester, {bool failWrites = false}) async {
     tester.view.physicalSize = const Size(1280, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -130,6 +153,15 @@ void main() {
         overrides: [
           ...townTestOverrides(tier: AdventureTier.pixel),
           ...ledgerOverrides(adventure: true),
+          if (failWrites)
+            householdActionsProvider.overrideWithValue(
+              _FailingActions(
+                db: db,
+                blobs: BlobStore(Directory.systemTemp.createTempSync('lootlog_log_fail')),
+                deviceId: 'test-device',
+                meUserId: 'u1',
+              ),
+            ),
         ],
         child: MaterialApp(
           theme: AdventureTheme.build(),
@@ -185,6 +217,55 @@ void main() {
     expect(logged.single.shared, isFalse);
     expect(find.byType(LogPurchaseDialog), findsNothing);
     expect(find.byType(TownShell), findsOneWidget);
+    await done(tester);
+  });
+
+  testWidgets('a failed write keeps the dialog open and says so', (tester) async {
+    await pumpTown(tester, failWrites: true);
+    await openDialog(tester);
+    await typeDigits(tester, oneTwoFive);
+
+    await tester.tap(inDialog(find.text('Groceries')));
+    await settle(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(LogPurchaseDialog), findsOneWidget);
+    expect(inDialog(find.text('Couldn’t log that — try again')), findsOneWidget);
+    expect(inDialog(find.text('\$1.25')), findsOneWidget, reason: 'the amount is kept for a retry');
+    expect(await purchases(tester), isEmpty);
+    await done(tester);
+  });
+
+  testWidgets('a double tap on a budget logs one purchase', (tester) async {
+    await pumpTown(tester);
+    await openDialog(tester);
+    await typeDigits(tester, oneTwoFive);
+
+    final groceries = inDialog(find.text('Groceries'));
+    await tester.tap(groceries);
+    await tester.tap(groceries);
+    await settle(tester);
+    await settle(tester);
+
+    expect(await purchases(tester), hasLength(1));
+    expect(find.byType(LogPurchaseDialog), findsNothing);
+    await done(tester);
+  });
+
+  testWidgets('Enter and a tap together log one purchase', (tester) async {
+    await pumpTown(tester);
+    await openDialog(tester);
+    await typeDigits(tester, oneTwoFive);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.tap(inDialog(find.text('Groceries')));
+    await settle(tester);
+    await settle(tester);
+
+    expect(await purchases(tester), hasLength(1));
+    expect(find.byType(LogPurchaseDialog), findsNothing);
     await done(tester);
   });
 
