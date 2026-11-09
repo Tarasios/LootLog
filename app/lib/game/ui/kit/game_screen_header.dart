@@ -10,7 +10,6 @@ import 'package:flutter/material.dart';
 
 import 'adventure_tokens.dart';
 import 'buttons.dart';
-import 'hud.dart';
 import 'panels.dart';
 
 /// Below this width a header with several trailing controls uses two rows.
