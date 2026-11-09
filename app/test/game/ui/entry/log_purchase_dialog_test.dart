@@ -20,6 +20,7 @@ import 'package:lootlog/data/db/database.dart';
 import 'package:lootlog/data/providers.dart';
 import 'package:lootlog/data/setup/local_setup.dart';
 import 'package:lootlog/domain/event.dart';
+import 'package:lootlog/domain/time.dart';
 import 'package:lootlog/domain/value_types.dart';
 import 'package:lootlog/features/entry/expense_entry_screen.dart';
 import 'package:lootlog/features/settings/play_mode.dart';
@@ -30,6 +31,7 @@ import 'package:lootlog/features/shell/home_gate.dart';
 import 'package:lootlog/features/tutorial/tutorial_prefs.dart';
 import 'package:lootlog/game/skin_prefs.dart';
 import 'package:lootlog/game/ui/entry/log_purchase_dialog.dart';
+import 'package:lootlog/game/ui/entry/log_purchase_view.dart' show coverFailedMessage;
 import 'package:lootlog/game/ui/kit/kit.dart';
 import 'package:lootlog/game/ui/town/town_shell.dart';
 
@@ -47,15 +49,20 @@ class _ShowEveryone extends ShowHouseholdBudgets {
   bool build() => true;
 }
 
-/// The real actions, except that writing a purchase fails (a full disk, a
-/// locked database).
+/// Which write the test actions make fail (a full disk, a locked database).
+enum _FailingWrite { purchase, cover }
+
+/// The real actions, except that one kind of write fails.
 class _FailingActions extends HouseholdActions {
-  _FailingActions({
+  _FailingActions(
+    this.failing, {
     required super.db,
     required super.blobs,
     required super.deviceId,
     required super.meUserId,
   });
+
+  final _FailingWrite failing;
 
   @override
   Future<String> addPurchase({
@@ -66,7 +73,32 @@ class _FailingActions extends HouseholdActions {
     String? note,
     bool? taxDeductible,
     DateTime? occurredAt,
-  }) async => throw StateError('database is locked');
+  }) async {
+    if (failing == _FailingWrite.purchase) throw StateError('database is locked');
+    return super.addPurchase(
+      target: target,
+      amountCents: amountCents,
+      shared: shared,
+      merchant: merchant,
+      note: note,
+      taxDeductible: taxDeductible,
+      occurredAt: occurredAt,
+    );
+  }
+
+  @override
+  Future<void> coverShortfall({
+    required String purchaseId,
+    required CoverSource source,
+    required int amountCents,
+  }) async {
+    if (failing == _FailingWrite.cover) throw StateError('database is locked');
+    return super.coverShortfall(
+      purchaseId: purchaseId,
+      source: source,
+      amountCents: amountCents,
+    );
+  }
 }
 
 /// [text] inside the log-purchase dialog (the town behind it may show the
@@ -81,9 +113,33 @@ void main() {
   setUp(() => db = AppDatabase(NativeDatabase.memory()));
   tearDown(() => db.close());
 
-  /// Alex, one adult, with a personal Groceries budget under Food.
-  Future<void> seedLedger(WidgetTester tester) => tester.runAsync(() async {
+  /// Alex, one adult, with a personal Groceries budget under Food. With
+  /// [savingsShortfall] the household runs the savings rules, Groceries is
+  /// only $10 and Alex has a $50 gift in general savings, so a $12.50
+  /// purchase is short and general savings can cover the gap.
+  Future<void> seedLedger(WidgetTester tester, {bool savingsShortfall = false}) =>
+      tester.runAsync(() async {
     await db.eventsDao.appendEvents([
+      if (savingsShortfall) ...[
+        SettingChanged(
+          eventId: 'rules',
+          deviceId: 'd',
+          userId: 'u1',
+          occurredAt: at,
+          createdAt: at,
+          key: 'savingsRules',
+          value: {'fromMonth': Month.fromInstant(at).toKey(), 'generalTithePct': 20},
+        ),
+        GiftReceived(
+          eventId: 'gift',
+          deviceId: 'd',
+          userId: 'u1',
+          occurredAt: at,
+          createdAt: at,
+          forUserId: 'u1',
+          amountCents: 5000,
+        ),
+      ],
       MemberSet(
         eventId: 'm-u1',
         deviceId: 'd',
@@ -104,7 +160,7 @@ void main() {
         name: 'Groceries',
         ownership: const PersonalSlice('u1'),
         mainCategoryId: 'food',
-        limitCents: 40000,
+        limitCents: savingsShortfall ? 1000 : 40000,
         poolTithePct: 0,
         defaultLeftoverPolicy: const Discretionary(),
         taxDeductibleByDefault: false,
@@ -142,20 +198,26 @@ void main() {
       (await tester.runAsync(db.eventsDao.allEvents))!.whereType<PurchaseAdded>().toList();
 
   /// The Adventure town on a desktop window, wired to the real hall links.
-  /// With [failWrites] every purchase write throws.
-  Future<void> pumpTown(WidgetTester tester, {bool failWrites = false}) async {
+  /// With [failing] that kind of write throws; [savingsShortfall] seeds a
+  /// coverable shortfall (see [seedLedger]).
+  Future<void> pumpTown(
+    WidgetTester tester, {
+    _FailingWrite? failing,
+    bool savingsShortfall = false,
+  }) async {
     tester.view.physicalSize = const Size(1280, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    await seedLedger(tester);
+    await seedLedger(tester, savingsShortfall: savingsShortfall);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           ...townTestOverrides(tier: AdventureTier.pixel),
           ...ledgerOverrides(adventure: true),
-          if (failWrites)
+          if (failing != null)
             householdActionsProvider.overrideWithValue(
               _FailingActions(
+                failing,
                 db: db,
                 blobs: BlobStore(Directory.systemTemp.createTempSync('lootlog_log_fail')),
                 deviceId: 'test-device',
@@ -221,7 +283,7 @@ void main() {
   });
 
   testWidgets('a failed write keeps the dialog open and says so', (tester) async {
-    await pumpTown(tester, failWrites: true);
+    await pumpTown(tester, failing: _FailingWrite.purchase);
     await openDialog(tester);
     await typeDigits(tester, oneTwoFive);
 
@@ -233,6 +295,37 @@ void main() {
     expect(inDialog(find.text('Couldn’t log that — try again')), findsOneWidget);
     expect(inDialog(find.text('\$1.25')), findsOneWidget, reason: 'the amount is kept for a retry');
     expect(await purchases(tester), isEmpty);
+    await done(tester);
+  });
+
+  testWidgets('a cover that fails after the purchase is written closes the '
+      'dialog as logged and never offers a retry', (tester) async {
+    await pumpTown(tester, failing: _FailingWrite.cover, savingsShortfall: true);
+    await openDialog(tester);
+    await typeDigits(tester, const [
+      LogicalKeyboardKey.digit1,
+      LogicalKeyboardKey.digit2,
+      LogicalKeyboardKey.digit5,
+      LogicalKeyboardKey.digit0,
+    ]);
+
+    await tester.tap(inDialog(find.text('Groceries')));
+    await settle(tester);
+    // $12.50 against a $10 budget: the shortfall sheet offers general savings.
+    expect(find.text('Cover it'), findsOneWidget);
+    await tester.tap(find.text('Cover it'));
+    await settle(tester);
+    await settle(tester);
+
+    expect(tester.takeException(), isNull);
+    final logged = await purchases(tester);
+    expect(logged, hasLength(1));
+    expect(logged.single.amountCents, 1250);
+    final events = (await tester.runAsync(db.eventsDao.allEvents))!;
+    expect(events.whereType<ShortfallCovered>(), isEmpty);
+    expect(find.byType(LogPurchaseDialog), findsNothing);
+    expect(find.text('Couldn’t log that — try again'), findsNothing);
+    expect(find.text(coverFailedMessage(1250)), findsOneWidget);
     await done(tester);
   });
 

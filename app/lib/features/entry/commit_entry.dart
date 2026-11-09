@@ -13,9 +13,28 @@ import 'expense_entry_view.dart';
 import 'shortfall.dart';
 import 'shortfall_sheet.dart';
 
+/// Thrown by [commitEntryDraft] when the purchase was written but the
+/// shortfall follow-up (the sheet, or the cover or advance chosen in it)
+/// failed. The purchase stands, so retrying the entry would log it twice.
+class ShortfallFollowUpFailed implements Exception {
+  const ShortfallFollowUpFailed({required this.purchaseId, required this.cause});
+
+  /// The purchase that was written.
+  final String purchaseId;
+
+  /// What went wrong after it was written.
+  final Object cause;
+
+  @override
+  String toString() =>
+      'ShortfallFollowUpFailed(purchase $purchaseId was written): $cause';
+}
+
 /// Appends [draft] for [meUserId] through [actions], judged against [state]
 /// (the household before this purchase lands), then runs the shortfall
 /// follow-up over [context]. Completes once everything chosen is written.
+/// A failure writing the purchase propagates as is; a failure after it is
+/// wrapped in [ShortfallFollowUpFailed] (with the original stack trace).
 Future<void> commitEntryDraft(
   BuildContext context, {
   required HouseholdState state,
@@ -42,6 +61,23 @@ Future<void> commitEntryDraft(
     occurredAt: draft.occurredAt,
   );
   if (short == null || !context.mounted) return;
+  try {
+    await _followUpShortfall(context, actions, short, purchaseId);
+  } catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      ShortfallFollowUpFailed(purchaseId: purchaseId, cause: error),
+      stackTrace,
+    );
+  }
+}
+
+/// Offers the shortfall sheet for [purchaseId] and records what was picked.
+Future<void> _followUpShortfall(
+  BuildContext context,
+  HouseholdActions actions,
+  ShortfallOptions short,
+  String purchaseId,
+) async {
   final choice = await showShortfallSheet(context, short);
   switch (choice) {
     case CoverFromGeneral(:final amountCents):

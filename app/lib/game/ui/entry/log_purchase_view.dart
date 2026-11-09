@@ -21,7 +21,8 @@ import '../../../domain/money.dart';
 import '../../../features/entry/amount_keypad.dart';
 import '../../../features/entry/charge_choice.dart';
 import '../../../features/entry/charge_picker.dart';
-import '../../../features/entry/expense_entry_view.dart' show EntryDraft;
+import '../../../features/entry/commit_entry.dart' show ShortfallFollowUpFailed;
+import '../../../features/entry/expense_entry_view.dart' show EntryDraft, formatMoney;
 import '../kit/kit.dart';
 import 'log_purchase_chip.dart';
 
@@ -39,6 +40,12 @@ const String _kAskForAmount = 'Type the amount first';
 
 /// The nudge when the purchase could not be written.
 const String _kCommitFailed = 'Couldn’t log that — try again';
+
+/// What the town says when a purchase of [amountCents] was logged but the
+/// cover (or advance) chosen for its shortfall could not be recorded.
+String coverFailedMessage(int amountCents) =>
+    'Logged ${formatMoney(amountCents)} — covering the gap didn’t go through, '
+    'so it stays uncovered.';
 
 /// The amount readout's size: the app's default face, so any size is crisp.
 const double _kAmountFontSize = 32;
@@ -125,17 +132,28 @@ class _LogPurchaseViewState extends State<LogPurchaseView> {
       _committing = true;
       _notice = null;
     });
+    final amountCents = _cents;
     try {
       await widget.onCommit(
         EntryDraft(
           choice: choice,
-          amountCents: _cents,
+          amountCents: amountCents,
           shared: false,
           occurredAt: widget.now ?? DateTime.now(),
         ),
       );
+    } on ShortfallFollowUpFailed {
+      // The purchase is logged; only its cover failed. Never offer a retry
+      // (it would log the purchase twice): close as logged and say so.
+      final messenger = mounted ? ScaffoldMessenger.maybeOf(context) : null;
+      _closeIfCurrent();
+      messenger?.showSnackBar(
+        SnackBar(content: Text(coverFailedMessage(amountCents))),
+      );
+      return;
     } on Object {
-      // The write failed: stay open with the amount kept, so a tap retries.
+      // The purchase was not written: stay open with the amount kept, so a
+      // tap retries.
       if (mounted) {
         setState(() {
           _committing = false;
@@ -144,7 +162,11 @@ class _LogPurchaseViewState extends State<LogPurchaseView> {
       }
       return;
     }
-    // Close only this dialog, and only if nothing (Escape) closed it first.
+    _closeIfCurrent();
+  }
+
+  /// Closes only this dialog, and only if nothing (Escape) closed it first.
+  void _closeIfCurrent() {
     if (mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
       Navigator.of(context).pop();
     }
