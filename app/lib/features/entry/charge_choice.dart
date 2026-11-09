@@ -30,12 +30,17 @@ class ChargeChoice {
     required this.kind,
     required this.supportsShared,
     this.subtitle,
+    this.colorArgb,
   });
 
   final ChargeTarget target;
   final String label;
   final String? subtitle;
   final ChargeGroupKind kind;
+
+  /// The 32-bit ARGB colour of the destination's main category (categories
+  /// and goals that have one), or null. Display only.
+  final int? colorArgb;
 
   /// Whether a `shared` flag is valid here (personal slices and the vault only).
   final bool supportsShared;
@@ -75,6 +80,9 @@ List<ChargeGroup> buildChargeGroups(
     return leftover < 0 ? 0 : leftover;
   }
 
+  int? mainCategoryColor(String? mainCategoryId) =>
+      state.mainCategories[mainCategoryId]?.colorArgb;
+
   final personal = <ChargeChoice>[];
   final group = <ChargeChoice>[];
   for (final sliceConfig in state.slices.values) {
@@ -86,6 +94,7 @@ List<ChargeGroup> buildChargeGroups(
           subtitle: '${_money(remaining(sliceConfig))} left',
           kind: ChargeGroupKind.groupSlice,
           supportsShared: false,
+          colorArgb: mainCategoryColor(sliceConfig.mainCategoryId),
         ),
       );
     } else if (sliceConfig.ownerUserId == meUserId) {
@@ -96,6 +105,7 @@ List<ChargeGroup> buildChargeGroups(
           subtitle: '${_money(remaining(sliceConfig))} left',
           kind: ChargeGroupKind.personalSlice,
           supportsShared: true,
+          colorArgb: mainCategoryColor(sliceConfig.mainCategoryId),
         ),
       );
     }
@@ -119,6 +129,7 @@ List<ChargeGroup> buildChargeGroups(
             '${_money(quest.balanceCents)} / ${_money(quest.targetCents)}',
         kind: ChargeGroupKind.quest,
         supportsShared: false,
+        colorArgb: mainCategoryColor(quest.mainCategoryId),
       ),
     );
   }

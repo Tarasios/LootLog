@@ -12,10 +12,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../game/ui/dungeon/dungeon_screen.dart';
+import '../../game/ui/entry/log_purchase_dialog.dart';
 import '../../game/ui/game_home.dart' show HallLinks;
 import '../../game/ui/town/town_shell.dart';
 import '../budget_setup/budget_setup_screen.dart';
-import '../entry/expense_entry_screen.dart';
 import '../report/report_screen.dart';
 import '../settings/play_mode.dart';
 import '../settings/play_mode_providers.dart';
@@ -28,10 +28,11 @@ typedef LedgerBuilder = Widget Function(VoidCallback? onOpenHall);
 
 Widget _appShell(VoidCallback? onOpenHall) => AppShell(onOpenHall: onOpenHall);
 
-/// The ledger screens the guild hall links into: quick entry, and one
-/// screen per spoils-ritual step (the ritual's real work happens there).
+/// The ledger screens the guild hall links into: quick entry (the game
+/// log-purchase dialog over the town), and one screen per spoils-ritual
+/// step (the ritual's real work happens there).
 HallLinks ledgerHallLinks(VoidCallback openLedger) => HallLinks(
-      logPurchase: ExpenseEntryScreen.open,
+      logPurchase: LogPurchaseDialog.open,
       reconcileMonth: (context, month) => openLedger(),
       reviewMonth: (context, month) =>
           ReportScreen.open(context, initialMonth: month),

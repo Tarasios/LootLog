@@ -137,6 +137,9 @@ enum WoodButtonTone { primary, secondary }
 /// with [expand] it fills the available width (which must then be bounded);
 /// [dense] narrows its side padding, for a row of many buttons (the phone's
 /// tab bar).
+/// [large] sets the label at the 32 px title size (a keypad digit).
+/// An empty [label] with an [icon] makes an icon-only button; give it a
+/// [semanticsLabel] so it is announced.
 class WoodButton extends StatelessWidget {
   const WoodButton({
     super.key,
@@ -146,6 +149,8 @@ class WoodButton extends StatelessWidget {
     this.tone = WoodButtonTone.primary,
     this.expand = false,
     this.dense = false,
+    this.large = false,
+    this.semanticsLabel,
   });
 
   final String label;
@@ -154,14 +159,18 @@ class WoodButton extends StatelessWidget {
   final WoodButtonTone tone;
   final bool expand;
   final bool dense;
+  final bool large;
+  final String? semanticsLabel;
 
   @override
   Widget build(BuildContext context) {
     final primary = tone == WoodButtonTone.primary;
     final foreground = primary ? AdventureTokens.parchment : AdventureTokens.ink;
+    final labelStyle = large ? AdventureTokens.title(context) : AdventureTokens.label(context);
     final icon = this.icon;
     final button = KitPressable(
       onPressed: onPressed,
+      semanticsLabel: semanticsLabel,
       builder: (context, pressed) => ConstrainedBox(
         constraints: BoxConstraints(
           minWidth: _kWoodButtonMinimum.width,
@@ -186,9 +195,9 @@ class WoodButton extends StatelessWidget {
                     if (icon != null) ...[
                       WidgetSpan(
                         alignment: PlaceholderAlignment.middle,
-                        child: Icon(icon, size: 18, color: foreground),
+                        child: Icon(icon, size: large ? 28 : 18, color: foreground),
                       ),
-                      const WidgetSpan(child: SizedBox(width: 6)),
+                      if (label.isNotEmpty) const WidgetSpan(child: SizedBox(width: 6)),
                     ],
                     TextSpan(text: label),
                   ],
@@ -196,7 +205,7 @@ class WoodButton extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: AdventureTokens.label(context).copyWith(color: foreground),
+                style: labelStyle.copyWith(color: foreground),
               ),
             ),
           ),
