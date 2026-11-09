@@ -3,11 +3,14 @@
 /// pouch and the war chest top-right; "Log purchase" (with the no-spend
 /// check-in above it) bottom-left; Shop, Inbox, Ledger and Menu bottom-right.
 /// A narrow window stacks the corners and lays the buttons in one row along
-/// the bottom. While decorating, the decoration tray replaces the buttons
-/// (the Menu stays, to finish).
+/// the bottom. Each top corner is held to half the width, its chips
+/// ellipsizing, so the corners never collide. While decorating, the
+/// decoration tray replaces the buttons (the Menu stays, to finish).
 ///
 /// Only empty space between the pieces lets taps through to the town.
 library;
+
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -77,22 +80,40 @@ class TownHud extends StatelessWidget {
   final Widget? decoratePanel;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final compact = constraints.maxWidth < kTownHudCompactWidth;
-      final decoratePanel = this.decoratePanel;
-      return SafeArea(
-        child: Stack(
+  Widget build(BuildContext context) => SafeArea(
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < kTownHudCompactWidth;
+        // Each top corner gets at most half the width between the edges (less
+        // a gap), so a long streak and a huge war chest can never collide.
+        final cornerWidth = math.max(
+          0.0,
+          (constraints.maxWidth - 2 * _kEdge - AdventureTokens.gap) / 2,
+        );
+        final decoratePanel = this.decoratePanel;
+        return Stack(
           children: [
             Positioned(
               top: _kEdge,
               left: _kEdge,
-              child: _corner(compact, CrossAxisAlignment.start, _timeChips()),
+              child: _corner(
+                key: const ValueKey('town-hud-time'),
+                compact: compact,
+                width: cornerWidth,
+                alignEnd: false,
+                chips: _timeChips(cornerWidth),
+              ),
             ),
             Positioned(
               top: _kEdge,
               right: _kEdge,
-              child: _corner(compact, CrossAxisAlignment.end, _treasureChips(compact)),
+              child: _corner(
+                key: const ValueKey('town-hud-treasure'),
+                compact: compact,
+                width: cornerWidth,
+                alignEnd: true,
+                chips: _treasureChips(compact, cornerWidth),
+              ),
             ),
             if (decoratePanel != null)
               Positioned(
@@ -121,33 +142,54 @@ class TownHud extends StatelessWidget {
               ),
             ],
           ],
-        ),
-      );
-    },
+        );
+      },
+    ),
   );
 
-  /// Chips side by side on a wide window, stacked on a narrow one.
-  Widget _corner(bool compact, CrossAxisAlignment alignment, List<Widget> chips) => compact
-      ? Column(crossAxisAlignment: alignment, children: _spaced(chips, vertical: true))
-      : Row(children: _spaced(chips));
+  /// One top corner, at most [width] wide: chips stacked on a narrow window,
+  /// side by side (wrapping when they run out of room) on a wide one.
+  Widget _corner({
+    required Key key,
+    required bool compact,
+    required double width,
+    required bool alignEnd,
+    required List<Widget> chips,
+  }) => ConstrainedBox(
+    key: key,
+    constraints: BoxConstraints(maxWidth: width),
+    child: compact
+        ? Column(
+            crossAxisAlignment: alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            children: _spaced(chips, vertical: true),
+          )
+        : Wrap(
+            alignment: alignEnd ? WrapAlignment.end : WrapAlignment.start,
+            spacing: AdventureTokens.gap,
+            runSpacing: 6,
+            children: chips,
+          ),
+  );
 
-  List<Widget> _timeChips() => [
-    HudChip(icon: Icons.calendar_today, value: figures.dateLabel),
+  List<Widget> _timeChips(double maxWidth) => [
+    HudChip(icon: Icons.calendar_today, value: figures.dateLabel, maxWidth: maxWidth),
     HudChip(
       icon: Icons.local_fire_department,
       color: AdventureTokens.hpRed,
       value: figures.streak.isEmpty ? 'Start a streak' : '${figures.streak.days}-day streak',
       valueKey: const ValueKey('town-streak'),
+      maxWidth: maxWidth,
     ),
     HudChip(
       icon: Icons.ac_unit,
       color: AdventureTokens.gem,
       value: '${figures.freezeTokens}',
       valueKey: const ValueKey('town-freeze-tokens'),
+      maxWidth: maxWidth,
     ),
   ];
 
-  List<Widget> _treasureChips(bool compact) {
+  List<Widget> _treasureChips(bool compact, double maxWidth) {
     final goldPouch = figures.goldPouch;
     final warChest = figures.warChest;
     return [
@@ -156,6 +198,7 @@ class TownHud extends StatelessWidget {
         color: AdventureTokens.gem,
         value: '${figures.gems}',
         valueKey: const ValueKey('town-gems'),
+        maxWidth: maxWidth,
       ),
       if (goldPouch != null)
         HudChip(
@@ -164,6 +207,7 @@ class TownHud extends StatelessWidget {
           value: money(goldPouch.cents),
           label: compact ? null : 'gold pouch',
           valueKey: const ValueKey('town-gold-pouch'),
+          maxWidth: maxWidth,
         ),
       if (warChest != null)
         HudChip(
@@ -172,6 +216,7 @@ class TownHud extends StatelessWidget {
           value: money(warChest.cents),
           label: compact ? null : 'war chest',
           valueKey: const ValueKey('town-war-chest'),
+          maxWidth: maxWidth,
         ),
     ];
   }
@@ -185,7 +230,11 @@ class TownHud extends StatelessWidget {
 
   Widget _logColumn() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
-    children: [noSpendCheckIn, const SizedBox(height: AdventureTokens.gap), _logButton()],
+    children: [
+      noSpendCheckIn,
+      const SizedBox(height: AdventureTokens.gap),
+      _logButton(),
+    ],
   );
 
   Widget _menuButton() => HudButton(
@@ -221,9 +270,7 @@ class TownHud extends StatelessWidget {
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         // Each button may shrink (its label ellipsizes) to share the row.
-        children: [
-          for (final button in _cornerButtons()) Flexible(child: button),
-        ],
+        children: [for (final button in _cornerButtons()) Flexible(child: button)],
       ),
     ],
   );

@@ -29,6 +29,7 @@ const double _kMeterUnboundedWidth = 96;
 /// A compact parchment chip: [icon] (tinted [color]) and [value], with an
 /// optional caption [label]. [valueKey] goes on the value's [Text], so a test
 /// or a reward animation can find the number. With [onTap] it is a button.
+/// With [maxWidth] it never grows past that width; its text ellipsizes.
 class HudChip extends StatelessWidget {
   const HudChip({
     super.key,
@@ -38,6 +39,7 @@ class HudChip extends StatelessWidget {
     this.color,
     this.onTap,
     this.valueKey,
+    this.maxWidth,
   });
 
   final IconData icon;
@@ -47,10 +49,19 @@ class HudChip extends StatelessWidget {
   final VoidCallback? onTap;
   final Key? valueKey;
 
+  /// When set, the chip is at most this wide and its text ellipsizes to fit;
+  /// otherwise it takes its natural width (in an unbounded row too).
+  final double? maxWidth;
+
   @override
   Widget build(BuildContext context) {
     final label = this.label;
-    final chip = PixelFrame(
+    final maxWidth = this.maxWidth;
+    final bounded = maxWidth != null;
+    // Text may only flex (and so ellipsize) inside a bounded width.
+    Widget fit(Widget text) => bounded ? Flexible(child: text) : text;
+    final overflow = bounded ? TextOverflow.ellipsis : null;
+    Widget chip = PixelFrame(
       assetKey: KitKeys.parchment,
       scale: 1,
       fallbackFill: AdventureTokens.parchment,
@@ -61,18 +72,26 @@ class HudChip extends StatelessWidget {
         children: [
           Icon(icon, size: 18, color: color ?? AdventureTokens.ink),
           const SizedBox(width: 5),
-          Text(value, key: valueKey, maxLines: 1, style: AdventureTokens.amount(context)),
+          fit(Text(
+            value,
+            key: valueKey,
+            maxLines: 1,
+            overflow: overflow,
+            style: AdventureTokens.amount(context),
+          )),
           if (label != null) ...[
             const SizedBox(width: 4),
-            Text(
+            fit(Text(
               label,
               maxLines: 1,
+              overflow: overflow,
               style: AdventureTokens.label(context).copyWith(color: AdventureTokens.inkMuted),
-            ),
+            )),
           ],
         ],
       ),
     );
+    if (bounded) chip = ConstrainedBox(constraints: BoxConstraints(maxWidth: maxWidth), child: chip);
     final onTap = this.onTap;
     if (onTap == null) return chip;
     return KitPressable(
