@@ -24,6 +24,7 @@ import 'package:lootlog/game/domain/game_state.dart';
 import 'package:lootlog/game/domain/reason_codes.dart';
 import 'package:lootlog/game/domain/town/town_tags.dart';
 import 'package:lootlog/game/domain/town/town_view.dart';
+import 'package:lootlog/game/game_sprite.dart';
 import 'package:lootlog/game/scenes/town/town_scene_view.dart';
 import 'package:lootlog/game/skin_prefs.dart';
 import 'package:lootlog/game/ui/dungeon/dungeon_screen.dart';
@@ -472,8 +473,15 @@ void main() {
     await pumpUi(tester);
     expect(find.byType(GameDialog), findsOneWidget);
     expect(find.text('Inbox'), findsWidgets);
-    // The row's title, plus the sprite's text card when there is no art.
-    expect(find.text('Wood chest'), findsWidgets);
+    // The row's title, once, on the dialog's parchment. With no art the
+    // chest's sprite is a text card of the same name, so it is left out.
+    final rowTitle = find.byElementPredicate(
+      (element) =>
+          element.widget is Text &&
+          (element.widget as Text).data == 'Wood chest' &&
+          element.findAncestorWidgetOfExactType<GameSprite>() == null,
+    );
+    expect(find.descendant(of: find.byType(ParchmentCard), matching: rowTitle), findsOneWidget);
   });
 
   testWidgets(
