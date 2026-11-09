@@ -1,6 +1,8 @@
 /// The wood header bar of the Adventure full-screen pages (the shop, a room,
-/// the vault, the forge, expeditions): a back button when there is somewhere to go back to, the screen's
-/// name on a ribbon, and the screen's own buttons or chips on the right.
+/// the vault, the forge, expeditions, the budget screens): a back button when
+/// there is somewhere to go back to (or the screen's own [GameScreenHeader.leading]
+/// control in its place), the screen's name on a ribbon, and the screen's own
+/// buttons or chips on the right.
 ///
 /// On a narrow screen with more than one trailing control, the controls drop
 /// to a second row so the ribbon keeps room for its title.
@@ -19,11 +21,16 @@ class GameScreenHeader extends StatelessWidget {
   const GameScreenHeader({
     super.key,
     required this.title,
+    this.leading,
     this.trailing = const [],
   });
 
   /// The screen's name, shown on the ribbon.
   final String title;
+
+  /// Replaces the back button: a screen whose way out is not a plain pop
+  /// (the budget screens' "Town") puts its own control here.
+  final Widget? leading;
 
   /// Buttons or chips on the right, in reading order.
   final List<Widget> trailing;
@@ -33,7 +40,7 @@ class GameScreenHeader extends StatelessWidget {
     final canGoBack = Navigator.of(context).canPop();
     // The tooltip matches Material's back button, so the platform's "back"
     // lookups (and widget tests' pageBack) find it.
-    final backButton = canGoBack
+    final leadingControl = leading ?? (canGoBack
         ? Tooltip(
             message: MaterialLocalizations.of(context).backButtonTooltip,
             child: HudButton(
@@ -43,7 +50,7 @@ class GameScreenHeader extends StatelessWidget {
               onPressed: () => Navigator.of(context).maybePop(),
             ),
           )
-        : null;
+        : null);
     final ribbon = Expanded(child: Center(child: RibbonTitle(title)));
     // A wrap, so a screen with many chips (the forge's materials) flows onto
     // more lines instead of overflowing.
@@ -63,8 +70,8 @@ class GameScreenHeader extends StatelessWidget {
             final twoRows = trailing.length > 1 && constraints.maxWidth < _kTwoRowBreakpoint;
             final titleRow = Row(
               children: [
-                ?backButton,
-                if (backButton != null) const SizedBox(width: AdventureTokens.gap),
+                ?leadingControl,
+                if (leadingControl != null) const SizedBox(width: AdventureTokens.gap),
                 ribbon,
                 if (!twoRows && trailing.isNotEmpty) ...[
                   const SizedBox(width: AdventureTokens.gap),

@@ -11,6 +11,9 @@
 /// The quick-entry FAB and receipt scan live here so every pane shares them,
 /// as does the overflow menu holding the Adventure / Standard switch (in both
 /// modes — the Adventure dashboards render inside this shell).
+///
+/// An Adventure player gets the same panes in game chrome instead (a wood
+/// header, wood tabs, the "Adventure log"): see `adventure_shell_chrome.dart`.
 library;
 
 import 'dart:async';
@@ -39,6 +42,7 @@ import '../settings/play_mode_switch.dart';
 import '../spoils/spoils_screen.dart';
 import '../sync/sync_status.dart';
 import '../tutorial/tutorial.dart';
+import 'adventure_shell_chrome.dart';
 
 /// The width at or above which the shell switches to the rail + two-pane layout.
 const double kWideBreakpoint = 840;
@@ -111,13 +115,15 @@ class _AppShellState extends ConsumerState<AppShell> {
   String _fundsLabel(bool adventure) =>
       Glossary.funds.label(isAdventure: adventure);
 
-  String _title(bool adventure) => switch (_pane) {
+  String _title(bool adventure) => _titleFor(_pane, adventure);
+
+  String _titleFor(ShellPane pane, bool adventure) => switch (pane) {
     ShellPane.dashboard => 'LootLog',
     ShellPane.ledger => 'Ledger',
     ShellPane.goals => 'Savings goals',
     ShellPane.funds => _fundsLabel(adventure),
     ShellPane.trophies => 'Trophy hall',
-    ShellPane.activity => 'Activity',
+    ShellPane.activity => adventure ? 'Adventure log' : 'Activity',
   };
 
   @override
@@ -140,7 +146,9 @@ class _AppShellState extends ConsumerState<AppShell> {
         },
         child: Focus(
           autofocus: true,
-          child: wide
+          child: adventure
+              ? _buildAdventure(context, wide: wide)
+              : wide
               ? _buildWide(context, adventure)
               : _buildNarrow(context, adventure),
         ),
@@ -266,6 +274,58 @@ class _AppShellState extends ConsumerState<AppShell> {
       ),
     );
   }
+
+  // ---- Adventure: the same panes in game chrome ------------------------
+  Widget _buildAdventure(BuildContext context, {required bool wide}) {
+    final panes = wide ? kWidePanes : kNarrowPanes;
+    // As in Standard, desktop pins the feed on the right, so its pane shows
+    // the dashboard.
+    final shownPane = wide && _pane == ShellPane.activity
+        ? ShellPane.dashboard
+        : _pane;
+    final selectedTab = panes.indexOf(shownPane);
+    return AdventureShellScaffold(
+      title: _titleFor(shownPane, true),
+      wide: wide,
+      tabs: [
+        for (final pane in panes)
+          AdventureShellTab(
+            key: ValueKey('shell-tab-${pane.name}'),
+            label: _adventureTabLabel(pane),
+            icon: _tabIcon(pane),
+          ),
+      ],
+      selectedTab: selectedTab < 0 ? null : selectedTab,
+      onSelectTab: (index) => _select(panes[index]),
+      pane: _paneBody(shownPane, showActivity: !wide),
+      adventureLog: wide ? const ActivityScreen() : null,
+      onOpenTown: widget.onOpenHall,
+      onOpenManage: () => ManageScreen.open(context),
+      onLogPurchase: () => ExpenseEntryScreen.open(context),
+      onScanReceipt: () => captureReceiptAndConfirm(context, ref),
+    );
+  }
+
+  /// A pane's Adventure tab label (Standard spells its destinations out
+  /// above).
+  String _adventureTabLabel(ShellPane pane) => switch (pane) {
+    ShellPane.dashboard => 'Dashboard',
+    ShellPane.ledger => 'Ledger',
+    ShellPane.goals => 'Goals',
+    ShellPane.funds => _fundsLabel(true),
+    ShellPane.trophies => 'Trophies',
+    ShellPane.activity => 'Activity',
+  };
+
+  /// A pane's Adventure tab icon.
+  IconData _tabIcon(ShellPane pane) => switch (pane) {
+    ShellPane.dashboard => Icons.dashboard,
+    ShellPane.ledger => Icons.receipt_long,
+    ShellPane.goals => Icons.flag,
+    ShellPane.funds => Icons.account_balance,
+    ShellPane.trophies => Icons.emoji_events,
+    ShellPane.activity => Icons.forum,
+  };
 
   /// The Manage menu: setup, sync, the change log and settings.
   Widget _manageAction(BuildContext context) => IconButton(

@@ -67,16 +67,33 @@ Future<bool> confirmAndSwitchPlayMode(
 }
 
 /// The app-bar overflow menu holding the Adventure / Standard switch.
-class PlayModeMenuButton extends ConsumerWidget {
-  const PlayModeMenuButton({super.key});
+/// [buttonBuilder] draws the button in place of the overflow icon (the
+/// Adventure shell's wood "More"); it is handed the callback that opens the
+/// menu.
+class PlayModeMenuButton extends ConsumerStatefulWidget {
+  const PlayModeMenuButton({super.key, this.buttonBuilder});
+
+  final Widget Function(VoidCallback openMenu)? buttonBuilder;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PlayModeMenuButton> createState() =>
+      _PlayModeMenuButtonState();
+}
+
+class _PlayModeMenuButtonState extends ConsumerState<PlayModeMenuButton> {
+  final _menuKey = GlobalKey<PopupMenuButtonState<PlayMode>>();
+
+  void _openMenu() => _menuKey.currentState?.showButtonMenu();
+
+  @override
+  Widget build(BuildContext context) {
     final current = (ref.watch(playPrefsProvider) ?? PlayPrefs.defaults).mode;
     final target = otherPlayMode(current);
+    final customButton = widget.buttonBuilder?.call(_openMenu);
     return PopupMenuButton<PlayMode>(
+      key: _menuKey,
       tooltip: 'More options',
-      icon: const Icon(Icons.more_vert),
+      icon: customButton == null ? const Icon(Icons.more_vert) : null,
       onSelected: (mode) => unawaited(
         confirmAndSwitchPlayMode(context, ref, mode, returnHome: true),
       ),
@@ -93,6 +110,7 @@ class PlayModeMenuButton extends ConsumerWidget {
           ),
         ),
       ],
+      child: customButton,
     );
   }
 }

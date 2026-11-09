@@ -18,15 +18,25 @@ import 'package:lootlog/domain/event.dart';
 import 'package:lootlog/domain/value_types.dart';
 import 'package:lootlog/features/settings/emergency_funds_screen.dart';
 import 'package:lootlog/features/settings/play_mode_providers.dart';
+import 'package:lootlog/features/shell/adventure_shell_chrome.dart';
 import 'package:lootlog/features/shell/app_shell.dart';
 import 'package:lootlog/features/tutorial/tutorial_prefs.dart';
 import 'package:lootlog/features/vacation/vacation_screen.dart';
 import 'package:lootlog/features/warchest/warchest_screen.dart';
+import 'package:lootlog/game/skin_prefs.dart';
+import 'package:lootlog/game/ui/kit/kit.dart';
 
 /// Tour already seen, with no file I/O.
 class _SeenTour extends TutorialProgressNotifier {
   @override
   TutorialProgress build() => TutorialProgress.done;
+}
+
+/// The pixel art tier, with no file I/O (the Adventure shell's frames follow
+/// the device's tier).
+class _PixelTier extends AdventureTierNotifier {
+  @override
+  AdventureTier build() => AdventureTier.pixel;
 }
 
 void main() {
@@ -107,6 +117,7 @@ void main() {
           ),
           tutorialProgressProvider.overrideWith(_SeenTour.new),
           isAdventureProvider.overrideWithValue(adventure),
+          adventureTierProvider.overrideWith(_PixelTier.new),
         ],
         child: MaterialApp(home: AppShell(initialPane: initialPane)),
       ),
@@ -213,13 +224,17 @@ void main() {
       adventure: true,
       initialPane: ShellPane.funds,
     );
-    final nav = find.byType(NavigationBar);
+    // Adventure dresses the shell in game chrome: wood tabs, a wood header.
+    final nav = find.byType(AdventureTabStrip);
     expect(
       find.descendant(of: nav, matching: find.text('Treasury')),
       findsOneWidget,
     );
     expect(
-      find.descendant(of: find.byType(AppBar), matching: find.text('Treasury')),
+      find.descendant(
+        of: find.byType(GameScreenHeader),
+        matching: find.text('Treasury'),
+      ),
       findsOneWidget,
     );
     expect(find.text('Reserve caches'), findsOneWidget);
