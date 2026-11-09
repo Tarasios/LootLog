@@ -24,9 +24,6 @@ import 'dungeon_party_frames.dart';
 /// Screens at least this wide get the three-column layout.
 const double kDungeonWideBreakpoint = 840;
 
-/// The dark stone behind the dungeon screen's frames.
-const Color kDungeonStone = Color(0xFF2B2630);
-
 /// The arrangement of one battle screen; every piece is built by the caller.
 /// The [turn] gets a bounded height and handles its own overflow.
 class DungeonBattleLayout extends StatelessWidget {
@@ -191,33 +188,69 @@ class DungeonViewport extends StatelessWidget {
 /// The adventure log: an inset well of game-voice lines, newest at the
 /// bottom and kept in view (a short log sits at the top). The newest line
 /// carries the `dungeon-log` key.
+///
+/// The scroll area is a whole number of lines tall, with the spare height as
+/// padding above it, so the oldest line in view is never cut in half.
 class AdventureLogWell extends StatelessWidget {
   const AdventureLogWell({super.key, required this.lines});
 
   final List<String> lines;
 
+  /// Each line's height, as a multiple of the font size (the gap between
+  /// lines is part of it, so every entry is a whole number of lines tall).
+  static const double _lineHeightFactor = 1.6;
+
+  static const EdgeInsets _wellPadding = EdgeInsets.fromLTRB(12, 8, 12, 8);
+
   @override
   Widget build(BuildContext context) {
     final style = Theme.of(context).textTheme.bodyMedium?.copyWith(color: AdventureTokens.ink);
+    final fontSize = style?.fontSize ?? 14;
+    final strut = StrutStyle(fontSize: fontSize, height: _lineHeightFactor, forceStrutHeight: true);
+    final lineHeight = _measureLineHeight(context, style, strut);
     final newestFirst = lines.reversed.toList();
     return InsetWell(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-      child: Align(
-        alignment: Alignment.topLeft,
-        child: ListView.builder(
-          reverse: true,
-          shrinkWrap: true,
-          itemCount: newestFirst.length,
-          itemBuilder: (context, index) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Text(
-              newestFirst[index],
-              key: index == 0 ? const ValueKey('dungeon-log') : null,
-              style: index == 0 ? style?.copyWith(fontWeight: FontWeight.bold) : style,
+      padding: _wellPadding,
+      child: LayoutBuilder(builder: (context, area) {
+        final room = area.maxHeight;
+        final wholeLines = room.isFinite ? (room / lineHeight).floor() : null;
+        final scrollHeight = wholeLines == null ? null : wholeLines * lineHeight;
+        return Padding(
+          padding: EdgeInsets.only(top: scrollHeight == null ? 0 : room - scrollHeight),
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: scrollHeight ?? double.infinity),
+              child: ListView.builder(
+                reverse: true,
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                itemCount: newestFirst.length,
+                itemBuilder: (context, index) => Text(
+                  newestFirst[index],
+                  key: index == 0 ? const ValueKey('dungeon-log') : null,
+                  strutStyle: strut,
+                  style: index == 0 ? style?.copyWith(fontWeight: FontWeight.bold) : style,
+                ),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      }),
     );
+  }
+
+  /// One laid-out line's height (the engine rounds the strut's metrics).
+  static double _measureLineHeight(BuildContext context, TextStyle? style, StrutStyle strut) {
+    final painter = TextPainter(
+      text: TextSpan(text: 'M', style: style),
+      strutStyle: strut,
+      textScaler: MediaQuery.textScalerOf(context),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+    )..layout();
+    final height = painter.height;
+    painter.dispose();
+    return height;
   }
 }

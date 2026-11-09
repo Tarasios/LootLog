@@ -25,8 +25,8 @@ import '../../domain/game_event.dart';
 import '../../domain/game_values.dart';
 import '../hall_voice.dart';
 import '../kit/kit.dart';
-import 'dungeon_battle_layout.dart' show kDungeonStone;
 import 'dungeon_providers.dart';
+import 'dungeon_tokens.dart';
 import 'dungeon_voice.dart';
 
 /// Phase 1: writes [result] for [ritual] to the ledger. Throws when the
