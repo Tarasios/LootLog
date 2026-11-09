@@ -5,7 +5,8 @@
 /// A narrow window stacks the corners and lays the buttons in one row along
 /// the bottom. Each top corner is held to half the width, its chips
 /// ellipsizing, so the corners never collide. While decorating, the
-/// decoration tray replaces the buttons (the Menu stays, to finish).
+/// decoration tray replaces the buttons (Log purchase stays, and the Menu,
+/// to finish).
 ///
 /// Only empty space between the pieces lets taps through to the town.
 library;
@@ -121,9 +122,20 @@ class TownHud extends StatelessWidget {
                 right: 0,
                 bottom: 0,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Padding(padding: const EdgeInsets.all(_kEdge), child: _menuButton()),
+                    // Logging a purchase stays one tap away while decorating.
+                    Padding(
+                      padding: const EdgeInsets.all(_kEdge),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Flexible(child: _logButton()),
+                          const Spacer(),
+                          _menuButton(),
+                        ],
+                      ),
+                    ),
                     decoratePanel,
                   ],
                 ),

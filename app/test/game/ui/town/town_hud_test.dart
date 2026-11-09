@@ -1,5 +1,6 @@
 /// The town HUD on its own: on a phone its two top corners never collide,
-/// however long the streak or large the war chest.
+/// however long the streak or large the war chest, and decorating keeps
+/// "Log purchase" one tap away.
 library;
 
 import 'package:flutter/material.dart';
@@ -27,6 +28,16 @@ Widget _hud({
         ),
       ),
     );
+
+const TownHudFigures _everyday = TownHudFigures(
+  dateLabel: 'Oct · day 3',
+  streak: LiveStreak(days: 3, frozenDays: 0),
+  freezeTokens: 1,
+  gems: 130,
+  inboxCount: 0,
+  goldPouch: Money(7000),
+  warChest: Money(123456),
+);
 
 Future<void> _pumpAt(WidgetTester tester, Size size, Widget hud) async {
   tester.view.physicalSize = size;
@@ -82,4 +93,24 @@ void main() {
     final treasureCorner = tester.getRect(find.byKey(const ValueKey('town-hud-treasure')));
     expect(timeCorner.overlaps(treasureCorner), isFalse);
   });
+
+  for (final size in const [Size(390, 844), Size(1280, 800)]) {
+    testWidgets('decorating keeps Log purchase on screen at ${size.width.toInt()} wide', (tester) async {
+      var logged = 0;
+      await _pumpAt(
+        tester,
+        size,
+        _hud(
+          figures: _everyday,
+          onLogPurchase: () => logged++,
+          decoratePanel: const SizedBox(height: 120, child: Text('Decoration tray')),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.text('Decoration tray'), findsOneWidget);
+      expect(find.textContaining('Menu'), findsOneWidget);
+      await tester.tap(find.textContaining('Log purchase'));
+      expect(logged, 1);
+    });
+  }
 }
