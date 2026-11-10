@@ -1,0 +1,15 @@
+{
+  "sheet": "tilemap_packed.png",
+  "cellSize": 32,
+  "spacing": 0,
+  "regions": {
+    "ui.panel.parchment.idle": [0, 0],
+    "ui.panel.wood.idle": [1, 0],
+    "ui.panel.slate.idle": [2, 0],
+    "ui.panel.ornate.idle": [4, 1],
+    "ui.panel.inset.idle": [0, 1],
+    "ui.banner.ribbon.idle": [4, 3, 3, 1],
+    "ui.banner.plain.idle": [4, 6, 3, 1],
+    "ui.button.round.idle": [0, 3]
+  }
+}

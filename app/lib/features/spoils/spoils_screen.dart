@@ -104,9 +104,18 @@ Future<void> applySpoilsResult(
   }
 }
 
+/// Draws a [SpoilsEntryButton] in a screen's own style, given its [label]
+/// and the callback that opens the ritual.
+typedef SpoilsEntryButtonBuilder =
+    Widget Function(String label, VoidCallback onPressed);
+
 /// A dashboard affordance: shows the ritual button only while one is pending.
+/// [builder] restyles it (the Adventure shell draws a wood button); by default
+/// it is a tonal filled button.
 class SpoilsEntryButton extends ConsumerWidget {
-  const SpoilsEntryButton({super.key});
+  const SpoilsEntryButton({super.key, this.builder});
+
+  final SpoilsEntryButtonBuilder? builder;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -121,12 +130,19 @@ class SpoilsEntryButton extends ConsumerWidget {
     );
     if (ritual == null) return const SizedBox.shrink();
     final adventure = ref.watch(isAdventureProvider);
+    final label = adventure ? 'Divide the spoils' : 'Divide leftovers';
+    void open() => unawaited(openSpoilsRitual(context, ref));
+    final builder = this.builder;
+    if (builder != null) return builder(label, open);
     return Padding(
       padding: const EdgeInsets.only(right: AppSpacing.sm),
       child: FilledButton.tonalIcon(
-        onPressed: () => unawaited(openSpoilsRitual(context, ref)),
+        // App-bar actions have unbounded width: drop the theme's full-width
+        // minimum or the whole toolbar fails layout and paints blank.
+        style: FilledButton.styleFrom(minimumSize: const Size(0, 40)),
+        onPressed: open,
         icon: const Icon(Icons.auto_awesome, size: 18),
-        label: Text(adventure ? 'Divide the spoils' : 'Divide leftovers'),
+        label: Text(label),
       ),
     );
   }

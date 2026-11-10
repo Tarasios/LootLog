@@ -30,6 +30,7 @@ import '../skin_prefs.dart';
 import '../text_mode/text_widgets.dart';
 import 'hall_names.dart';
 import 'hall_voice.dart';
+import 'kit/kit.dart';
 
 /// A ledger action that needs a context to navigate from.
 typedef HallContextAction = void Function(BuildContext context);
@@ -47,10 +48,14 @@ class HallLinks {
     this.reviewMonth,
     this.planMonth,
     this.divideLeftovers,
+    this.openGoals,
   });
 
   /// Opens quick entry straight away (one tap from the hall).
   final HallContextAction? logPurchase;
+
+  /// Opens the ledger on its Goals pane (from the town's quest board).
+  final HallContextAction? openGoals;
 
   /// Ritual step 1: checking the month's entries and bill actuals.
   final HallMonthAction? reconcileMonth;
@@ -75,6 +80,13 @@ class HallLinks {
 /// Whether the hall is drawn in the text tier here.
 bool hallTextTier(BuildContext context) =>
     GameSpriteScope.maybeOf(context)?.tier == AdventureTier.text;
+
+/// Whether this device renders the text tier, read from the providers rather
+/// than a scope: for deciding how to open a pop-up before it has a scope.
+bool hallDeviceTextTier(BuildContext context) =>
+    ProviderScope.containerOf(context, listen: false)
+        .read(adventureTierProvider) ==
+    AdventureTier.text;
 
 /// The body style for hall copy: monospace in the text tier.
 TextStyle hallBodyStyle(BuildContext context, {Color? color, FontWeight? weight}) {
@@ -269,34 +281,50 @@ Future<void> showHallCelebration(
   required String title,
   List<String> lines = const [],
 }) =>
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => HallScope(
-        child: Builder(
-          builder: (context) => AlertDialog(
-            icon: GameSprite.fromKey(sprite, scale: 3),
-            title: Text(title, textAlign: TextAlign.center),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final l in lines)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                    child: Text(l,
-                        textAlign: TextAlign.center,
-                        style: hallBodyStyle(context)),
-                  ),
-              ],
-            ),
-            actions: [
-              FilledButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Huzzah!'),
+    showGameDialog<void>(
+      context,
+      builder: (dialogContext) {
+        void close() => Navigator.of(dialogContext).pop();
+        if (hallTextTier(dialogContext)) {
+          return HallScope(
+            child: AlertDialog(
+              icon: GameSprite.fromKey(sprite, scale: 3),
+              title: Text(title, textAlign: TextAlign.center),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final line in lines)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                      child: Text(line,
+                          textAlign: TextAlign.center,
+                          style: hallBodyStyle(dialogContext)),
+                    ),
+                ],
               ),
+              actions: [FilledButton(onPressed: close, child: const Text('Huzzah!'))],
+            ),
+          );
+        }
+        return GameDialog(
+          title: title,
+          scene: Center(child: GameSprite.fromKey(sprite, scale: 3)),
+          body: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final line in lines)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                  child: Text(line,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: AdventureTokens.ink)),
+                ),
             ],
           ),
-        ),
-      ),
+          actions: [WoodButton(label: 'Huzzah!', onPressed: close)],
+        );
+      },
     );
 
 /// Rebuilds [builder] every [period] so countdowns stay fresh. The timer is

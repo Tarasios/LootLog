@@ -1,5 +1,6 @@
-/// The cents-aware amount readout and keypad shared by quick entry and the OCR
-/// confirm screen.
+/// The cents-aware amount readout and keypad shared by quick entry, the OCR
+/// confirm screen and the Adventure log-purchase dialog (which draws its keys
+/// through an [AmountKeyBuilder]).
 ///
 /// Entry is calculator-style: each digit shifts the running total left by one
 /// place (a tap of `7` then `5` reads `$0.75`), backspace divides by ten. The
@@ -52,6 +53,33 @@ int applyDigit(int cents, int digit) {
 /// Removes the least-significant digit.
 int applyBackspace(int cents) => cents ~/ 10;
 
+/// The running total after a hardware [event] — a typed digit or Backspace —
+/// or null when the event is not an amount key (or is a key release), so the
+/// caller can leave it to other handlers.
+int? amountAfterKeyEvent(KeyEvent event, int cents) {
+  if (event is! KeyDownEvent && event is! KeyRepeatEvent) return null;
+  final digit = digitForKey(event.logicalKey);
+  if (digit != null) return applyDigit(cents, digit);
+  if (event.logicalKey == LogicalKeyboardKey.backspace) {
+    return applyBackspace(cents);
+  }
+  return null;
+}
+
+/// The label of the keypad's backspace key; a custom [AmountKeyBuilder] may
+/// draw it as an icon instead.
+const String kBackspaceKeyLabel = '⌫';
+
+/// Draws one keypad key showing [label] that calls [onTap]. [semanticsLabel]
+/// is set when the label is a symbol (the backspace key). The keypad places
+/// each key in an equal-width slot with a small gap around it.
+typedef AmountKeyBuilder = Widget Function(
+  BuildContext context,
+  String label,
+  String? semanticsLabel,
+  VoidCallback onTap,
+);
+
 /// The big `$0.00` readout.
 class AmountDisplay extends StatelessWidget {
   const AmountDisplay({super.key, required this.cents, this.enraged = false});
@@ -75,17 +103,36 @@ class AmountDisplay extends StatelessWidget {
   }
 }
 
-/// A 3×4 numeric keypad that edits a cents value.
+/// A 3×4 numeric keypad that edits a cents value. Each key is drawn by
+/// [keyBuilder]: by default a rounded Material key in the theme's colours.
 class AmountKeypad extends StatelessWidget {
-  const AmountKeypad({super.key, required this.cents, required this.onChanged});
+  const AmountKeypad({
+    super.key,
+    required this.cents,
+    required this.onChanged,
+    this.keyBuilder = _materialKey,
+  });
 
   final int cents;
   final ValueChanged<int> onChanged;
+  final AmountKeyBuilder keyBuilder;
+
+  static Widget _materialKey(
+    BuildContext context,
+    String label,
+    String? semanticsLabel,
+    VoidCallback onTap,
+  ) => _KeypadButton(label: label, onTap: onTap, semanticsLabel: semanticsLabel);
 
   @override
   Widget build(BuildContext context) {
     Widget key(String label, VoidCallback onTap, {String? semantics}) =>
-        _KeypadButton(label: label, onTap: onTap, semanticsLabel: semantics);
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xs),
+            child: keyBuilder(context, label, semantics, onTap),
+          ),
+        );
 
     Widget digit(int digitValue) =>
         key('$digitValue', () => onChanged(applyDigit(cents, digitValue)));
@@ -101,7 +148,7 @@ class AmountKeypad extends StatelessWidget {
             key('00', () => onChanged(applyDigit(applyDigit(cents, 0), 0))),
             digit(0),
             key(
-              '⌫',
+              kBackspaceKeyLabel,
               () => onChanged(applyBackspace(cents)),
               semantics: 'Backspace',
             ),
@@ -126,24 +173,19 @@ class _KeypadButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xs),
-        child: Material(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: AppRadii.card,
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onTap,
-            child: SizedBox(
-              height: 60,
-              child: Center(
-                child: Text(
-                  label,
-                  semanticsLabel: semanticsLabel,
-                  style: theme.textTheme.headlineSmall,
-                ),
-              ),
+    return Material(
+      color: theme.colorScheme.surfaceContainerHighest,
+      borderRadius: AppRadii.card,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          height: 60,
+          child: Center(
+            child: Text(
+              label,
+              semanticsLabel: semanticsLabel,
+              style: theme.textTheme.headlineSmall,
             ),
           ),
         ),

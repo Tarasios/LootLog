@@ -77,7 +77,7 @@ class _Sparkline extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final rising = series.last.balanceCents >= series.first.balanceCents;
-    final line = rising ? scheme.primary : scheme.error;
+    final line = rising ? MoneyTones.gainOf(context) : scheme.error;
 
     final spots = <FlSpot>[
       for (var i = 0; i < series.length; i++)

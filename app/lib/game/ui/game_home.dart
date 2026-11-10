@@ -30,11 +30,9 @@ import 'hall_common.dart';
 import 'hall_home_sections.dart';
 import 'hall_ledger_view.dart';
 import 'hall_voice.dart';
+import 'kit/adventure_tokens.dart';
 
 export 'hall_common.dart' show HallLinks;
-
-/// The width at or above which the hall lays out in two columns.
-const double kHallWideBreakpoint = 840;
 
 class GameHome extends StatelessWidget {
   const GameHome({
@@ -146,7 +144,8 @@ class _HallBody extends ConsumerWidget {
       // Room under the last section for the floating "Log a purchase".
       const fabRoom = SizedBox(height: 88);
       return LayoutBuilder(builder: (context, constraints) {
-        if (constraints.maxWidth >= kHallWideBreakpoint) {
+        // Two columns from the wide breakpoint.
+        if (constraints.maxWidth >= AdventureTokens.wideBreakpoint) {
           return SingleChildScrollView(
             padding: const EdgeInsets.all(AppSpacing.lg),
             child: Center(

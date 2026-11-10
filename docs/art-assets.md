@@ -504,3 +504,37 @@ completed goal's town statue uses `town_decor.statue.default.idle`.
 The guild-hall keys of §9 (materials, currency, gear, regions, panels,
 homestead) and the legacy `dungeon.*` keys keep working exactly as described
 there. Where a key has neither a pack region nor a file it shows its text card.
+
+---
+
+## 11. UI frames (Kenney UI Pack – Pixel Adventure)
+
+The panels, banners and buttons of the Adventure widget kit are drawn from a
+fourth CC0 pack by Kenney: **UI Pack – Pixel Adventure**, the 32 px "Thick
+outline" sheet. It lives in `app/assets/game/packs/ui_pixel_adventure/` (13
+columns × 7 rows of 32 × 32 cells, no spacing, 416 × 224 px) with its
+`License.txt`. Two Kenney pixel fonts ship beside it in `app/assets/fonts/`:
+`LootPixel` (Kenney Pixel) and `LootPixelMono` (Kenney Mini Square).
+
+| Key | Cell | What it looks like |
+|-----|------|--------------------|
+| `ui.panel.parchment.idle` | `[0, 0]` | cream square in a brown frame |
+| `ui.panel.wood.idle` | `[1, 0]` | brown square in a brown frame |
+| `ui.panel.slate.idle` | `[2, 0]` | light blue-grey square in a slate frame |
+| `ui.panel.ornate.idle` | `[4, 1]` | brown square with grey-blue brackets in the four corners |
+| `ui.panel.inset.idle` | `[0, 1]` | plain worn cream square in a brown frame (no grid), for inset wells |
+| `ui.banner.ribbon.idle` | `[4, 3, 3, 1]` | red ribbon, 3 cells wide (96 × 32), pins at the top corners |
+| `ui.banner.plain.idle` | `[4, 6, 3, 1]` | flat red banner with a blue-grey fill, 3 cells wide (96 × 32) |
+| `ui.button.round.idle` | `[0, 3]` | round cream button in a brown ring |
+
+Panels are **32 × 32 nine-slices**. Measured on the sheet, the frame edge of
+the parchment, wood and slate panels is **5 px** thick (2 px dark outline, 2 px
+body colour, 1 px inner shade); the ornate panel's corner brackets reach
+**9 px** in from the corner. The kit therefore slices panels with an **8 px**
+inset (the whole 5 px frame plus a little fill, so the stretched centre is
+flat colour) and the ornate panel with a **10 px** inset (so the brackets stay
+whole in their corners). The banners are 3-cell strips: the left and right
+cells are the fixed ends and the middle cell stretches.
+
+An artist overrides any one of these by dropping a PNG named after the key into
+`app/assets/game/`, e.g. `ui.panel.wood.idle_1f.png`, exactly as in §10.

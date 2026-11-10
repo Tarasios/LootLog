@@ -50,9 +50,15 @@ class DungeonGame extends FlameGame {
 
   static double _heroRowFor(int targetRows) => firstTargetRowTiles + targetRowTiles * targetRows + 0.5;
 
-  /// The largest whole zoom at which the whole dungeon fits [viewport].
+  /// Bare floor beyond the targets and the war chest on each side: every
+  /// target and the chest sit within columns 0.5 .. columns − 0.5.
+  static const double sideMarginTiles = 0.5;
+
+  /// The largest whole zoom at which the whole dungeon fits [viewport]. Only
+  /// the bare half-tile side margins may be cropped (the camera stays
+  /// centred), so a framed phone viewport still draws at 2×.
   static int fitZoom(Size viewport, int rows) {
-    final fitsWide = viewport.width ~/ (columns * kTileSize);
+    final fitsWide = viewport.width ~/ ((columns - 2 * sideMarginTiles) * kTileSize);
     final fitsTall = viewport.height ~/ (rows * kTileSize);
     final fit = fitsWide < fitsTall ? fitsWide : fitsTall;
     return fit.clamp(CameraControls.minZoom, CameraControls.maxZoom);

@@ -78,7 +78,7 @@ class _QuestTile extends StatelessWidget {
                       child: Icon(
                         Icons.emoji_events,
                         size: 16,
-                        color: scheme.primary,
+                        color: MoneyTones.gainOf(context),
                       ),
                     ),
                 ],
@@ -102,7 +102,7 @@ class _QuestTile extends StatelessWidget {
         const SizedBox(height: AppSpacing.sm),
         _ProportionBar(
           fraction: quest.progress,
-          fill: quest.completed ? scheme.primary : scheme.tertiary,
+          fill: quest.completed ? MoneyTones.gainOf(context) : scheme.tertiary,
           track: scheme.surfaceContainerHighest,
           height: 8,
         ),

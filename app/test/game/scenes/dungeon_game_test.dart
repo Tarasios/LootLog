@@ -66,4 +66,11 @@ void main() {
     expect(DungeonGame.fitZoom(const Size(390, 600), rows), 2);
     expect(DungeonGame.fitZoom(const Size(100, 100), rows), 1);
   });
+
+  test('a framed phone viewport may trim the bare half-tile margins, never a target', () {
+    final rows = DungeonGame.rowsFor(2);
+    // Targets and the war chest sit within columns 0.5..11.5: 11 16-px tiles.
+    expect(DungeonGame.fitZoom(const Size(11 * 16 * 2, 600), rows), 2);
+    expect(DungeonGame.fitZoom(const Size(11 * 16 * 2 - 1, 600), rows), 1);
+  });
 }

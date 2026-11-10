@@ -10,19 +10,25 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/actions.dart';
 import '../../data/providers.dart';
 import '../settings/play_mode_providers.dart';
-import '../../domain/value_types.dart';
-import '../entry/charge_choice.dart';
-import '../entry/expense_entry_view.dart';
-import 'shortfall.dart';
-import 'shortfall_sheet.dart';
+import 'charge_choice.dart';
+import 'commit_entry.dart';
+import 'expense_entry_view.dart';
 
 class ExpenseEntryScreen extends ConsumerWidget {
-  const ExpenseEntryScreen({super.key});
+  const ExpenseEntryScreen({super.key, this.initialCents = 0});
+
+  /// The amount the keypad starts on (carried over from the Adventure
+  /// log-purchase dialog's "More details").
+  final int initialCents;
+
+  /// Quick entry as a full-screen route, starting on [initialCents].
+  static Route<void> route({int initialCents = 0}) => MaterialPageRoute<void>(
+    builder: (_) => ExpenseEntryScreen(initialCents: initialCents),
+  );
 
   /// Opens quick entry as a full-screen route.
-  static Future<void> open(BuildContext context) => Navigator.of(
-    context,
-  ).push(MaterialPageRoute<void>(builder: (_) => const ExpenseEntryScreen()));
+  static Future<void> open(BuildContext context) =>
+      Navigator.of(context).push(route());
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -42,53 +48,15 @@ class ExpenseEntryScreen extends ConsumerWidget {
 
     return ExpenseEntryView(
       groups: groups,
+      initialCents: initialCents,
       onCommit: (draft) async {
-        // Judged against the state before this purchase lands. A shared
-        // purchase only charges the buyer's share, so it isn't checked.
-        final short = draft.shared
-            ? null
-            : shortfallFor(
-                state,
-                meUserId: setup.meUserId,
-                target: draft.choice.target,
-                amountCents: draft.amountCents,
-                at: draft.occurredAt,
-              );
-        final purchaseId = await actions.addPurchase(
-          target: draft.choice.target,
-          amountCents: draft.amountCents,
-          shared: draft.shared,
-          merchant: draft.merchant,
-          note: draft.note,
-          occurredAt: draft.occurredAt,
+        await commitEntryDraft(
+          context,
+          state: state,
+          meUserId: setup.meUserId,
+          actions: actions,
+          draft: draft,
         );
-        if (short != null && context.mounted) {
-          final choice = await showShortfallSheet(context, short);
-          switch (choice) {
-            case CoverFromGeneral(:final amountCents):
-              await actions.coverShortfall(
-                purchaseId: purchaseId,
-                source: const GeneralCover(),
-                amountCents: amountCents,
-              );
-            case BorrowAhead(:final months):
-              await actions.proposeAdvance(
-                sliceId: short.sliceId!,
-                amountCents: short.shortCents,
-                months: months,
-                purchaseId: purchaseId,
-              );
-            case CoverFromSavings(:final sliceId, :final moveCents):
-              await actions.coverShortfall(
-                purchaseId: purchaseId,
-                source: CategorySavingsCover(sliceId),
-                amountCents: moveCents,
-              );
-            case LeaveIt():
-            case null:
-              break;
-          }
-        }
         if (context.mounted) {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(

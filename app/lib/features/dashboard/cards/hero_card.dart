@@ -60,7 +60,7 @@ class _HeroCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             _ProportionBar(
               fraction: hero.spentFraction,
-              fill: over ? scheme.error : scheme.primary,
+              fill: over ? scheme.error : MoneyTones.gainOf(context),
               track: scheme.surfaceContainerHighest,
             ),
             const SizedBox(height: AppSpacing.md),

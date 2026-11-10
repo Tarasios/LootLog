@@ -1,5 +1,6 @@
-/// The town scene: ground, trees, the gate, plots, houses and (optionally)
-/// strolling villagers. Rebuilt from a [TownView]; it holds no game rules.
+/// The town scene: ground, the scattered forest framing it, trees, the gate,
+/// plots, houses and (optionally) strolling villagers. Rebuilt from a
+/// [TownView]; it holds no game rules.
 library;
 
 import 'dart:async';
@@ -8,11 +9,13 @@ import 'dart:ui' as ui;
 
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
+import 'package:flutter/painting.dart' show Color;
 
 import '../../assets/asset_catalog.dart';
 import '../../assets/asset_key.dart';
 import '../../domain/decor/catalog.dart';
 import '../../domain/town/town_layout.dart';
+import '../../domain/town/town_scatter.dart';
 import '../../domain/town/town_view.dart';
 import '../camera_controls.dart';
 import '../pack_atlas.dart';
@@ -41,14 +44,22 @@ class TownGame extends FlameGame {
     this.townsfolk = const [],
     this.catalog = DecorCatalog.empty,
     this.pictures = const {},
+    this.scatter = const TownScatter(props: [], borderWidth: 0),
   }) : _view = view,
        cameraControls = CameraControls(
          worldWidth: view.layout.columns * kTileSize,
          worldHeight: view.layout.rows * kTileSize,
+         margin: scatter.borderWidth * kTileSize,
        );
+
+  /// Beyond the scattered forest (a window larger than town and border).
+  static const Color forestColour = Color(0xFF346524);
 
   final PackAtlas atlas;
   final bool ambientLife;
+
+  /// The trees and bushes framing the town and dotting its free grass.
+  final TownScatter scatter;
 
   /// Names and art of the placed decorations; a placement the catalogue does
   /// not know is not drawn.
@@ -77,6 +88,7 @@ class TownGame extends FlameGame {
       AssetKey('town', 'ground', 'water'),
       AssetKey('town', 'ground', 'square'),
       AssetKey('town', 'tree'),
+      AssetKey('town', 'bush'),
       AssetKey('town', 'gate', 'dungeon'),
       AssetKey('town', 'house'),
       AssetKey('town', 'wagon'),
@@ -104,7 +116,9 @@ class TownGame extends FlameGame {
   Future<void> onLoad() async {
     await atlas.preload(keysFor(_view, catalog));
     final tile = Vector2.all(kTileSize);
-    world.add(GroundLayer(atlas, _view.layout));
+    world
+      ..add(GroundLayer(atlas, _view.layout, borderWidth: scatter.borderWidth))
+      ..add(ScatterLayer(atlas, scatter));
     for (final cell in _view.layout.treeCells) {
       world.add(
         KeyedSprite(
@@ -285,6 +299,9 @@ class TownGame extends FlameGame {
     }
     unawaited(world.addAll(effects));
   }
+
+  @override
+  Color backgroundColor() => forestColour;
 
   @override
   void update(double dt) {

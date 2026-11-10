@@ -14,6 +14,7 @@ import '../assets/art_source.dart';
 import '../assets/asset_key.dart';
 import '../assets/asset_registry.dart';
 import '../game_sprite.dart' show spriteFrameCount;
+import 'region_sprite.dart';
 
 class PackAtlas {
   PackAtlas(this.registry, this.images);
@@ -93,11 +94,8 @@ class PackAtlas {
     switch (registry.artFor(key)) {
       case ArtRegion(:final region):
         if (!_loadedPaths.contains(region.sheetPath)) return null;
-        return Sprite(
-          images.fromCache(region.sheetPath),
-          srcPosition: Vector2(region.left.toDouble(), region.top.toDouble()),
-          srcSize: Vector2(region.width.toDouble(), region.height.toDouble()),
-        )..paint.filterQuality = FilterQuality.none;
+        return RegionSprite(images.fromCache(region.sheetPath), region)
+          ..paint.filterQuality = FilterQuality.none;
       case ArtFile(:final fileName):
         if (!_loadedPaths.contains(fileName)) return null;
         final image = images.fromCache(fileName);

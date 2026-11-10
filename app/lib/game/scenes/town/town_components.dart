@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import '../../assets/asset_catalog.dart';
 import '../../assets/asset_key.dart';
 import '../../domain/town/town_layout.dart';
+import '../../domain/town/town_scatter.dart';
 import '../../domain/town/town_view.dart';
 import '../camera_controls.dart';
 import '../goal_picture_frame.dart';
@@ -44,9 +45,10 @@ TextComponent _nameUnder(Vector2 buildingSize, String text) => TextComponent(
   textRenderer: _smallLabelPaint(),
 );
 
-/// Every ground tile, drawn in one pass.
+/// Every ground tile, drawn in one pass: the map, plus [borderWidth] cells of
+/// grass on every side for the forest that frames it.
 class GroundLayer extends PositionComponent {
-  GroundLayer(this.atlas, this.layout)
+  GroundLayer(this.atlas, this.layout, {this.borderWidth = 0})
     : super(
         size: Vector2(layout.columns * kTileSize, layout.rows * kTileSize),
         priority: 0,
@@ -54,14 +56,21 @@ class GroundLayer extends PositionComponent {
 
   final PackAtlas atlas;
   final TownLayout layout;
+  final int borderWidth;
+
+  bool _onMap(TownCell cell) =>
+      cell.column >= 0 &&
+      cell.column < layout.columns &&
+      cell.row >= 0 &&
+      cell.row < layout.rows;
 
   @override
   void render(Canvas canvas) {
     final tileSize = Vector2.all(kTileSize);
-    for (var column = 0; column < layout.columns; column++) {
-      for (var row = 0; row < layout.rows; row++) {
+    for (var column = -borderWidth; column < layout.columns + borderWidth; column++) {
+      for (var row = -borderWidth; row < layout.rows + borderWidth; row++) {
         final cell = TownCell(column, row);
-        final ground = layout.groundAt(cell);
+        final ground = _onMap(cell) ? layout.groundAt(cell) : TownGround.grass;
         final position = cellPosition(cell);
         final sprite = atlas.spriteFor(_groundKeys[ground]!);
         if (sprite != null) {
@@ -72,6 +81,42 @@ class GroundLayer extends PositionComponent {
             Paint()..color = _groundColours[ground]!,
           );
         }
+      }
+    }
+  }
+}
+
+/// The scattered trees and bushes, drawn in one pass under the buildings. A
+/// prop with no art is a plain dark-green blob (never a label: there are
+/// hundreds of them).
+class ScatterLayer extends PositionComponent {
+  ScatterLayer(this.atlas, this.scatter) : super(priority: 1);
+
+  final PackAtlas atlas;
+  final TownScatter scatter;
+
+  static const Color _fallbackColour = Color(0xFF346524);
+
+  /// Each prop key's sprite (null: no art), looked up once.
+  final Map<String, Sprite?> _sprites = {};
+
+  @override
+  void render(Canvas canvas) {
+    final tileSize = Vector2.all(kTileSize);
+    final fallback = Paint()..color = _fallbackColour;
+    for (final prop in scatter.props) {
+      final sprite = _sprites.putIfAbsent(
+        prop.assetKey,
+        () => atlas.spriteFor(AssetKey.parse(prop.assetKey)),
+      );
+      final position = cellPosition(TownCell(prop.column, prop.row));
+      if (sprite != null) {
+        sprite.render(canvas, position: position, size: tileSize);
+      } else {
+        canvas.drawRect(
+          Rect.fromLTWH(position.x + 3, position.y + 3, kTileSize - 6, kTileSize - 6),
+          fallback,
+        );
       }
     }
   }

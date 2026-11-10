@@ -489,7 +489,7 @@ class _LedgerRow extends StatelessWidget {
       trailing: Text(
         signedMoney(entry.amountCents),
         style: TextStyle(
-          color: positive ? scheme.primary : scheme.error,
+          color: positive ? MoneyTones.gainOf(context) : scheme.error,
           fontWeight: FontWeight.w600,
         ),
       ),

@@ -170,7 +170,7 @@ void main() {
     expect(await tester.runAsync(recordedMode), PlayMode.standard);
     expect(find.byType(GameHome), findsNothing);
     expect(find.byType(AppShell), findsOneWidget);
-    expect(find.byTooltip('Guild hall'), findsNothing);
+    expect(find.byTooltip('Back to town'), findsNothing);
     await done(tester);
   });
 
@@ -191,14 +191,14 @@ void main() {
       (tester) async {
     await pump(tester, mode: PlayMode.adventure, home: AdventureHome.ledger);
     expect(find.byType(AppShell), findsOneWidget);
-    expect(find.byTooltip('Guild hall'), findsOneWidget);
+    expect(find.byTooltip('Back to town'), findsOneWidget);
     expect(find.text('Classic'), findsNothing);
 
     await openMenuSwitch(tester, 'Switch to Standard');
     await confirmSwitch(tester);
 
     expect(await tester.runAsync(recordedMode), PlayMode.standard);
-    expect(find.byTooltip('Guild hall'), findsNothing);
+    expect(find.byTooltip('Back to town'), findsNothing);
     await done(tester);
   });
 

@@ -54,7 +54,7 @@ TownSceneView scene(WidgetTester tester) =>
 Future<void> startDecorating(WidgetTester tester) async {
   await tester.tap(find.byKey(const ValueKey('town-menu')));
   await pumpUi(tester);
-  await tester.tap(find.text('Decorate town'));
+  await tester.tap(find.textContaining('Decorate town'));
   await pumpUi(tester);
 }
 
@@ -65,7 +65,7 @@ void main() {
     expect(scene(tester).onCellTap, isNull);
     await startDecorating(tester);
     expect(scene(tester).onCellTap, isNotNull);
-    expect(find.text('Done decorating'), findsNothing, reason: 'the menu closed');
+    expect(find.textContaining('Done decorating'), findsNothing, reason: 'the menu closed');
   });
 
   testWidgets('a bench picked from the town tray is placed on tapped grass', (tester) async {
@@ -111,7 +111,7 @@ void main() {
     await startDecorating(tester);
     await tester.tap(find.byKey(const ValueKey('town-menu')));
     await pumpUi(tester);
-    await tester.tap(find.text('Done decorating'));
+    await tester.tap(find.textContaining('Done decorating'));
     await pumpUi(tester);
     expect(scene(tester).onCellTap, isNull);
   });

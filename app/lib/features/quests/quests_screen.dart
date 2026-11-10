@@ -21,14 +21,20 @@ import '../shared/sprite_picker.dart';
 import 'quests_model.dart';
 
 class QuestsScreen extends ConsumerWidget {
-  const QuestsScreen({super.key});
+  const QuestsScreen({super.key, this.embedded = false});
+
+  /// The list only, headed by its own "New goal" and "Trophy hall" buttons
+  /// instead of an app bar and floating button: for a host that frames and
+  /// titles it (the Adventure shell's Goals tab).
+  final bool embedded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(householdStateProvider).value;
     final names = ref.watch(userNamesProvider);
     if (state == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      const loading = Center(child: CircularProgressIndicator());
+      return embedded ? loading : const Scaffold(body: loading);
     }
     final quests = state.quests.values.toList()
       ..sort((first, second) {
@@ -38,6 +44,21 @@ class QuestsScreen extends ConsumerWidget {
         return byRank != 0 ? byRank : first.name.compareTo(second.name);
       });
 
+    final list = quests.isEmpty
+        ? _NoQuestsYet(showNewGoal: !embedded)
+        : ListView.separated(
+            padding: const EdgeInsets.only(bottom: 96),
+            itemCount: quests.length,
+            separatorBuilder: (_, _) => const Divider(height: 1),
+            itemBuilder: (context, i) =>
+                _QuestTile(quest: quests[i], names: names),
+          );
+    if (embedded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [const _EmbeddedQuestActions(), Expanded(child: list)],
+      );
+    }
     return Scaffold(
       appBar: AppBar(
         title: const Text('Savings goals'),
@@ -55,47 +76,84 @@ class QuestsScreen extends ConsumerWidget {
         icon: const Icon(Icons.add),
         label: const Text('New goal'),
       ),
-      body: quests.isEmpty
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.xl),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'No savings goals yet.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      'Set a target for something you’re saving toward — '
-                      'a trip, a new couch, a rainy-day cushion — and fund it '
-                      'from your leftovers at month close.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    FilledButton.icon(
-                      onPressed: () => QuestEditorScreen.open(context),
-                      icon: const Icon(Icons.add),
-                      label: const Text('New goal'),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          : ListView.separated(
-              padding: const EdgeInsets.only(bottom: 96),
-              itemCount: quests.length,
-              separatorBuilder: (_, _) => const Divider(height: 1),
-              itemBuilder: (context, i) =>
-                  _QuestTile(quest: quests[i], names: names),
-            ),
+      body: list,
     );
   }
+}
+
+/// The embedded list's own actions, in place of the app bar and floating
+/// button: start a new goal, or open the trophy hall.
+class _EmbeddedQuestActions extends StatelessWidget {
+  const _EmbeddedQuestActions();
+
+  /// A finite minimum, so the buttons lay out in a row under any theme.
+  static const Size _buttonMinimum = Size(64, 44);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            FilledButton.icon(
+              style: FilledButton.styleFrom(minimumSize: _buttonMinimum),
+              onPressed: () => QuestEditorScreen.open(context),
+              icon: const Icon(Icons.add),
+              label: const Text('New goal'),
+            ),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(minimumSize: _buttonMinimum),
+              onPressed: () => TrophyHallScreen.open(context),
+              icon: const Icon(Icons.emoji_events_outlined),
+              label: const Text('Trophy hall'),
+            ),
+          ],
+        ),
+      );
+}
+
+/// The empty list: what a goal is for, and (unless the host already offers
+/// it) a "New goal" button.
+class _NoQuestsYet extends StatelessWidget {
+  const _NoQuestsYet({required this.showNewGoal});
+
+  final bool showNewGoal;
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'No savings goals yet.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Set a target for something you’re saving toward — '
+                'a trip, a new couch, a rainy-day cushion — and fund it '
+                'from your leftovers at month close.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+              if (showNewGoal) ...[
+                const SizedBox(height: AppSpacing.lg),
+                FilledButton.icon(
+                  onPressed: () => QuestEditorScreen.open(context),
+                  icon: const Icon(Icons.add),
+                  label: const Text('New goal'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
 }
 
 class _QuestTile extends StatelessWidget {

@@ -11,6 +11,8 @@ import '../skin_prefs.dart';
 import 'art_source.dart';
 import 'asset_key.dart';
 import 'asset_registry.dart';
+import 'region_cells.dart';
+import 'sheet_image.dart';
 import 'sprite_region.dart';
 import 'text_sprite.dart';
 
@@ -51,56 +53,20 @@ class PackSprite extends StatelessWidget {
   }
 }
 
-class _RegionImage extends StatefulWidget {
+class _RegionImage extends StatelessWidget {
   const _RegionImage({super.key, required this.region, required this.scale});
   final SpriteRegion region;
   final int scale;
 
   @override
-  State<_RegionImage> createState() => _RegionImageState();
-}
-
-class _RegionImageState extends State<_RegionImage> {
-  ui.Image? _sheet;
-  ImageStream? _stream;
-  late final ImageStreamListener _listener =
-      ImageStreamListener((info, _) => setState(() => _sheet = info.image));
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _resolve();
-  }
-
-  @override
-  void didUpdateWidget(_RegionImage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.region.sheetPath != widget.region.sheetPath) _resolve();
-  }
-
-  void _resolve() {
-    final stream = AssetImage('${AssetRegistry.assetDir}${widget.region.sheetPath}')
-        .resolve(createLocalImageConfiguration(context));
-    if (stream.key == _stream?.key) return;
-    _stream?.removeListener(_listener);
-    _stream = stream..addListener(_listener);
-  }
-
-  @override
-  void dispose() {
-    _stream?.removeListener(_listener);
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final region = widget.region;
-    return SizedBox(
-      width: (region.width * widget.scale).toDouble(),
-      height: (region.height * widget.scale).toDouble(),
-      child: _sheet == null ? null : CustomPaint(painter: _RegionPainter(_sheet!, region)),
-    );
-  }
+  Widget build(BuildContext context) => SheetImageBuilder(
+        assetPath: '${AssetRegistry.assetDir}${region.sheetPath}',
+        builder: (context, sheet) => SizedBox(
+          width: (region.packedWidth * scale).toDouble(),
+          height: (region.packedHeight * scale).toDouble(),
+          child: sheet == null ? null : CustomPaint(painter: _RegionPainter(sheet, region)),
+        ),
+      );
 }
 
 class _RegionPainter extends CustomPainter {
@@ -108,12 +74,10 @@ class _RegionPainter extends CustomPainter {
   final ui.Image sheet;
   final SpriteRegion region;
 
+  /// Cell by cell, so a spaced sheet's gaps never show as seams.
   @override
-  void paint(Canvas canvas, Size size) {
-    final source = Rect.fromLTWH(region.left.toDouble(), region.top.toDouble(),
-        region.width.toDouble(), region.height.toDouble());
-    canvas.drawImageRect(sheet, source, Offset.zero & size, Paint()..filterQuality = FilterQuality.none);
-  }
+  void paint(Canvas canvas, Size size) => drawRegionCells(
+      canvas, sheet, region, Offset.zero & size, Paint()..filterQuality = FilterQuality.none);
 
   @override
   bool shouldRepaint(_RegionPainter oldDelegate) =>

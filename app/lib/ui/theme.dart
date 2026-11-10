@@ -8,6 +8,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+export 'money_tones.dart';
+
 /// The single brand seed. The Material 3 algorithm derives every role color
 /// (primary, secondary, surfaces, error, …) from this one hue for both themes.
 const Color kSeedColor = Color(0xFF2E7D5B); // deep emerald — coin & ledger green

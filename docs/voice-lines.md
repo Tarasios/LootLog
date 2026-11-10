@@ -361,3 +361,24 @@ present and that nothing shames or blames.
 | `chestPending` | The leftovers were saved but the chest failed to arrive | Say plainly the money is done, and invite a retry now (no promise it happens on its own) | Your leftovers are divided and saved. The spoils chest got stuck at the gate; try again now to bring it home. |
 | `nothingToDivide` | The dungeon opens for a finished month with nothing left to divide in the ledger (all spent, past the grace period, or divided in the ledger). Placeholder `{month}` | The chest never depends on leftovers: celebrate finishing the month either way | Nothing left to divide for {month} — the party returns with the spoils. |
 | `returnPending` | That month's chest failed to arrive | Invite a retry, no blame | The spoils chest got stuck at the gate. Try again now to bring it home. |
+
+## Town tags (`town_tags.json`)
+
+Adventure-only: the small floating tags over the town. A tag appears only
+for good news or something the person can act on, and each spot in town
+carries at most one (a time-sensitive one wins). Tags are a few words, so
+keep replacements short. Each key holds one line (not a set); a missing or
+empty key falls back to the built-in line in
+`app/lib/game/domain/town/town_tags.dart`, and
+`app/test/game/domain/town/town_tags_test.dart` checks the shipped file
+matches those built-in lines. Placeholders: `{count}`, `{name}` (a bill or a
+goal), `{days}`, `{percent}`.
+
+| Key | Trigger | Where it floats | Intended outcome | Current line |
+|-----|---------|-----------------|------------------|--------------|
+| `toDivide` | Last month's leftovers are waiting in the month-end dungeon (`{count}` of them) | The town gate | Invite the ritual; leftovers are a reward to use | {count} to divide |
+| `billDue` | A recurring bill comes due in 1–3 days | The owner's house, or the Central Hall for a shared bill | A calm heads-up so the bill is never a surprise | {name} in {days}d |
+| `billDueToday` | A recurring bill comes due today | As `billDue` | Same heads-up, on the day | {name} today |
+| `goalProgress` | A savings goal has some progress (the goals furthest along, one per statue spot) | The goal's statue spot | Keep the goal vivid and celebrate how far it has come (a percent, never dollars) | {name} {percent}% |
+| `chestWaiting` | An unopened chest waits in the inbox | The Central Hall | Point at the reward | Chest waiting |
+| `upgradeReady` | A building can be upgraded right now | That building's plot | Point at something fun to do next | Ready to upgrade |

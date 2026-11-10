@@ -13,6 +13,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lootlog/domain/money.dart';
 import 'package:lootlog/domain/time.dart';
 import 'package:lootlog/game/assets/asset_registry.dart';
 import 'package:lootlog/game/battle/month_end_battle.dart';
@@ -23,11 +24,15 @@ import 'package:lootlog/game/domain/game_event_stamp.dart';
 import 'package:lootlog/game/domain/game_event_store.dart';
 import 'package:lootlog/game/domain/game_projection.dart';
 import 'package:lootlog/game/domain/game_state.dart';
+import 'package:lootlog/game/domain/town/quest_board_view.dart';
+import 'package:lootlog/game/domain/town/town_ledger.dart';
+import 'package:lootlog/game/domain/town/town_tags.dart';
 import 'package:lootlog/game/scenes/town/town_game.dart' show TownsfolkEntry;
 import 'package:lootlog/game/skin_prefs.dart';
 import 'package:lootlog/game/ui/dungeon/dungeon_providers.dart';
 import 'package:lootlog/game/ui/hall_habits.dart';
 import 'package:lootlog/game/ui/hall_ledger_view.dart';
+import 'package:lootlog/game/ui/town/town_ledger_provider.dart';
 import 'package:lootlog/game/ui/town/town_townsfolk.dart';
 
 import '../hall_harness.dart';
@@ -42,6 +47,49 @@ import '../hall_harness.dart';
 /// The decoration catalogue defaults to [DecorCatalog.empty] so the shell
 /// tests never claim a starter set; hand in [catalog] to opt in. [view] and
 /// [service] replace the hall harness's Robin view and command service.
+/// [ledger] is the town's ledger figures (default: [kSampleTownLedger]);
+/// [billsOn] gives the bills due soon as of a day (default: none). [clock]
+/// replaces the harness's fixed clock.
+/// Robin's town ledger: a Canoe goal 40% of the way, one calm and one
+/// enraged monster, $70 in the gold pouch and $1234.56 in the war chest.
+const TownLedger kSampleTownLedger = TownLedger(
+  board: QuestBoardView(
+    goals: [
+      QuestBoardGoal(
+        questId: 'canoe',
+        name: 'Canoe',
+        percent: 40,
+        remaining: Money(78000),
+        target: Money(130000),
+        shared: false,
+      ),
+    ],
+    monsters: [
+      QuestBoardMonster(
+        categoryId: 'groceries',
+        name: 'Groceries',
+        remaining: Money(60000),
+        limit: Money(80000),
+        enraged: false,
+        group: true,
+        colorArgb: 0xFF72B84E,
+      ),
+      QuestBoardMonster(
+        categoryId: 'fun',
+        name: 'Fun',
+        remaining: Money.zero,
+        limit: Money(20000),
+        enraged: true,
+        group: false,
+        colorArgb: 0xFFCF5E53,
+        overspend: Money(1200),
+      ),
+    ],
+  ),
+  goldPouch: Money(7000),
+  warChest: Money(123456),
+);
+
 List<Override> townTestOverrides({
   required AdventureTier tier,
   GameState? game,
@@ -55,6 +103,9 @@ List<Override> townTestOverrides({
   GameCommandsService? service,
   MonthEndBattle? battle,
   HallHabits? habits,
+  TownLedger ledger = kSampleTownLedger,
+  List<TownBill> Function(CalendarDay today)? billsOn,
+  Clock? clock,
 }) {
   final state = game ?? projectGameState(sampleEvents());
   return [
@@ -68,11 +119,15 @@ List<Override> townTestOverrides({
       service: service,
       habits: habits,
       decorCatalog: Future.value(catalog),
+      clock: clock,
     ),
     if (liveStore == null)
       gameStateProvider.overrideWith((ref) => Stream.value(state)),
     townsfolkProvider.overrideWithValue(townsfolk),
     monthEndBattleProvider.overrideWithValue(battle),
+    townLedgerProvider.overrideWith((ref, month) => ledger),
+    townBillsProvider.overrideWith((ref, today) => billsOn?.call(today) ?? const []),
+    townTagLinesProvider.overrideWith((ref) async => TownTagLines.defaults),
   ];
 }
 

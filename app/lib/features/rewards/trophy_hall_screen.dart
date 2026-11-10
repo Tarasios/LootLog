@@ -20,7 +20,11 @@ import '../../game/text_mode/text_widgets.dart';
 import '../../ui/theme.dart';
 
 class TrophyHallScreen extends ConsumerWidget {
-  const TrophyHallScreen({super.key});
+  const TrophyHallScreen({super.key, this.embedded = false});
+
+  /// The hall's body only, with no scaffold or app bar of its own: for a host
+  /// that frames and titles it (the Adventure shell's Trophies tab).
+  final bool embedded;
 
   static Future<void> open(BuildContext context) => Navigator.of(context).push(
         MaterialPageRoute<void>(builder: (_) => const TrophyHallScreen()),
@@ -42,9 +46,7 @@ class TrophyHallScreen extends ConsumerWidget {
     final titles = granted.where((reward) => reward.kind == RewardKind.title).toList();
     final badges = granted.where((reward) => reward.kind == RewardKind.badge).toList();
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Trophy hall')),
-      body: ListView(
+    final body = ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
           if (snapshot != null) _StreaksPanel(snapshot: snapshot),
@@ -73,7 +75,11 @@ class TrophyHallScreen extends ConsumerWidget {
             questNames: questNames,
           ),
         ],
-      ),
+      );
+    if (embedded) return body;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Trophy hall')),
+      body: body,
     );
   }
 }

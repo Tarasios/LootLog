@@ -54,6 +54,9 @@ const _monthAbbr = <String>[
   'Dec',
 ];
 
+/// The abbreviated name of a 1-based [month] (`3 -> "Mar"`).
+String monthAbbreviation(int month) => _monthAbbr[month];
+
 /// A short due-date label for a recurring expense.
 ///
 /// Annual: `"Feb 10"` (month abbreviation + day). Monthly: `"last day of

@@ -166,7 +166,9 @@ class _TotalCard extends StatelessWidget {
             Text(
               signedMoney(netWorth.totalCents),
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: netWorth.totalCents >= 0 ? scheme.primary : scheme.error,
+                    color: netWorth.totalCents >= 0
+                        ? MoneyTones.gainOf(context)
+                        : scheme.error,
                   ),
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -176,7 +178,7 @@ class _TotalCard extends StatelessWidget {
                   child: _Tally(
                     label: 'Assets',
                     value: money(netWorth.assetsCents),
-                    color: scheme.primary,
+                    color: MoneyTones.gainOf(context),
                   ),
                 ),
                 Expanded(
@@ -340,7 +342,7 @@ class _AccountCard extends StatelessWidget {
                   child: CustomPaint(
                     painter: _SparklinePainter(
                       values: [for (final point in points) point.balanceCents],
-                      color: scheme.primary,
+                      color: MoneyTones.gainOf(context),
                     ),
                   ),
                 ),
