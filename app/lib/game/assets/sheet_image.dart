@@ -4,7 +4,9 @@
 ///
 /// Shared by [PackSprite] and the Adventure kit's pixel frames so both follow
 /// the same image-stream pattern: resolve against the local image
-/// configuration, keep one listener, and re-resolve only when the path changes.
+/// configuration, listen to one stream at a time, re-resolve only when the
+/// path changes (dropping the old image at once), and dispose every frame it
+/// is handed once it is replaced.
 library;
 
 import 'dart:ui' as ui;
@@ -34,12 +36,11 @@ class SheetImageBuilder extends StatefulWidget {
 }
 
 class _SheetImageBuilderState extends State<SheetImageBuilder> {
-  ui.Image? _image;
+  /// The latest frame. This state owns it (an image stream hands each
+  /// listener its own handle) and disposes it when it is replaced or dropped.
+  ImageInfo? _imageInfo;
   ImageStream? _stream;
-  late final ImageStreamListener _listener = ImageStreamListener(
-    (info, _) => setState(() => _image = info.image),
-    onError: widget.onError,
-  );
+  ImageStreamListener? _listener;
 
   @override
   void didChangeDependencies() {
@@ -56,23 +57,53 @@ class _SheetImageBuilderState extends State<SheetImageBuilder> {
   void _resolve() {
     final assetPath = widget.assetPath;
     if (assetPath == null) {
-      _stream?.removeListener(_listener);
-      _stream = null;
-      _image = null;
+      _stopListening();
+      _replaceImage(null);
       return;
     }
     final stream = AssetImage(assetPath).resolve(createLocalImageConfiguration(context));
     if (stream.key == _stream?.key) return;
-    _stream?.removeListener(_listener);
-    _stream = stream..addListener(_listener);
+    _stopListening();
+    // A new sheet: never keep drawing the old one while it loads (or fails).
+    _replaceImage(null);
+    final listener = ImageStreamListener(_onImage, onError: widget.onError);
+    _listener = listener;
+    _stream = stream..addListener(listener);
+  }
+
+  void _onImage(ImageInfo info, bool synchronousCall) {
+    if (!mounted) {
+      info.dispose();
+      return;
+    }
+    setState(() => _replaceImage(info));
+  }
+
+  /// Swaps in [info], disposing the old frame after this frame is drawn (the
+  /// frame being built may still paint it).
+  void _replaceImage(ImageInfo? info) {
+    final previous = _imageInfo;
+    _imageInfo = info;
+    if (previous != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => previous.dispose());
+    }
+  }
+
+  void _stopListening() {
+    final listener = _listener;
+    if (listener != null) _stream?.removeListener(listener);
+    _stream = null;
+    _listener = null;
   }
 
   @override
   void dispose() {
-    _stream?.removeListener(_listener);
+    _stopListening();
+    _imageInfo?.dispose();
+    _imageInfo = null;
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => widget.builder(context, _image);
+  Widget build(BuildContext context) => widget.builder(context, _imageInfo?.image);
 }
