@@ -1,7 +1,8 @@
 /// Hosts the [TownGame]: drags pan, pinches and the mouse wheel change the
-/// whole-number zoom, and taps become [TownTarget]s. On first layout the zoom
-/// is the largest whole number that fits the town's height in the window, and
-/// the town's tags float over it as Flutter signs that follow the camera.
+/// whole-number zoom, and taps become [TownTarget]s. On the first layout with
+/// a real height the zoom is the largest whole number that fits the town's
+/// height in the window, and the town's tags float over it as Flutter signs
+/// that follow the camera.
 library;
 
 import 'dart:async';
@@ -87,8 +88,8 @@ class _TownSceneViewState extends State<TownSceneView> {
   );
   int _zoomAtPinchStart = 3;
 
-  /// Whether the zoom has been fitted to the window yet (first layout only,
-  /// so a zoom the player chose survives resizes).
+  /// Whether the zoom has been fitted to the window yet (the first layout
+  /// with a real height only, so a zoom the player chose survives resizes).
   bool _zoomFitted = false;
 
   CameraControls get _camera => _game.cameraControls;
@@ -97,13 +98,22 @@ class _TownSceneViewState extends State<TownSceneView> {
   void _moveCamera(void Function(CameraControls camera) change) =>
       setState(() => change(_camera));
 
+  /// Tells the camera the window's size and, the first time the window has a
+  /// real height, fits the zoom to it. A first layout with no height (a
+  /// window still opening) leaves the zoom unfitted, so the next one fits it.
+  ///
+  /// Runs in [LayoutBuilder]'s layout callback, not in [build]: the size is
+  /// only known there, and the tags placed in the same pass need the camera
+  /// already moved (a post-frame fit would draw one frame at the wrong zoom).
   void _fitViewport(BoxConstraints constraints) {
     _camera.setViewport(constraints.maxWidth, constraints.maxHeight);
     if (_zoomFitted) return;
+    final height = constraints.maxHeight;
+    if (!height.isFinite || height <= 0) return;
     _zoomFitted = true;
     _camera.zoomTo(
       CameraControls.fitZoom(
-        viewportHeight: constraints.maxHeight,
+        viewportHeight: height,
         worldHeight: widget.view.layout.rows * kTileSize,
       ),
     );
