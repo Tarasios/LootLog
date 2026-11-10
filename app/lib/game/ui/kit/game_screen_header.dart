@@ -14,9 +14,6 @@ import 'adventure_tokens.dart';
 import 'buttons.dart';
 import 'panels.dart';
 
-/// Below this width a header with several trailing controls uses two rows.
-const double _kTwoRowBreakpoint = 600;
-
 class GameScreenHeader extends StatelessWidget {
   const GameScreenHeader({
     super.key,
@@ -67,7 +64,7 @@ class GameScreenHeader extends StatelessWidget {
         bottom: false,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final twoRows = trailing.length > 1 && constraints.maxWidth < _kTwoRowBreakpoint;
+            final twoRows = trailing.length > 1 && constraints.maxWidth < AdventureTokens.narrowScreen;
             final titleRow = Row(
               children: [
                 ?leadingControl,

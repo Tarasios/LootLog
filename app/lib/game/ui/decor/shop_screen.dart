@@ -17,15 +17,8 @@ import '../hall_ledger_view.dart';
 import '../kit/kit.dart';
 import 'shop_slot_card.dart';
 
-/// The counter never grows wider than this, so slots stay card-sized.
-const double _kCounterMaxWidth = 960;
-
 /// From this counter width the slots sit three across (else two).
 const double _kThreeAcrossWidth = 600;
-
-/// Below this screen width (a phone) the page margins and the gem chip
-/// tighten, leaving the slots and the ribbon their room.
-const double _kNarrowScreen = 600;
 
 class ShopScreen extends ConsumerWidget {
   const ShopScreen({super.key});
@@ -47,7 +40,7 @@ class ShopScreen extends ConsumerWidget {
     final meId = ref.watch(hallLedgerViewProvider).meId ?? '';
     final gems = game.person(meId).gems;
     final hoursLeft = hoursUntilRestock(hallNow(ref));
-    final narrow = MediaQuery.sizeOf(context).width < _kNarrowScreen;
+    final narrow = MediaQuery.sizeOf(context).width < AdventureTokens.narrowScreen;
     return HallScope(
       child: Scaffold(
         backgroundColor: AdventureTokens.parchmentDark,
@@ -76,7 +69,7 @@ class ShopScreen extends ConsumerWidget {
                 padding: EdgeInsets.all(narrow ? AdventureTokens.gap : AdventureTokens.gapLarge),
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: _kCounterMaxWidth),
+                    constraints: const BoxConstraints(maxWidth: AdventureTokens.counterMaxWidth),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [

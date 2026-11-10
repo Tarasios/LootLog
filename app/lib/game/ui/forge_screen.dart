@@ -66,7 +66,7 @@ class _ForgeScreenState extends ConsumerState<ForgeScreen> {
     final forgeTier = game.hall.completedTier(BuildingType.forge, now);
     final isMe = heroId == view.meId;
     final heroName = hero.cosmetics['name'] ?? view.nameOf(heroId);
-    final compact = MediaQuery.sizeOf(context).width < 600;
+    final compact = MediaQuery.sizeOf(context).width < AdventureTokens.narrowScreen;
 
     return FramedHallScreen(
       title: 'Forge',

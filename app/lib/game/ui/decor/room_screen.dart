@@ -32,9 +32,6 @@ import 'room_board.dart';
 import 'room_text_body.dart';
 import 'wardrobe_sheet.dart';
 
-/// Below this width the room's board runs edge to edge.
-const double _kNarrowScreen = 600;
-
 class RoomScreen extends ConsumerStatefulWidget {
   const RoomScreen({super.key, required this.personId});
 
@@ -189,7 +186,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
         ? const <String, ui.Image>{}
         : ref.watch(goalPictureImagesProvider).unwrapPrevious().value ?? const {};
 
-    final narrow = MediaQuery.sizeOf(context).width < _kNarrowScreen;
+    final narrow = MediaQuery.sizeOf(context).width < AdventureTokens.narrowScreen;
     final editingHint = _picked == null || textTier ? null : 'Tap a free spot to place ${_picked!.name}.';
     return AdventureSpriteScope(
       child: Scaffold(

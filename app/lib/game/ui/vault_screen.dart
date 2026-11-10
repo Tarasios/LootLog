@@ -32,7 +32,7 @@ class VaultScreen extends ConsumerWidget {
     final streakMarks = Balance.savingsStreakGems.keys.toList()..sort();
     final run = view.savingsRunMonths;
     final nextStreak = streakMarks.where((mark) => mark > run).firstOrNull;
-    final compact = MediaQuery.sizeOf(context).width < 600;
+    final compact = MediaQuery.sizeOf(context).width < AdventureTokens.narrowScreen;
     return FramedHallScreen(
       title: 'Vault',
       trailing: [gemsChip(game.person(view.meId ?? '').gems, compact: compact)],

@@ -320,7 +320,7 @@ class _DungeonScreenState extends ConsumerState<DungeonScreen> {
       bosses: _bosses,
       debts: _debts,
       isAdventure: true,
-      compact: MediaQuery.sizeOf(context).width < kDungeonWideBreakpoint,
+      compact: MediaQuery.sizeOf(context).width < AdventureTokens.wideBreakpoint,
       flavourLine: voice.line('weaponReady',
           seed: _seed(weapon.sliceId), fill: {'name': weapon.name, 'amount': money(weapon.valueCents)}),
       onStrike: (choice) => unawaited(_takeTurn(weapon, choice)),

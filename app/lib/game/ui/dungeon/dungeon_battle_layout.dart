@@ -3,7 +3,7 @@
 /// turn (weapon card and targets, or the victory tally) and the adventure
 /// log in an inset well.
 ///
-/// Wide (≥ [kDungeonWideBreakpoint]): party down the left, the floor under
+/// Wide (≥ [AdventureTokens.wideBreakpoint]): party down the left, the floor under
 /// its month ribbon in the middle, the turn on the right, the log across the
 /// bottom. Narrow: a row of compact party frames on top, then the floor, the
 /// turn and the log.
@@ -20,9 +20,6 @@ import '../../scenes/dungeon/dungeon_game.dart';
 import '../kit/kit.dart';
 import 'dungeon_party.dart';
 import 'dungeon_party_frames.dart';
-
-/// Screens at least this wide get the three-column layout.
-const double kDungeonWideBreakpoint = 840;
 
 /// The arrangement of one battle screen; every piece is built by the caller.
 /// The [turn] gets a bounded height and handles its own overflow.
@@ -70,7 +67,7 @@ class DungeonBattleLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(builder: (context, constraints) {
-        final wide = constraints.maxWidth >= kDungeonWideBreakpoint;
+        final wide = constraints.maxWidth >= AdventureTokens.wideBreakpoint;
         return wide ? _wide() : _narrow(constraints);
       });
 

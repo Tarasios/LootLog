@@ -7,10 +7,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/game/ui/kit/adventure_theme.dart';
 import 'package:lootlog/game/ui/kit/adventure_tokens.dart';
+import 'package:lootlog/features/shell/app_shell.dart' show kWideBreakpoint;
 import 'package:lootlog/main.dart';
 import 'package:lootlog/ui/theme.dart';
 
 void main() {
+  test('Adventure switches to its wide layouts where Standard does', () {
+    expect(AdventureTokens.wideBreakpoint, kWideBreakpoint);
+  });
+
   test('headings use the pixel font at crisp sizes; body text keeps the default face', () {
     final textTheme = AdventureTheme.build().textTheme;
     expect(textTheme.titleLarge!.fontFamily, 'LootPixel');

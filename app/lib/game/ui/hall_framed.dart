@@ -13,14 +13,8 @@ import 'package:flutter/material.dart';
 import 'hall_common.dart';
 import 'kit/kit.dart';
 
-/// The widest the framed board gets on a big screen.
-const double _kBoardMaxWidth = 880;
-
 /// Boards at least this wide lay a [FramedGrid] out in two columns.
 const double _kTwoColumnWidth = 640;
-
-/// Below this screen width the board and its padding shrink to leave room.
-const double _kNarrowScreen = 600;
 
 /// Body text on a parchment card: the hall's body style in ink.
 TextStyle framedBodyStyle(BuildContext context, {FontWeight? weight, Color? color}) =>
@@ -65,7 +59,7 @@ class FramedHallScreen extends StatelessWidget {
         body: HallPage(children: children),
       );
     }
-    final narrow = MediaQuery.sizeOf(context).width < _kNarrowScreen;
+    final narrow = MediaQuery.sizeOf(context).width < AdventureTokens.narrowScreen;
     return Scaffold(
       backgroundColor: AdventureTokens.parchmentDark,
       body: DefaultTextStyle.merge(
@@ -78,7 +72,7 @@ class FramedHallScreen extends StatelessWidget {
                 padding: EdgeInsets.all(narrow ? AdventureTokens.gap : AdventureTokens.gapLarge),
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: _kBoardMaxWidth),
+                    constraints: const BoxConstraints(maxWidth: AdventureTokens.boardMaxWidth),
                     child: WoodPanel(
                       key: const ValueKey('hall-board'),
                       padding: const EdgeInsets.all(14),

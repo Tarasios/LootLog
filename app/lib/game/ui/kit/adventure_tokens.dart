@@ -58,6 +58,21 @@ abstract final class AdventureTokens {
   /// The standard spacing between kit elements, and the larger section gap.
   static const double gap = 8, gapLarge = 16;
 
+  /// Windows at least this wide get the side-by-side layouts (the hall's two
+  /// columns, the dungeon's three). The same width as Standard's
+  /// `kWideBreakpoint`, so both modes switch layout together.
+  static const double wideBreakpoint = 840;
+
+  /// Below this screen width (a phone) pages tighten their margins, boards
+  /// run edge to edge, and headers with several controls use two rows.
+  static const double narrowScreen = 600;
+
+  /// The widest a framed board (the hall's screens) gets on a big screen.
+  static const double boardMaxWidth = 880;
+
+  /// The widest the shop counter gets, so its slots stay card-sized.
+  static const double counterMaxWidth = 960;
+
   /// The pixel fonts' native size: the LootPixel family renders crisp only at
   /// whole multiples of this (16, 32, …) and soft in between, so every pixel
   /// text size in the kit is a multiple of it.
