@@ -151,9 +151,12 @@ class _LogPurchaseViewState extends State<LogPurchaseView> {
         SnackBar(content: Text(coverFailedMessage(amountCents))),
       );
       return;
-    } on Object {
-      // The purchase was not written: stay open with the amount kept, so a
-      // tap retries.
+    } on Object catch (error, stack) {
+      // The purchase was not written: report why, then stay open with the
+      // amount kept, so a tap retries.
+      FlutterError.reportError(
+        FlutterErrorDetails(exception: error, stack: stack, library: 'log purchase'),
+      );
       if (mounted) {
         setState(() {
           _committing = false;

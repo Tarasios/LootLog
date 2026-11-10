@@ -287,9 +287,20 @@ void main() {
     await openDialog(tester);
     await typeDigits(tester, oneTwoFive);
 
-    await tester.tap(inDialog(find.text('Groceries')));
-    await settle(tester);
+    // The failure is reported (so it reaches the logs), not swallowed.
+    final reported = <FlutterErrorDetails>[];
+    final previousOnError = FlutterError.onError;
+    FlutterError.onError = reported.add;
+    try {
+      await tester.tap(inDialog(find.text('Groceries')));
+      await settle(tester);
+    } finally {
+      FlutterError.onError = previousOnError;
+    }
 
+    expect(reported, hasLength(1));
+    expect(reported.single.exception, isA<StateError>());
+    expect(reported.single.library, 'log purchase');
     expect(tester.takeException(), isNull);
     expect(find.byType(LogPurchaseDialog), findsOneWidget);
     expect(inDialog(find.text('Couldn’t log that — try again')), findsOneWidget);
