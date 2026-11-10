@@ -14,7 +14,6 @@ void main() {
     'ui.panel.wood.idle',
     'ui.panel.slate.idle',
     'ui.panel.ornate.idle',
-    'ui.panel.inset.idle',
     'ui.banner.ribbon.idle',
     'ui.banner.plain.idle',
     'ui.button.round.idle',

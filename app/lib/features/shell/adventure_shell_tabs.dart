@@ -41,8 +41,8 @@ class AdventureTabStrip extends StatelessWidget {
   final int? selectedTab;
   final ValueChanged<int> onSelectTab;
 
-  /// The phone's bottom strip: labels only, spread across the width, so all
-  /// five tabs fit on a phone.
+  /// The phone's bottom strip: icons spread across the width, with only the
+  /// open pane's tab spelling out its name, so all five tabs fit on a phone.
   final bool compact;
 
   @override
@@ -98,13 +98,18 @@ class _ShellTabButton extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          WoodButton(
-            key: tab.key,
-            label: tab.label,
-            icon: compact ? null : tab.icon,
-            dense: compact,
-            tone: selected ? WoodButtonTone.primary : WoodButtonTone.secondary,
-            onPressed: onPressed,
+          Tooltip(
+            message: tab.label,
+            child: WoodButton(
+              key: tab.key,
+              label: compact && !selected ? '' : tab.label,
+              semanticsLabel: tab.label,
+              icon: tab.icon,
+              dense: compact,
+              tone:
+                  selected ? WoodButtonTone.primary : WoodButtonTone.secondary,
+              onPressed: onPressed,
+            ),
           ),
           const SizedBox(height: 2),
           Container(

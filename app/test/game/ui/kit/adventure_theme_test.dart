@@ -21,14 +21,18 @@ void main() {
     expect(textTheme.titleLarge!.fontFamily, 'LootPixel');
     final pixelStyles = [
       textTheme.headlineLarge, textTheme.headlineMedium, textTheme.headlineSmall,
-      textTheme.titleLarge, textTheme.titleSmall,
-      textTheme.labelLarge, textTheme.labelMedium, textTheme.labelSmall,
+      textTheme.titleLarge,
     ];
     for (final style in pixelStyles) {
       expect(style!.fontFamily, AdventureTokens.pixelFont);
       expect(style.fontSize! % AdventureTokens.pixelFontStep, 0, reason: '$style');
     }
-    for (final style in [textTheme.bodyLarge, textTheme.bodyMedium, textTheme.bodySmall]) {
+    for (final style in [
+      textTheme.bodyLarge, textTheme.bodyMedium, textTheme.bodySmall,
+      // Small amounts and captions are drawn in these.
+      textTheme.titleSmall, textTheme.labelLarge, textTheme.labelMedium,
+      textTheme.labelSmall,
+    ]) {
       expect(style!.fontFamily, isNot(AdventureTokens.pixelFont));
     }
   });

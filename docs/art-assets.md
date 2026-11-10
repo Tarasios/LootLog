@@ -514,7 +514,7 @@ fourth CC0 pack by Kenney: **UI Pack – Pixel Adventure**, the 32 px "Thick
 outline" sheet. It lives in `app/assets/game/packs/ui_pixel_adventure/` (13
 columns × 7 rows of 32 × 32 cells, no spacing, 416 × 224 px) with its
 `License.txt`. Two Kenney pixel fonts ship beside it in `app/assets/fonts/`:
-`LootPixel` (Kenney Pixel) and `LootPixelMono` (Kenney Mini Square).
+`LootPixel` (Kenney Mini) and `LootPixelMono` (Kenney Mini Square).
 
 | Key | Cell | What it looks like |
 |-----|------|--------------------|
@@ -522,7 +522,7 @@ columns × 7 rows of 32 × 32 cells, no spacing, 416 × 224 px) with its
 | `ui.panel.wood.idle` | `[1, 0]` | brown square in a brown frame |
 | `ui.panel.slate.idle` | `[2, 0]` | light blue-grey square in a slate frame |
 | `ui.panel.ornate.idle` | `[4, 1]` | brown square with grey-blue brackets in the four corners |
-| `ui.panel.inset.idle` | `[0, 1]` | plain worn cream square in a brown frame (no grid), for inset wells |
+| `ui.panel.inset.idle` | (none) | not in the pack: inset wells are drawn (cream fill, dark outline) until an artist supplies this key |
 | `ui.banner.ribbon.idle` | `[4, 3, 3, 1]` | red ribbon, 3 cells wide (96 × 32), pins at the top corners |
 | `ui.banner.plain.idle` | `[4, 6, 3, 1]` | flat red banner with a blue-grey fill, 3 cells wide (96 × 32) |
 | `ui.button.round.idle` | `[0, 3]` | round cream button in a brown ring |

@@ -1,13 +1,18 @@
 /// Where each town tag hangs, in world pixels: over the middle of the top
 /// edge of its plot, house, the gate or a statue spot. Goal tags take the
-/// square's statue spots in the order they come. Pure Dart, zero Flutter
-/// imports.
+/// square's statue spots corner to opposite corner, so the first two (wide
+/// signs, only three cells apart on a row) never overlap. Pure Dart, zero
+/// Flutter imports.
 library;
 
 import '../../domain/town/town_layout.dart';
 import '../../domain/town/town_tags.dart';
 import '../../domain/town/town_view.dart';
 import '../camera_controls.dart';
+
+/// The order goal tags take the square's four statue spots in: opposite
+/// corners first.
+const List<int> _statueSpotOrder = [0, 3, 1, 2];
 
 /// A [tag] and the world point its sign's pointer touches.
 class PlacedTownTag {
@@ -26,7 +31,11 @@ class PlacedTownTag {
 /// town (or a goal beyond the statue spots) is left out.
 List<PlacedTownTag> placeTownTags(List<TownTag> tags, TownView view) {
   const footprintWidth = TownLayout.footprint * kTileSize;
-  final statueSpots = view.layout.statueSpots;
+  final layoutSpots = view.layout.statueSpots;
+  final statueSpots = [
+    for (final index in _statueSpotOrder)
+      if (index < layoutSpots.length) layoutSpots[index],
+  ];
   var nextStatue = 0;
   final placed = <PlacedTownTag>[];
 

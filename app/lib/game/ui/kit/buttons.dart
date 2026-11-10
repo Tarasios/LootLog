@@ -173,7 +173,10 @@ class WoodButton extends StatelessWidget {
       semanticsLabel: semanticsLabel,
       builder: (context, pressed) => ConstrainedBox(
         constraints: BoxConstraints(
-          minWidth: _kWoodButtonMinimum.width,
+          // A dense button may be as narrow as it is tall (an icon tab).
+          minWidth: dense
+              ? _kWoodButtonMinimum.height
+              : _kWoodButtonMinimum.width,
           minHeight: _kWoodButtonMinimum.height,
         ),
         child: PixelFrame(
@@ -284,7 +287,7 @@ class HudButton extends StatelessWidget {
               fallbackBorder: AdventureTokens.woodDark,
               padding: large
                   ? const EdgeInsets.symmetric(horizontal: 16, vertical: 10)
-                  : const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  : const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
               child: Center(
                 widthFactor: 1,
                 heightFactor: 1,

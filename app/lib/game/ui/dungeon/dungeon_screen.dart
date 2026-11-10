@@ -248,8 +248,11 @@ class _DungeonScreenState extends ConsumerState<DungeonScreen> {
     return AdventureSpriteScope(
       child: Scaffold(
         backgroundColor: kDungeonStone,
-        appBar: AppBar(title: const Text('The dungeon')),
-        body: switch ((battle, _stage)) {
+        body: Column(
+          children: [
+            const GameScreenHeader(title: 'The dungeon'),
+            Expanded(
+              child: switch ((battle, _stage)) {
           (null, _) when returnMonth != null => SpoilsReturnPanel(
               headline: voice.line('nothingToDivide',
                   seed: '${returnMonth.toKey()}:return',
@@ -282,7 +285,10 @@ class _DungeonScreenState extends ConsumerState<DungeonScreen> {
                 ..._log,
               ],
             ),
-        },
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

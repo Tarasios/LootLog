@@ -79,10 +79,13 @@ class InsetWell extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
 
+  // The bundled pack has no clean recessed cell (its worn parchment
+  // stretches into stray notches), so the well is drawn unless an artist
+  // supplies `ui.panel.inset.idle`.
   @override
   Widget build(BuildContext context) => PixelFrame(
         assetKey: KitKeys.inset,
-        fallbackFill: AdventureTokens.parchmentDark,
+        fallbackFill: AdventureTokens.parchment,
         fallbackBorder: AdventureTokens.woodDark,
         padding: padding ?? _kPanelPadding,
         child: child,
