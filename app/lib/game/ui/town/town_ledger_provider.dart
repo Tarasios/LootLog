@@ -1,5 +1,6 @@
 /// Riverpod wiring for the town's ledger figures ([TownLedger]): the quest
-/// board, gold pouch and war chest, and the bills due soon as of a given day,
+/// board, gold pouch and war chest as of a given month, and the bills due
+/// soon as of a given day,
 /// read from the household state for this device's adult under this device's
 /// visibility preference; and the wording of the town's tags.
 library;
@@ -20,8 +21,11 @@ import '../../domain/town/town_tags.dart';
 /// The writers' file of tag wording.
 const String kTownTagsAsset = 'assets/game/text/town_tags.json';
 
-/// The town's ledger figures; [TownLedger.empty] until the household loads.
-final townLedgerProvider = Provider<TownLedger>((ref) {
+/// The town's ledger figures in [month] (a household month);
+/// [TownLedger.empty] until the household loads. The town reads it with the
+/// month from its ticker, so the quest board moves on to a new month's
+/// budgets when the calendar does, not only when the ledger changes.
+final townLedgerProvider = Provider.autoDispose.family<TownLedger, Month>((ref, month) {
   final household = ref.watch(householdStateProvider).value;
   final meId = ref.watch(meUserIdProvider);
   if (household == null || meId == null) return TownLedger.empty;
@@ -30,6 +34,7 @@ final townLedgerProvider = Provider<TownLedger>((ref) {
     meId: meId,
     names: ref.watch(userNamesProvider),
     showOtherAdults: ref.watch(showHouseholdBudgetsProvider),
+    // The clock's instant is in [month]: the ticker read the month from it.
     now: ref.watch(gameClockProvider).now(),
   );
 });

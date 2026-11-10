@@ -9,6 +9,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../domain/time.dart' show Month;
 import '../../../features/menu/manage_screen.dart';
 import '../../../features/rewards/trophy_hall_screen.dart';
 import '../../../features/settings/play_mode.dart';
@@ -154,7 +155,6 @@ class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<Town
     final clock = ref.watch(gameClockProvider);
     final battle = ref.watch(monthEndBattleProvider);
     final voice = ref.watch(hallVoiceProvider).value ?? HallVoice.empty;
-    final ledger = ref.watch(townLedgerProvider);
     final tagLines = ref.watch(townTagLinesProvider).value ?? TownTagLines.defaults;
     final scatter = _scatterFor(ledgerView.adults.map((adult) => adult.memberId));
     final me = game.person(ledgerView.meId ?? '');
@@ -162,10 +162,12 @@ class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<Town
     return AdventureSpriteScope(
       child: HallTicker(
         // A Consumer under the ticker, so what depends on the date (the bill
-        // countdowns) is read again on every tick, not only on ledger changes.
+        // countdowns, the quest board's month) is read again on every tick,
+        // not only on ledger changes.
         builder: (context) => Consumer(builder: (context, tickRef, _) {
           final now = clock.now();
           final today = GameDay.fromInstant(now);
+          final ledger = tickRef.watch(townLedgerProvider(Month.fromInstant(now)));
           // The gate opens while leftovers wait to be divided, and also for
           // a finished month whose spoils chest has not come home yet (the
           // chest never depends on there being leftovers).

@@ -125,7 +125,7 @@ List<Override> townTestOverrides({
       gameStateProvider.overrideWith((ref) => Stream.value(state)),
     townsfolkProvider.overrideWithValue(townsfolk),
     monthEndBattleProvider.overrideWithValue(battle),
-    townLedgerProvider.overrideWithValue(ledger),
+    townLedgerProvider.overrideWith((ref, month) => ledger),
     townBillsProvider.overrideWith((ref, today) => billsOn?.call(today) ?? const []),
     townTagLinesProvider.overrideWith((ref) async => TownTagLines.defaults),
   ];

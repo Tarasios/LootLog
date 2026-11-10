@@ -10,7 +10,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../domain/time.dart';
+import '../../data/game_providers.dart';
 import '../decor/goal_pictures.dart';
+import '../hall_common.dart' show HallTicker;
 import 'quest_board.dart';
 import 'quest_board_prefs.dart';
 import 'town_ledger_provider.dart';
@@ -88,7 +91,8 @@ class TownHomeLayout extends ConsumerWidget {
 }
 
 /// The quest board over the live ledger figures and goal pictures, so a
-/// docked board or an open sheet updates as purchases land.
+/// docked board or an open sheet updates as purchases land, and moves on to
+/// a new month's budgets when the calendar does (read on every tick).
 class LiveQuestBoard extends ConsumerWidget {
   const LiveQuestBoard({
     super.key,
@@ -102,11 +106,18 @@ class LiveQuestBoard extends ConsumerWidget {
   final VoidCallback? onCollapse;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => QuestBoard(
-    board: ref.watch(townLedgerProvider).board,
-    goalPictures: ref.watch(goalPictureImagesProvider).unwrapPrevious().value ?? const {},
-    onOpenGoals: onOpenGoals,
-    onOpenLedger: onOpenLedger,
-    onCollapse: onCollapse,
+  Widget build(BuildContext context, WidgetRef ref) => HallTicker(
+    builder: (context) => Consumer(
+      builder: (context, tickRef, _) {
+        final month = Month.fromInstant(tickRef.watch(gameClockProvider).now());
+        return QuestBoard(
+          board: tickRef.watch(townLedgerProvider(month)).board,
+          goalPictures: tickRef.watch(goalPictureImagesProvider).unwrapPrevious().value ?? const {},
+          onOpenGoals: onOpenGoals,
+          onOpenLedger: onOpenLedger,
+          onCollapse: onCollapse,
+        );
+      },
+    ),
   );
 }
