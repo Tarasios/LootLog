@@ -87,7 +87,7 @@ class _SpendBarChart extends StatelessWidget {
                 BarChartRodData(
                   toY: point.cents.toDouble(),
                   width: 5,
-                  color: scheme.primary,
+                  color: MoneyTones.neutralOf(context),
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(2),
                   ),

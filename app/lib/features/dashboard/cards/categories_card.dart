@@ -57,10 +57,11 @@ class _CategoryTile extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final brightness = Theme.of(context).brightness;
     // A category without a main category falls back to a semantic role so the
-    // tile still reads as one of the coloured set.
+    // tile still reads as one of the coloured set. Mine takes the gain tone
+    // (Standard's primary), never a red that would read as overspending.
     final fallback = ring.isGroup
         ? scheme.tertiary
-        : (ring.mine ? scheme.primary : scheme.secondary);
+        : (ring.mine ? MoneyTones.gainOf(context) : scheme.secondary);
     final colors = categoryColorsFor(
       ring.mainCategoryColorArgb,
       brightness,

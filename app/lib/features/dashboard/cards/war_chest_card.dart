@@ -25,7 +25,7 @@ class _WarChestCard extends StatelessWidget {
           if (card.hasGoal) ...[
             _ProportionBar(
               fraction: (card.pctComplete ?? 0).clamp(0.0, 1.0),
-              fill: scheme.primary,
+              fill: MoneyTones.gainOf(context),
               track: scheme.surfaceContainerHighest,
               height: 8,
             ),

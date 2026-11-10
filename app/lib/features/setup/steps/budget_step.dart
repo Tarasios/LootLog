@@ -124,7 +124,7 @@ class _BudgetStep extends StatelessWidget {
     final alloc = controller.allocationFor(adult.localId);
     final left = alloc.unallocatedCents;
     final color = left == 0
-        ? scheme.primary
+        ? MoneyTones.gainOf(context)
         : (left < 0 ? scheme.error : scheme.onSurfaceVariant);
     return Card(
       margin: const EdgeInsets.symmetric(vertical: AppSpacing.sm),

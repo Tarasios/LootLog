@@ -205,7 +205,7 @@ class _VacationCard extends ConsumerWidget {
                 child: Text(
                   dailyAllowanceLabel(trip),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: scheme.primary,
+                        color: MoneyTones.gainOf(context),
                         fontWeight: FontWeight.w600,
                       ),
                 ),
@@ -264,7 +264,7 @@ class _CategoryRing extends StatelessWidget {
         children: [
           ProgressRing(
             fraction: fraction,
-            color: scheme.primary,
+            color: MoneyTones.gainOf(context),
             trackColor: scheme.surfaceContainerHighest,
             overColor: scheme.error,
             overspent: current.overspent,

@@ -33,6 +33,32 @@ void main() {
     }
   });
 
+  testWidgets('Standard neutral amounts stay the primary colour; Adventure '
+      'draws them in wood, not the ribbon red', (tester) async {
+    for (final theme in [AppTheme.light(), AppTheme.dark()]) {
+      late Color neutral;
+      await tester.pumpWidget(Theme(
+        data: theme,
+        child: Builder(builder: (context) {
+          neutral = MoneyTones.neutralOf(context);
+          return const SizedBox.shrink();
+        }),
+      ));
+      expect(neutral, theme.colorScheme.primary);
+    }
+    final adventure = AdventureTheme.build();
+    late Color adventureNeutral;
+    await tester.pumpWidget(Theme(
+      data: adventure,
+      child: Builder(builder: (context) {
+        adventureNeutral = MoneyTones.neutralOf(context);
+        return const SizedBox.shrink();
+      }),
+    ));
+    expect(adventureNeutral, AdventureTokens.wood);
+    expect(adventureNeutral, isNot(adventure.colorScheme.primary));
+  });
+
   testWidgets('Adventure gains are green, not the ribbon-red primary', (
     tester,
   ) async {
