@@ -20,7 +20,6 @@
     "town.fence.default.idle": [9, 6],
     "town.gate.dungeon.idle": [3, 9, 2, 2],
     "town.wagon.default.idle": [9, 4],
-    "town.scaffold.default.idle": [8, 3, 2, 2],
     "town_decor.flowerbed.default.idle": [2, 0],
     "town_decor.lamp_post.default.idle": [9, 7],
     "town_decor.bench.default.idle": [10, 8],

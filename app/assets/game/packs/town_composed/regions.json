@@ -345,8 +345,14 @@
       2,
       2
     ],
-    "town.plot.empty.idle": [
+    "town.scaffold.default.idle": [
       10,
+      2,
+      2,
+      2
+    ],
+    "town.plot.empty.idle": [
+      12,
       2,
       2,
       2

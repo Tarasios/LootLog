@@ -115,6 +115,14 @@ img.Image _lockedPlot() {
   return plot;
 }
 
+/// A plot being built on: the fenced lot with a hammer at work. Drawn over
+/// the building, which shows through the middle.
+img.Image _buildingSite() {
+  final site = _ring((8, 3));
+  _draw(site, _cell(_hammer), 8, 8);
+  return site;
+}
+
 /// The Arcane Well: Tiny Town's two-tile well, centred.
 img.Image _well() {
   final well = img.Image(width: _tile * 2, height: _tile * 2, numChannels: 4);
@@ -145,6 +153,7 @@ void main() {
     'building.arcane_well': _well(),
     'town.house.default.idle': _building(_house),
     'town.plot.locked.idle': _lockedPlot(),
+    'town.scaffold.default.idle': _buildingSite(),
     'town.plot.empty.idle': _ring((0, 1)),
   };
 

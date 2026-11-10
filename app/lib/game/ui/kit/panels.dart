@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import 'adventure_tokens.dart';
 import 'pixel_frame.dart';
@@ -120,17 +121,60 @@ class RibbonTitle extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(capWidth * 0.625, 4, capWidth * 0.625, 0),
             child: Center(
               widthFactor: 1,
-              child: Text(
-                text,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: AdventureTokens.title(context),
+              child: _BannerSag(
+                child: Text(
+                  text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: AdventureTokens.title(context),
+                ),
               ),
             ),
           ),
         ),
       ),
     );
+  }
+}
+
+/// Draws its child sagging like cloth: the middle sits where it was laid out
+/// and the ends lift by up to [_lift] pixels, in whole-pixel steps, so the
+/// lettering reads as painted on the hanging ribbon rather than laid over it.
+class _BannerSag extends SingleChildRenderObjectWidget {
+  const _BannerSag({required super.child});
+
+  @override
+  RenderObject createRenderObject(BuildContext context) => _RenderBannerSag();
+}
+
+class _RenderBannerSag extends RenderProxyBox {
+  /// How far the ends lift, and the width of each whole-pixel step.
+  static const double _lift = 4;
+  static const double _stripWidth = 2;
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final child = this.child;
+    if (child == null) return;
+    final width = size.width;
+    if (width <= 0) return;
+    final canvas = context.canvas;
+    for (var left = 0.0; left < width; left += _stripWidth) {
+      // -1 at the left end, 0 in the middle, 1 at the right end.
+      final across = (left + _stripWidth / 2) / width * 2 - 1;
+      final rise = (_lift * across * across).roundToDouble();
+      canvas.save();
+      canvas.clipRect(
+        Rect.fromLTWH(
+          offset.dx + left,
+          offset.dy - _lift,
+          _stripWidth,
+          size.height + _lift,
+        ),
+      );
+      context.paintChild(child, offset.translate(0, -rise));
+      canvas.restore();
+    }
   }
 }

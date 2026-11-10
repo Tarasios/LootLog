@@ -184,14 +184,19 @@ class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<Town
             dungeonOpen: dungeonOpen,
             goalPictures: goalPictureShas,
           );
-          final tags = townTags(
-            view: townView,
-            board: ledger.board,
-            leftoversToDivide: battle?.weapons.length ?? 0,
-            upcomingBills: tickRef.watch(townBillsProvider(today)),
-            unopenedChests: me.unopenedChests.length,
-            lines: tagLines,
-          );
+          // Goals in progress live on the quest board, not as signs in the
+          // square (the square keeps the statues of goals already won).
+          final tags = [
+            for (final tag in townTags(
+              view: townView,
+              board: ledger.board,
+              leftoversToDivide: battle?.weapons.length ?? 0,
+              upcomingBills: tickRef.watch(townBillsProvider(today)),
+              unopenedChests: me.unopenedChests.length,
+              lines: tagLines,
+            ))
+              if (tag.anchor is! StatueAnchor) tag,
+          ];
           final scene = registryLoad.isLoading && !registryLoad.hasValue
               // The scene reads its art once, so wait for the registry.
               ? const ColoredBox(color: TownGame.forestColour)
