@@ -178,6 +178,12 @@
     "giftToSelf": "Gifts travel to a neighbouring town. Your own stores are already yours.",
     "notANeighbour": "That road doesn't lead to a town yet.",
     "emptyGift": "Choose something to send first.",
-    "neighbourStorehouseFull": "Their Storehouse is full right now. Try again once they have room."
+    "neighbourStorehouseFull": "Their Storehouse is full right now. Try again once they have room.",
+    "unknownDistrict": "That district isn't on the map yet.",
+    "districtAlreadyOwned": "That district is already part of your town.",
+    "townTierTooLow": "That district opens as the town grows. Keep logging and it will come.",
+    "districtNotOpenYet": "That district is still being surveyed. It opens in a later season.",
+    "districtNotOwned": "Buy the farmland first, then the fields are yours to plant.",
+    "granaryFull": "The granary is full. Build or raise a granary to store more food."
   }
 }

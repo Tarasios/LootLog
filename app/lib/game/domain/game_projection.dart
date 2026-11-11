@@ -21,6 +21,8 @@ import 'game_event.dart';
 import 'game_state.dart';
 import 'game_values.dart';
 import 'reason_codes.dart';
+import 'town/districts.dart';
+import 'town/food.dart';
 import 'town/gifts.dart';
 import 'town/town_ownership.dart';
 
@@ -465,6 +467,51 @@ void _apply(_GameStateDraft draft, GameEvent event) {
       if (person.tiersReached.containsKey(reached.tier)) return;
       draft.put(person.copyWith(
           tiersReached: _put(person.tiersReached, reached.tier, reached.occurredAt)));
+
+    case DistrictPurchased purchase:
+      final town = draft.town(actor);
+      final outcome = applyDistrictPurchase(town, purchase);
+      final districts = outcome.districts;
+      if (districts == null) {
+        draft.warn(outcome.warning!, purchase.districtId);
+        return;
+      }
+      draft.setTown(actor, town.copyWith(districts: districts));
+      draft.pay(actor, purchase.cost);
+
+    case DistrictBuildingStarted started:
+      final town = draft.town(actor);
+      final outcome = applyDistrictBuilding(town, started);
+      final districts = outcome.districts;
+      if (districts == null) {
+        draft.warn(outcome.warning!,
+            '${started.buildingKey} tier ${started.tier} on ${started.districtId} ${started.plotIndex}');
+        return;
+      }
+      draft.setTown(actor, town.copyWith(districts: districts));
+      draft.pay(actor, started.cost);
+
+    case FoodHarvested harvest:
+      final town = draft.town(actor);
+      final address = PlotAddress(harvest.districtId, harvest.plotIndex);
+      final type = town.districts.buildingAt(address)?.farmType;
+      if (type == null || !Balance.farmBuildings[type]!.growsFood) {
+        // Credited nowhere: no farm of the actor's own grew it.
+        draft.warn(GameWarningCode.unknownBuilding, address.buildingId);
+        return;
+      }
+      final banked = harvestInto(town.food,
+          address: address,
+          amount: harvest.amount,
+          capacity: foodCapacityAt(town, harvest.occurredAt),
+          at: harvest.occurredAt);
+      if (banked.capped) draft.warn(GameWarningCode.foodCapped, address.buildingId);
+      draft.setTown(actor, town.copyWith(food: banked.food));
+
+    case FoodConsumed eaten:
+      final town = draft.town(actor);
+      draft.setTown(actor,
+          town.copyWith(food: eatFrom(town.food, day: eaten.day, amount: eaten.amount)));
 
     case UnknownGameEvent _:
       return;

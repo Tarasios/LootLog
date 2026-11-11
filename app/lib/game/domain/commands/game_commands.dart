@@ -30,6 +30,8 @@ import '../game_state.dart';
 import '../game_values.dart';
 import '../hall_rules.dart';
 import '../reason_codes.dart';
+import '../town/districts.dart';
+import '../town/farmland.dart';
 import '../town/gifts.dart';
 
 /// Why a command was refused. The UI maps each to friendly copy.
@@ -187,6 +189,24 @@ enum GameRejection {
 
   /// The neighbour's Storehouse has no room for any of it.
   neighbourStorehouseFull,
+
+  /// No district has that id.
+  unknownDistrict,
+
+  /// The town already owns that district (the outpost from the start).
+  districtAlreadyOwned,
+
+  /// The district opens at a higher town tier.
+  townTierTooLow,
+
+  /// The district is listed but not for sale yet.
+  districtNotOpenYet,
+
+  /// The town has not bought that district.
+  districtNotOwned,
+
+  /// The granary has no room for any of the harvest.
+  granaryFull,
 }
 
 /// What a command decided: the events to append, or why not.
@@ -340,6 +360,71 @@ class GameCommands {
     if (fits.isEmpty) return _reject(GameRejection.storehouseFull);
     return _accept([_collected(plot.buildingId, fits)]);
   }
+
+  // ---- Districts and farms ---------------------------------------------------
+
+  /// Buys district [districtId] for the actor's town (`town/farmland.dart`).
+  GameCommandResult buyDistrict(String districtId) {
+    final plan = planBuyDistrict(state, actorId, districtId);
+    final rejection = plan.rejection;
+    if (rejection != null) return _reject(rejection);
+    return _accept([
+      DistrictPurchased(
+        eventId: stamp.newEventId(),
+        deviceId: stamp.deviceId,
+        actorId: actorId,
+        occurredAt: _now,
+        createdAt: _now,
+        districtId: districtId,
+        cost: plan.cost,
+      ),
+    ]);
+  }
+
+  /// Builds [type] on an empty farmland plot (tier 1) or upgrades the [type]
+  /// standing there by one tier; an upgrade of a farm first banks the food
+  /// it grew, since the upgrade restarts its growing window.
+  GameCommandResult startFarmBuilding(int plotIndex, FarmBuildingType type) {
+    final plan = planFarmBuilding(state, actorId, plotIndex, type, _now);
+    final rejection = plan.rejection;
+    if (rejection != null) return _reject(rejection);
+    return _accept([
+      if (plan.bank > 0) _harvested(plotIndex, plan.bank),
+      DistrictBuildingStarted(
+        eventId: stamp.newEventId(),
+        deviceId: stamp.deviceId,
+        actorId: actorId,
+        occurredAt: _now,
+        createdAt: _now,
+        districtId: kFarmlandDistrictId,
+        plotIndex: plotIndex,
+        buildingKey: type.name,
+        tier: plan.tier,
+        cost: plan.cost,
+        completesAt: _now.add(Balance.buildTimeByTier[plan.tier - 1]),
+      ),
+    ]);
+  }
+
+  /// Harvests the food the farm on farmland plot [plotIndex] grew since its
+  /// last harvest (working shift per day), trimmed to the granary's room.
+  GameCommandResult harvestFood(int plotIndex) {
+    final plan = planHarvest(state, actorId, plotIndex, _now);
+    final rejection = plan.rejection;
+    if (rejection != null) return _reject(rejection);
+    return _accept([_harvested(plotIndex, plan.amount)]);
+  }
+
+  FoodHarvested _harvested(int plotIndex, int amount) => FoodHarvested(
+        eventId: stamp.newEventId(),
+        deviceId: stamp.deviceId,
+        actorId: actorId,
+        occurredAt: _now,
+        createdAt: _now,
+        districtId: kFarmlandDistrictId,
+        plotIndex: plotIndex,
+        amount: amount,
+      );
 
   // ---- Chests and rewards ---------------------------------------------------
 

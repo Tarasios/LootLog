@@ -15,6 +15,8 @@ import 'decor/decor_state.dart';
 import 'game_event.dart';
 import 'game_projection.dart';
 import 'game_values.dart';
+import 'town/districts.dart';
+import 'town/food.dart';
 import 'town/town_ownership.dart';
 
 /// Why the projection recorded a [GameWarning]. Warnings never block: the
@@ -93,6 +95,20 @@ enum GameWarningCode {
   /// A gift to oneself, to someone not an Adventure neighbour at the time,
   /// or sent before the towns were split; nothing moved.
   giftIgnored,
+
+  /// A district, or a district building, this build does not know (or a
+  /// teaser not yet for sale); set aside, nothing charged.
+  unknownDistrict,
+
+  /// A district bought again (typically two devices at once); charged once.
+  duplicateDistrict,
+
+  /// A district building on a district the town does not own; ignored.
+  districtNotOwned,
+
+  /// A harvest that would overflow the granary; the excess stayed in the
+  /// field.
+  foodCapped,
 }
 
 /// One recorded inconsistency, tied to the event that caused it.
@@ -179,6 +195,8 @@ class HallState {
     required this.plots,
     required this.materials,
     required this.lastCollectedAt,
+    this.districts = TownDistricts.none,
+    this.food = FoodStore.empty,
   });
 
   /// A brand-new town: the starting plots unlocked and empty, nothing
@@ -199,6 +217,13 @@ class HallState {
 
   /// The last collection instant per building id.
   final Map<String, DateTime> lastCollectedAt;
+
+  /// The districts bought beyond the outpost and their buildings (the
+  /// outpost's are [plots]).
+  final TownDistricts districts;
+
+  /// The town's food stores.
+  final FoodStore food;
 
   /// The plot holding a building of [type] (lowest index), or null.
   PlotState? plotOf(BuildingType type) {
@@ -221,11 +246,15 @@ class HallState {
     Map<int, PlotState>? plots,
     MaterialBundle? materials,
     Map<String, DateTime>? lastCollectedAt,
+    TownDistricts? districts,
+    FoodStore? food,
   }) =>
       HallState(
         plots: plots ?? this.plots,
         materials: materials ?? this.materials,
         lastCollectedAt: lastCollectedAt ?? this.lastCollectedAt,
+        districts: districts ?? this.districts,
+        food: food ?? this.food,
       );
 
   @override
@@ -233,7 +262,9 @@ class HallState {
       other is HallState &&
       _mapsEqual(other.plots, plots) &&
       other.materials == materials &&
-      _mapsEqual(other.lastCollectedAt, lastCollectedAt);
+      _mapsEqual(other.lastCollectedAt, lastCollectedAt) &&
+      other.districts == districts &&
+      other.food == food;
 
   @override
   int get hashCode => Object.hash(plots.length, materials);

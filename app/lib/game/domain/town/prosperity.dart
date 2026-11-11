@@ -17,7 +17,9 @@ import '../game_values.dart';
 
 /// [town]'s prosperity at [at]:
 /// - [Balance.prosperityPerBuildingTier] for every completed building tier
-///   (an upgrade under way counts its previous tier),
+///   in every district (an upgrade under way counts its previous tier),
+/// - [Balance.prosperityPerDistrict] for each district bought beyond the
+///   outpost,
 /// - [Balance.prosperityPerDecoration] for each town decoration on display,
 ///   up to [Balance.prosperityDecorationCap] of them,
 /// - [Balance.prosperityPerFestival] for every weekend festival held.
@@ -27,13 +29,14 @@ int townProsperity(
   required int festivalsHeld,
   required DateTime at,
 }) {
-  var buildingTiers = 0;
+  var buildingTiers = town.districts.completedTiersAt(at);
   for (final plot in town.plots.values) {
     final building = plot.building;
     if (building != null) buildingTiers += building.tierAt(at);
   }
   final decorations = townDecorationsPlaced.clamp(0, Balance.prosperityDecorationCap);
   return buildingTiers * Balance.prosperityPerBuildingTier +
+      town.districts.purchased.length * Balance.prosperityPerDistrict +
       decorations * Balance.prosperityPerDecoration +
       festivalsHeld * Balance.prosperityPerFestival;
 }

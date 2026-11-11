@@ -24,7 +24,8 @@
 /// into one town per Adventure adult (`town/town_ownership.dart`).
 ///
 /// Every run also grows each Adventure adult's town (`town/prosperity.dart`):
-/// a new peak prosperity, the tiers it opens and their rewards.
+/// a new peak prosperity, the tiers it opens and their rewards, and the food
+/// its residents ate on each day since the last run (`town/food.dart`).
 ///
 /// Pure Dart, zero Flutter imports.
 library;
@@ -40,6 +41,7 @@ import '../game_values.dart';
 import '../reason_codes.dart';
 import '../town/daily_event.dart';
 import '../town/festival.dart';
+import '../town/food.dart';
 import '../town/prosperity.dart';
 import '../town/town_ownership.dart';
 import '../town/trade_road.dart';
@@ -174,7 +176,7 @@ class RewardEngine {
     run.jointFestivals(oldest);
     run.tradeRoads(oldest);
     for (final adult in party.adventurers) {
-      run.townGrowth(adult.memberId);
+      run.townGrowth(adult.memberId, oldest);
     }
 
     run.out.addAll(monthEnd.evaluate(ledger, gameState, clock,
@@ -479,12 +481,14 @@ class _Run {
   /// [who]'s town growth: a new peak prosperity when the town's prosperity
   /// rose past the stored one (topping it up, never locking a stale value
   /// in), then every tier that peak opens and a reward for each tier
-  /// reached that was not granted yet. Tiers past the hamlet wait for food.
-  void townGrowth(String who) {
+  /// reached that was not granted yet. Tiers past the hamlet wait for food
+  /// in store. Then the residents eat each finished day still due.
+  void townGrowth(String who, GameDay oldest) {
     final personState = state.person(who);
     final record = person(who);
+    final town = townOf(who);
     final prosperity = townProsperity(
-      townOf(who),
+      town,
       townDecorationsPlaced: state.decor.townPlacements.length,
       festivalsHeld: record.festivalTiers.length,
       at: now,
@@ -505,8 +509,7 @@ class _Run {
     for (final reached in tiersDue(
       current: tier,
       peak: peak,
-      // Food arrives with the farmland; until then the village waits.
-      foodSecureFrom: (_) => false,
+      foodSecureFrom: (from) => foodSecure(town, from),
     )) {
       tier = reached;
       out.add(TierReached(
@@ -527,6 +530,22 @@ class _Run {
           materials: loot.materials,
           tokens: loot.tokens,
           reasonCode: GameReasonCodes.townTier);
+    }
+    for (final meal in foodConsumptionDue(
+      food: town.food,
+      tierOn: personState.tierOn,
+      oldest: oldest,
+      today: today,
+    )) {
+      out.add(FoodConsumed(
+        eventId: stamp.newEventId(),
+        deviceId: stamp.deviceId,
+        actorId: who,
+        occurredAt: now,
+        createdAt: now,
+        day: meal.day,
+        amount: meal.amount,
+      ));
     }
   }
 

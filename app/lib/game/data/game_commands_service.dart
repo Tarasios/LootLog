@@ -137,6 +137,21 @@ class GameCommandsService {
   Future<GameCommandResult> collectMaterials(int plotIndex) =>
       run((c) => c.collectMaterials(plotIndex));
 
+  // ---- Districts and farms -------------------------------------------------
+
+  /// Buys district [districtId] for this device's adult's town.
+  Future<GameCommandResult> buyDistrict(String districtId) =>
+      run((commands) => commands.buyDistrict(districtId));
+
+  /// Builds [type] on farmland plot [plotIndex], or upgrades the [type]
+  /// standing there.
+  Future<GameCommandResult> startFarmBuilding(int plotIndex, FarmBuildingType type) =>
+      run((commands) => commands.startFarmBuilding(plotIndex, type));
+
+  /// Harvests a farm's food into the town's stores.
+  Future<GameCommandResult> harvestFood(int plotIndex) =>
+      run((commands) => commands.harvestFood(plotIndex));
+
   // ---- Chests and rewards ----------------------------------------------------
 
   /// Opens a waiting chest; the [ChestOpened] event holds what it rolled.

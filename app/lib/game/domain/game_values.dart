@@ -178,6 +178,12 @@ enum FestivalTier { marketDay, fair, grandFestival }
 /// back. Only `TierReached`, a type older builds do not know, carries it.
 enum TownTier { outpost, hamlet, village, town, city }
 
+/// The buildings of the farmland district (`town/districts.dart`). They are
+/// built through `DistrictBuildingStarted`, which names them by key, never
+/// through `BuildingStarted`: an older build parses [BuildingType] strictly
+/// there, so a new value would hide the whole event from it.
+enum FarmBuildingType { farm, orchard, granary }
+
 /// The month-end spoils ritual steps that precede the seasonal boss fight.
 enum RitualStep { reconcile, review, plan, contribute }
 

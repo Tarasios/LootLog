@@ -406,7 +406,7 @@ abstract final class Balance {
   static const Map<TownTier, int> tierProsperity = {
     TownTier.outpost: 0,
     TownTier.hamlet: 80,
-    TownTier.village: 380,
+    TownTier.village: 450,
     TownTier.town: 1500,
     TownTier.city: 4000,
   };
@@ -436,6 +436,80 @@ abstract final class Balance {
 
   static int dailyGemCapFor(TownTier tier) =>
       dailyGemCapByTier[tier] ?? dailyGemCap;
+
+  // ---- Districts, farms and food ---------------------------------------------
+
+  /// The farmland district (opens at the hamlet): a few days of gems after
+  /// the hamlet's own reward, and stores a tier-2 Storehouse-less town can
+  /// hold, so it is affordable shortly after the hamlet.
+  static const int farmlandGemPrice = 40;
+  static const Map<MaterialKind, int> farmlandMaterialPrice = {
+    MaterialKind.lumber: 120,
+    MaterialKind.stone: 80,
+  };
+  static const int farmlandPlotCount = 6;
+
+  /// The farmland's buildings. Farms are cheap and steady; orchards grow
+  /// more for herbs; the granary grows nothing and stores more food. Tiers
+  /// cost like hall buildings ([buildingCostMultiplierByTier],
+  /// [buildingGemCostByTier]) and take [buildTimeByTier].
+  static final Map<FarmBuildingType, FarmBuildingSpec> farmBuildings = {
+    FarmBuildingType.farm: FarmBuildingSpec(
+      upgradeBase: _m(lumber: 20, stone: 10),
+      foodPerHour: const [2, 4, 6, 9, 12],
+    ),
+    FarmBuildingType.orchard: FarmBuildingSpec(
+      upgradeBase: _m(lumber: 25, herbs: 10),
+      foodPerHour: const [3, 5, 8, 11, 15],
+    ),
+    FarmBuildingType.granary: FarmBuildingSpec(
+      upgradeBase: _m(lumber: 30, stone: 30),
+    ),
+  };
+
+  /// What farmland building [type] to [tier] costs.
+  static Loot farmBuildingCost(FarmBuildingType type, int tier) => Loot(
+        gems: buildingGemCostByTier[tier - 1],
+        materials: farmBuildings[type]!
+            .upgradeBase
+            .scaled(buildingCostMultiplierByTier[tier - 1]),
+      );
+
+  /// Food a town can store, by completed granary tier (index 0 = none).
+  /// Without a granary it holds a few days of a hamlet's need; a village's
+  /// stores want a granary.
+  static const List<int> granaryFoodCapacityByTier = [
+    120,
+    300,
+    600,
+    1200,
+    2400,
+    4800,
+  ];
+
+  /// Residents by tier (houses add more in a later stage).
+  static const Map<TownTier, int> populationByTier = {
+    TownTier.outpost: 4,
+    TownTier.hamlet: 10,
+    TownTier.village: 25,
+    TownTier.town: 60,
+    TownTier.city: 150,
+  };
+
+  /// Food each resident eats a day, by tier: a bigger town eats richer, so
+  /// the need steepens faster than the population.
+  static const Map<TownTier, int> foodPerResident = {
+    TownTier.outpost: 1,
+    TownTier.hamlet: 1,
+    TownTier.village: 2,
+    TownTier.town: 3,
+    TownTier.city: 4,
+  };
+
+  /// A town is food-secure with this many days of its need in store, and
+  /// only a food-secure town grows past the hamlet. A short town loses
+  /// nothing: it only waits.
+  static const int foodSecureDays = 3;
 
   // ---- Hero gear ----------------------------------------------------------
 

@@ -51,8 +51,33 @@ Nothing here may write ledger events except through the existing ledger API.
   lowers it) and each tier the peak opens in `TierReached` (`TownTier`
   outpost, hamlet, village, town, city; thresholds `Balance.tierProsperity`),
   with its reward `tier:<who>:<tier>` (`Balance.tierRewards`). The village
-  and beyond also wait for food in store; a short town only waits, nothing
-  is taken. The daily gem cap is `Balance.dailyGemCapFor(tier)`.
+  and beyond also wait for food in store (`town/food.dart`); a short town
+  only waits, nothing is taken. Prosperity also counts districts bought
+  (`Balance.prosperityPerDistrict`) and district building tiers. The daily gem cap is `Balance.dailyGemCapFor(tier)`.
+- `town/districts.dart` — the district catalogue `kDistricts` (data: id,
+  required tier, price, plot count, allowed building keys, tileset key):
+  the outpost (the eleven hall plots, owned from the start), the farmland
+  (hamlet, six plots, farm buildings only) and teasers not yet for sale.
+  Plots are addressed by `PlotAddress(districtId, plotIndex)`; every older
+  event, which names no district, means the outpost. Districts beyond it are
+  bought with `DistrictPurchased` and built on with `DistrictBuildingStarted`
+  (district and building by key, so a newer build's district is set aside,
+  not hidden); their state is `HallState.districts`.
+- `town/food.dart` — farms and orchards grow food by the hour under the
+  working shift; harvesting (`FoodHarvested`) banks it up to the granary
+  (`Balance.granaryFoodCapacityByTier`) into `HallState.food`. From the
+  first harvest the engine writes `FoodConsumed {day, amount}` for each
+  finished day: the need of the tier held that day
+  (`Balance.populationByTier` × `Balance.foodPerResident`); a day is eaten
+  once, a larger copy tops up the difference, the stores stop at zero.
+  `foodSecure` (`Balance.foodSecureDays` of need) gates the village and
+  beyond; a short town loses nothing.
+- `town/farmland.dart` — the plans behind `buyDistrict`, `startFarmBuilding`
+  (one granary per town; tiers follow the Central Hall; an upgrade banks
+  food first) and `harvestFood`.
+- `town/town_book.dart` — `townBook(state, personId, now)`: the UI's read
+  model of a town's growth. `town/town_growth_lines.dart` holds its words
+  (`assets/game/text/town_growth.json`).
 - `commands/game_commands.dart` — `GameCommands(state, clock, actorId,
   stamp)`: every guild-hall action as a pure function returning a
   `GameCommandResult` (events to append, or a `GameRejection`). Anything

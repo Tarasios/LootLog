@@ -160,6 +160,47 @@ final List<GameEvent> _samples = [
     createdAt: at(28),
     tier: TownTier.hamlet,
   ),
+  DistrictPurchased(
+    eventId: 'e29',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(29),
+    createdAt: at(29),
+    districtId: 'farmland',
+    cost: Loot(gems: 40, materials: MaterialBundle({MaterialKind.lumber: 120})),
+  ),
+  DistrictBuildingStarted(
+    eventId: 'e30',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(30),
+    createdAt: at(30),
+    districtId: 'farmland',
+    plotIndex: 2,
+    buildingKey: 'farm',
+    tier: 1,
+    cost: Loot(materials: MaterialBundle({MaterialKind.lumber: 20})),
+    completesAt: at(30),
+  ),
+  FoodHarvested(
+    eventId: 'e31',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(31),
+    createdAt: at(31),
+    districtId: 'farmland',
+    plotIndex: 2,
+    amount: 48,
+  ),
+  FoodConsumed(
+    eventId: 'e32',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(32),
+    createdAt: at(32),
+    day: GameDay.fromInstant(at(0)),
+    amount: 10,
+  ),
 ];
 
 void main() {
@@ -290,6 +331,36 @@ void main() {
       expect(decoded, isA<UnknownGameEvent>());
       expect(decoded.toJson(), olderBuild);
     }
+  });
+
+  test('an older build sees districts and food as UnknownGameEvent and relays '
+      'them verbatim', () {
+    for (final event in _samples.where((event) =>
+        event is DistrictPurchased ||
+        event is DistrictBuildingStarted ||
+        event is FoodHarvested ||
+        event is FoodConsumed)) {
+      final olderBuild = {...event.toJson(), 'type': 'Future${event.type}'};
+      final decoded = GameEvent.fromJson(olderBuild);
+      expect(decoded, isA<UnknownGameEvent>());
+      expect(decoded.toJson(), olderBuild);
+    }
+  });
+
+  test('a district building or district this build lacks still decodes, '
+      'verbatim, for the projection to set aside', () {
+    final raw = _samples.whereType<DistrictBuildingStarted>().single.toJson();
+    final newer = {
+      ...raw,
+      'payload': {
+        ...raw['payload'] as Map<String, dynamic>,
+        'districtId': 'residential',
+        'buildingKey': 'cottage',
+      },
+    };
+    final decoded = GameEvent.fromJson(newer);
+    expect(decoded, isA<DistrictBuildingStarted>());
+    expect(decoded.toJson(), newer);
   });
 
   test('a tier this build lacks is kept as UnknownGameEvent', () {

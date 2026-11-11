@@ -91,3 +91,74 @@ ItemStored storedAway(int index, {required DateTime when, String actor = robin})
       createdAt: when,
       placementId: 'placement-$index',
     );
+
+DistrictPurchased districtPurchased(String id, String districtId,
+        {required DateTime when, String actor = robin, Loot cost = Loot.none}) =>
+    DistrictPurchased(
+      eventId: id,
+      deviceId: 'dev-1',
+      actorId: actor,
+      occurredAt: when,
+      createdAt: when,
+      districtId: districtId,
+      cost: cost,
+    );
+
+DistrictBuildingStarted farmBuilt(String id, int plotIndex, FarmBuildingType type,
+        {required DateTime when,
+        String actor = robin,
+        int tier = 1,
+        Loot cost = Loot.none,
+        DateTime? completesAt,
+        String districtId = 'farmland'}) =>
+    DistrictBuildingStarted(
+      eventId: id,
+      deviceId: 'dev-1',
+      actorId: actor,
+      occurredAt: when,
+      createdAt: when,
+      districtId: districtId,
+      plotIndex: plotIndex,
+      buildingKey: type.name,
+      tier: tier,
+      cost: cost,
+      completesAt: completesAt ?? when,
+    );
+
+FoodHarvested foodHarvested(String id, int plotIndex, int amount,
+        {required DateTime when, String actor = robin}) =>
+    FoodHarvested(
+      eventId: id,
+      deviceId: 'dev-1',
+      actorId: actor,
+      occurredAt: when,
+      createdAt: when,
+      districtId: 'farmland',
+      plotIndex: plotIndex,
+      amount: amount,
+    );
+
+FoodConsumed foodConsumed(String id, GameDay day, int amount,
+        {required DateTime when, String actor = robin, String device = 'dev-1'}) =>
+    FoodConsumed(
+      eventId: id,
+      deviceId: device,
+      actorId: actor,
+      occurredAt: when,
+      createdAt: when,
+      day: day,
+      amount: amount,
+    );
+
+/// Robin at the hamlet with [gems] gems and [lumber] lumber and [stone]
+/// stone in the town, all claimed.
+List<GameEvent> hamletWith({int gems = 0, int lumber = 0, int stone = 0, String actor = robin}) => [
+      tierReached('hamlet-$actor', TownTier.hamlet, when: at(-3), actor: actor),
+      granted('funds-$actor',
+          when: at(-2),
+          actor: actor,
+          rewardId: 'funds-$actor',
+          gems: gems,
+          materials: MaterialBundle({MaterialKind.lumber: lumber, MaterialKind.stone: stone})),
+      claimed('funds-claim-$actor', 'funds-$actor', when: at(-1), actor: actor),
+    ];

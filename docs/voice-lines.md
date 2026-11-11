@@ -308,6 +308,12 @@ shortfalls at buildings and expeditions.
 | `notANeighbour` | That road doesn't lead to a town yet. |
 | `emptyGift` | Choose something to send first. |
 | `neighbourStorehouseFull` | Their Storehouse is full right now. Try again once they have room. |
+| `unknownDistrict` | That district isn't on the map yet. |
+| `districtAlreadyOwned` | That district is already part of your town. |
+| `townTierTooLow` | That district opens as the town grows. Keep logging and it will come. |
+| `districtNotOpenYet` | That district is still being surveyed. It opens in a later season. |
+| `districtNotOwned` | Buy the farmland first, then the fields are yours to plant. |
+| `granaryFull` | The granary is full. Build or raise a granary to store more food. |
 
 ### `reasons`
 
@@ -450,3 +456,39 @@ announce it and take no placeholders. The town loop's lines (`away.*`,
 | `spirit.weekday` | The spirit dialog on a weekday ({festival}: the festival earned so far) | Show the weekend is already something | Every weekday you log lifts the town. So far the weekend holds a {festival}. |
 | `spirit.next` | The spirit dialog on a weekday when a bigger festival is still reachable ({more}: "1 more weekday") | A gentle, reachable next step | Log {more} for a {festival}. |
 | `spirit.weekend` | The spirit dialog at the weekend | Celebrate | The weekend is here and the {festival} is on! |
+
+## Town growth (`town_growth.json`)
+
+Adventure-only: the names and lines of a town's growth, read by the town
+book and the tier celebration. Each key holds one line; a missing or empty
+key falls back to the built-in line in
+`app/lib/game/domain/town/town_growth_lines.dart`, and
+`app/test/game/domain/town/town_growth_lines_test.dart` checks the shipped
+file matches those built-in lines and that nothing shames. A town short of
+food only waits to grow: never say "lost", "missed", "starving" or
+"penalty". Placeholders: `{tier}`, `{prosperity}`, `{needed}`, `{stored}`,
+`{capacity}`, `{need}`, `{food}`, `{days}`.
+
+| Key | Trigger | Intended outcome | Current line |
+|-----|---------|------------------|--------------|
+| `tier.name.outpost` … `tier.name.city` | A tier's name, wherever the town's size is shown | Name the town's size warmly | Outpost / Hamlet / Village / Town / City |
+| `tier.reached.hamlet` | The town grew into a hamlet (`TierReached`) | Celebrate, and credit the logging that built it | Smoke from new chimneys: the outpost is a hamlet now. Every day you logged built this. |
+| `tier.reached.village` | The town grew into a village | Same | Bells ring over full granaries. The hamlet has grown into a village! |
+| `tier.reached.town` | The town grew into a town | Same | Market stalls, cobbled streets, a town hall: your village is a town. |
+| `tier.reached.city` | The town grew into a city | Same | Towers on the skyline and lights in every window. Welcome to your city. |
+| `district.name.<id>` | A district's name (outpost, farmland, guardPost, residential, park, marketRow) | Name the place | The Outpost / Farmland / Guard Post / Residential Quarter / Park / Market Row |
+| `district.blurb.outpost` | The outpost's card in the town book | Say what it is | Where the town began: the hall, the yards and the workshops. |
+| `district.blurb.farmland` | The farmland's card | Make the next goal vivid | Six fields beyond the wall. Farms and orchards grow food; a granary keeps it. |
+| `district.blurb.guardPost` | A teaser card (village) | A glimpse of what is ahead | Watchtowers for a village that has something worth guarding. |
+| `district.blurb.residential` | A teaser card (village) | Same | Cottages and gardens for the people your town draws in. |
+| `district.blurb.park` | A teaser card (town) | Same | Lawns, a pond and a bandstand for a town at ease. |
+| `district.blurb.marketRow` | A teaser card (town) | Same | A street of shopfronts for a town that trades. |
+| `district.opensAt` | A district card before its tier ({tier}) | A reachable next step | Opens at {tier} |
+| `district.comingLater` | A teaser card | Promise, no pressure | Arrives in a later season |
+| `farm.name.farm` / `farm.name.orchard` / `farm.name.granary` | A farmland building's name | Name it | Farm / Orchard / Granary |
+| `book.title` | The town book's heading | Name the page | Town book |
+| `book.prosperity` | The book, below a city ({prosperity}, {tier}: the next tier, {needed}) | Show progress and the next goal | Prosperity {prosperity}. A {tier} needs {needed}. |
+| `book.top` | The book for a city | Celebrate the top | Prosperity {prosperity}. The town has grown as grand as it can, for now. |
+| `book.food` | The book's food line ({stored}, {capacity}, {need}) | Plain facts | {stored} of {capacity} food in store. The residents eat {need} a day. |
+| `book.foodNeeded` | The peak is enough for the next tier but the stores are short ({tier}, {food}, {days}) | Say exactly what is needed, and that nothing is taken meanwhile | To grow into a {tier}, the stores need {food} food: {days} days of meals. The town keeps everything while it waits. |
+| `book.foodSecure` | The stores are enough to grow | Reassure | The stores are well stocked. |
