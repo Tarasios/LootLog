@@ -6,7 +6,9 @@
 ///
 /// Placeholders the screen fills: `{tier}` (a tier's name), `{prosperity}`,
 /// `{needed}`, `{stored}`, `{capacity}`, `{need}` and `{food}` (numbers),
-/// `{days}` ([Balance.foodSecureDays]).
+/// `{days}` ([Balance.foodSecureDays], or the days the stores cover),
+/// `{missing}`, `{population}`, `{count}` (numbers), `{price}`, `{date}`,
+/// `{district}` and `{building}` (names).
 ///
 /// Pure Dart, zero Flutter imports.
 library;
@@ -102,4 +104,53 @@ const Map<String, String> _builtIn = {
       'To grow into a {tier}, the stores need {food} food: {days} days of meals. '
           'The town keeps everything while it waits.',
   'book.foodSecure': 'The stores are well stocked.',
+  'district.locked':
+      'Grows into reach at {tier}. Keep logging and building to get there.',
+  'district.forSale': 'Ready to buy: {price}',
+  'district.owned': 'Yours. Tap to visit.',
+  'district.bought.farmland':
+      'Fresh furrows and a red barn: the farmland is yours. Plant a farm to start the harvest.',
+  'district.bought': 'The {district} is yours. Come and see!',
+  'picker.title': 'Districts',
+  'picker.intro':
+      'Each district is its own corner of town, with plots of its own.',
+  'farm.blurb.farm':
+      'Rows of wheat and carrots that grow food every hour the crews work.',
+  'farm.blurb.orchard':
+      'Fruit trees and berry bushes. They grow the most food, planted with herbs.',
+  'farm.blurb.granary':
+      'Keeps the harvest. A bigger granary stores more food.',
+  'farm.empty': 'An empty field, ready for planting. Choose what to grow.',
+  'farm.locked': 'Buy the farmland to start farming these fields.',
+  'farm.grows': 'Grows {food} food an hour while the crews work.',
+  'farm.ready': '{food} food ready to harvest.',
+  'farm.growing': 'The crops are growing. Check back after your next log.',
+  'farm.harvested': 'Harvested {food} food. The stores are filling up!',
+  'farm.granaryHolds': 'The stores hold up to {capacity} food.',
+  'farm.built': 'Work has begun on the {building}.',
+  'book.section.prosperity': 'Prosperity',
+  'book.section.next': 'Next tier',
+  'book.section.people': 'People and food',
+  'book.section.history': 'History',
+  'book.section.album': 'Album',
+  'book.counts':
+      'Every building tier, district, decoration on show and festival held adds to it.',
+  'book.nextTier': 'Growing into a {tier}',
+  'book.prosperityDone': 'Prosperity {needed}: reached!',
+  'book.prosperityToGo':
+      'Prosperity {needed}: {missing} to go. Build, upgrade and decorate to get there.',
+  'book.foodDone': '{food} food in store: ready!',
+  'book.foodToGo':
+      '{food} food in store: {missing} more to gather. Harvest your farms to fill the stores.',
+  'book.waitingOnHarvest':
+      'The town is waiting on the harvest. It keeps everything while it waits.',
+  'book.people': '{population} residents eat {need} food a day.',
+  'book.daysCovered': 'Enough for {days} days of meals.',
+  'book.noFarmsYet': 'Farms come with the farmland. Food is waiting there.',
+  'book.tierReachedOn': '{tier}: {date}',
+  'book.founded': 'The outpost was founded. Every log since has built on it.',
+  'book.festivals': 'Festivals held: {count}',
+  'book.decorations': 'Decorations owned: {count}',
+  'book.noDecorations': 'No decorations yet. The shop and chests bring them.',
+  'tier.gifts': 'Gifts for the new {tier} wait in your inbox.',
 };

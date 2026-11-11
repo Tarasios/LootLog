@@ -2,9 +2,12 @@
 /// builder's: the date, streak and freeze tokens top-left; gems, the gold
 /// pouch and the war chest top-right; "Log purchase" (with the no-spend
 /// check-in above it) bottom-left; Shop, Inbox, Ledger and Menu bottom-right.
-/// A narrow window stacks the corners and lays the buttons in one row along
-/// the bottom. Each top corner is held to half the width, its chips
-/// ellipsizing, so the corners never collide. While decorating, the
+/// The district strip sits at the top centre under the chips. A narrow
+/// window stacks the corners and lays the buttons in one row along the
+/// bottom, with the district strip just above Log purchase (in thumb reach,
+/// never over it). Tapping the date opens the town book. Each top corner is
+/// held to half the width, its chips ellipsizing, so the corners never
+/// collide. While decorating, the
 /// decoration tray replaces the buttons (Log purchase stays, and the Menu,
 /// to finish).
 ///
@@ -15,40 +18,16 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../../domain/money.dart';
-import '../../../ui/format.dart';
-import '../hall_status.dart';
 import '../kit/kit.dart';
+import 'town_hud_chips.dart';
+
+export 'town_hud_chips.dart' show TownHudFigures;
 
 /// Below this width the HUD stacks its corners and lines the buttons up.
 const double kTownHudCompactWidth = 640;
 
 /// Keeps the HUD clear of the window edge.
 const double _kEdge = 12;
-
-/// The figures the HUD shows. Money is null until the ledger loads.
-class TownHudFigures {
-  const TownHudFigures({
-    required this.dateLabel,
-    required this.streak,
-    required this.freezeTokens,
-    required this.gems,
-    required this.inboxCount,
-    this.goldPouch,
-    this.warChest,
-  });
-
-  /// "Oct · day 3".
-  final String dateLabel;
-  final LiveStreak streak;
-  final int freezeTokens;
-  final int gems;
-
-  /// Unopened chests plus unclaimed rewards.
-  final int inboxCount;
-  final Money? goldPouch;
-  final Money? warChest;
-}
 
 class TownHud extends StatelessWidget {
   const TownHud({
@@ -64,6 +43,8 @@ class TownHud extends StatelessWidget {
     this.decoratePanel,
     this.spiritBar,
     this.logHint,
+    this.districtStrip,
+    this.onDate,
   });
 
   final TownHudFigures figures;
@@ -89,6 +70,12 @@ class TownHud extends StatelessWidget {
   /// town".
   final Widget? logHint;
 
+  /// The strip of districts; hidden while decorating.
+  final Widget? districtStrip;
+
+  /// Opens the town book from the date chip.
+  final VoidCallback? onDate;
+
   @override
   Widget build(BuildContext context) => SafeArea(
     child: LayoutBuilder(
@@ -101,30 +88,43 @@ class TownHud extends StatelessWidget {
           (constraints.maxWidth - 2 * _kEdge - AdventureTokens.gap) / 2,
         );
         final decoratePanel = this.decoratePanel;
+        final timeCorner = _corner(
+          key: const ValueKey('town-hud-time'),
+          compact: compact,
+          width: cornerWidth,
+          alignEnd: false,
+          chips: _timeChips(cornerWidth),
+        );
+        final treasureCorner = _corner(
+          key: const ValueKey('town-hud-treasure'),
+          compact: compact,
+          width: cornerWidth,
+          alignEnd: true,
+          chips: _treasureChips(compact, cornerWidth),
+        );
+        final topStrip = compact || decoratePanel != null ? null : districtStrip;
         return Stack(
           children: [
-            Positioned(
-              top: _kEdge,
-              left: _kEdge,
-              child: _corner(
-                key: const ValueKey('town-hud-time'),
-                compact: compact,
-                width: cornerWidth,
-                alignEnd: false,
-                chips: _timeChips(cornerWidth),
+            if (topStrip == null) ...[
+              Positioned(top: _kEdge, left: _kEdge, child: timeCorner),
+              Positioned(top: _kEdge, right: _kEdge, child: treasureCorner),
+            ] else
+              // The strip hangs under the taller corner, centred.
+              Positioned(
+                top: _kEdge,
+                left: _kEdge,
+                right: _kEdge,
+                child: Column(
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [timeCorner, const Spacer(), treasureCorner],
+                    ),
+                    const SizedBox(height: AdventureTokens.gap),
+                    topStrip,
+                  ],
+                ),
               ),
-            ),
-            Positioned(
-              top: _kEdge,
-              right: _kEdge,
-              child: _corner(
-                key: const ValueKey('town-hud-treasure'),
-                compact: compact,
-                width: cornerWidth,
-                alignEnd: true,
-                chips: _treasureChips(compact, cornerWidth),
-              ),
-            ),
             if (decoratePanel != null)
               Positioned(
                 left: 0,
@@ -192,56 +192,11 @@ class TownHud extends StatelessWidget {
           ),
   );
 
-  List<Widget> _timeChips(double maxWidth) => [
-    HudChip(icon: Icons.calendar_today, value: figures.dateLabel, maxWidth: maxWidth),
-    ?spiritBar,
-    HudChip(
-      icon: Icons.local_fire_department,
-      color: AdventureTokens.hpRed,
-      value: figures.streak.isEmpty ? 'Start a streak' : '${figures.streak.days}-day streak',
-      valueKey: const ValueKey('town-streak'),
-      maxWidth: maxWidth,
-    ),
-    HudChip(
-      icon: Icons.ac_unit,
-      color: AdventureTokens.gem,
-      value: '${figures.freezeTokens}',
-      valueKey: const ValueKey('town-freeze-tokens'),
-      maxWidth: maxWidth,
-    ),
-  ];
+  List<Widget> _timeChips(double maxWidth) =>
+      townTimeChips(figures, maxWidth: maxWidth, spiritBar: spiritBar, onDate: onDate);
 
-  List<Widget> _treasureChips(bool compact, double maxWidth) {
-    final goldPouch = figures.goldPouch;
-    final warChest = figures.warChest;
-    return [
-      HudChip(
-        icon: Icons.diamond,
-        color: AdventureTokens.gem,
-        value: '${figures.gems}',
-        valueKey: const ValueKey('town-gems'),
-        maxWidth: maxWidth,
-      ),
-      if (goldPouch != null)
-        HudChip(
-          icon: Icons.savings,
-          color: AdventureTokens.gold,
-          value: money(goldPouch.cents),
-          label: compact ? null : 'gold pouch',
-          valueKey: const ValueKey('town-gold-pouch'),
-          maxWidth: maxWidth,
-        ),
-      if (warChest != null)
-        HudChip(
-          icon: Icons.account_balance,
-          color: AdventureTokens.chest,
-          value: money(warChest.cents),
-          label: compact ? null : 'war chest',
-          valueKey: const ValueKey('town-war-chest'),
-          maxWidth: maxWidth,
-        ),
-    ];
-  }
+  List<Widget> _treasureChips(bool compact, double maxWidth) =>
+      townTreasureChips(figures, compact: compact, maxWidth: maxWidth);
 
   Widget _logButton() => HudButton(
     label: 'Log purchase',
@@ -250,12 +205,15 @@ class TownHud extends StatelessWidget {
     onPressed: onLogPurchase,
   );
 
-  Widget _logColumn() => Column(
+  /// The notes, the check-in and Log purchase, with [strip] (the phone's
+  /// district strip) just above Log purchase.
+  Widget _logColumn({Widget? strip}) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       if (logHint case final hint?) ...[hint, const SizedBox(height: AdventureTokens.gap)],
       noSpendCheckIn,
       const SizedBox(height: AdventureTokens.gap),
+      if (strip != null) ...[strip, const SizedBox(height: AdventureTokens.gap)],
       _logButton(),
     ],
   );
@@ -288,7 +246,7 @@ class TownHud extends StatelessWidget {
   Widget _compactBottom() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Align(alignment: Alignment.centerLeft, child: _logColumn()),
+      Align(alignment: Alignment.centerLeft, child: _logColumn(strip: districtStrip)),
       const SizedBox(height: AdventureTokens.gap),
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -60,7 +60,7 @@ List<PlacedTownTag> placeTownTags(List<TownTag> tags, TownView view) {
             .firstOrNull;
         if (resident != null) add(tag, resident.houseOrigin, footprintWidth);
       case GateAnchor():
-        add(tag, view.layout.gate, kTileSize);
+        if (view.layout.hasGate) add(tag, view.layout.gate, kTileSize);
       case StatueAnchor():
         if (nextStatue < statueSpots.length) {
           add(tag, statueSpots[nextStatue++], kTileSize);

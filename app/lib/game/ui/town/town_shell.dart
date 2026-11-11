@@ -1,5 +1,6 @@
-/// The Adventure home: the living town fills the window, with the HUD
-/// floating over it and, on a wide window, the quest board docked on the
+/// The Adventure home: one district of the living town fills the window
+/// (the district strip moves between them, [TownDistrictWiring]), with the
+/// HUD floating over it and, on a wide window, the quest board docked on the
 /// right ([TownHomeLayout]). In text tier it is the guild-hall text screens
 /// instead (asset ladder tier 3).
 library;
@@ -22,8 +23,9 @@ import '../../domain/decor/catalog.dart';
 import '../../domain/decor/decor_values.dart';
 import '../../domain/game_state.dart';
 import '../../domain/game_values.dart';
-import '../../domain/town/town_layout.dart' show TownCell, TownLayout;
-import '../../domain/town/town_scatter.dart';
+import '../../domain/town/districts.dart' show kOutpostDistrictId;
+import '../../domain/town/town_growth_lines.dart';
+import '../../domain/town/town_layout.dart' show TownCell;
 import '../../domain/town/town_tags.dart';
 import '../../domain/town/town_view.dart';
 import '../../scenes/town/town_game.dart' show TownGame;
@@ -43,7 +45,11 @@ import '../hall_ledger_view.dart';
 import '../hall_status.dart';
 import '../hall_voice.dart';
 import '../kit/kit.dart' show HudChip;
+import 'farm_plot_sheet.dart';
+import 'town_book_screen.dart';
 import 'town_decorate_panel.dart';
+import 'town_district_wiring.dart';
+import 'town_growth_providers.dart';
 import 'town_home_layout.dart';
 import 'town_hud.dart';
 import 'town_inbox_sheet.dart';
@@ -95,25 +101,12 @@ class TownShell extends ConsumerStatefulWidget {
   ConsumerState<TownShell> createState() => _TownShellState();
 }
 
-class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<TownShell>, TownLoopWiring<TownShell> {
+class _TownShellState extends ConsumerState<TownShell>
+    with TownShellEvents<TownShell>, TownLoopWiring<TownShell>, TownDistrictWiring<TownShell> {
   /// "Decorate town" mode: taps place the picked item instead of opening
   /// buildings.
   bool _decorating = false;
   DecorItem? _picked;
-
-  /// The forest around the town, grown once per household seed.
-  TownScatter? _scatter;
-  int? _scatterSeed;
-
-  /// The same trees and bushes on every device of the household.
-  TownScatter _scatterFor(Iterable<String> adultIds) {
-    final seed = townScatterSeed(adultIds);
-    if (_scatterSeed != seed || _scatter == null) {
-      _scatterSeed = seed;
-      _scatter = scatterTown(TownLayout.standard, seed: seed);
-    }
-    return _scatter!;
-  }
 
   Future<void> _placeInTown(TownCell cell) async {
     final picked = _picked;
@@ -131,10 +124,14 @@ class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<Town
     if (mounted) setState(() => _picked = null);
   }
 
-  void _toggleDecorating() => setState(() {
-    _decorating = !_decorating;
-    _picked = null;
-  });
+  /// Decorations stand in the outpost, so decorating opens it.
+  void _toggleDecorating() {
+    if (!_decorating) openDistrict(kOutpostDistrictId);
+    setState(() {
+      _decorating = !_decorating;
+      _picked = null;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -157,8 +154,11 @@ class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<Town
     final battle = ref.watch(monthEndBattleProvider);
     final voice = ref.watch(hallVoiceProvider).value ?? HallVoice.empty;
     final tagLines = ref.watch(townTagLinesProvider).value ?? TownTagLines.defaults;
-    final scatter = _scatterFor(ledgerView.adults.map((adult) => adult.memberId));
+    final growthLines = ref.watch(townGrowthLinesProvider).value ?? TownGrowthLines.defaults;
+    final scatter = scatterFor(openLayout, ledgerView.adults.map((adult) => adult.memberId));
     final me = game.person(ledgerView.meId ?? '');
+    final myTown = game.townOf(ledgerView.meId ?? '');
+    final inOutpost = openDistrictId == kOutpostDistrictId;
 
     return AdventureSpriteScope(
       child: HallTicker(
@@ -183,6 +183,7 @@ class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<Town
                 TownAdult(memberId: adult.memberId, name: adult.name, inAdventure: adult.inAdventure),
             ],
             now,
+            districtId: openDistrictId,
             dungeonOpen: dungeonOpen,
             goalPictures: goalPictureShas,
           );
@@ -197,7 +198,7 @@ class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<Town
               unopenedChests: me.unopenedChests.length,
               lines: tagLines,
             ))
-              if (tag.anchor is! StatueAnchor) tag,
+              if (tag.anchor is! StatueAnchor && inOutpost) tag,
           ];
           final loop = townLoopParts(
             tickRef,
@@ -210,8 +211,8 @@ class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<Town
               // The scene reads its art once, so wait for the registry.
               ? const ColoredBox(color: TownGame.forestColour)
               // A new household seed grows a new forest: rebuild the scene.
-              : KeyedSubtree(
-                  key: ValueKey(_scatterSeed),
+              : slidingDistrict(KeyedSubtree(
+                  key: ValueKey(scatterSeed),
                   child: TownSceneView(
                     key: const ValueKey('town-scene'),
                     view: townView,
@@ -225,11 +226,13 @@ class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<Town
                     logPulse: logPulse,
                     scatter: scatter,
                     tags: _decorating ? const [] : tags,
-                    loop: loop.scene,
-                    visitorTag: _decorating ? null : loop.visitorTag,
-                    onVisitorTap: _decorating ? null : loop.onVisitorTap,
+                    // The visitor and the festival bunting are in the outpost.
+                    loop: inOutpost ? loop.scene : TownLoopScene.none,
+                    visitorTag: _decorating || !inOutpost ? null : loop.visitorTag,
+                    onVisitorTap: _decorating || !inOutpost ? null : loop.onVisitorTap,
+                    onSwipePastEdge: _decorating ? null : (direction) => openNeighbour(myTown, direction),
                   ),
-                );
+                ));
           return Scaffold(
             backgroundColor: TownGame.forestColour,
             body: TownHomeLayout(
@@ -274,6 +277,8 @@ class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<Town
                 onInbox: () => showTownInbox(context, onOpenLedger: onOpenLedger, links: links),
                 onLedger: onOpenLedger,
                 onMenu: _openMenu,
+                onDate: () => unawaited(TownBookScreen.open(context)),
+                districtStrip: _decorating ? null : districtStrip(myTown, growthLines),
                 decoratePanel: _decorating
                     ? TownDecoratePanel(
                         personId: ledgerView.meId ?? '',
@@ -292,6 +297,8 @@ class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<Town
   void _openTarget(TownTarget target) {
     final openers = widget.openers;
     switch (target) {
+      case PlotTarget(:final plotIndex, :final districtId) when districtId != kOutpostDistrictId:
+        unawaited(showFarmPlotSheet(context, plotIndex: plotIndex));
       case PlotTarget(:final plotIndex):
         unawaited(
           showBuildingSheet(
@@ -372,6 +379,7 @@ class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<Town
         toggleTextMode: () => ref.read(adventureTierProvider.notifier).toggle(),
         toggleDecorating: _toggleDecorating,
         openTrophies: () => unawaited(TrophyHallScreen.open(context)),
+        openTownBook: () => unawaited(TownBookScreen.open(context)),
       ),
     ),
   );

@@ -9,6 +9,7 @@ import 'package:lootlog/game/domain/game_values.dart';
 const packNames = [
   'tiny_town',
   'town_composed',
+  'tiny_farm',
   'tiny_dungeon',
   'roguelike_indoors',
 ];
@@ -30,6 +31,13 @@ const requiredKeys = [
   'town.scaffold.default.idle',
   'town.plot.locked.idle',
   'town.plot.empty.idle',
+  'farm.plot.empty.idle',
+  'farm.barn.default.idle',
+  'farm.crop.wheat.idle',
+  'farm.hay.default.idle',
+  'npc.animal.cow.idle',
+  'npc.animal.sheep.idle',
+  'npc.animal.chicken.idle',
   'town_decor.flowerbed.default.idle',
   'town_decor.lamp_post.default.idle',
   'town_decor.bench.default.idle',
@@ -131,6 +139,29 @@ void main() {
           final key = GameAssetKeys.building(type, tier).value;
           expect(regions, contains(key));
         }
+      }
+    });
+
+    test('every farm building has all five tiers in town_composed', () {
+      final regions = readRegions('town_composed');
+      for (final type in FarmBuildingType.values) {
+        for (var tier = 1; tier <= GameAssetKeys.buildingTiers; tier++) {
+          expect(regions, contains(GameAssetKeys.farmBuilding(type, tier).value));
+        }
+      }
+    });
+
+    test('tiers 1-2 stand on 2x2 cells, tiers 3-5 rise to 2x3', () {
+      final regions = readRegions('town_composed');
+      final keys = [
+        for (var tier = 1; tier <= GameAssetKeys.buildingTiers; tier++) ...[
+          for (final type in BuildingType.values) (GameAssetKeys.building(type, tier), tier),
+          for (final type in FarmBuildingType.values) (GameAssetKeys.farmBuilding(type, tier), tier),
+        ],
+      ];
+      for (final (key, tier) in keys) {
+        final cell = regions[key.value]!;
+        expect([cell[2], cell[3]], tier < 3 ? [2, 2] : [2, 3], reason: '${key.value} has the wrong size');
       }
     });
 

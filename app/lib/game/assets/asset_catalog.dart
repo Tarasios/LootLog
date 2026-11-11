@@ -28,6 +28,15 @@ abstract final class GameAssetKeys {
             building(type, tier),
       ];
 
+  /// The farmland's buildings: `building.<farm type>.t<tier>.<state>`, e.g.
+  /// `building.granary.t3.idle`.
+  static AssetKey farmBuilding(FarmBuildingType type, int tier,
+          {String state = AssetKey.idleState}) =>
+      AssetKey('building', AssetKey.snakeSegment(type.name), 't$tier', state);
+
+  /// An empty farmland plot: tilled soil inside a fence.
+  static const farmPlotEmpty = AssetKey('farm', 'plot', 'empty');
+
   // ---- Materials, currency, chests ----------------------------------------
 
   /// `material.<kind>.icon.idle`, e.g. `material.ore.icon.idle`.

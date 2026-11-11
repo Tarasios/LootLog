@@ -467,7 +467,8 @@ key falls back to the built-in line in
 file matches those built-in lines and that nothing shames. A town short of
 food only waits to grow: never say "lost", "missed", "starving" or
 "penalty". Placeholders: `{tier}`, `{prosperity}`, `{needed}`, `{stored}`,
-`{capacity}`, `{need}`, `{food}`, `{days}`.
+`{capacity}`, `{need}`, `{food}`, `{days}`, `{missing}`, `{population}`,
+`{count}`, `{price}`, `{date}`, `{district}`, `{building}`.
 
 | Key | Trigger | Intended outcome | Current line |
 |-----|---------|------------------|--------------|
@@ -492,3 +493,42 @@ food only waits to grow: never say "lost", "missed", "starving" or
 | `book.food` | The book's food line ({stored}, {capacity}, {need}) | Plain facts | {stored} of {capacity} food in store. The residents eat {need} a day. |
 | `book.foodNeeded` | The peak is enough for the next tier but the stores are short ({tier}, {food}, {days}) | Say exactly what is needed, and that nothing is taken meanwhile | To grow into a {tier}, the stores need {food} food: {days} days of meals. The town keeps everything while it waits. |
 | `book.foodSecure` | The stores are enough to grow | Reassure | The stores are well stocked. |
+| `district.locked` | Tapping a locked district on the strip, or its picker card ({tier}) | A reachable next step, never a wall | Grows into reach at {tier}. Keep logging and building to get there. |
+| `district.forSale` | A district card the town can buy now ({price}) | Make the next purchase clear | Ready to buy: {price} |
+| `district.owned` | A district card the town owns | Invite a visit | Yours. Tap to visit. |
+| `district.bought.farmland` | The farmland was just bought | Celebrate, and say what to do first | Fresh furrows and a red barn: the farmland is yours. Plant a farm to start the harvest. |
+| `district.bought` | Any other district was just bought ({district}) | Celebrate | The {district} is yours. Come and see! |
+| `picker.title` | The district picker's heading | Name the page | Districts |
+| `picker.intro` | The district picker, above the cards | Explain districts in a line | Each district is its own corner of town, with plots of its own. |
+| `farm.blurb.farm` | The farm's card on an empty field | Say what it does | Rows of wheat and carrots that grow food every hour the crews work. |
+| `farm.blurb.orchard` | The orchard's card on an empty field | Same | Fruit trees and berry bushes. They grow the most food, planted with herbs. |
+| `farm.blurb.granary` | The granary's card | Same | Keeps the harvest. A bigger granary stores more food. |
+| `farm.empty` | Tapping an empty farmland field | Invite a build | An empty field, ready for planting. Choose what to grow. |
+| `farm.locked` | Tapping a field of farmland the town does not own | A next step | Buy the farmland to start farming these fields. |
+| `farm.grows` | A farm or orchard's sheet ({food}) | Plain facts | Grows {food} food an hour while the crews work. |
+| `farm.ready` | A farm or orchard with food grown ({food}) | Invite a harvest | {food} food ready to harvest. |
+| `farm.growing` | A farm or orchard with nothing grown yet | Encourage coming back | The crops are growing. Check back after your next log. |
+| `farm.harvested` | A harvest ({food}) | Celebrate | Harvested {food} food. The stores are filling up! |
+| `farm.granaryHolds` | The granary's sheet ({capacity}) | Plain facts | The stores hold up to {capacity} food. |
+| `farm.built` | A farm building was started ({building}) | Celebrate | Work has begun on the {building}. |
+| `book.section.prosperity` | The town book's first card | Name the section | Prosperity |
+| `book.section.next` | The town book's second card | Same | Next tier |
+| `book.section.people` | The town book's third card | Same | People and food |
+| `book.section.history` | The town book's fourth card | Same | History |
+| `book.section.album` | The town book's last card | Same | Album |
+| `book.counts` | Under the prosperity meter | Say what counts | Every building tier, district, decoration on show and festival held adds to it. |
+| `book.nextTier` | The next-tier card's heading ({tier}) | Name the goal | Growing into a {tier} |
+| `book.prosperityDone` | The next tier's prosperity is met ({needed}) | Tick it off | Prosperity {needed}: reached! |
+| `book.prosperityToGo` | The next tier's prosperity is not met yet ({needed}, {missing}) | Phrase it as what to do next | Prosperity {needed}: {missing} to go. Build, upgrade and decorate to get there. |
+| `book.foodDone` | The next tier needs food and the stores have it ({food}) | Tick it off | {food} food in store: ready! |
+| `book.foodToGo` | The next tier needs food the stores do not hold yet ({food}, {missing}) | Phrase it as what to do next; never a failure | {food} food in store: {missing} more to gather. Harvest your farms to fill the stores. |
+| `book.waitingOnHarvest` | The prosperity is enough but the stores are short | Reassure, and point at the farms | The town is waiting on the harvest. It keeps everything while it waits. |
+| `book.people` | The people-and-food card ({population}, {need}) | Plain facts | {population} residents eat {need} food a day. |
+| `book.daysCovered` | The people-and-food card ({days}: whole days the stores cover) | Plain facts | Enough for {days} days of meals. |
+| `book.noFarmsYet` | The people-and-food card before the farmland | A next step | Farms come with the farmland. Food is waiting there. |
+| `book.tierReachedOn` | A history entry ({tier}, {date}) | Remember the milestones | {tier}: {date} |
+| `book.founded` | The history card before any tier-up | Credit the start | The outpost was founded. Every log since has built on it. |
+| `book.festivals` | The history card ({count}) | Count what was done | Festivals held: {count} |
+| `book.decorations` | The album card ({count}) | Count what was earned | Decorations owned: {count} |
+| `book.noDecorations` | The album card with nothing owned | A next step | No decorations yet. The shop and chests bring them. |
+| `tier.gifts` | The tier celebration, under its line ({tier}) | Point at the reward | Gifts for the new {tier} wait in your inbox. |

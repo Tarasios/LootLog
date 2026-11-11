@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 
 import '../../assets/asset_catalog.dart';
 import '../../assets/asset_key.dart';
+import '../../domain/town/districts.dart' show kOutpostDistrictId;
 import '../../domain/town/town_layout.dart';
 import '../../domain/town/town_scatter.dart';
 import '../../domain/town/town_view.dart';
@@ -214,9 +215,34 @@ class TownStatuePicture extends GoalPictureFrame {
     : super(position: cellPosition(cell), size: Vector2.all(kTileSize));
 }
 
-/// What stands on one hall plot, plus scaffolding and the ready bubble. The
-/// name is always drawn under the building: the bundled art reuses similar
-/// cells for higher tiers, so the label is what tells buildings apart.
+/// The art key of the building on [plot] (an outpost building or a farm
+/// building), or null for a locked or empty plot.
+AssetKey? plotArtKey(TownPlotView plot) {
+  if (plot.buildingType case final type?) return GameAssetKeys.building(type, plot.tier);
+  if (plot.farmType case final type?) return GameAssetKeys.farmBuilding(type, plot.tier);
+  return null;
+}
+
+/// Where art [artWidth] × [artHeight] is drawn on a plot [footprint] wide
+/// and tall, relative to the plot's top-left: square art fills the plot;
+/// taller art (a tier 3–5 building) keeps the plot's width and stands on its
+/// foot, rising into the row above.
+Rect plotArtBounds({
+  required double artWidth,
+  required double artHeight,
+  required double footprint,
+}) {
+  if (artWidth <= 0 || artHeight <= artWidth) {
+    return Rect.fromLTWH(0, 0, footprint, footprint);
+  }
+  final height = footprint * artHeight / artWidth;
+  return Rect.fromLTWH(0, footprint - height, footprint, height);
+}
+
+/// What stands on one plot (the outpost's hall plots or a district's),
+/// plus scaffolding and the ready bubble. The name is always drawn under
+/// the building: the bundled art reuses similar cells for some tiers, so the
+/// label is what tells buildings apart.
 class PlotComponent extends PositionComponent {
   PlotComponent(this.atlas, this.plot)
     : super(
@@ -230,26 +256,32 @@ class PlotComponent extends PositionComponent {
 
   @override
   Future<void> onLoad() async {
-    final buildingType = plot.buildingType;
+    final buildingKey = plotArtKey(plot);
     final AssetKey key;
     final String label;
     if (!plot.unlocked) {
       key = const AssetKey('town', 'plot', 'locked');
       label = 'Locked';
-    } else if (buildingType == null) {
-      key = const AssetKey('town', 'plot', 'empty');
+    } else if (buildingKey == null) {
+      key = plot.districtId == kOutpostDistrictId ? const AssetKey('town', 'plot', 'empty') : GameAssetKeys.farmPlotEmpty;
       label = 'Build';
     } else {
-      key = GameAssetKeys.building(buildingType, plot.tier);
+      key = buildingKey;
       label = key.displayName;
     }
+    final art = atlas.spriteFor(key);
+    final bounds = plotArtBounds(
+      artWidth: art?.srcSize.x ?? 0,
+      artHeight: art?.srcSize.y ?? 0,
+      footprint: size.x,
+    );
     add(
       KeyedSprite(
         atlas: atlas,
         assetKey: key,
         label: label,
-        position: Vector2.zero(),
-        size: size,
+        position: Vector2(bounds.left, bounds.top),
+        size: Vector2(bounds.width, bounds.height),
       ),
     );
     if (plot.underConstruction) {
