@@ -4,7 +4,8 @@
 /// supply caravan), today's habits (the Scribe's Desk into the ledger, the
 /// no-spend check-in, the weekly reconcile), the town today (what the crews
 /// made, the day's visitor, the town spirit and the festival), the inbox of chests and rewards,
-/// the spoils-ritual callout, the shared stores, the plots, and the places to
+/// the spoils-ritual callout, the town's growth and districts (with the
+/// town book and the farmland's fields), the shared stores, the plots, and the places to
 /// go (Forge & hero, Expeditions, Vault, the ritual). A "Log a purchase"
 /// button is always on screen, so logging stays one tap from launch.
 ///
@@ -32,6 +33,7 @@ import 'hall_home_sections.dart';
 import 'hall_ledger_view.dart';
 import 'hall_voice.dart';
 import 'kit/adventure_tokens.dart';
+import 'town/town_growth_text_panel.dart';
 import 'town/town_loop_text_panel.dart';
 
 export 'hall_common.dart' show HallLinks;
@@ -141,6 +143,7 @@ class _HallBody extends ConsumerWidget {
       ];
       final right = [
         PlotsPanel(data),
+        TownGrowthPanel(data),
         StoresPanel(data),
         PlacesPanel(data),
       ];
