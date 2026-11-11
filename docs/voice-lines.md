@@ -193,7 +193,7 @@ checks each set has 8+ lines and that nothing shames or blames.
 | Stacked, counted and stored. |
 | A fine haul from the {building}. |
 | The {building} delivers. |
-| Fresh materials for the party pool. |
+| Fresh materials for the town's stores. |
 | The yard is cleared and the stores are fuller. |
 | Collected. The {building} hums back to work. |
 | Hauled in from the {building}. |
@@ -221,14 +221,14 @@ checks each set has 8+ lines and that nothing shames or blames.
 
 | Current line |
 |---|
-| The supply caravan keeps the party's stores stocked. |
+| The supply caravan keeps the neighbouring towns stocked. |
 | Supply carts roll in, courtesy of the caravan. |
 | The caravan backs the party from the road. |
 | Wagons of lumber and stone, sent by the caravan. |
 | The caravan keeps the hall supplied. |
 | The caravan's wheels never stop turning. |
 | Fresh supplies from the caravan reach the yard. |
-| The caravan is the backbone of the party's stores. |
+| The caravan is the backbone of the trade road. |
 
 ### Month-end dungeon entrance (`dungeonCallout`, `dungeonCalloutButton`, `dungeonPlace*`)
 

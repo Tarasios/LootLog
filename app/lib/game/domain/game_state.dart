@@ -90,7 +90,8 @@ enum GameWarningCode {
   /// not move stayed with the sender.
   giftTrimmed,
 
-  /// A gift to oneself, or sent before the towns were split; nothing moved.
+  /// A gift to oneself, to someone not an Adventure neighbour at the time,
+  /// or sent before the towns were split; nothing moved.
   giftIgnored,
 }
 

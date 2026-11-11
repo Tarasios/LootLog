@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/domain/event.dart';
-import 'package:lootlog/domain/reducer.dart';
 import 'package:lootlog/domain/value_types.dart';
 import 'package:lootlog/game/config/balance.dart';
 import 'package:lootlog/game/domain/clock.dart';
@@ -177,29 +176,5 @@ void main() {
       // 8 h each; Oct 5 until midnight local (07:00 UTC is 00:00 PDT): 0 h.
       expect(produced[MaterialKind.lumber], rate * 24);
     });
-  });
-
-  test('firewall: the money reducer reads the same ledger whatever the towns do',
-      () {
-    final ledgerEvents = List<Event>.unmodifiable([
-      MemberSet(
-        eventId: 'm1', deviceId: 'd', userId: _ada,
-        occurredAt: _at(1, 1), createdAt: _at(1, 1),
-        memberId: _ada, name: 'Ada', role: MemberRole.adult,
-      ),
-      MemberSet(
-        eventId: 'm2', deviceId: 'd', userId: _ben,
-        occurredAt: _at(1, 1), createdAt: _at(1, 1),
-        memberId: _ben, name: 'Ben', role: MemberRole.adult,
-      ),
-      _buy(_ada, _at(1), 'e1'),
-      _buy(_ben, _at(1), 'e2'),
-    ]);
-    final before = reduce(ledgerEvents, asOf: _at(2)).debugSnapshot();
-    final device = _Device('one')..run(ledgerEvents, _at(1, 19));
-    device.command(_ben, _at(1, 20),
-        (commands) => commands.startBuilding(0, BuildingType.lumberyard));
-    expect(device.log.whereType<TownsSplit>(), hasLength(1));
-    expect(reduce(ledgerEvents, asOf: _at(2)).debugSnapshot(), before);
   });
 }

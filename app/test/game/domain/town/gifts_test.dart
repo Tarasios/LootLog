@@ -132,6 +132,20 @@ void main() {
       }
     });
 
+    test('a gift to someone who has since left the party moves nothing', () {
+      final result = send(robin, sam, _lumber(20), minute: 10);
+      expect(result.accepted, isTrue);
+      // Sam switched to Standard on another device before the gift applied.
+      log
+        ..remove(result.events.single)
+        ..add(partyLeft('n09', kHouseholdPartyId, when: at(9), actor: sam))
+        ..add(result.events.single);
+      final state = projectGameState(log);
+      expect(state.townOf(robin).materials, _lumber(50));
+      expect(state.townOf(sam).materials, _lumber(10));
+      expect(state.warnings.single.code, GameWarningCode.giftIgnored);
+    });
+
     test('a gift to oneself in the log moves nothing', () {
       log.add(GiftSent(
         eventId: 'x1', deviceId: 'd', actorId: robin,

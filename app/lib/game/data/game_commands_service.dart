@@ -133,7 +133,7 @@ class GameCommandsService {
   Future<GameCommandResult> startBuilding(int plotIndex, BuildingType type) =>
       run((c) => c.startBuilding(plotIndex, type));
 
-  /// Collects a producer's materials into the shared pool.
+  /// Collects a producer's materials into this adult's town.
   Future<GameCommandResult> collectMaterials(int plotIndex) =>
       run((c) => c.collectMaterials(plotIndex));
 

@@ -102,6 +102,13 @@ void _apply(_GameStateDraft draft, GameEvent event) {
       final known = draft.town(actor).plots.values
           .any((plot) => plot.building != null && plot.buildingId == collected.buildingId);
       if (!known) draft.warn(GameWarningCode.unknownBuilding, collected.buildingId);
+      // After the split a collection must come from the actor's own town;
+      // a stale device's collection from the owner's is credited nowhere.
+      if (draft.ownership.isSplit &&
+          !collectionFitsTown(draft.town(actor), collected.buildingId, collected.amounts)) {
+        if (known) draft.warn(GameWarningCode.unknownBuilding, collected.buildingId);
+        return;
+      }
       draft.adjustPool(actor, collected.amounts, 1);
       final town = draft.town(actor);
       final last = town.lastCollectedAt[collected.buildingId];
@@ -132,6 +139,13 @@ void _apply(_GameStateDraft draft, GameEvent event) {
       final plot = town.plots[started.plotIndex];
       if (plot == null) {
         draft.warn(GameWarningCode.plotLocked, 'plot ${started.plotIndex}');
+        // After the split a build must fit the actor's own town.
+        if (draft.ownership.isSplit) return;
+      }
+      if (plot != null && draft.ownership.isSplit && !buildFitsTown(plot, started.tier)) {
+        draft.warn(GameWarningCode.unknownBuilding,
+            '${started.buildingType.name} tier ${started.tier} on plot ${started.plotIndex}');
+        return;
       }
       final existing = plot?.building;
       if (existing != null && existing.type != started.buildingType) {
@@ -419,7 +433,11 @@ void _apply(_GameStateDraft draft, GameEvent event) {
         ..towns = applied.towns;
 
     case GiftSent gift:
-      if (!draft.ownership.isSplit || gift.toPersonId == actor) {
+      // Only an Adventure neighbour has a town to receive it; otherwise the
+      // materials stay with the sender.
+      if (!draft.ownership.isSplit ||
+          gift.toPersonId == actor ||
+          draft.person(gift.toPersonId).partyId != kHouseholdPartyId) {
         draft.warn(GameWarningCode.giftIgnored, gift.toPersonId);
         return;
       }

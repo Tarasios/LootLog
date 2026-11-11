@@ -25,7 +25,7 @@ T gameEnumByName<T extends Enum>(List<T> values, String name, String what) {
   throw UnrecognizedGameValue(what, name);
 }
 
-/// The materials of the shared party pool (see the glossary).
+/// The materials a town stores (see the glossary).
 enum MaterialKind { lumber, stone, ore, herbs, hide, crystal, essence, trophy }
 
 /// An immutable amount of each material. Zero entries are dropped so two

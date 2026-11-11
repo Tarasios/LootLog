@@ -13,6 +13,7 @@
 /// Pure Dart, zero Flutter imports.
 library;
 
+import '../../config/balance.dart';
 import '../game_event.dart';
 import '../game_state.dart';
 import '../game_values.dart';
@@ -169,6 +170,29 @@ HallState townAfterSplit(
       ? state.ownership.sharedHall
       : welcomeTown(welcome);
 }
+
+/// After the split, whether a collection of [amounts] from [buildingId]
+/// can have come from [town]: a building stands there and makes every
+/// material named. A device that had not seen the split may write one for
+/// the shared town (now its owner's); crediting it to the actor's own town
+/// would hand out production that is still waiting in the owner's.
+bool collectionFitsTown(
+    HallState town, String buildingId, MaterialBundle amounts) {
+  for (final plot in town.plots.values) {
+    final building = plot.building;
+    if (building == null || plot.buildingId != buildingId) continue;
+    final makes = Balance.buildings[building.type]!.productionPerHour;
+    return amounts.amounts.keys.every(makes.containsKey);
+  }
+  return false;
+}
+
+/// After the split, whether a build of [tier] can follow from [town]'s
+/// [plot] (the actor's own): a first tier on an empty plot, or the next
+/// tier of the building standing there. A higher first build is a stale
+/// upgrade of a building that stands only in the owner's town.
+bool buildFitsTown(PlotState plot, int tier) =>
+    tier == (plot.building?.tier ?? 0) + 1 || (plot.building?.tier ?? 0) >= tier;
 
 bool _countsEqual(Map<String, int> first, Map<String, int> second) =>
     first.length == second.length &&

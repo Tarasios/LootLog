@@ -615,7 +615,7 @@ class StoresPanel extends StatelessWidget {
     final capacity = hall.storageCapacityAt(data.now);
     final text = hallTextTier(context);
     return HallSection(
-      title: 'Party stores',
+      title: 'Town stores',
       icon: Icons.inventory_2_outlined,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

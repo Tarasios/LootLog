@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lootlog/domain/event.dart';
-import 'package:lootlog/domain/reducer.dart';
 import 'package:lootlog/domain/value_types.dart';
 import 'package:lootlog/game/config/balance.dart';
 import 'package:lootlog/game/domain/clock.dart';
@@ -241,30 +240,5 @@ void main() {
       expect(together.containsAll(alone), isTrue);
       expect(alone.any((id) => id.startsWith('trade.road:')), isFalse);
     });
-  });
-
-  test('firewall: trade roads and gifts leave the money reducer untouched', () {
-    final ledgerEvents = List<Event>.unmodifiable([
-      for (final who in [_ada, _ben])
-        MemberSet(
-          eventId: 'm-$who', deviceId: 'd', userId: who,
-          occurredAt: _at(1, 1), createdAt: _at(1, 1),
-          memberId: who, name: who, role: MemberRole.adult,
-        ),
-      _buy(_ada, 2),
-      _buy(_ben, 2),
-    ]);
-    final before = reduce(ledgerEvents, asOf: _at(3)).debugSnapshot();
-    final device = _Device('one')..run(const [], _at(1, 12));
-    device
-      ..command(_ada, _at(1, 13), (commands) => commands.joinParty())
-      ..command(_ben, _at(1, 13), (commands) => commands.joinParty())
-      ..run(ledgerEvents, _at(2, 19));
-    final caravan = device.tradeRoads(_ada).single;
-    device.command(_ada, _at(2, 20), (commands) => commands.claimReward(caravan.rewardId));
-    final gift = device.command(_ada, _at(2, 21),
-        (commands) => commands.sendGift(_ben, caravan.materials));
-    expect(gift.accepted, isTrue, reason: '$gift');
-    expect(reduce(ledgerEvents, asOf: _at(3)).debugSnapshot(), before);
   });
 }

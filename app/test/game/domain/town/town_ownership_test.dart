@@ -129,6 +129,86 @@ void main() {
     expect(samsView.plots[3].unlocked, isFalse);
   });
 
+  group("a stale town event after the split never lands on the wrong town", () {
+    // Sam's device had not seen the split (offline, or an older build) and
+    // kept acting on the shared town, which Robin now owns.
+    List<GameWarningCode> codesOf(GameState state) =>
+        [for (final warning in state.warnings) warning.code];
+
+    test('collecting a building that only stands in the owner town credits '
+        'nothing, and the owner can still collect it once', () {
+      final split = projectGameState(_sharedThenSplit());
+      final stale = projectGameState([
+        ..._sharedThenSplit(),
+        collected('s1', 'plot-3', _lumber(6), when: at(30), actor: sam),
+        collected('s2', 'plot-0', MaterialBundle({MaterialKind.stone: 4}),
+            when: at(31), actor: sam),
+      ]);
+      expect(stale.townOf(sam), split.townOf(sam));
+      expect(stale.townOf(robin), split.townOf(robin));
+      expect(stale.townOf(robin).lastCollectedAt, isEmpty);
+      expect(codesOf(stale),
+          [GameWarningCode.unknownBuilding, GameWarningCode.unknownBuilding]);
+
+      final owner = projectGameState([
+        ..._sharedThenSplit(),
+        collected('s1', 'plot-3', _lumber(6), when: at(30), actor: sam),
+        collected('r1', 'plot-3', _lumber(6), when: at(32)),
+      ]);
+      expect(owner.townOf(robin).materials, _lumber(36));
+      expect(owner.townOf(sam).materials, _welcome);
+    });
+
+    test("a collect naming another building's materials credits nothing", () {
+      final state = projectGameState([
+        ..._sharedThenSplit(),
+        built('b1', 0, BuildingType.lumberyard, when: at(20), actor: sam),
+        // The shared town's quarry on plot 0, collected from a stale view.
+        collected('s1', 'plot-0', MaterialBundle({MaterialKind.stone: 4}),
+            when: at(30), actor: sam),
+      ]);
+      expect(state.townOf(sam).materials, _welcome);
+      expect(state.townOf(sam).lastCollectedAt, isEmpty);
+      expect(codesOf(state), [GameWarningCode.unknownBuilding]);
+    });
+
+    test('building on a plot locked in the actor town is not applied or charged', () {
+      final split = projectGameState(_sharedThenSplit());
+      final state = projectGameState([
+        ..._sharedThenSplit(),
+        built('s1', 3, BuildingType.storehouse,
+            when: at(30), actor: sam, cost: Loot(materials: _welcome)),
+      ]);
+      expect(state.townOf(sam), split.townOf(sam));
+      expect(state.townOf(robin), split.townOf(robin));
+      expect(codesOf(state), [GameWarningCode.plotLocked]);
+    });
+
+    test('upgrading a building the actor town does not have is not applied', () {
+      final split = projectGameState(_sharedThenSplit());
+      final state = projectGameState([
+        ..._sharedThenSplit(),
+        // The shared town's quarry (plot 0) to tier 2, from a stale view.
+        built('s1', 0, BuildingType.quarry,
+            when: at(30), actor: sam, tier: 2, cost: Loot(materials: _welcome)),
+      ]);
+      expect(state.townOf(sam), split.townOf(sam));
+      expect(state.townOf(robin), split.townOf(robin));
+      expect(codesOf(state), [GameWarningCode.unknownBuilding]);
+    });
+
+    test('unlocking a plot already open in the actor town charges nothing', () {
+      final state = projectGameState([
+        ..._sharedThenSplit(),
+        granted('g1', when: at(20), actor: sam, gems: 30),
+        claimed('g2', 'reward-g1', when: at(21), actor: sam),
+        unlocked('s1', 1, when: at(30), actor: sam, gemCost: 20),
+      ]);
+      expect(state.person(sam).gems, 30);
+      expect(codesOf(state), [GameWarningCode.duplicateUnlock]);
+    });
+  });
+
   group('convergence', () {
     test('two devices emitting different splits agree on the earliest', () {
       final shared = _sharedThenSplit().take(5).toList();
