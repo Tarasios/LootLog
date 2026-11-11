@@ -599,6 +599,11 @@ class PersonState {
   int get hashCode => Object.hash(personId, gems, freezeTokens, partyId);
 }
 
+/// [GameState.townActiveDays] per state: a state never changes, so its
+/// active days are worked out once. An [Expando] keeps the state const and
+/// lets the cache go with the state.
+final Expando<Set<GameDay>> _townActiveDaysCache = Expando('townActiveDays');
+
 /// The whole guild-hall game state.
 class GameState {
   const GameState({
@@ -641,14 +646,15 @@ class GameState {
 
   /// The household days anyone showed up: every Adventure adult's logged
   /// days (freeze-covered days excluded) plus every Standard adult's caravan
-  /// days. On these days the town's crews work the full shift. Computed on
-  /// each read, so callers drawing many plots read it once.
-  Set<GameDay> get townActiveDays => {
+  /// days. On these days the town's crews work the full shift. Computed
+  /// once per state (the state is immutable) and remembered beside it.
+  Set<GameDay> get townActiveDays => _townActiveDaysCache[this] ??=
+      Set.unmodifiable({
         for (final someone in people.values) ...someone.streak.loggedDays,
         for (final someone in people.values)
           for (final rewardId in someone.seenRewardIds)
             ?caravanRewardDay(rewardId),
-      };
+      });
 
   /// [personId]'s daily town event for [today], if one waits; null when none
   /// was offered or it was already taken or waved off. Earlier days' offers

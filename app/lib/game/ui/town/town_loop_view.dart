@@ -47,7 +47,11 @@ class TownLoopView {
       festivalRewards: festival == null
           ? const []
           : [
-              for (final rewardId in [festivalRewardId(meId, monday), jointFestivalRewardId(meId, monday)])
+              for (final rewardId in [
+                legacyFestivalRewardId(meId, monday),
+                ...festivalRewardIds(meId, monday),
+                jointFestivalRewardId(meId, monday),
+              ])
                 ?me.unclaimedRewards[rewardId],
             ],
       away: awaySummary(game, now),
@@ -70,7 +74,8 @@ class TownLoopView {
   /// The festival held today (weekends only, once granted).
   final FestivalTier? festival;
 
-  /// The festival's gifts still waiting in the inbox.
+  /// The festival's gifts still waiting in the inbox: one per tier
+  /// reached (and a pre-tier one), plus the joint bonus.
   final List<PendingReward> festivalRewards;
 
   final AwaySummary away;

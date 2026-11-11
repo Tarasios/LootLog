@@ -405,7 +405,7 @@ producer). Every weekend the town also holds a festival sized to the
 weekdays (Monday to Friday) the person logged; the `festival.*` keys
 announce it and take no placeholders. The town loop's lines (`away.*`,
 `tag.*`, `spirit.*`, `festival.name.*`, `festival.reward`,
-`festival.claimed`) take `{quietDays}`, `{building}`, `{logged}`, `{more}`,
+`festival.claimed`) take `{count}`, `{quietDays}`, `{building}`, `{logged}`, `{more}`,
 `{festival}` and `{reward}` as noted.
 
 | Key | Trigger | Intended outcome | Current line |
@@ -428,7 +428,8 @@ announce it and take no placeholders. The town loop's lines (`away.*`,
 | `festival.name.grandFestival` | As `festival.name.marketDay` | Same | grand festival |
 | `festival.reward` | The festival celebration, while its gifts wait in the inbox ({reward}: what they hold) | Point at the gifts; `Claim` takes them through the inbox's claim | The festival brings {reward}. |
 | `festival.claimed` | The festival celebration after its gifts were claimed | Keep the moment happy with nothing left to do | Its gifts are already in your stores. |
-| `away.welcome` | The "while you were away" pop-up's ribbon, on the first town visit of the day when the crews made something | A warm hello | Welcome back! |
+| `away.chip` | A small HUD chip over the check-in while producers hold something to collect ({count}: how many materials fit) | Point at the crews' work without ever standing between the player and Log purchase; tapping opens the summary | Crews made {count}: collect |
+| `away.welcome` | The "while you were away" summary's ribbon, opened from the `away.chip` chip | A warm hello | Welcome back! |
 | `away.title` | The heading of that pop-up's summary (and its text-home section) | Show what the town did on its own | While you were away |
 | `away.fullDays` | The summary (or a producer's sheet) when every day since the last collection was logged | Credit the kept ledger for the full days | Full days: the ledger was kept. |
 | `away.shortShifts` | The summary (or a producer's sheet) when the stretch held a quiet day and today is not logged yet ({quietDays}: "2 quiet days") | Frame the short shift as the town working harder when the ledger is kept; never "lost", "missed" or "penalty" | Short shifts on {quietDays}. Log today and the crews work the full day. |

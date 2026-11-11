@@ -182,4 +182,17 @@ void main() {
       'festival:ada:2026-10-05:fair',
     );
   });
+
+  test('a pre-tier reward id counts as the market day paid, and only that', () {
+    const week = GameDay(2026, 10, 5);
+    final seen = {legacyFestivalRewardId('ada', week)};
+    expect(legacyFestivalRewardId('ada', week), 'festival:ada:2026-10-05');
+    expect(festivalTierPaid(seen, 'ada', week, FestivalTier.marketDay), isTrue);
+    expect(festivalTierPaid(seen, 'ada', week, FestivalTier.fair), isFalse);
+    expect(festivalTierPaid(seen, 'ben', week, FestivalTier.marketDay), isFalse);
+    expect(
+      festivalTierPaid({festivalRewardId('ada', week, FestivalTier.fair)}, 'ada', week, FestivalTier.fair),
+      isTrue,
+    );
+  });
 }

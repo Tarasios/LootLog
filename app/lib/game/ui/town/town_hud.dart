@@ -85,7 +85,8 @@ class TownHud extends StatelessWidget {
   /// The week's town spirit, under the date chip.
   final Widget? spiritBar;
 
-  /// A muted note over the check-in ("Log today to open the town").
+  /// Notes over the check-in: what the crews made, "Log today to open the
+  /// town".
   final Widget? logHint;
 
   @override

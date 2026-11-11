@@ -1,7 +1,6 @@
 /// Riverpod wiring for the town loop: the wording of the town's events
-/// (`town_events.json`), and this device's memory of which once-a-day and
-/// once-a-weekend pop-ups it has already shown — the "while you were away"
-/// summary and the festival celebration. The memory is per device: held for
+/// (`town_events.json`), and this device's memory of the weekends whose
+/// festival celebration it has already shown. The memory is per device: held for
 /// the app session and kept in a tiny file in the app documents directory,
 /// like the quest board's fold (`quest_board_prefs.dart`). It never syncs.
 library;
@@ -28,42 +27,31 @@ final townEventLinesProvider = FutureProvider<TownEventLines>((ref) async {
   return TownEventLines.fromJson(jsonDecode(text) as Map<String, dynamic>);
 });
 
-/// What this device has already shown: the day of the last away summary and
-/// the week (its Monday) of the last festival celebration. [loaded] is false
-/// until the stored memory has been read, and nothing pops up before then.
+/// What this device has already shown: the week (its Monday) of the last
+/// festival celebration. [loaded] is false until the stored memory has been
+/// read, and nothing pops up before then.
 class TownLoopShown {
-  const TownLoopShown({this.loaded = false, this.awayDay, this.festivalWeek});
+  const TownLoopShown({this.loaded = false, this.festivalWeek});
 
   final bool loaded;
-  final GameDay? awayDay;
   final GameDay? festivalWeek;
-
-  /// Whether the away summary may open on [today].
-  bool awayDue(GameDay today) => loaded && awayDay != today;
 
   /// Whether the festival celebration may open on [today]'s weekend.
   bool festivalDue(GameDay today) => loaded && festivalWeek != today.weekStart;
 
-  String encode() => [
-    if (awayDay case final day?) 'away=${day.toKey()}',
-    if (festivalWeek case final week?) 'festival=${week.toKey()}',
-  ].join('\n');
+  String encode() => festivalWeek == null ? '' : 'festival=${festivalWeek!.toKey()}';
 
+  /// Reads [encode]'s text; lines it does not know are ignored.
   static TownLoopShown decode(String text) {
-    GameDay? awayDay;
     GameDay? festivalWeek;
     for (final line in const LineSplitter().convert(text)) {
       final separator = line.indexOf('=');
       if (separator <= 0) continue;
-      final day = _parseDay(line.substring(separator + 1).trim());
-      switch (line.substring(0, separator).trim()) {
-        case 'away':
-          awayDay = day;
-        case 'festival':
-          festivalWeek = day;
+      if (line.substring(0, separator).trim() == 'festival') {
+        festivalWeek = _parseDay(line.substring(separator + 1).trim());
       }
     }
-    return TownLoopShown(loaded: true, awayDay: awayDay, festivalWeek: festivalWeek);
+    return TownLoopShown(loaded: true, festivalWeek: festivalWeek);
   }
 
   /// A stored day, or null when the line is damaged.
@@ -93,12 +81,8 @@ class TownLoopShownNotifier extends Notifier<TownLoopShown> {
       // Nothing stored or no documents directory: start fresh.
       restored = const TownLoopShown(loaded: true);
     }
-    // A pop-up marked during the read wins over the stored memory.
-    state = TownLoopShown(
-      loaded: true,
-      awayDay: state.awayDay ?? restored.awayDay,
-      festivalWeek: state.festivalWeek ?? restored.festivalWeek,
-    );
+    // A celebration marked during the read wins over the stored memory.
+    state = TownLoopShown(loaded: true, festivalWeek: state.festivalWeek ?? restored.festivalWeek);
   }
 
   /// Reads the stored memory.
@@ -119,12 +103,8 @@ class TownLoopShownNotifier extends Notifier<TownLoopShown> {
     return File(p.join(directory.path, 'town_loop_shown.txt'));
   }
 
-  void markAwayShown(GameDay today) =>
-      _update(TownLoopShown(loaded: state.loaded, awayDay: today, festivalWeek: state.festivalWeek));
-
-  void markFestivalShown(GameDay today) => _update(
-    TownLoopShown(loaded: state.loaded, awayDay: state.awayDay, festivalWeek: today.weekStart),
-  );
+  void markFestivalShown(GameDay today) =>
+      _update(TownLoopShown(loaded: state.loaded, festivalWeek: today.weekStart));
 
   void _update(TownLoopShown next) {
     state = next;

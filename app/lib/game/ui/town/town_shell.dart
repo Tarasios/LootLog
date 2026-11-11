@@ -247,7 +247,7 @@ class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<Town
                 ),
                 onQuests: onQuests,
                 spiritBar: loop.spiritBar,
-                logHint: loop.logHint,
+                logHint: loop.logNotes,
                 noSpendCheckIn: NoSpendCheckIn(
                   key: const ValueKey('town-no-spend'),
                   explainWhenUnavailable: true,

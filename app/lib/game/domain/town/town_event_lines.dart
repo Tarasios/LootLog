@@ -17,6 +17,7 @@ import '../game_values.dart' show FestivalTier;
 /// The town loop's lines: the "while you were away" summary, the day's
 /// visitor tags, the town spirit and the festival celebration.
 const List<String> kTownLoopLineKeys = [
+  'away.chip',
   'away.welcome',
   'away.title',
   'away.fullDays',
@@ -112,6 +113,7 @@ const Map<String, String> _builtIn = {
   'festival.name.grandFestival': 'grand festival',
   'festival.reward': 'The festival brings {reward}.',
   'festival.claimed': 'Its gifts are already in your stores.',
+  'away.chip': 'Crews made {count}: collect',
   'away.welcome': 'Welcome back!',
   'away.title': 'While you were away',
   'away.fullDays': 'Full days: the ledger was kept.',

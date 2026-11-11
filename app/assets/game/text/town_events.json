@@ -1,5 +1,5 @@
 {
-  "_comment": "Daily town events and weekend festivals in Adventure mode (game words are fine). Every line is listed in docs/voice-lines.md beside its trigger. Placeholders filled by the app: {gives} {receives} {building} {quietDays} {logged} {more} {festival} {reward}. The short-shift lines frame quiet days as the town working harder when the ledger is kept, never as a loss. An event is always a treat, never a test: taking it is a choice and waving it off costs nothing. A missing key falls back to the built-in line.",
+  "_comment": "Daily town events and weekend festivals in Adventure mode (game words are fine). Every line is listed in docs/voice-lines.md beside its trigger. Placeholders filled by the app: {gives} {receives} {building} {count} {quietDays} {logged} {more} {festival} {reward}. The short-shift lines frame quiet days as the town working harder when the ledger is kept, never as a loss. An event is always a treat, never a test: taking it is a choice and waving it off costs nothing. A missing key falls back to the built-in line.",
   "trader.1": "A travelling trader sets up by the well. Swap {gives} for {receives}?",
   "trader.2": "A cart rolls in with just what the yard is short of: {receives} for {gives}.",
   "trader.3": "A merchant tips her hat. \"I'll take {gives} off your hands for {receives}.\"",
@@ -18,6 +18,7 @@
   "festival.name.grandFestival": "grand festival",
   "festival.reward": "The festival brings {reward}.",
   "festival.claimed": "Its gifts are already in your stores.",
+  "away.chip": "Crews made {count}: collect",
   "away.welcome": "Welcome back!",
   "away.title": "While you were away",
   "away.fullDays": "Full days: the ledger was kept.",

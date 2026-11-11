@@ -1,5 +1,6 @@
-/// "While you were away": the pop-up that greets the player on their first
-/// town visit of the day when the crews have made something. One row per
+/// "While you were away": the summary the HUD's "crews made" chip opens
+/// when the crews have made something (it never opens by itself, so it
+/// never stands between the player and Log purchase). One row per
 /// producer (its picture, its name, what it made), a line on how the crews
 /// worked, and `Collect all` — one collection per producer — or `Later`.
 /// Collecting is never gated; a full Storehouse row just says so.

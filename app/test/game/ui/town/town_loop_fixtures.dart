@@ -2,6 +2,7 @@
 /// weekend festival with its gift, and a quiet stretch nobody logged.
 library;
 
+import 'package:lootlog/game/config/balance.dart';
 import 'package:lootlog/game/domain/game_event.dart';
 import 'package:lootlog/game/domain/game_values.dart';
 import 'package:lootlog/game/domain/reason_codes.dart';
@@ -33,7 +34,10 @@ DailyEventOffered offered(
   flavourKey: '${kind.name}.1',
 );
 
-List<GameEvent> festivalEvents({FestivalTier tier = FestivalTier.fair}) => [
+/// This weekend's festival at [tier]: the `FestivalHeld` and, as the rules
+/// grant it, one reward per tier reached (each paying what its tier adds),
+/// plus the joint bonus when [joint].
+List<GameEvent> festivalEvents({FestivalTier tier = FestivalTier.fair, bool joint = false}) => [
   FestivalHeld(
     eventId: 'f0001',
     deviceId: 'dev-1',
@@ -44,14 +48,24 @@ List<GameEvent> festivalEvents({FestivalTier tier = FestivalTier.fair}) => [
     tier: tier,
     weekdaysLogged: 3,
   ),
-  granted(
-    'f0002',
-    when: before(const Duration(minutes: 40)),
-    rewardId: festivalRewardId(robin, kWeek),
-    gems: 6,
-    kind: 'festival',
-    reasonCode: GameReasonCodes.festival,
-  ),
+  for (final step in FestivalTier.values.take(tier.index + 1))
+    granted(
+      'f001${step.index}',
+      when: before(const Duration(minutes: 40)),
+      rewardId: festivalRewardId(robin, kWeek, step),
+      gems: festivalTierReward(step).gems,
+      materials: festivalTierReward(step).materials,
+      kind: 'festival',
+      reasonCode: GameReasonCodes.festival,
+    ),
+  if (joint)
+    granted(
+      'f0020',
+      when: before(const Duration(minutes: 40)),
+      rewardId: jointFestivalRewardId(robin, kWeek),
+      gems: Balance.jointFestivalGems,
+      reasonCode: GameReasonCodes.festivalJoint,
+    ),
 ];
 
 /// Nobody logged today or yesterday: a Lumberyard built yesterday morning.

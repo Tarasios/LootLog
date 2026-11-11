@@ -247,6 +247,20 @@ void main() {
   });
 
   group('GameState.townActiveDays', () {
+    test('is worked out once per state and follows a new state', () {
+      final first = projectGameState([
+        granted('g1', when: octoberLocal(5, 9), reasonCode: GameReasonCodes.dailyLog,
+            rewardId: 'log.daily:$robin:2026-10-05'),
+      ]);
+      expect(identical(first.townActiveDays, first.townActiveDays), isTrue);
+      final next = first.apply(
+        granted('g2', when: octoberLocal(6, 9), reasonCode: GameReasonCodes.dailyLog,
+            rewardId: 'log.daily:$robin:2026-10-06'),
+      );
+      expect(next.townActiveDays, {october5, october6});
+      expect(first.townActiveDays, {october5});
+    });
+
     test(
       'unions everyone\'s logged days and leaves freeze-covered days out',
       () {

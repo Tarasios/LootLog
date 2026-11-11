@@ -40,6 +40,24 @@ List<String> festivalRewardIds(String personId, GameDay week) => [
     festivalRewardId(personId, week, tier),
 ];
 
+/// The id festival rewards carried before they were paid per tier
+/// (`festival:<who>:<week>`). A device that already holds it has been paid
+/// the market day, so that tier is never granted again.
+String legacyFestivalRewardId(String personId, GameDay week) =>
+    'festival:$personId:${week.toKey()}';
+
+/// Whether the festival reward for [tier] in [week] was already granted to
+/// [personId], counting a pre-tier reward as the market day.
+bool festivalTierPaid(
+  Set<String> seenRewardIds,
+  String personId,
+  GameDay week,
+  FestivalTier tier,
+) =>
+    seenRewardIds.contains(festivalRewardId(personId, week, tier)) ||
+    (tier == FestivalTier.marketDay &&
+        seenRewardIds.contains(legacyFestivalRewardId(personId, week)));
+
 /// What reaching [tier] adds over the tier below it. Paid once per tier
 /// reached, so a week's rewards sum to `Balance.festivalRewards[tier]`.
 Loot festivalTierReward(FestivalTier tier) {

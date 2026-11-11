@@ -362,6 +362,7 @@ class _Run {
       }
       final reached = record.festivalTiers[week]!;
       for (final step in FestivalTier.values.take(reached.index + 1)) {
+        if (festivalTierPaid(record.seenRewards, who, week, step)) continue;
         final loot = festivalTierReward(step);
         _grant(who,
             rewardId: festivalRewardId(who, week, step),

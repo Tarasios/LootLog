@@ -35,6 +35,7 @@ Future<void> _golden(
   String name, {
   required List<GameEvent> events,
   bool popups = false,
+  bool openAwaySummary = false,
 }) async {
   tester.view.physicalSize = const Size(390, 844);
   tester.view.devicePixelRatio = 1;
@@ -69,6 +70,12 @@ Future<void> _golden(
   for (var frame = 0; frame < 8; frame++) {
     await tester.pump(const Duration(milliseconds: 100));
   }
+  if (openAwaySummary) {
+    await tester.tap(find.byKey(const ValueKey('town-away-chip')));
+    for (var frame = 0; frame < 6; frame++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+  }
   await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
 }
 
@@ -93,7 +100,7 @@ void main() {
         ...sampleEvents(),
         built('x0001', 2, BuildingType.quarry, when: before(const Duration(hours: 4))),
       ],
-      popups: true,
+      openAwaySummary: true,
     );
   });
 }

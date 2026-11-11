@@ -9,6 +9,7 @@ import 'package:lootlog/game/domain/game_state.dart';
 import 'package:lootlog/game/domain/game_values.dart';
 import 'package:lootlog/game/domain/reason_codes.dart';
 import 'package:lootlog/game/domain/rewards/reward_engine.dart';
+import 'package:lootlog/game/domain/town/festival.dart';
 
 const _ada = 'ada';
 const _ben = 'ben';
@@ -105,6 +106,29 @@ void main() {
   setUp(() => ledger = _Ledger());
 
   group('the weekend festival', () {
+    test('a pre-tier festival reward counts as the market day already paid', () {
+      final dev = _Device();
+      dev.log.add(
+        RewardGranted(
+          eventId: 'legacy-00001',
+          deviceId: 'old',
+          actorId: _ada,
+          occurredAt: _oct(10, 17),
+          createdAt: _oct(10, 17),
+          rewardId: legacyFestivalRewardId(_ada, _week),
+          kind: 'festival',
+          gems: 2,
+          materials: const MaterialBundle.empty(),
+          tokens: 0,
+          reasonCode: GameReasonCodes.festival,
+          sourceLedgerEventIds: const [],
+        ),
+      );
+      final out = dev.run(ledger.days(_ada, [5, 6, 7]), _oct(10));
+      final ids = [for (final grant in dev.grants(GameReasonCodes.festival, out)) grant.rewardId];
+      expect(ids, [festivalRewardId(_ada, _week, FestivalTier.fair)]);
+    });
+
     test('is held from Saturday, not before', () {
       final dev = _Device();
       dev.run(ledger.days(_ada, [5, 6, 7, 8, 9]), _oct(9, 23));
