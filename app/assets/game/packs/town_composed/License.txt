@@ -1,0 +1,2 @@
+Composed from Kenney "Tiny Town" tiles (www.kenney.nl), Creative Commons Zero (CC0).
+See ../tiny_town/License.txt. Regenerate with tool/compose_town_buildings.dart.

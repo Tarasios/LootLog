@@ -81,6 +81,30 @@ class GroundLayer extends PositionComponent {
             Paint()..color = _groundColours[ground]!,
           );
         }
+        if (ground == TownGround.water) _drawShore(canvas, cell);
+      }
+    }
+  }
+
+  static final Paint _shorePaint = Paint()..color = const Color(0xFF2F5F9E);
+
+  bool _isWater(TownCell cell) =>
+      _onMap(cell) && layout.groundAt(cell) == TownGround.water;
+
+  /// A one-pixel darker bank on each side of a water [cell] that meets land
+  /// inside the map (the map's own edge runs on under the forest).
+  void _drawShore(Canvas canvas, TownCell cell) {
+    final position = cellPosition(cell);
+    final left = position.x, top = position.y;
+    for (final (columnStep, rowStep, bank) in [
+      (-1, 0, Rect.fromLTWH(left, top, 1, kTileSize)),
+      (1, 0, Rect.fromLTWH(left + kTileSize - 1, top, 1, kTileSize)),
+      (0, -1, Rect.fromLTWH(left, top, kTileSize, 1)),
+      (0, 1, Rect.fromLTWH(left, top + kTileSize - 1, kTileSize, 1)),
+    ]) {
+      final neighbour = TownCell(cell.column + columnStep, cell.row + rowStep);
+      if (_onMap(neighbour) && !_isWater(neighbour)) {
+        canvas.drawRect(bank, _shorePaint);
       }
     }
   }

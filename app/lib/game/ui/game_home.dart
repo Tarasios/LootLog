@@ -2,7 +2,8 @@
 ///
 /// A sectioned home: the party (gems, freeze tokens, streak, members, the
 /// supply caravan), today's habits (the Scribe's Desk into the ledger, the
-/// no-spend check-in, the weekly reconcile), the inbox of chests and rewards,
+/// no-spend check-in, the weekly reconcile), the town today (what the crews
+/// made, the day's visitor, the town spirit and the festival), the inbox of chests and rewards,
 /// the spoils-ritual callout, the shared stores, the plots, and the places to
 /// go (Forge & hero, Expeditions, Vault, the ritual). A "Log a purchase"
 /// button is always on screen, so logging stays one tap from launch.
@@ -31,6 +32,7 @@ import 'hall_home_sections.dart';
 import 'hall_ledger_view.dart';
 import 'hall_voice.dart';
 import 'kit/adventure_tokens.dart';
+import 'town/town_loop_text_panel.dart';
 
 export 'hall_common.dart' show HallLinks;
 
@@ -133,6 +135,7 @@ class _HallBody extends ConsumerWidget {
       final left = [
         PartyHeader(data),
         HabitPanel(data),
+        TownLoopPanel(data),
         InboxPanel(data),
         RitualCallout(data),
       ];

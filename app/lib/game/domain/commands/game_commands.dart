@@ -168,6 +168,12 @@ enum GameRejection {
 
   /// The starter set was already handed out.
   starterAlreadyClaimed,
+
+  /// No such daily event waits for the actor (already taken or waved off).
+  unknownOffer,
+
+  /// The daily event belonged to an earlier day.
+  offerExpired,
 }
 
 /// What a command decided: the events to append, or why not.
@@ -244,8 +250,8 @@ class GameCommands {
 
   /// Builds [type] on an empty plot (tier 1) or upgrades the [type] already
   /// standing there by one tier. An upgrade of a producer first banks what it
-  /// has made (capped by the Storehouse), since the upgrade restarts its
-  /// production window.
+  /// has made (capped by the Storehouse, by the same working-shift rule as
+  /// collecting), since the upgrade restarts its production window.
   GameCommandResult startBuilding(int plotIndex, BuildingType type) {
     final plot = _hall.plots[plotIndex];
     if (plot == null) return _reject(GameRejection.plotLocked);
@@ -271,7 +277,8 @@ class GameCommands {
     }
 
     final bank = existing != null && Balance.buildings[type]!.isProducer
-        ? collectableNow(_hall, plotIndex, _now)
+        ? collectableNow(_hall, plotIndex, _now,
+            activeDays: state.townActiveDays)
         : null;
     final cost = Balance.buildingCost(type, tier);
     final pool = bank == null ? _hall.materials : _hall.materials + bank;
@@ -302,7 +309,9 @@ class GameCommands {
 
   /// Collects what the producer on [plotIndex] made since its last
   /// collection, capped by the room left in the Storehouse (production past
-  /// that is lost, as in any full yard). Never depends on logging (rule 10).
+  /// that is lost, as in any full yard). Collecting itself is never gated on
+  /// logging; what the crews made follows the working shift (rule 10): the
+  /// full day on days anyone showed up, a short shift on the rest.
   GameCommandResult collectMaterials(int plotIndex) {
     final plot = _hall.plots[plotIndex];
     if (plot == null) return _reject(GameRejection.plotLocked);
@@ -311,7 +320,8 @@ class GameCommands {
     if (!Balance.buildings[b.type]!.isProducer) {
       return _reject(GameRejection.notAProducer);
     }
-    final made = uncollectedProduction(_hall, plotIndex, _now);
+    final made = uncollectedProduction(_hall, plotIndex, _now,
+        activeDays: state.townActiveDays);
     if (made.isEmpty) return _reject(GameRejection.nothingToCollect);
     final fits = fitInStorehouse(_hall, made, _now);
     if (fits.isEmpty) return _reject(GameRejection.storehouseFull);
@@ -382,6 +392,52 @@ class GameCommands {
         occurredAt: _now,
         createdAt: _now,
         rewardId: rewardId,
+      ),
+    ]);
+  }
+
+  // ---- Daily town event -----------------------------------------------------
+
+  /// Takes ([accept]) or waves off today's daily town event [offerId]. A
+  /// trader first needs its asking price in the shared pool; whatever comes
+  /// in is trimmed to the Storehouse now and stored in the event. Waving it
+  /// off moves nothing. Either way the offer is done.
+  GameCommandResult resolveDailyEvent(String offerId, {required bool accept}) {
+    final offer = _me.dailyOffers[offerId];
+    if (offer == null) return _reject(GameRejection.unknownOffer);
+    if (offer.day != GameDay.fromInstant(_now)) {
+      return _reject(GameRejection.offerExpired);
+    }
+    var paid = const MaterialBundle.empty();
+    var received = Loot.none;
+    if (accept) {
+      if (!_hall.materials.covers(offer.gives)) {
+        return _reject(GameRejection.notEnoughMaterials);
+      }
+      paid = offer.gives;
+      final afterPaying = _hall.copyWith(
+        materials: MaterialBundle({
+          for (final kind in MaterialKind.values)
+            kind: _hall.materials[kind] - paid[kind],
+        }),
+      );
+      received = Loot(
+        gems: offer.receives.gems,
+        materials: fitInStorehouse(afterPaying, offer.receives.materials, _now),
+        tokens: offer.receives.tokens,
+      );
+    }
+    return _accept([
+      DailyEventResolved(
+        eventId: stamp.newEventId(),
+        deviceId: stamp.deviceId,
+        actorId: actorId,
+        occurredAt: _now,
+        createdAt: _now,
+        offerId: offerId,
+        accepted: accept,
+        paid: paid,
+        received: received,
       ),
     ]);
   }

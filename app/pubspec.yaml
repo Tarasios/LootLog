@@ -113,6 +113,7 @@ flutter:
     - assets/game/text/
     # Kenney CC0 16x16 art packs (nested folders must be listed explicitly).
     - assets/game/packs/tiny_town/
+    - assets/game/packs/town_composed/
     - assets/game/packs/tiny_dungeon/
     - assets/game/packs/roguelike_indoors/
     # Kenney CC0 UI Pack - Pixel Adventure (32px frames, banners, buttons).
@@ -126,7 +127,7 @@ flutter:
   fonts:
     - family: LootPixel
       fonts:
-        - asset: assets/fonts/KenneyPixel.ttf
+        - asset: assets/fonts/KenneyMini.ttf
     - family: LootPixelMono
       fonts:
         - asset: assets/fonts/KenneyMiniSquare.ttf

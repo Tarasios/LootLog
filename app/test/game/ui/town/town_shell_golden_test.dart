@@ -62,7 +62,7 @@ final TownLedger _goldenLedger = TownLedger(
 
 Future<void> _loadPixelFonts() async {
   for (final (family, asset) in [
-    (AdventureTokens.pixelFont, 'assets/fonts/KenneyPixel.ttf'),
+    (AdventureTokens.pixelFont, 'assets/fonts/KenneyMini.ttf'),
     (AdventureTokens.pixelMonoFont, 'assets/fonts/KenneyMiniSquare.ttf'),
   ]) {
     await (FontLoader(family)..addFont(rootBundle.load(asset))).load();

@@ -32,7 +32,9 @@ import 'package:lootlog/game/skin_prefs.dart';
 import 'package:lootlog/game/ui/dungeon/dungeon_providers.dart';
 import 'package:lootlog/game/ui/hall_habits.dart';
 import 'package:lootlog/game/ui/hall_ledger_view.dart';
+import 'package:lootlog/game/domain/town/town_event_lines.dart';
 import 'package:lootlog/game/ui/town/town_ledger_provider.dart';
+import 'package:lootlog/game/ui/town/town_loop_providers.dart';
 import 'package:lootlog/game/ui/town/town_townsfolk.dart';
 
 import '../hall_harness.dart';
@@ -106,6 +108,7 @@ List<Override> townTestOverrides({
   TownLedger ledger = kSampleTownLedger,
   List<TownBill> Function(CalendarDay today)? billsOn,
   Clock? clock,
+  bool loopPopups = false,
 }) {
   final state = game ?? projectGameState(sampleEvents());
   return [
@@ -128,7 +131,27 @@ List<Override> townTestOverrides({
     townLedgerProvider.overrideWith((ref, month) => ledger),
     townBillsProvider.overrideWith((ref, today) => billsOn?.call(today) ?? const []),
     townTagLinesProvider.overrideWith((ref) async => TownTagLines.defaults),
+    townEventLinesProvider.overrideWith((ref) async => TownEventLines.defaults),
+    townLoopShownProvider.overrideWith(() => MemoryTownLoopShown(popups: loopPopups)),
   ];
+}
+
+/// The town loop's "already shown" memory, in memory only. With [popups]
+/// false (the default for the shell tests) it never finishes loading, so the
+/// away summary and the festival celebration never open over a test.
+class MemoryTownLoopShown extends TownLoopShownNotifier {
+  MemoryTownLoopShown({this.popups = true});
+
+  final bool popups;
+
+  @override
+  TownLoopShown build() => TownLoopShown(loaded: popups);
+
+  @override
+  Future<TownLoopShown> load() async => const TownLoopShown(loaded: true);
+
+  @override
+  Future<void> save(TownLoopShown shown) async {}
 }
 
 /// Alex (this device's adult, Adventure) and Sam (their partner) over a live

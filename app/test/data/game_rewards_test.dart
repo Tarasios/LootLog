@@ -259,4 +259,44 @@ void main() {
           isNotEmpty);
     });
   });
+
+  group('festival decorations', () {
+    final catalog = DecorCatalog.fromJson(
+        jsonDecode(File('assets/game/catalog.json').readAsStringSync())
+            as Map<String, dynamic>);
+
+    test('a grand festival brings its decoration on the next run, once',
+        () async {
+      final festivalRunner = GameRewardRunner(
+          db: db, deviceId: 'dev', loadCatalog: () async => catalog);
+      await actions.addPurchase(target: const VaultCharge(), amountCents: 500);
+      final week = today.weekStart.addDays(-7);
+      final now = DateTime.now().toUtc();
+      await db.gameEventsDao.appendGameEvents([
+        FestivalHeld(
+          eventId: uuidv7(),
+          deviceId: 'dev',
+          actorId: 'u1',
+          occurredAt: now,
+          createdAt: now,
+          week: week,
+          tier: FestivalTier.grandFestival,
+          weekdaysLogged: 5,
+        ),
+      ]);
+      await festivalRunner.run();
+      Future<List<ItemAcquired>> festivalItems() async => [
+            for (final grant in (await db.gameEventsDao.allGameEvents())
+                .whereType<ItemAcquired>())
+              if (grant.acquisitionId == 'festival.decor:u1:${week.toKey()}')
+                grant,
+          ];
+      final granted = (await festivalItems()).single;
+      expect(catalog.festivalPool.map((item) => item.id),
+          contains(granted.itemId));
+
+      await festivalRunner.run();
+      expect(await festivalItems(), hasLength(1));
+    });
+  });
 }

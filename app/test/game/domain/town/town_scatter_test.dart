@@ -97,7 +97,7 @@ void main() {
     }
   });
 
-  test('in-town density is light, around six percent of free grass', () {
+  test('in-town density is light, around twelve percent of free grass', () {
     var freeGrass = 0;
     final blocked = <TownCell>{
       ...footprintCells(layout.plotOrigins),
@@ -121,7 +121,7 @@ void main() {
       placed += scatterTown(layout, seed: seed).props.where(insideTown).length;
     }
     final density = placed / (freeGrass * seeds);
-    expect(density, inInclusiveRange(0.04, 0.08));
+    expect(density, inInclusiveRange(0.09, 0.15));
   });
 
   test('every prop key exists in the bundled tiny town pack', () {
@@ -138,7 +138,14 @@ void main() {
     };
     expect(
       keys,
-      containsAll(['town.tree.default.idle', 'town.bush.default.idle']),
+      containsAll([
+        TownScatter.forestKey,
+        TownScatter.forestNorthEdgeKey,
+        TownScatter.forestSouthEdgeKey,
+        TownScatter.forestWestEdgeKey,
+        TownScatter.forestEastEdgeKey,
+        for (final (key, _) in TownScatter.inTownProps) key,
+      ]),
     );
     for (final key in keys) {
       expect(regions.containsKey(key), isTrue, reason: key);

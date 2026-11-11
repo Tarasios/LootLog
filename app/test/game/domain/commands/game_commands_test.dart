@@ -54,6 +54,20 @@ class _Hall {
       ..add(claimed('$id-b', id, when: now, actor: who));
   }
 
+  /// Marks the household day of [now] (plus the next [extraDays]) as logged
+  /// by [who], so the crews work the full day.
+  void logToday({String who = robin, int extraDays = 0}) {
+    for (var offset = 0; offset <= extraDays; offset++) {
+      final when = now.add(Duration(days: offset));
+      final day = GameDay.fromInstant(when);
+      log.add(granted('log-${_ids++}',
+          when: when,
+          actor: who,
+          reasonCode: GameReasonCodes.dailyLog,
+          rewardId: '${GameReasonCodes.dailyLog}:$who:${day.toKey()}'));
+    }
+  }
+
   /// Drops [m] into the shared pool.
   void stock(MaterialBundle m) {
     final id = 'stock-${_ids++}';
@@ -159,6 +173,7 @@ void main() {
       h.stock(Balance.buildingCost(BuildingType.centralHall, 2).materials);
       h.run((c) => c.startBuilding(0, BuildingType.centralHall));
       h.run((c) => c.startBuilding(1, BuildingType.lumberyard));
+      h.logToday();
       h.advance(const Duration(hours: 2));
       h.stock(Balance.buildingCost(BuildingType.lumberyard, 2).materials);
       final before = h.state.hall.materials[MaterialKind.lumber];
@@ -172,6 +187,26 @@ void main() {
       expect(h.state.hall.materials[MaterialKind.lumber],
           before + 2 * rate - cost.materials[MaterialKind.lumber]);
       expect(h.state.hall.lastCollectedAt['plot-1'], h.now);
+    });
+
+    test('an upgrade banks by the same shift rule as collecting', () {
+      // Built at local midnight on a day nobody logs; upgraded at 20:00.
+      final midnight = DateTime.utc(2026, 10, 5, 7);
+      final h = _Hall()
+        ..now = midnight
+        ..log.addAll([
+          for (final tier in [1, 2])
+            built('ch$tier', 0, BuildingType.centralHall,
+                when: midnight.subtract(const Duration(days: 1)), tier: tier),
+        ]);
+      h.run((c) => c.startBuilding(1, BuildingType.lumberyard));
+      h.advance(const Duration(hours: 20));
+      h.stock(Balance.buildingCost(BuildingType.lumberyard, 2).materials);
+      final r = h.run((c) => c.startBuilding(1, BuildingType.lumberyard));
+      final bank = r.events.first as MaterialsCollected;
+      final rate = Balance.buildings[BuildingType.lumberyard]!
+          .productionPerHour[MaterialKind.lumber]![0];
+      expect(bank.amounts[MaterialKind.lumber], Balance.shortShiftHours * rate);
     });
 
     test('higher tiers also cost gems, paid by whoever builds', () {
@@ -207,7 +242,7 @@ void main() {
   group('collectMaterials', () {
     test('banks production since the build, then since the last collection',
         () {
-      final h = _Hall();
+      final h = _Hall()..logToday();
       h.run((c) => c.startBuilding(0, BuildingType.quarry));
       expectRejected(
           h.run((c) => c.collectMaterials(0)), GameRejection.nothingToCollect);
@@ -224,17 +259,55 @@ void main() {
           rate * 90 ~/ 60 + rate);
     });
 
-    test('never asks whether anyone logged today (rule 10)', () {
-      // No ledger input exists for collecting at all: the command takes only
-      // the hall and the clock.
+    test('collecting twice never counts the same hours twice', () {
+      final midnight = DateTime.utc(2026, 10, 5, 7);
+      final h = _Hall()..now = midnight;
+      h.run((c) => c.startBuilding(0, BuildingType.quarry));
+      h.advance(const Duration(hours: 3));
+      h.run((c) => c.collectMaterials(0));
+      h.advance(const Duration(hours: 3));
+      h.run((c) => c.collectMaterials(0));
+      h.advance(const Duration(hours: 6));
+      // Nobody logged: 0-3 h and 3-6 h are banked, then only 6-8 h is left.
+      final rate = Balance.buildings[BuildingType.quarry]!
+          .productionPerHour[MaterialKind.stone]![0];
+      h.run((c) => c.collectMaterials(0));
+      expect(h.state.hall.materials[MaterialKind.stone],
+          Balance.shortShiftHours * rate);
+      expectRejected(
+          h.run((c) => c.collectMaterials(0)), GameRejection.nothingToCollect);
+    });
+
+    test('a quiet stretch still works the short shift each day (rule 10)', () {
+      // Built at noon on a day nobody logs: that day's shift is over, then
+      // each idle day after works its first eight hours.
       final h = _Hall();
-      h.run((c) => c.startBuilding(0, BuildingType.lumberyard));
+      h.run((c) => c.startBuilding(0, BuildingType.quarry));
       h.advance(const Duration(days: 3));
-      expect(h.run((c) => c.collectMaterials(0)).accepted, isTrue);
+      final rate = Balance.buildings[BuildingType.quarry]!
+          .productionPerHour[MaterialKind.stone]![0];
+      final e = h.run((c) => c.collectMaterials(0)).events.single
+          as MaterialsCollected;
+      expect(e.amounts[MaterialKind.stone], 3 * Balance.shortShiftHours * rate);
+    });
+
+    test('a day anyone logged works the full day, even logged after', () {
+      // Sam logs at the end of the day; Robin collects later the same day and
+      // gets the whole day so far.
+      final midnight = DateTime.utc(2026, 10, 5, 7);
+      final h = _Hall()..now = midnight;
+      h.run((c) => c.startBuilding(0, BuildingType.quarry));
+      h.advance(const Duration(hours: 22));
+      h.logToday(who: sam);
+      final rate = Balance.buildings[BuildingType.quarry]!
+          .productionPerHour[MaterialKind.stone]![0];
+      final e = h.run((c) => c.collectMaterials(0)).events.single
+          as MaterialsCollected;
+      expect(e.amounts[MaterialKind.stone], 22 * rate);
     });
 
     test('is capped by the room left in the storehouse', () {
-      final h = _Hall();
+      final h = _Hall()..logToday(extraDays: 2);
       h.run((c) => c.startBuilding(0, BuildingType.lumberyard));
       final cap = Balance.storehouseCapacityByTier[0];
       h.stock(mats({MaterialKind.lumber: cap - 7}));
@@ -251,6 +324,7 @@ void main() {
 
     test('produces at the old tier until an upgrade completes', () {
       final h = _Hall()
+        ..logToday()
         ..log.addAll([
           built('ch', 2, BuildingType.centralHall, when: at(-200), tier: 2),
           built('m1', 0, BuildingType.mine, when: at(-200), tier: 1),

@@ -19,8 +19,11 @@ Nothing here may write ledger events except through the existing ledger API.
 - `content.dart` — the shapes of the content tables (chests, buildings, gear
   slots, regions, seasonal bosses). The numbers are in `../config/balance.dart`.
 - `hall_rules.dart` — read-side rules shared by commands and UI:
-  `uncollectedProduction`, `collectableNow`, `fitInStorehouse`,
-  `maxTierAllowed`.
+  `workedMinutes`, `uncollectedProduction`, `collectableNow`,
+  `shiftSummary`, `fitInStorehouse`, `maxTierAllowed`. Production follows
+  the working shift: the whole household day on `GameState.townActiveDays`
+  (anyone's logged days plus Standard caravan days; freeze-covered days do
+  not count), the first `Balance.shortShiftHours` of any other day.
 - `commands/game_commands.dart` — `GameCommands(state, clock, actorId,
   stamp)`: every guild-hall action as a pure function returning a
   `GameCommandResult` (events to append, or a `GameRejection`). Anything
@@ -29,10 +32,11 @@ Nothing here may write ledger events except through the existing ledger API.
   - `startBuilding(i, type)` — build on an empty plot or upgrade the same
     type by one tier; one of each building per hall; other buildings never
     outrank the Central Hall; upgrades wait for construction to finish; a
-    producer's upgrade banks its production first (`MaterialsCollected`).
+    producer's upgrade banks its production first (`MaterialsCollected`),
+    by the same working-shift rule as collecting.
   - `collectMaterials(i)` — production since the last collection (old tier
-    until an upgrade completes), trimmed to Storehouse room. Never gated on
-    logging (rule 10).
+    until an upgrade completes, working shift per day), trimmed to
+    Storehouse room. Collecting is never gated on logging (rule 10).
   - `openChest(id)` / `claimReward(id)` — chests roll gems and maybe a freeze
     token (a token at the cap becomes gems); no materials (rule 9).
   - `upgradeGear(heroId:, slot:, gearType:)` — one tier at a time, never

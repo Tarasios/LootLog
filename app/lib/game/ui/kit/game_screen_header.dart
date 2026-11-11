@@ -48,7 +48,23 @@ class GameScreenHeader extends StatelessWidget {
             ),
           )
         : null);
-    final ribbon = Expanded(child: Center(child: RibbonTitle(title)));
+    // On a phone the title is plain pixel lettering on the wood: the ribbon
+    // is as tall as two rows of text, and a phone has no height to spare.
+    final compact =
+        MediaQuery.sizeOf(context).width < AdventureTokens.narrowScreen;
+    final ribbon = Expanded(
+      child: Center(
+        child: compact
+            ? Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AdventureTokens.title(context)
+                    .copyWith(color: AdventureTokens.parchment),
+              )
+            : RibbonTitle(title),
+      ),
+    );
     // A wrap, so a screen with many chips (the forge's materials) flows onto
     // more lines instead of overflowing.
     final trailingRow = Wrap(
@@ -59,7 +75,9 @@ class GameScreenHeader extends StatelessWidget {
       children: trailing,
     );
     return WoodPanel(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      padding: compact
+          ? const EdgeInsets.fromLTRB(8, 6, 8, 6)
+          : const EdgeInsets.fromLTRB(12, 10, 12, 10),
       child: SafeArea(
         bottom: false,
         child: LayoutBuilder(
