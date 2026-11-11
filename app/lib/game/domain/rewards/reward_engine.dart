@@ -332,7 +332,7 @@ class _Run {
   /// at once (they never visit the hall to claim it).
   void _caravan(String who, GameDay day) {
     if (party.adventurers.isEmpty) return; // no party to supply
-    final rewardId = 'caravan:$who:${day.toKey()}';
+    final rewardId = caravanRewardId(who, day);
     if (person(who).seenRewards.contains(rewardId)) return;
     _grant(who,
         rewardId: rewardId,

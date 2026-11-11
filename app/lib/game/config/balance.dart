@@ -272,6 +272,17 @@ abstract final class Balance {
     3000,
   ];
 
+  /// The working shift: on a household day anyone logged a purchase or
+  /// checked in (freeze-covered days do not count), producers work the full
+  /// day — 24 or more means the whole calendar day, 23 or 25 hours on a
+  /// daylight-saving change.
+  static const int fullShiftHours = 24;
+
+  /// On any other day producers work only the first hours of the day, like
+  /// an idle game's offline cap. Production never stops and nothing already
+  /// made is ever lost; logging just keeps the crews on the full day.
+  static const int shortShiftHours = 8;
+
   /// Materials the Storehouse never caps: trophies are mementos of boss
   /// wins, kept on the mantel rather than in the yard.
   static const Set<MaterialKind> uncappedMaterials = {MaterialKind.trophy};

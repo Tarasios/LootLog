@@ -287,8 +287,11 @@ class BuildingSheet extends ConsumerWidget {
     }
 
     if (spec.isProducer) {
-      final made = uncollectedProduction(hall, plotIndex, now);
-      final fits = collectableNow(hall, plotIndex, now);
+      final activeDays = c.game.townActiveDays;
+      final made = uncollectedProduction(hall, plotIndex, now,
+          activeDays: activeDays);
+      final fits =
+          collectableNow(hall, plotIndex, now, activeDays: activeDays);
       final rejection = c.preview((g) => g.collectMaterials(plotIndex));
       final rates = {
         for (final e in spec.productionPerHour.entries)

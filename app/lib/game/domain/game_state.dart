@@ -14,6 +14,7 @@ import 'decor/decor_state.dart';
 import 'game_event.dart';
 import 'game_projection.dart';
 import 'game_values.dart';
+import 'reason_codes.dart';
 
 /// Why the projection recorded a [GameWarning]. Warnings never block: the
 /// event log is the truth, so the projection applies what it safely can and
@@ -557,6 +558,17 @@ class GameState {
   /// [personId]'s state, or an empty person if no event has touched them.
   PersonState person(String personId) =>
       people[personId] ?? PersonState(personId: personId);
+
+  /// The household days anyone showed up: every Adventure adult's logged
+  /// days (freeze-covered days excluded) plus every Standard adult's caravan
+  /// days. On these days the town's crews work the full shift. Computed on
+  /// each read, so callers drawing many plots read it once.
+  Set<GameDay> get townActiveDays => {
+        for (final someone in people.values) ...someone.streak.loggedDays,
+        for (final someone in people.values)
+          for (final rewardId in someone.seenRewardIds)
+            ?caravanRewardDay(rewardId),
+      };
 
   /// Applies one event incrementally. Events must arrive in canonical
   /// `(occurredAt, eventId)` order: re-applying the cursor event is a no-op,

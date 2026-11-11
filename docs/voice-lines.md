@@ -185,7 +185,7 @@ checks each set has 8+ lines and that nothing shames or blames.
 ### `collected`
 
 **Trigger:** Materials collected from a producer; `{building}`.  
-**Intended outcome:** Small tactile satisfaction; never tied to logging (rule 10).
+**Intended outcome:** Small tactile satisfaction; collecting is never gated on logging (rule 10).
 
 | Current line |
 |---|

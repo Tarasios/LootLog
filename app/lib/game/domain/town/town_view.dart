@@ -159,9 +159,10 @@ class TownView {
     bool dungeonOpen = false,
     Map<String, String> goalPictures = const {},
   }) {
+    final activeDays = game.townActiveDays;
     final plots = <TownPlotView>[
       for (var index = 0; index < layout.plotOrigins.length; index++)
-        _plotView(game.hall, index, layout.plotOrigins[index], now),
+        _plotView(game.hall, index, layout.plotOrigins[index], now, activeDays),
     ];
     final residents = <TownResident>[
       for (var slot = 0; slot < adults.length && slot < layout.houseOrigins.length; slot++)
@@ -184,7 +185,13 @@ class TownView {
     );
   }
 
-  static TownPlotView _plotView(HallState hall, int index, TownCell origin, DateTime now) {
+  static TownPlotView _plotView(
+    HallState hall,
+    int index,
+    TownCell origin,
+    DateTime now,
+    Set<GameDay> activeDays,
+  ) {
     final plot = hall.plots[index];
     final building = plot?.building;
     final underConstruction = building != null && now.isBefore(building.completesAt);
@@ -197,7 +204,9 @@ class TownView {
       underConstruction: underConstruction,
       completesAt: building?.completesAt,
       readyToCollect:
-          building != null && !underConstruction && !collectableNow(hall, index, now).isEmpty,
+          building != null &&
+              !underConstruction &&
+              !collectableNow(hall, index, now, activeDays: activeDays).isEmpty,
     );
   }
 
