@@ -25,7 +25,7 @@ T gameEnumByName<T extends Enum>(List<T> values, String name, String what) {
   throw UnrecognizedGameValue(what, name);
 }
 
-/// The materials of the shared party pool (see the glossary).
+/// The materials a town stores (see the glossary).
 enum MaterialKind { lumber, stone, ore, herbs, hide, crystal, essence, trophy }
 
 /// An immutable amount of each material. Zero entries are dropped so two
@@ -172,6 +172,17 @@ enum DailyEventKind { trader, windfall, visitor }
 /// the person logged that week: a market day (0–2), a fair (3–4) or a grand
 /// festival (all 5). See `town/festival.dart`.
 enum FestivalTier { marketDay, fair, grandFestival }
+
+/// How big a town has grown, from the outpost everyone starts with to a city
+/// (see `town/prosperity.dart`). A tier is reached once and never taken
+/// back. Only `TierReached`, a type older builds do not know, carries it.
+enum TownTier { outpost, hamlet, village, town, city }
+
+/// The buildings of the farmland district (`town/districts.dart`). They are
+/// built through `DistrictBuildingStarted`, which names them by key, never
+/// through `BuildingStarted`: an older build parses [BuildingType] strictly
+/// there, so a new value would hide the whole event from it.
+enum FarmBuildingType { farm, orchard, granary }
 
 /// The month-end spoils ritual steps that precede the seasonal boss fight.
 enum RitualStep { reconcile, review, plan, contribute }

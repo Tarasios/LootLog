@@ -36,13 +36,14 @@ class ExpeditionsScreen extends ConsumerWidget {
     return HallTicker(builder: (context) {
       final now = clock.now();
       final me = game.person(view.meId ?? '');
+      final town = game.townOf(view.meId ?? '');
       final trip = me.activeExpedition;
-      final hallTier = game.hall.completedTier(BuildingType.centralHall, now);
+      final hallTier = town.completedTier(BuildingType.centralHall, now);
       final report = me.lastExpedition;
       final compact = MediaQuery.sizeOf(context).width < AdventureTokens.narrowScreen;
       return FramedHallScreen(
         title: 'Expeditions',
-        trailing: [storesChip(game.hall.materials, compact: compact)],
+        trailing: [storesChip(town.materials, compact: compact)],
         children: [
           FramedSection(
             title: 'The road',

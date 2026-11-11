@@ -6,6 +6,10 @@
 /// devices), it applies what it safely can, never lets an amount go below
 /// zero, never charges twice for the same thing, and records a [GameWarning].
 ///
+/// Town events apply to their actor's own town (see
+/// `town/town_ownership.dart`): the shared town before the `TownsSplit`,
+/// the actor's own after it.
+///
 /// Pure Dart, zero Flutter imports.
 library;
 
@@ -17,6 +21,11 @@ import 'game_event.dart';
 import 'game_state.dart';
 import 'game_values.dart';
 import 'reason_codes.dart';
+import 'town/cheers.dart';
+import 'town/districts.dart';
+import 'town/food.dart';
+import 'town/gifts.dart';
+import 'town/town_ownership.dart';
 
 /// Canonical event order: `occurredAt`, then `eventId` as the tiebreak.
 int compareGameEvents(GameEvent first, GameEvent second) {
@@ -92,30 +101,55 @@ void _apply(_GameStateDraft draft, GameEvent event) {
       draft.credit(actor, reward.loot);
 
     case MaterialsCollected collected:
-      final known = draft.hall.plots.values
+      draft.countHallCommand(actor);
+      final known = draft.town(actor).plots.values
           .any((plot) => plot.building != null && plot.buildingId == collected.buildingId);
       if (!known) draft.warn(GameWarningCode.unknownBuilding, collected.buildingId);
-      draft.adjustPool(collected.amounts, 1);
-      final last = draft.hall.lastCollectedAt[collected.buildingId];
+      // After the split a collection must come from the actor's own town;
+      // a stale device's collection from the owner's is credited nowhere.
+      if (draft.ownership.isSplit &&
+          !collectionFitsTown(draft.town(actor), collected.buildingId, collected.amounts)) {
+        if (known) draft.warn(GameWarningCode.unknownBuilding, collected.buildingId);
+        return;
+      }
+      draft.adjustPool(actor, collected.amounts, 1);
+      final town = draft.town(actor);
+      final last = town.lastCollectedAt[collected.buildingId];
       if (last == null || collected.occurredAt.isAfter(last)) {
-        draft.hall = draft.hall.copyWith(
-            lastCollectedAt:
-                _put(draft.hall.lastCollectedAt, collected.buildingId, collected.occurredAt));
+        draft.setTown(
+            actor,
+            town.copyWith(
+                lastCollectedAt:
+                    _put(town.lastCollectedAt, collected.buildingId, collected.occurredAt)));
       }
 
     case PlotUnlocked unlocked:
-      if (draft.hall.plots.containsKey(unlocked.plotIndex)) {
+      draft.countHallCommand(actor);
+      final town = draft.town(actor);
+      if (town.plots.containsKey(unlocked.plotIndex)) {
         draft.warn(GameWarningCode.duplicateUnlock, 'plot ${unlocked.plotIndex}');
         return;
       }
-      draft.hall = draft.hall.copyWith(
-          plots: _put(draft.hall.plots, unlocked.plotIndex, PlotState(unlocked.plotIndex)));
+      if (draft.cannotPay(actor, Loot(gems: unlocked.gemCost))) return;
+      draft.setTown(
+          actor,
+          town.copyWith(
+              plots: _put(town.plots, unlocked.plotIndex, PlotState(unlocked.plotIndex))));
       draft.adjustGems(actor, -unlocked.gemCost);
 
     case BuildingStarted started:
-      final plot = draft.hall.plots[started.plotIndex];
+      draft.countHallCommand(actor);
+      final town = draft.town(actor);
+      final plot = town.plots[started.plotIndex];
       if (plot == null) {
         draft.warn(GameWarningCode.plotLocked, 'plot ${started.plotIndex}');
+        // After the split a build must fit the actor's own town.
+        if (draft.ownership.isSplit) return;
+      }
+      if (plot != null && draft.ownership.isSplit && !buildFitsTown(plot, started.tier)) {
+        draft.warn(GameWarningCode.unknownBuilding,
+            '${started.buildingType.name} tier ${started.tier} on plot ${started.plotIndex}');
+        return;
       }
       final existing = plot?.building;
       if (existing != null && existing.type != started.buildingType) {
@@ -128,17 +162,21 @@ void _apply(_GameStateDraft draft, GameEvent event) {
             '${started.buildingType.name} tier ${started.tier}');
         return;
       }
-      draft.hall = draft.hall.copyWith(
-        plots: _put(
-          draft.hall.plots,
-          started.plotIndex,
-          PlotState(
+      if (draft.cannotPay(actor, started.cost)) return;
+      draft.setTown(
+        actor,
+        town.copyWith(
+          plots: _put(
+            town.plots,
             started.plotIndex,
-            BuildingState(
-              type: started.buildingType,
-              tier: started.tier,
-              startedAt: started.occurredAt,
-              completesAt: started.completesAt,
+            PlotState(
+              started.plotIndex,
+              BuildingState(
+                type: started.buildingType,
+                tier: started.tier,
+                startedAt: started.occurredAt,
+                completesAt: started.completesAt,
+              ),
             ),
           ),
         ),
@@ -200,7 +238,7 @@ void _apply(_GameStateDraft draft, GameEvent event) {
           returnedAt: resolved.occurredAt,
         ),
       ));
-      draft.adjustPool(resolved.loot, 1);
+      draft.adjustPool(resolved.heroId, resolved.loot, 1);
 
     case ChestGranted chest:
       final person = draft.person(actor);
@@ -379,7 +417,7 @@ void _apply(_GameStateDraft draft, GameEvent event) {
       }
       draft.put(person.copyWith(
           dailyOffers: _without(person.dailyOffers, resolved.offerId)));
-      draft.adjustPool(resolved.paid, -1);
+      draft.adjustPool(actor, resolved.paid, -1);
       draft.credit(actor, resolved.received);
 
     case FestivalHeld festival:
@@ -391,6 +429,103 @@ void _apply(_GameStateDraft draft, GameEvent event) {
       draft.put(person.copyWith(
           festivals: _put(person.festivals, festival.week, festival.tier)));
 
+    case TownsSplit split:
+      // The earliest split stands; a second device's split is ignored.
+      final applied = applyTownsSplit(draft.ownership, draft.towns, split);
+      if (applied == null) return;
+      draft
+        ..ownership = applied.ownership
+        ..towns = applied.towns;
+
+    case GiftSent gift:
+      // Only an Adventure neighbour has a town to receive it; otherwise the
+      // materials stay with the sender.
+      if (!draft.ownership.isSplit ||
+          gift.toPersonId == actor ||
+          draft.person(gift.toPersonId).partyId != kHouseholdPartyId) {
+        draft.warn(GameWarningCode.giftIgnored, gift.toPersonId);
+        return;
+      }
+      final outcome = moveGift(
+        sender: draft.town(actor),
+        recipient: draft.town(gift.toPersonId),
+        bundle: gift.bundle,
+        at: gift.occurredAt,
+      );
+      if (outcome.moved != gift.bundle) {
+        draft.warn(GameWarningCode.giftTrimmed, gift.toPersonId);
+      }
+      draft
+        ..setTown(actor, outcome.sender)
+        ..setTown(gift.toPersonId, outcome.recipient);
+
+    case CheerSent sent:
+      // Cosmetic: one cheer per sender, neighbour and day; the earliest copy
+      // stands, and a cheer to oneself is ignored.
+      final key = cheerId(actor, sent.toPersonId, sent.day);
+      if (sent.toPersonId == actor || draft.cheers.containsKey(key)) return;
+      draft.cheers = _put(draft.cheers, key,
+          Cheer(fromId: actor, toId: sent.toPersonId, day: sent.day, at: sent.occurredAt));
+
+    case ProsperityReached reached:
+      final person = draft.person(actor);
+      if (reached.value <= person.peakProsperity) return;
+      draft.put(person.copyWith(peakProsperity: reached.value));
+
+    case TierReached reached:
+      final person = draft.person(actor);
+      // The earliest instant per tier stands (events arrive in order).
+      if (person.tiersReached.containsKey(reached.tier)) return;
+      draft.put(person.copyWith(
+          tiersReached: _put(person.tiersReached, reached.tier, reached.occurredAt)));
+
+    case DistrictPurchased purchase:
+      final town = draft.town(actor);
+      final outcome = applyDistrictPurchase(town, purchase);
+      final districts = outcome.districts;
+      if (districts == null) {
+        draft.warn(outcome.warning!, purchase.districtId);
+        return;
+      }
+      if (draft.cannotPay(actor, purchase.cost)) return;
+      draft.setTown(actor, town.copyWith(districts: districts));
+      draft.pay(actor, purchase.cost);
+
+    case DistrictBuildingStarted started:
+      final town = draft.town(actor);
+      final outcome = applyDistrictBuilding(town, started);
+      final districts = outcome.districts;
+      if (districts == null) {
+        draft.warn(outcome.warning!,
+            '${started.buildingKey} tier ${started.tier} on ${started.districtId} ${started.plotIndex}');
+        return;
+      }
+      if (draft.cannotPay(actor, started.cost)) return;
+      draft.setTown(actor, town.copyWith(districts: districts));
+      draft.pay(actor, started.cost);
+
+    case FoodHarvested harvest:
+      final town = draft.town(actor);
+      final address = PlotAddress(harvest.districtId, harvest.plotIndex);
+      final type = town.districts.buildingAt(address)?.farmType;
+      if (type == null || !Balance.farmBuildings[type]!.growsFood) {
+        // Credited nowhere: no farm of the actor's own grew it.
+        draft.warn(GameWarningCode.unknownBuilding, address.buildingId);
+        return;
+      }
+      final banked = harvestInto(town.food,
+          address: address,
+          amount: harvest.amount,
+          capacity: foodCapacityAt(town, harvest.occurredAt),
+          at: harvest.occurredAt);
+      if (banked.capped) draft.warn(GameWarningCode.foodCapped, address.buildingId);
+      draft.setTown(actor, town.copyWith(food: banked.food));
+
+    case FoodConsumed eaten:
+      final town = draft.town(actor);
+      draft.setTown(actor,
+          town.copyWith(food: eatFrom(town.food, day: eaten.day, amount: eaten.amount)));
+
     case UnknownGameEvent _:
       return;
   }
@@ -399,8 +534,10 @@ void _apply(_GameStateDraft draft, GameEvent event) {
 /// One event's worth of changes, applied copy-on-write to the prior state.
 class _GameStateDraft {
   _GameStateDraft(GameState prior, this.eventId, this.at)
-      : hall = prior.hall,
+      : towns = prior.towns,
+        ownership = prior.ownership,
         decor = prior.decor,
+        cheers = prior.cheers,
         _people = prior.people,
         _warnings = prior.warnings;
 
@@ -408,13 +545,30 @@ class _GameStateDraft {
 
   /// The applied event's instant (Storehouse capacity is read as of it).
   final DateTime at;
-  HallState hall;
+  Map<String, HallState> towns;
+  TownOwnership ownership;
   DecorState decor;
+  Map<String, Cheer> cheers;
   Map<String, PersonState> _people;
   List<GameWarning> _warnings;
 
   PersonState person(String id) =>
       _people[id] ?? PersonState(personId: id);
+
+  /// [personId]'s town as it stands (the shared town before the split).
+  HallState town(String personId) => ownership.townOf(personId, towns);
+
+  /// Replaces [personId]'s town (the shared town before the split).
+  void setTown(String personId, HallState hall) {
+    if (ownership.isSplit) {
+      towns = _put(towns, personId, hall);
+    } else {
+      ownership = ownership.withSharedHall(hall);
+    }
+  }
+
+  void countHallCommand(String actorId) =>
+      ownership = ownership.countHallCommand(actorId);
 
   void put(PersonState person) => _people = _put(_people, person.personId, person);
 
@@ -443,11 +597,12 @@ class _GameStateDraft {
     put(personState.copyWith(freezeTokens: tokens));
   }
 
-  /// Adds ([sign] = 1) or removes ([sign] = -1) [delta] from the shared pool,
-  /// clamping each kind at zero and, on a credit, at the Storehouse capacity
-  /// (never below what the pool already held).
-  void adjustPool(MaterialBundle delta, int sign) {
+  /// Adds ([sign] = 1) or removes ([sign] = -1) [delta] from [personId]'s
+  /// town, clamping each kind at zero and, on a credit, at the Storehouse
+  /// capacity (never below what the town already held).
+  void adjustPool(String personId, MaterialBundle delta, int sign) {
     if (delta.isEmpty) return;
+    final hall = town(personId);
     final next = Map.of(hall.materials.amounts);
     final short = <String>[];
     final over = <String>[];
@@ -474,27 +629,57 @@ class _GameStateDraft {
     if (over.isNotEmpty) {
       warn(GameWarningCode.materialsCapped, over.join(', '));
     }
-    hall = hall.copyWith(materials: MaterialBundle(next));
+    setTown(personId, hall.copyWith(materials: MaterialBundle(next)));
+  }
+
+  /// After the split, whether [cost] is more than [personId]'s own town and
+  /// wallet hold; if so the event is not applied and the shortfall is
+  /// recorded with the clamp warnings. A stale or older-build event never
+  /// lands nearly free by clamping the pool. Before the split, pools clamp
+  /// as they always did.
+  bool cannotPay(String personId, Loot cost) {
+    if (!ownership.isSplit) return false;
+    final gems = person(personId).gems;
+    if (gems < cost.gems) {
+      warn(GameWarningCode.gemsClamped, '$personId short ${cost.gems - gems}');
+      return true;
+    }
+    final tokens = person(personId).freezeTokens;
+    if (tokens < cost.tokens) {
+      warn(GameWarningCode.tokensClamped, '$personId short ${cost.tokens - tokens}');
+      return true;
+    }
+    final held = town(personId).materials;
+    if (!held.covers(cost.materials)) {
+      warn(GameWarningCode.materialsClamped, [
+        for (final entry in cost.materials.amounts.entries)
+          if (held[entry.key] < entry.value) '${entry.key.name} ${entry.value - held[entry.key]}',
+      ].join(', '));
+      return true;
+    }
+    return false;
   }
 
   void credit(String personId, Loot loot) {
     adjustGems(personId, loot.gems);
-    adjustPool(loot.materials, 1);
+    adjustPool(personId, loot.materials, 1);
     adjustTokens(personId, loot.tokens);
   }
 
   void pay(String personId, Loot cost) {
     adjustGems(personId, -cost.gems);
-    adjustPool(cost.materials, -1);
+    adjustPool(personId, cost.materials, -1);
     adjustTokens(personId, -cost.tokens);
   }
 
   GameState build(GameEvent applied) => GameState(
-        hall: hall,
+        towns: towns,
+        ownership: ownership,
         people: _people,
         warnings: _warnings,
         cursor: applied,
         decor: decor,
+        cheers: cheers,
       );
 }
 

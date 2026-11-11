@@ -4,6 +4,10 @@
 /// Once the viewport is known ([setViewport]) panning stops where the
 /// scenery [margin] around the world ends, so the view never shows past it;
 /// before that the centre simply stays inside the world.
+///
+/// A phone's HUD covers the top and bottom of the view ([setInsets]): the
+/// world then starts centred in the band between them, and panning reaches
+/// far enough to bring every edge of the world clear of the HUD.
 library;
 
 import '../domain/town/town_layout.dart';
@@ -49,6 +53,11 @@ class CameraControls {
   double _centerY;
   double? _viewportWidth;
   double? _viewportHeight;
+  double _topInset = 0;
+  double _bottomInset = 0;
+
+  /// The player has panned, so new insets no longer re-centre the view.
+  bool _panned = false;
 
   int get zoom => _zoom;
   double get centerX => _centerX;
@@ -56,6 +65,7 @@ class CameraControls {
 
   void zoomTo(int zoom) {
     _zoom = zoom.clamp(minZoom, maxZoom);
+    if (!_panned) _centerY = worldHeight / 2 + (_bottomInset - _topInset) / 2 / _zoom;
     _clampCentre();
   }
 
@@ -69,9 +79,19 @@ class CameraControls {
     _clampCentre();
   }
 
+  /// The screen pixels a HUD covers at the top and bottom of the viewport.
+  /// Until the player pans, the world is centred in the band between them.
+  void setInsets({required double top, required double bottom}) {
+    _topInset = top;
+    _bottomInset = bottom;
+    if (!_panned) _centerY = worldHeight / 2 + (bottom - top) / 2 / _zoom;
+    _clampCentre();
+  }
+
   /// A drag of ([deltaX], [deltaY]) screen pixels moves the view with the
   /// finger, so the camera centre moves the opposite way.
   void panByScreen(double deltaX, double deltaY) {
+    if (deltaX != 0 || deltaY != 0) _panned = true;
     _centerX -= deltaX / _zoom;
     _centerY -= deltaY / _zoom;
     _clampCentre();
@@ -79,17 +99,26 @@ class CameraControls {
 
   void _clampCentre() {
     _centerX = _clampAxis(_centerX, worldWidth, _viewportWidth);
-    _centerY = _clampAxis(_centerY, worldHeight, _viewportHeight);
+    _centerY = _clampAxis(_centerY, worldHeight, _viewportHeight,
+        before: _topInset / _zoom, after: _bottomInset / _zoom);
   }
 
   /// Keeps one axis of the centre in range: inside the world while the
   /// viewport is unknown; otherwise so the view's edges stay within the
   /// margin, centring the world when the view is wider than world and margin.
-  double _clampAxis(double centre, double worldExtent, double? viewportExtent) {
+  /// [before] and [after] are world pixels a HUD covers at either end: the
+  /// view may then reach that far past the world, so its edge clears them.
+  double _clampAxis(
+    double centre,
+    double worldExtent,
+    double? viewportExtent, {
+    double before = 0,
+    double after = 0,
+  }) {
     if (viewportExtent == null) return centre.clamp(0, worldExtent);
     final halfView = viewportExtent / 2 / _zoom;
-    final lowest = -margin + halfView;
-    final highest = worldExtent + margin - halfView;
+    final lowest = -(before > margin ? before : margin) + halfView;
+    final highest = worldExtent + (after > margin ? after : margin) - halfView;
     if (lowest > highest) return worldExtent / 2;
     return centre.clamp(lowest, highest);
   }

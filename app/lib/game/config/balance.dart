@@ -62,8 +62,9 @@ abstract final class Balance {
   /// The most freeze tokens a person holds at once (claimed or waiting).
   static const int maxFreezeTokens = 3;
 
-  /// What a Standard-mode adult's active day sends to the party pool.
-  static final MaterialBundle caravanMaterials =
+  /// What a Standard-mode adult's active day sends down the trade road to
+  /// each Adventure adult who was active the same day (the supply caravan).
+  static final MaterialBundle caravanTradeBundle =
       MaterialBundle({MaterialKind.lumber: 2, MaterialKind.stone: 1});
 
   /// How many days back activity is still rewarded. Bounds the catch-up when
@@ -343,8 +344,9 @@ abstract final class Balance {
     3000,
   ];
 
-  /// The working shift: on a household day anyone logged a purchase or
-  /// checked in (freeze-covered days do not count), producers work the full
+  /// The working shift: on a household day the town's own adult logged a
+  /// purchase or checked in (freeze-covered days do not count), producers
+  /// work the full
   /// day — 24 or more means the whole calendar day, 23 or 25 hours on a
   /// daylight-saving change.
   static const int fullShiftHours = 24;
@@ -357,6 +359,161 @@ abstract final class Balance {
   /// Materials the Storehouse never caps: trophies are mementos of boss
   /// wins, kept on the mantel rather than in the yard.
   static const Set<MaterialKind> uncappedMaterials = {MaterialKind.trophy};
+
+  // ---- Neighbouring towns ---------------------------------------------------
+
+  /// What a neighbour's new town starts with when the shared town is split
+  /// (the old shared town goes, whole, to the adult who built most of it).
+  static final MaterialBundle welcomeGrant =
+      MaterialBundle({MaterialKind.lumber: 40, MaterialKind.stone: 40});
+
+  /// How much one tap of a gift dialog's stepper adds or takes away (the last
+  /// step stops at what you hold or what the neighbour has room for).
+  static const int giftStepAmount = 10;
+
+  /// What a neighbour's trade caravan brings on a day both of you were
+  /// active, by the tier in service of the neighbour's busiest producer
+  /// (index 0 = no producer yet). Generated, never taken from them.
+  static const List<int> tradeRoadAmountByTier = [3, 4, 6, 9, 13, 18];
+
+  static int tradeRoadAmount(int producerTier) => tradeRoadAmountByTier[
+      producerTier.clamp(0, tradeRoadAmountByTier.length - 1)];
+
+  /// What a neighbour with no producer yet sends down the trade road.
+  static const MaterialKind tradeRoadFallbackMaterial = MaterialKind.lumber;
+
+  // ---- Town growth: prosperity and tiers ------------------------------------
+  //
+  // Pace targets for an adult who logs daily and collects once a day (held
+  // by `test/game/domain/town/growth_pace_test.dart`): a build or upgrade
+  // most days in the first two weeks, the Hamlet within the first week, the
+  // Farmland affordable shortly after, the Village in about a month (it needs
+  // farms), and Town and City far beyond (their districts come later).
+
+  /// Prosperity per completed building tier, in every district: the town's
+  /// growth is mostly what has been built.
+  static const int prosperityPerBuildingTier = 10;
+
+  /// Prosperity per district bought beyond the outpost.
+  static const int prosperityPerDistrict = 40;
+
+  /// Prosperity per town decoration on display, for up to
+  /// [prosperityDecorationCap] of them: a garden helps, a hoard does not.
+  static const int prosperityPerDecoration = 5;
+  static const int prosperityDecorationCap = 10;
+
+  /// Prosperity per weekend festival held (every week someone shows up).
+  static const int prosperityPerFestival = 15;
+
+  /// The peak prosperity each tier needs. Going past the Hamlet also needs
+  /// food in store (see the food numbers below).
+  static const Map<TownTier, int> tierProsperity = {
+    TownTier.outpost: 0,
+    TownTier.hamlet: 80,
+    TownTier.village: 450,
+    TownTier.town: 1500,
+    TownTier.city: 4000,
+  };
+
+  /// What reaching each tier brings, claimed through the inbox: gems and a
+  /// chest-sized bundle of building materials.
+  static final Map<TownTier, Loot> tierRewards = {
+    TownTier.hamlet: Loot(gems: 20, materials: _m(lumber: 60, stone: 60)),
+    TownTier.village:
+        Loot(gems: 40, materials: _m(lumber: 120, stone: 120, ore: 40)),
+    TownTier.town: Loot(
+        gems: 80, materials: _m(lumber: 250, stone: 250, ore: 100, herbs: 60)),
+    TownTier.city: Loot(
+        gems: 150,
+        materials: _m(lumber: 500, stone: 500, ore: 200, crystal: 40)),
+  };
+
+  /// The daily cap on further-purchase and timely gems, by tier: it rises
+  /// gently, so a bigger town earns a little more from the same habit.
+  static const Map<TownTier, int> dailyGemCapByTier = {
+    TownTier.outpost: dailyGemCap,
+    TownTier.hamlet: 6,
+    TownTier.village: 7,
+    TownTier.town: 8,
+    TownTier.city: 10,
+  };
+
+  static int dailyGemCapFor(TownTier tier) =>
+      dailyGemCapByTier[tier] ?? dailyGemCap;
+
+  // ---- Districts, farms and food ---------------------------------------------
+
+  /// The farmland district (opens at the hamlet): a few days of gems after
+  /// the hamlet's own reward, and stores a tier-2 Storehouse-less town can
+  /// hold, so it is affordable shortly after the hamlet.
+  static const int farmlandGemPrice = 40;
+  static const Map<MaterialKind, int> farmlandMaterialPrice = {
+    MaterialKind.lumber: 120,
+    MaterialKind.stone: 80,
+  };
+  static const int farmlandPlotCount = 6;
+
+  /// The farmland's buildings. Farms are cheap and steady; orchards grow
+  /// more for herbs; the granary grows nothing and stores more food. Tiers
+  /// cost like hall buildings ([buildingCostMultiplierByTier],
+  /// [buildingGemCostByTier]) and take [buildTimeByTier].
+  static final Map<FarmBuildingType, FarmBuildingSpec> farmBuildings = {
+    FarmBuildingType.farm: FarmBuildingSpec(
+      upgradeBase: _m(lumber: 20, stone: 10),
+      foodPerHour: const [2, 4, 6, 9, 12],
+    ),
+    FarmBuildingType.orchard: FarmBuildingSpec(
+      upgradeBase: _m(lumber: 25, herbs: 10),
+      foodPerHour: const [3, 5, 8, 11, 15],
+    ),
+    FarmBuildingType.granary: FarmBuildingSpec(
+      upgradeBase: _m(lumber: 30, stone: 30),
+    ),
+  };
+
+  /// What farmland building [type] to [tier] costs.
+  static Loot farmBuildingCost(FarmBuildingType type, int tier) => Loot(
+        gems: buildingGemCostByTier[tier - 1],
+        materials: farmBuildings[type]!
+            .upgradeBase
+            .scaled(buildingCostMultiplierByTier[tier - 1]),
+      );
+
+  /// Food a town can store, by completed granary tier (index 0 = none).
+  /// Without a granary it holds a few days of a hamlet's need; a village's
+  /// stores want a granary.
+  static const List<int> granaryFoodCapacityByTier = [
+    120,
+    300,
+    600,
+    1200,
+    2400,
+    4800,
+  ];
+
+  /// Residents by tier (houses add more in a later stage).
+  static const Map<TownTier, int> populationByTier = {
+    TownTier.outpost: 4,
+    TownTier.hamlet: 10,
+    TownTier.village: 25,
+    TownTier.town: 60,
+    TownTier.city: 150,
+  };
+
+  /// Food each resident eats a day, by tier: a bigger town eats richer, so
+  /// the need steepens faster than the population.
+  static const Map<TownTier, int> foodPerResident = {
+    TownTier.outpost: 1,
+    TownTier.hamlet: 1,
+    TownTier.village: 2,
+    TownTier.town: 3,
+    TownTier.city: 4,
+  };
+
+  /// A town is food-secure with this many days of its need in store, and
+  /// only a food-secure town grows past the hamlet. A short town loses
+  /// nothing: it only waits.
+  static const int foodSecureDays = 3;
 
   // ---- Hero gear ----------------------------------------------------------
 

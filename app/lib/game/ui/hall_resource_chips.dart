@@ -1,5 +1,5 @@
 /// The gem and material chips the framed hall screens show on their wood
-/// header: this adult's gems and the shared pool's materials, read from the
+/// header: this adult's gems and their town's materials, read from the
 /// game state (display only).
 library;
 
@@ -51,7 +51,7 @@ List<Widget> materialChips(MaterialBundle pool, Iterable<MaterialKind> kinds) =>
         ),
     ];
 
-/// The shared pool as a single chip: everything in the stores, summed.
+/// The town's stores as a single chip: everything in the stores, summed.
 Widget storesChip(MaterialBundle pool, {required bool compact}) {
   final total = pool.amounts.values.fold<int>(0, (sum, amount) => sum + amount);
   return Semantics(

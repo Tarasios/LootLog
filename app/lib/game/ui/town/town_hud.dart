@@ -2,9 +2,13 @@
 /// builder's: the date, streak and freeze tokens top-left; gems, the gold
 /// pouch and the war chest top-right; "Log purchase" (with the no-spend
 /// check-in above it) bottom-left; Shop, Inbox, Ledger and Menu bottom-right.
-/// A narrow window stacks the corners and lays the buttons in one row along
-/// the bottom. Each top corner is held to half the width, its chips
-/// ellipsizing, so the corners never collide. While decorating, the
+/// On a wide window the district strip sits above the corner buttons, at
+/// the window's edge where the forest frames the map, so it never covers a
+/// field or its label. A narrow window stacks the corners and lays the
+/// buttons in one row along the bottom, with the district strip just above
+/// Log purchase (in thumb reach, never over it). Tapping the date opens the town book. Each top corner is
+/// held to half the width, its chips ellipsizing, so the corners never
+/// collide. While decorating, the
 /// decoration tray replaces the buttons (Log purchase stays, and the Menu,
 /// to finish).
 ///
@@ -15,40 +19,17 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../../domain/money.dart';
-import '../../../ui/format.dart';
-import '../hall_status.dart';
 import '../kit/kit.dart';
+import 'hud_insets.dart';
+import 'town_hud_chips.dart';
+
+export 'town_hud_chips.dart' show TownHudFigures;
 
 /// Below this width the HUD stacks its corners and lines the buttons up.
 const double kTownHudCompactWidth = 640;
 
 /// Keeps the HUD clear of the window edge.
 const double _kEdge = 12;
-
-/// The figures the HUD shows. Money is null until the ledger loads.
-class TownHudFigures {
-  const TownHudFigures({
-    required this.dateLabel,
-    required this.streak,
-    required this.freezeTokens,
-    required this.gems,
-    required this.inboxCount,
-    this.goldPouch,
-    this.warChest,
-  });
-
-  /// "Oct · day 3".
-  final String dateLabel;
-  final LiveStreak streak;
-  final int freezeTokens;
-  final int gems;
-
-  /// Unopened chests plus unclaimed rewards.
-  final int inboxCount;
-  final Money? goldPouch;
-  final Money? warChest;
-}
 
 class TownHud extends StatelessWidget {
   const TownHud({
@@ -63,7 +44,10 @@ class TownHud extends StatelessWidget {
     this.onQuests,
     this.decoratePanel,
     this.spiritBar,
-    this.logHint,
+    this.logNotes = const [],
+    this.districtStrip,
+    this.onDate,
+    this.insets,
   });
 
   final TownHudFigures figures;
@@ -85,9 +69,33 @@ class TownHud extends StatelessWidget {
   /// The week's town spirit, under the date chip.
   final Widget? spiritBar;
 
-  /// Notes over the check-in: what the crews made, "Log today to open the
-  /// town".
-  final Widget? logHint;
+  /// Notes beside the check-in: what the crews made, "Log today to open the
+  /// town". They share a row with the check-in when they fit the width
+  /// (a Wrap), so a phone stacks at most strip + one chip row in the usual
+  /// case.
+  final List<Widget> logNotes;
+
+  /// The strip of districts; hidden while decorating.
+  final Widget? districtStrip;
+
+  /// Opens the town book from the date chip.
+  final VoidCallback? onDate;
+
+  /// Where a phone HUD reports how much of the scene it covers.
+  final HudInsets? insets;
+
+  /// [child], reporting its height (plus the edge and [safe] area) to
+  /// [insets] as top cover ([top]) or bottom cover, on a phone.
+  Widget _measured(Widget child, {required bool top, required Object piece, required double safe}) {
+    final insets = this.insets;
+    if (insets == null) return child;
+    return ReportSize(
+      onSize: (size) => top
+          ? insets.reportTop(piece, size.height + _kEdge + safe)
+          : insets.setBottom(size.height + _kEdge + safe),
+      child: child,
+    );
+  }
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -101,36 +109,37 @@ class TownHud extends StatelessWidget {
           (constraints.maxWidth - 2 * _kEdge - AdventureTokens.gap) / 2,
         );
         final decoratePanel = this.decoratePanel;
+        final timeCorner = _corner(
+          key: const ValueKey('town-hud-time'),
+          compact: compact,
+          width: cornerWidth,
+          alignEnd: false,
+          chips: _timeChips(cornerWidth),
+        );
+        final treasureCorner = _corner(
+          key: const ValueKey('town-hud-treasure'),
+          compact: compact,
+          width: cornerWidth,
+          alignEnd: true,
+          chips: _treasureChips(compact, cornerWidth),
+        );
+        final cornerStrip = compact || decoratePanel != null ? null : districtStrip;
+        final padding = MediaQuery.paddingOf(context);
+        if (!compact) WidgetsBinding.instance.addPostFrameCallback((_) => insets?.clear());
+        Widget measuredTop(Widget corner, Object piece) =>
+            compact ? _measured(corner, top: true, piece: piece, safe: padding.top) : corner;
+        Widget measuredBottom(Widget stack) =>
+            compact ? _measured(stack, top: false, piece: 'bottom', safe: padding.bottom) : stack;
         return Stack(
           children: [
-            Positioned(
-              top: _kEdge,
-              left: _kEdge,
-              child: _corner(
-                key: const ValueKey('town-hud-time'),
-                compact: compact,
-                width: cornerWidth,
-                alignEnd: false,
-                chips: _timeChips(cornerWidth),
-              ),
-            ),
-            Positioned(
-              top: _kEdge,
-              right: _kEdge,
-              child: _corner(
-                key: const ValueKey('town-hud-treasure'),
-                compact: compact,
-                width: cornerWidth,
-                alignEnd: true,
-                chips: _treasureChips(compact, cornerWidth),
-              ),
-            ),
+            Positioned(top: _kEdge, left: _kEdge, child: measuredTop(timeCorner, 'time')),
+            Positioned(top: _kEdge, right: _kEdge, child: measuredTop(treasureCorner, 'treasure')),
             if (decoratePanel != null)
               Positioned(
                 left: 0,
                 right: 0,
                 bottom: 0,
-                child: Column(
+                child: measuredBottom(Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Logging a purchase stays one tap away while decorating.
@@ -147,18 +156,24 @@ class TownHud extends StatelessWidget {
                     ),
                     decoratePanel,
                   ],
-                ),
+                )),
               )
             else if (compact)
-              Positioned(left: _kEdge, right: _kEdge, bottom: _kEdge, child: _compactBottom())
+              Positioned(left: _kEdge, right: _kEdge, bottom: _kEdge, child: measuredBottom(_compactBottom()))
             else ...[
               Positioned(left: _kEdge, bottom: _kEdge, child: _logColumn()),
               Positioned(
                 right: _kEdge,
                 bottom: _kEdge,
-                child: Row(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
-                  children: _spaced(_cornerButtons()),
+                  children: [
+                    if (cornerStrip != null) ...[cornerStrip, const SizedBox(height: AdventureTokens.gap)],
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: _spaced(_cornerButtons()),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -192,56 +207,11 @@ class TownHud extends StatelessWidget {
           ),
   );
 
-  List<Widget> _timeChips(double maxWidth) => [
-    HudChip(icon: Icons.calendar_today, value: figures.dateLabel, maxWidth: maxWidth),
-    ?spiritBar,
-    HudChip(
-      icon: Icons.local_fire_department,
-      color: AdventureTokens.hpRed,
-      value: figures.streak.isEmpty ? 'Start a streak' : '${figures.streak.days}-day streak',
-      valueKey: const ValueKey('town-streak'),
-      maxWidth: maxWidth,
-    ),
-    HudChip(
-      icon: Icons.ac_unit,
-      color: AdventureTokens.gem,
-      value: '${figures.freezeTokens}',
-      valueKey: const ValueKey('town-freeze-tokens'),
-      maxWidth: maxWidth,
-    ),
-  ];
+  List<Widget> _timeChips(double maxWidth) =>
+      townTimeChips(figures, maxWidth: maxWidth, spiritBar: spiritBar, onDate: onDate);
 
-  List<Widget> _treasureChips(bool compact, double maxWidth) {
-    final goldPouch = figures.goldPouch;
-    final warChest = figures.warChest;
-    return [
-      HudChip(
-        icon: Icons.diamond,
-        color: AdventureTokens.gem,
-        value: '${figures.gems}',
-        valueKey: const ValueKey('town-gems'),
-        maxWidth: maxWidth,
-      ),
-      if (goldPouch != null)
-        HudChip(
-          icon: Icons.savings,
-          color: AdventureTokens.gold,
-          value: money(goldPouch.cents),
-          label: compact ? null : 'gold pouch',
-          valueKey: const ValueKey('town-gold-pouch'),
-          maxWidth: maxWidth,
-        ),
-      if (warChest != null)
-        HudChip(
-          icon: Icons.account_balance,
-          color: AdventureTokens.chest,
-          value: money(warChest.cents),
-          label: compact ? null : 'war chest',
-          valueKey: const ValueKey('town-war-chest'),
-          maxWidth: maxWidth,
-        ),
-    ];
-  }
+  List<Widget> _treasureChips(bool compact, double maxWidth) =>
+      townTreasureChips(figures, compact: compact, maxWidth: maxWidth);
 
   Widget _logButton() => HudButton(
     label: 'Log purchase',
@@ -250,12 +220,19 @@ class TownHud extends StatelessWidget {
     onPressed: onLogPurchase,
   );
 
-  Widget _logColumn() => Column(
+  /// The notes and the check-in (one row when they fit), then Log purchase,
+  /// with [strip] (the phone's district strip) just above Log purchase.
+  Widget _logColumn({Widget? strip}) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      if (logHint case final hint?) ...[hint, const SizedBox(height: AdventureTokens.gap)],
-      noSpendCheckIn,
+      Wrap(
+        spacing: AdventureTokens.gap,
+        runSpacing: AdventureTokens.gap,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [...logNotes, noSpendCheckIn],
+      ),
       const SizedBox(height: AdventureTokens.gap),
+      if (strip != null) ...[strip, const SizedBox(height: AdventureTokens.gap)],
       _logButton(),
     ],
   );
@@ -288,7 +265,7 @@ class TownHud extends StatelessWidget {
   Widget _compactBottom() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Align(alignment: Alignment.centerLeft, child: _logColumn()),
+      Align(alignment: Alignment.centerLeft, child: _logColumn(strip: districtStrip)),
       const SizedBox(height: AdventureTokens.gap),
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,

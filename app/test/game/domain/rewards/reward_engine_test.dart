@@ -90,7 +90,22 @@ class _Device {
   final Party party;
   final int lookbackDays;
   final String name;
-  final List<GameEvent> log = [];
+
+  /// Starts with the household's towns already split (the split itself is
+  /// covered by towns_split_engine_test.dart), so each run shows only the
+  /// rewards it grants.
+  late final List<GameEvent> log = [
+    for (final adult in party.adventurers.take(1))
+      TownsSplit(
+        eventId: 'split-0',
+        deviceId: 'setup',
+        actorId: adult.memberId,
+        occurredAt: DateTime.utc(2026),
+        createdAt: DateTime.utc(2026),
+        ownerId: adult.memberId,
+        welcome: const MaterialBundle.empty(),
+      ),
+  ];
   int _ids = 0;
 
   late final RewardEngine engine = RewardEngine(lookbackDays: lookbackDays);
@@ -478,7 +493,8 @@ void main() {
               e is RewardGranted ||
               e is ChestGranted ||
               e is DailyEventOffered ||
-              e is FestivalHeld),
+              e is FestivalHeld ||
+              e is ProsperityReached),
           isTrue);
       expect(dev.state.person(_ada).streak.count, 1);
     });
@@ -533,19 +549,21 @@ void main() {
   });
 
   group('caravan', () {
-    test("a Standard partner's active day sends a caravan to the party pool",
-        () {
+    test("a Standard partner's active day is recorded as a caravan, and the "
+        'Standard adult gets no town', () {
       final dev = _Device(party: _adaWithStandardBen);
       final out = dev.run([ledger.buy(_ben, _at(10, 1))], _at(10, 1));
       final caravan = dev.grants(out).single;
       expect(caravan.reasonCode, GameReasonCodes.caravan);
       expect(caravan.rewardId, 'caravan:$_ben:2026-10-01');
       expect(caravan.gems, 0);
-      expect(caravan.materials, Balance.caravanMaterials);
-      // The caravan delivers itself: straight into the shared pool.
+      // Its goods travel the trade road instead (see trade_road_test.dart).
+      expect(caravan.materials.isEmpty, isTrue);
+      // The caravan delivers itself.
       expect(out.whereType<RewardClaimed>().single.rewardId, caravan.rewardId);
       final s = dev.state;
-      expect(s.hall.materials, Balance.caravanMaterials);
+      expect(s.towns.containsKey(_ben), isFalse);
+      expect(s.townOf(_ada).materials.isEmpty, isTrue);
       expect(s.person(_ben).gems, 0);
       expect(s.person(_ben).streak.coveredDays, isEmpty);
     });
@@ -605,7 +623,10 @@ void main() {
               e is RewardClaimed ||
               e is StreakFreezeUsed ||
               e is DailyEventOffered ||
-              e is FestivalHeld),
+              e is FestivalHeld ||
+              e is TownsSplit ||
+              e is ProsperityReached ||
+              e is TierReached),
           isTrue);
       expect(dev.state.warnings, isEmpty);
     });

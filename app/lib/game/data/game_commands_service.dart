@@ -133,9 +133,24 @@ class GameCommandsService {
   Future<GameCommandResult> startBuilding(int plotIndex, BuildingType type) =>
       run((c) => c.startBuilding(plotIndex, type));
 
-  /// Collects a producer's materials into the shared pool.
+  /// Collects a producer's materials into this adult's town.
   Future<GameCommandResult> collectMaterials(int plotIndex) =>
       run((c) => c.collectMaterials(plotIndex));
+
+  // ---- Districts and farms -------------------------------------------------
+
+  /// Buys district [districtId] for this device's adult's town.
+  Future<GameCommandResult> buyDistrict(String districtId) =>
+      run((commands) => commands.buyDistrict(districtId));
+
+  /// Builds [type] on farmland plot [plotIndex], or upgrades the [type]
+  /// standing there.
+  Future<GameCommandResult> startFarmBuilding(int plotIndex, FarmBuildingType type) =>
+      run((commands) => commands.startFarmBuilding(plotIndex, type));
+
+  /// Harvests a farm's food into the town's stores.
+  Future<GameCommandResult> harvestFood(int plotIndex) =>
+      run((commands) => commands.harvestFood(plotIndex));
 
   // ---- Chests and rewards ----------------------------------------------------
 
@@ -165,6 +180,16 @@ class GameCommandsService {
     String offerId, {
     required bool accept,
   }) => run((commands) => commands.resolveDailyEvent(offerId, accept: accept));
+
+  // ---- Neighbours ----------------------------------------------------------------
+
+  /// Sends [bundle] from this device's adult's town to [toPersonId]'s. The
+  /// `GiftSent` event holds what actually moved.
+  Future<GameCommandResult> sendGift(String toPersonId, MaterialBundle bundle) =>
+      run((commands) => commands.sendGift(toPersonId, bundle));
+
+  /// Cheers [toPersonId]'s town (cosmetic, once a day per neighbour).
+  Future<GameCommandResult> cheer(String toPersonId) => run((commands) => commands.cheer(toPersonId));
 
   // ---- Heroes ------------------------------------------------------------------
 

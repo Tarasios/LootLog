@@ -34,7 +34,7 @@ class TownDecorSpots {
     final cell = TownCell(column, row);
     if (column < 0 || row < 0 || column >= layout.columns || row >= layout.rows) return false;
     if (layout.groundAt(cell) != TownGround.grass) return false;
-    if (cell == layout.gate || layout.statueSpots.contains(cell) || layout.treeCells.contains(cell)) return false;
+    if ((layout.hasGate && cell == layout.gate) || layout.statueSpots.contains(cell) || layout.treeCells.contains(cell)) return false;
     bool covers(TownCell origin) =>
         column >= origin.column &&
         column < origin.column + TownLayout.footprint &&

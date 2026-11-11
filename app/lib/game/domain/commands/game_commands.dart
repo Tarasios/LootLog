@@ -30,6 +30,10 @@ import '../game_state.dart';
 import '../game_values.dart';
 import '../hall_rules.dart';
 import '../reason_codes.dart';
+import '../town/cheers.dart';
+import '../town/districts.dart';
+import '../town/farmland.dart';
+import '../town/gifts.dart';
 
 /// Why a command was refused. The UI maps each to friendly copy.
 enum GameRejection {
@@ -174,6 +178,42 @@ enum GameRejection {
 
   /// The daily event belonged to an earlier day.
   offerExpired,
+
+  /// A gift goes to a neighbour, not to oneself.
+  giftToSelf,
+
+  /// The recipient has no town to send to (not an Adventure neighbour).
+  notANeighbour,
+
+  /// A gift needs at least one material.
+  emptyGift,
+
+  /// The neighbour's Storehouse has no room for any of it.
+  neighbourStorehouseFull,
+
+  /// A cheer goes to a neighbouring town, not one's own.
+  cheerToSelf,
+
+  /// This neighbour was already cheered today (one cheer a day per pair).
+  alreadyCheeredToday,
+
+  /// No district has that id.
+  unknownDistrict,
+
+  /// The town already owns that district (the outpost from the start).
+  districtAlreadyOwned,
+
+  /// The district opens at a higher town tier.
+  townTierTooLow,
+
+  /// The district is listed but not for sale yet.
+  districtNotOpenYet,
+
+  /// The town has not bought that district.
+  districtNotOwned,
+
+  /// The granary has no room for any of the harvest.
+  granaryFull,
 }
 
 /// What a command decided: the events to append, or why not.
@@ -201,7 +241,7 @@ class GameCommandResult {
 ///
 /// The actor is the person acting (a member id). Their hero's id is their
 /// member id. Gems are paid from the actor's wallet; materials from the
-/// shared pool.
+/// actor's own town, and every town command acts on that town only.
 class GameCommands {
   GameCommands({
     required this.state,
@@ -221,7 +261,7 @@ class GameCommands {
   final DecorCatalog catalog;
 
   late final DateTime _now = clock.now();
-  HallState get _hall => state.hall;
+  HallState get _hall => state.townOf(actorId);
   PersonState get _me => state.person(actorId);
 
   // ---- Hall ---------------------------------------------------------------
@@ -278,7 +318,7 @@ class GameCommands {
 
     final bank = existing != null && Balance.buildings[type]!.isProducer
         ? collectableNow(_hall, plotIndex, _now,
-            activeDays: state.townActiveDays)
+            activeDays: state.townActiveDaysOf(actorId))
         : null;
     final cost = Balance.buildingCost(type, tier);
     final pool = bank == null ? _hall.materials : _hall.materials + bank;
@@ -311,7 +351,7 @@ class GameCommands {
   /// collection, capped by the room left in the Storehouse (production past
   /// that is lost, as in any full yard). Collecting itself is never gated on
   /// logging; what the crews made follows the working shift (rule 10): the
-  /// full day on days anyone showed up, a short shift on the rest.
+  /// full day on days the actor showed up, a short shift on the rest.
   GameCommandResult collectMaterials(int plotIndex) {
     final plot = _hall.plots[plotIndex];
     if (plot == null) return _reject(GameRejection.plotLocked);
@@ -321,12 +361,77 @@ class GameCommands {
       return _reject(GameRejection.notAProducer);
     }
     final made = uncollectedProduction(_hall, plotIndex, _now,
-        activeDays: state.townActiveDays);
+        activeDays: state.townActiveDaysOf(actorId));
     if (made.isEmpty) return _reject(GameRejection.nothingToCollect);
     final fits = fitInStorehouse(_hall, made, _now);
     if (fits.isEmpty) return _reject(GameRejection.storehouseFull);
     return _accept([_collected(plot.buildingId, fits)]);
   }
+
+  // ---- Districts and farms ---------------------------------------------------
+
+  /// Buys district [districtId] for the actor's town (`town/farmland.dart`).
+  GameCommandResult buyDistrict(String districtId) {
+    final plan = planBuyDistrict(state, actorId, districtId);
+    final rejection = plan.rejection;
+    if (rejection != null) return _reject(rejection);
+    return _accept([
+      DistrictPurchased(
+        eventId: stamp.newEventId(),
+        deviceId: stamp.deviceId,
+        actorId: actorId,
+        occurredAt: _now,
+        createdAt: _now,
+        districtId: districtId,
+        cost: plan.cost,
+      ),
+    ]);
+  }
+
+  /// Builds [type] on an empty farmland plot (tier 1) or upgrades the [type]
+  /// standing there by one tier; an upgrade of a farm first banks the food
+  /// it grew, since the upgrade restarts its growing window.
+  GameCommandResult startFarmBuilding(int plotIndex, FarmBuildingType type) {
+    final plan = planFarmBuilding(state, actorId, plotIndex, type, _now);
+    final rejection = plan.rejection;
+    if (rejection != null) return _reject(rejection);
+    return _accept([
+      if (plan.bank > 0) _harvested(plotIndex, plan.bank),
+      DistrictBuildingStarted(
+        eventId: stamp.newEventId(),
+        deviceId: stamp.deviceId,
+        actorId: actorId,
+        occurredAt: _now,
+        createdAt: _now,
+        districtId: kFarmlandDistrictId,
+        plotIndex: plotIndex,
+        buildingKey: type.name,
+        tier: plan.tier,
+        cost: plan.cost,
+        completesAt: _now.add(Balance.buildTimeByTier[plan.tier - 1]),
+      ),
+    ]);
+  }
+
+  /// Harvests the food the farm on farmland plot [plotIndex] grew since its
+  /// last harvest (working shift per day), trimmed to the granary's room.
+  GameCommandResult harvestFood(int plotIndex) {
+    final plan = planHarvest(state, actorId, plotIndex, _now);
+    final rejection = plan.rejection;
+    if (rejection != null) return _reject(rejection);
+    return _accept([_harvested(plotIndex, plan.amount)]);
+  }
+
+  FoodHarvested _harvested(int plotIndex, int amount) => FoodHarvested(
+        eventId: stamp.newEventId(),
+        deviceId: stamp.deviceId,
+        actorId: actorId,
+        occurredAt: _now,
+        createdAt: _now,
+        districtId: kFarmlandDistrictId,
+        plotIndex: plotIndex,
+        amount: amount,
+      );
 
   // ---- Chests and rewards ---------------------------------------------------
 
@@ -438,6 +543,48 @@ class GameCommands {
         accepted: accept,
         paid: paid,
         received: received,
+      ),
+    ]);
+  }
+
+  // ---- Neighbours -----------------------------------------------------------
+
+  /// Sends [bundle] from the actor's town to [toPersonId]'s, a neighbouring
+  /// Adventure town (`town/gifts.dart`). What the neighbour's Storehouse has
+  /// room for moves, and that is what the `GiftSent` event stores.
+  GameCommandResult sendGift(String toPersonId, MaterialBundle bundle) {
+    final plan = planGift(state,
+        fromId: actorId, toId: toPersonId, bundle: bundle, now: _now);
+    final rejection = plan.rejection;
+    if (rejection != null) return _reject(rejection);
+    return _accept([
+      GiftSent(
+        eventId: stamp.newEventId(),
+        deviceId: stamp.deviceId,
+        actorId: actorId,
+        occurredAt: _now,
+        createdAt: _now,
+        toPersonId: toPersonId,
+        bundle: plan.moves,
+      ),
+    ]);
+  }
+
+  /// Cheers [toPersonId]'s town: a cosmetic `CheerSent` for today, once a
+  /// day per neighbour (`town/cheers.dart`). It moves nothing.
+  GameCommandResult cheer(String toPersonId) {
+    final today = GameDay.fromInstant(_now);
+    final rejection = planCheer(state, fromId: actorId, toId: toPersonId, day: today);
+    if (rejection != null) return _reject(rejection);
+    return _accept([
+      CheerSent(
+        eventId: stamp.newEventId(),
+        deviceId: stamp.deviceId,
+        actorId: actorId,
+        occurredAt: _now,
+        createdAt: _now,
+        toPersonId: toPersonId,
+        day: today,
       ),
     ]);
   }

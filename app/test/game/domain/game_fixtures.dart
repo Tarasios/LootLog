@@ -254,3 +254,17 @@ PartyLeft partyLeft(String id, String partyId,
       createdAt: when,
       partyId: partyId,
     );
+
+TownsSplit townsSplit(String id, String ownerId,
+        {required DateTime when,
+        MaterialBundle welcome = const MaterialBundle.empty(),
+        String device = 'dev-1'}) =>
+    TownsSplit(
+      eventId: id,
+      deviceId: device,
+      actorId: ownerId,
+      occurredAt: when,
+      createdAt: when,
+      ownerId: ownerId,
+      welcome: welcome,
+    );

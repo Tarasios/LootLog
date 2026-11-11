@@ -1,6 +1,8 @@
-/// The town scene: ground, the scattered forest framing it, trees, the gate,
-/// plots, houses and (optionally) strolling villagers. Rebuilt from a
-/// [TownView]; it holds no game rules.
+/// One district of the town as a scene: ground, the scattered forest framing
+/// it, trees, the district's landmarks (the farmland's barn and animals),
+/// the gate (outpost), plots, houses and (optionally) strolling villagers.
+/// Rebuilt from a [TownView]; it holds no game rules. Each district visit
+/// gets its own game, sized to the district's map.
 library;
 
 import 'dart:async';
@@ -86,6 +88,12 @@ class TownGame extends FlameGame {
   TownLoopScene loopScene;
   late final TownLoopLayer _loopLayer = TownLoopLayer(atlas);
 
+  /// The signpost to the neighbouring towns (the Tiny Town sign).
+  static const AssetKey signpostKey = AssetKey('town', 'signpost', 'default');
+
+  /// A Standard adult's supply caravan, camped beside the signpost.
+  static const AssetKey caravanCampKey = AssetKey('town', 'caravan', 'camp');
+
   /// Every key the scene can draw, for preloading.
   static Iterable<AssetKey> keysFor(TownView view, [DecorCatalog catalog = DecorCatalog.empty]) sync* {
     yield* const [
@@ -98,19 +106,23 @@ class TownGame extends FlameGame {
       AssetKey('town', 'gate', 'dungeon'),
       AssetKey('town', 'house'),
       AssetKey('town', 'wagon'),
+      signpostKey,
+      caravanCampKey,
       AssetKey('town', 'scaffold'),
       AssetKey('town', 'plot', 'locked'),
       AssetKey('town', 'plot', 'empty'),
+      GameAssetKeys.farmPlotEmpty,
       AssetKey('hero', 'body'),
-      AssetKey('npc', 'villager', 'a'),
-      AssetKey('npc', 'villager', 'b'),
       AssetKey('npc', 'pet', 'default'),
     ];
+    for (final stroller in view.layout.strollers) {
+      yield AssetKey.parse(stroller.assetKey);
+    }
+    for (final landmark in view.layout.landmarks) {
+      yield AssetKey.parse(landmark.assetKey);
+    }
     for (final plot in view.plots) {
-      final buildingType = plot.buildingType;
-      if (buildingType != null) {
-        yield GameAssetKeys.building(buildingType, plot.tier);
-      }
+      if (plotArtKey(plot) case final key?) yield key;
     }
     for (final placement in view.townPlacements) {
       final item = catalog.itemFor(placement.itemId);
@@ -136,33 +148,41 @@ class TownGame extends FlameGame {
         ),
       );
     }
-    world.add(
-      KeyedSprite(
-        atlas: atlas,
-        assetKey: const AssetKey('town', 'gate', 'dungeon'),
-        label: 'Gate',
-        position: cellPosition(_view.layout.gate),
-        size: tile,
-        priority: 2,
-      ),
-    );
+    for (final landmark in _view.layout.landmarks) {
+      world.add(
+        KeyedSprite(
+          atlas: atlas,
+          assetKey: AssetKey.parse(landmark.assetKey),
+          label: landmark.label,
+          position: cellPosition(landmark.origin),
+          size: Vector2(landmark.columns * kTileSize, landmark.rows * kTileSize),
+          priority: 2,
+        ),
+      );
+    }
+    if (_view.layout.hasGate) {
+      world.add(
+        KeyedSprite(
+          atlas: atlas,
+          assetKey: const AssetKey('town', 'gate', 'dungeon'),
+          label: 'Gate',
+          position: cellPosition(_view.layout.gate),
+          size: tile,
+          priority: 2,
+        ),
+      );
+    }
     if (ambientLife) {
-      world.add(
-        Villager(
-          atlas: atlas,
-          position: cellPosition(const TownCell(1, 10)),
-          villagerKey: const AssetKey('npc', 'villager', 'a'),
-          wanderTiles: 9,
-        ),
-      );
-      world.add(
-        Villager(
-          atlas: atlas,
-          position: cellPosition(const TownCell(16, 10)),
-          villagerKey: const AssetKey('npc', 'villager', 'b'),
-          wanderTiles: 8,
-        ),
-      );
+      for (final stroller in _view.layout.strollers) {
+        world.add(
+          Villager(
+            atlas: atlas,
+            position: cellPosition(stroller.cell),
+            villagerKey: AssetKey.parse(stroller.assetKey),
+            wanderTiles: stroller.wanderTiles,
+          ),
+        );
+      }
       await _addTownsfolk();
     }
     _addPlotsAndHouses();
@@ -184,23 +204,23 @@ class TownGame extends FlameGame {
   /// Lights the gate while the dungeon is open, and puts the light out when
   /// it closes.
   void _syncGateGlow() {
-    if (_view.dungeonOpen && _gateGlow == null) {
+    if (_view.dungeonOpen && _view.layout.hasGate && _gateGlow == null) {
       final glow = GateGlow(
         position: cellPosition(_view.layout.gate) + Vector2.all(kTileSize / 2),
       );
       _gateGlow = glow;
       unawaited(world.addAll([glow]));
-    } else if (!_view.dungeonOpen && _gateGlow != null) {
+    } else if ((!_view.dungeonOpen || !_view.layout.hasGate) && _gateGlow != null) {
       _gateGlow!.removeFromParent();
       _gateGlow = null;
     }
   }
 
-  /// One villager per dependent or pet, two tiles apart along the main path
-  /// and wrapping back to the start when the path runs out.
+  /// One villager per dependent or pet, two tiles apart along the
+  /// district's stroll row and wrapping back to the start when it runs out.
   Future<void> _addTownsfolk() async {
-    const pathRow = 10;
-    const firstColumn = 3;
+    final pathRow = _view.layout.strollRow;
+    final firstColumn = _view.layout.strollColumn;
     const spacingTiles = 2;
     const wanderTiles = 2;
     final stepsOnPath =
@@ -277,9 +297,33 @@ class TownGame extends FlameGame {
       ..addAll([for (final plot in _view.plots) PlotComponent(atlas, plot)])
       ..addAll([
         for (final resident in _view.residents) HouseComponent(atlas, resident),
-      ]);
+      ])
+      ..addAll(_roadside());
     unawaited(world.addAll(_plotsAndHouses));
   }
+
+  /// The signpost to the neighbours and a Standard adult's caravan camp,
+  /// when the view has them. Neither is ever named after anyone.
+  List<Component> _roadside() => [
+        if (_view.layout.signpost case final cell? when _view.showsSignpost)
+          KeyedSprite(
+            atlas: atlas,
+            assetKey: signpostKey,
+            label: 'Signpost',
+            position: cellPosition(cell),
+            size: Vector2.all(kTileSize),
+            priority: 2,
+          ),
+        if (_view.layout.caravanCamp case final cell? when _view.showsCaravanCamp)
+          KeyedSprite(
+            atlas: atlas,
+            assetKey: caravanCampKey,
+            label: 'Caravan',
+            position: cellPosition(cell),
+            size: Vector2.all(kTileSize),
+            priority: 2,
+          ),
+      ];
 
   /// The most gems drawn flying for one log (the "+N" names the real count).
   static const int maxFlyingGems = 5;

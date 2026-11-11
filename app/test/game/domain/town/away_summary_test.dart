@@ -8,6 +8,7 @@ import 'package:lootlog/game/domain/game_state.dart';
 import 'package:lootlog/game/domain/game_values.dart';
 import 'package:lootlog/game/domain/hall_rules.dart';
 import 'package:lootlog/game/domain/town/away_summary.dart';
+import 'package:lootlog/game/domain/town/town_ownership.dart';
 
 /// Vancouver midnight of an October 2026 day (PDT, UTC-7).
 DateTime octoberMidnight(int day) => DateTime.utc(2026, 10, day, 7);
@@ -27,7 +28,7 @@ GameState gameWith({
   required Map<int, DateTime> lastCollected,
   MaterialBundle materials = const MaterialBundle.empty(),
 }) => GameState(
-  hall: HallState(
+  ownership: TownOwnership(sharedHall: HallState(
     plots: {
       for (final entry in plots.entries) entry.key: PlotState(entry.key, entry.value),
     },
@@ -35,7 +36,7 @@ GameState gameWith({
     lastCollectedAt: {
       for (final entry in lastCollected.entries) buildingIdForPlot(entry.key): entry.value,
     },
-  ),
+  )),
 );
 
 void main() {
@@ -68,10 +69,10 @@ void main() {
       plots: {0: producer(BuildingType.lumberyard, from), 1: producer(BuildingType.storehouse, from), 2: null},
       lastCollected: {0: from},
     );
-    expect(producerStretchStart(game.hall, 0), from);
-    expect(producerStretchStart(game.hall, 1), isNull);
-    expect(producerStretchStart(game.hall, 2), isNull);
-    expect(producerStretchStart(game.hall, 9), isNull);
+    expect(producerStretchStart(game.townOf('robin'), 0), from);
+    expect(producerStretchStart(game.townOf('robin'), 1), isNull);
+    expect(producerStretchStart(game.townOf('robin'), 2), isNull);
+    expect(producerStretchStart(game.townOf('robin'), 9), isNull);
   });
 
   group('awaySummary', () {
@@ -86,7 +87,7 @@ void main() {
         },
         lastCollected: {0: from, 1: from},
       );
-      final summary = awaySummary(game, octoberLocal(6, 6));
+      final summary = awaySummary(game, 'robin', octoberLocal(6, 6));
       expect([for (final row in summary.producers) row.plotIndex], [0, 1]);
       expect(summary.producers.first.type, BuildingType.quarry);
       expect(summary.producers.first.made.isEmpty, isFalse);
@@ -100,7 +101,7 @@ void main() {
         plots: {0: producer(BuildingType.quarry, from)},
         lastCollected: {0: from},
       );
-      expect(awaySummary(game, from).isEmpty, isTrue);
+      expect(awaySummary(game, 'robin', from).isEmpty, isTrue);
     });
 
     test('a full Storehouse keeps the row, with nothing that fits', () {
@@ -110,7 +111,7 @@ void main() {
         lastCollected: {0: from},
         materials: MaterialBundle({MaterialKind.lumber: 100000}),
       );
-      final row = awaySummary(game, octoberLocal(6, 6)).producers.single;
+      final row = awaySummary(game, 'robin', octoberLocal(6, 6)).producers.single;
       expect(row.made.isEmpty, isFalse);
       expect(row.fits.isEmpty, isTrue);
       expect(row.storehouseFull, isTrue);
@@ -124,7 +125,7 @@ void main() {
         },
         lastCollected: {0: octoberLocal(4, 9), 1: octoberLocal(6, 9)},
       );
-      final summary = awaySummary(game, octoberLocal(6, 12));
+      final summary = awaySummary(game, 'robin', octoberLocal(6, 12));
       // Oct 4, 5 and 6 (today) were quiet.
       expect(summary.quietDays, 3);
       expect(summary.todayLogged, isFalse);
@@ -141,9 +142,25 @@ void main() {
           ),
         },
       );
-      final summary = awaySummary(logged, octoberLocal(6, 20));
+      final summary = awaySummary(logged, 'robin', octoberLocal(6, 20));
       expect(summary.quietDays, 0);
       expect(summary.todayLogged, isTrue);
+    });
+
+    test("a neighbour's logged day is not this town's", () {
+      final from = octoberLocal(6, 2);
+      final base = gameWith(plots: {0: producer(BuildingType.quarry, from)}, lastCollected: {0: from});
+      final neighbourLogged = base.copyWith(
+        people: {
+          'sam': PersonState(
+            personId: 'sam',
+            streak: StreakState({const GameDay(2026, 10, 6)}),
+          ),
+        },
+      );
+      final summary = awaySummary(neighbourLogged, 'robin', octoberLocal(6, 20));
+      expect(summary.quietDays, 1);
+      expect(summary.todayLogged, isFalse);
     });
   });
 }

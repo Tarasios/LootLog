@@ -57,6 +57,7 @@ class GameRewardRunner {
     this.clock = const SystemClock(),
     this.engine = const RewardEngine(),
     Future<DecorCatalog> Function() loadCatalog = loadDecorCatalog,
+    this.mayMigrateTowns,
     // A private field can't be a named constructor parameter, so this can't be
     // an initializing formal.
     // ignore: prefer_initializing_formals
@@ -67,6 +68,18 @@ class GameRewardRunner {
   final Clock clock;
   final RewardEngine engine;
   final Future<DecorCatalog> Function() _loadCatalog;
+
+  /// Whether this device is not waiting on sync, so the engine may write
+  /// the one-time town split (see `RewardEngine.evaluate`). Defaults to
+  /// "no paired hub"; the app also accepts a clean cycle with every hub
+  /// since it started (`gameRewardRunnerProvider`).
+  final Future<bool> Function()? mayMigrateTowns;
+
+  Future<bool> _mayMigrateTowns() async {
+    final check = mayMigrateTowns;
+    if (check != null) return check();
+    return (await db.pairedHubDao.all()).isEmpty;
+  }
 
   /// The decoration catalogue, loaded on first use and kept.
   DecorCatalog? _catalog;
@@ -118,6 +131,7 @@ class GameRewardRunner {
         party: party,
         stamp: stamp,
         household: household,
+        mayMigrateTowns: await _mayMigrateTowns(),
       ),
       // A play-mode switch (or one arriving by sync) moves the person into
       // or out of the party. Idempotent; game log only.

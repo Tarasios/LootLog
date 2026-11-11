@@ -10,7 +10,7 @@ import '../game_fixtures.dart';
 
 const GameDay _today = GameDay(2026, 10, 1);
 
-HallState _hall(List<GameEvent> events) => projectGameState(events).hall;
+HallState _hall(List<GameEvent> events) => projectGameState(events).townOf(robin);
 
 DailyOffer _roll(String seed, HallState hall) => rollDailyOffer(
   personId: robin,

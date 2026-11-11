@@ -63,7 +63,9 @@ class _ForgeScreenState extends ConsumerState<ForgeScreen> {
     ];
     final heroId = _heroId ?? view.meId ?? '';
     final hero = game.person(heroId).hero;
-    final forgeTier = game.hall.completedTier(BuildingType.forge, now);
+    // The viewer's own town pays and forges, whoever's hero is chosen.
+    final town = game.townOf(view.meId ?? '');
+    final forgeTier = town.completedTier(BuildingType.forge, now);
     final isMe = heroId == view.meId;
     final heroName = hero.cosmetics['name'] ?? view.nameOf(heroId);
     final compact = MediaQuery.sizeOf(context).width < AdventureTokens.narrowScreen;
@@ -72,7 +74,7 @@ class _ForgeScreenState extends ConsumerState<ForgeScreen> {
       title: 'Forge',
       trailing: [
         gemsChip(game.person(view.meId ?? '').gems, compact: compact),
-        ...materialChips(game.hall.materials, _kGearMaterials),
+        ...materialChips(town.materials, _kGearMaterials),
       ],
       children: [
         if (heroes.length > 1)

@@ -11,7 +11,8 @@
 /// - Honest logging is what pays. No reward reads a purchase amount, and
 ///   nothing here is ever negative or taken back: editing or voiding a
 ///   purchase grants nothing and removes nothing.
-/// - Gems from logging are capped per day ([Balance.dailyGemCap]).
+/// - Gems from logging are capped per day ([Balance.dailyGemCapFor] the tier
+///   held that day).
 /// - A "nothing spent today" check-in counts as showing up.
 /// - Streaks forgive: a freeze token covers a missed day automatically.
 /// - Party rewards only add. A quiet partner costs the other nothing.
@@ -19,6 +20,13 @@
 /// Opening a day also brings that day's town event (`town/daily_event.dart`),
 /// rolled once from the ledger event that opened it; every weekend brings a
 /// festival sized to the weekdays logged (`town/festival.dart`).
+///
+/// The first run on a household that still shares one town splits it, once,
+/// into one town per Adventure adult (`town/town_ownership.dart`).
+///
+/// Every run also grows each Adventure adult's town (`town/prosperity.dart`):
+/// a new peak prosperity, the tiers it opens and their rewards, and the food
+/// its residents ate on each day since the last run (`town/food.dart`).
 ///
 /// Pure Dart, zero Flutter imports.
 library;
@@ -34,6 +42,10 @@ import '../game_values.dart';
 import '../reason_codes.dart';
 import '../town/daily_event.dart';
 import '../town/festival.dart';
+import '../town/food.dart';
+import '../town/prosperity.dart';
+import '../town/town_ownership.dart';
+import '../town/trade_road.dart';
 import 'month_end_rewards.dart';
 
 export '../game_event_stamp.dart';
@@ -113,6 +125,12 @@ class RewardEngine {
   /// already rewarded is skipped and activity older than [lookbackDays] is
   /// ignored. Month-end rewards need the whole ledger, or its reduced
   /// [household] state (see [MonthEndRewards]).
+  ///
+  /// [mayMigrateTowns] says this device is not waiting on sync (no paired
+  /// hubs, or a clean cycle with every hub since the app started), so it may
+  /// write the one-time `TownsSplit`. Until then the shared town keeps
+  /// working: two unsynced devices splitting at once could each name a
+  /// different owner, and the later split's interim play would be set aside.
   List<GameEvent> evaluate(
     Iterable<Event> newLedgerEvents,
     GameState gameState,
@@ -120,6 +138,7 @@ class RewardEngine {
     required Party party,
     required GameEventStamp stamp,
     HouseholdState? household,
+    bool mayMigrateTowns = true,
   }) {
     final now = clock.now();
     final today = GameDay.fromInstant(now);
@@ -138,6 +157,7 @@ class RewardEngine {
       });
 
     final run = _Run(gameState, party, stamp, now, today);
+    if (mayMigrateTowns) run.splitTowns();
     for (final event in rewardable) {
       final adult = party.adult(event.userId)!;
       switch (event) {
@@ -162,6 +182,10 @@ class RewardEngine {
       run.festivals(adult.memberId, oldest);
     }
     run.jointFestivals(oldest);
+    run.tradeRoads(oldest);
+    for (final adult in party.adventurers) {
+      run.townGrowth(adult.memberId, oldest);
+    }
 
     run.out.addAll(monthEnd.evaluate(ledger, gameState, clock,
         party: party, stamp: stamp, household: household));
@@ -245,6 +269,38 @@ class _Run {
   /// Which ledger event opened each person's day: the earliest active one.
   final Map<String, String> _openers = {};
 
+  /// The split this run wrote, when the household still shared one town.
+  TownsSplit? _split;
+
+  /// Splits a still-shared town once (see `town/town_ownership.dart`). With
+  /// no Adventure adult there is nobody to own a town yet.
+  void splitTowns() {
+    if (state.townsSplit) return;
+    final owner = townsSplitOwner(
+      state.ownership.hallCommandCounts,
+      party.adventurers.map((adult) => adult.memberId),
+    );
+    if (owner == null) return;
+    final split = TownsSplit(
+      eventId: stamp.newEventId(),
+      deviceId: stamp.deviceId,
+      actorId: owner,
+      occurredAt: now,
+      createdAt: now,
+      ownerId: owner,
+      welcome: Balance.welcomeGrant,
+    );
+    _split = split;
+    out.add(split);
+  }
+
+  /// [who]'s town as it stands once this run's split (if any) applies.
+  HallState townOf(String who) {
+    final split = _split;
+    if (split == null) return state.townOf(who);
+    return townAfterSplit(state, who, ownerId: split.ownerId, welcome: split.welcome);
+  }
+
   _Person person(String id) =>
       _people.putIfAbsent(id, () => _Person(state.person(id)));
 
@@ -310,7 +366,7 @@ class _Run {
       personId: who,
       day: day,
       seedEventId: opener.eventId,
-      hall: state.hall,
+      hall: townOf(who),
       now: now,
     );
     out.add(DailyEventOffered(
@@ -396,6 +452,107 @@ class _Run {
     }
   }
 
+  /// The trade road's caravans (`town/trade_road.dart`) for every day since
+  /// the towns were split, within the lookback. Additive only: someone
+  /// alone that day simply has no caravan.
+  void tradeRoads(GameDay oldest) {
+    final splitAt = _split?.occurredAt ?? state.ownership.split?.splitAt;
+    if (splitAt == null) return;
+    final opened = GameDay.fromInstant(splitAt);
+    final standardIds = {
+      for (final adult in party.adults)
+        if (!adult.inAdventure) adult.memberId,
+    };
+    final due = tradeRoadCaravansDue(
+      from: opened > oldest ? opened : oldest,
+      to: today,
+      adventurerDays: {
+        for (final adult in party.adventurers)
+          adult.memberId: person(adult.memberId).logged,
+      },
+      caravanDays: {
+        for (final id in standardIds) id: person(id).caravanDays,
+      },
+    );
+    for (final caravan in due) {
+      final goods = standardIds.contains(caravan.neighbourId)
+          ? Balance.caravanTradeBundle
+          : tradeRoadDelivery(townOf(caravan.neighbourId), now);
+      _grant(caravan.who,
+          rewardId: tradeRoadRewardId(caravan.who, caravan.day, caravan.neighbourId),
+          kind: 'tradeRoad',
+          materials: goods,
+          reasonCode: GameReasonCodes.tradeRoad);
+    }
+  }
+
+  /// [who]'s town growth: a new peak prosperity when the town's prosperity
+  /// rose past the stored one (topping it up, never locking a stale value
+  /// in), then every tier that peak opens and a reward for each tier
+  /// reached that was not granted yet. Tiers past the hamlet wait for food
+  /// in store. Then the residents eat each finished day still due.
+  void townGrowth(String who, GameDay oldest) {
+    final personState = state.person(who);
+    final record = person(who);
+    final town = townOf(who);
+    // This run's town and festivals, counted exactly as the town book counts.
+    final prosperity = prosperityOf(state, who, now, town: town, festivals: record.festivalTiers);
+    var peak = personState.peakProsperity;
+    if (prosperity > peak) {
+      peak = prosperity;
+      out.add(ProsperityReached(
+        eventId: stamp.newEventId(),
+        deviceId: stamp.deviceId,
+        actorId: who,
+        occurredAt: now,
+        createdAt: now,
+        value: prosperity,
+      ));
+    }
+    var tier = personState.townTier;
+    for (final reached in tiersDue(
+      current: tier,
+      peak: peak,
+      foodSecureFor: (target) => foodSecure(town, target),
+    )) {
+      tier = reached;
+      out.add(TierReached(
+        eventId: stamp.newEventId(),
+        deviceId: stamp.deviceId,
+        actorId: who,
+        occurredAt: now,
+        createdAt: now,
+        tier: reached,
+      ));
+    }
+    for (final reached in TownTier.values.skip(1).take(tier.index)) {
+      final loot = Balance.tierRewards[reached]!;
+      _grant(who,
+          rewardId: tierRewardId(who, reached),
+          kind: 'townTier',
+          gems: loot.gems,
+          materials: loot.materials,
+          tokens: loot.tokens,
+          reasonCode: GameReasonCodes.townTier);
+    }
+    for (final meal in foodConsumptionDue(
+      food: town.food,
+      tierOn: personState.tierOn,
+      oldest: oldest,
+      today: today,
+    )) {
+      out.add(FoodConsumed(
+        eventId: stamp.newEventId(),
+        deviceId: stamp.deviceId,
+        actorId: who,
+        occurredAt: now,
+        createdAt: now,
+        day: meal.day,
+        amount: meal.amount,
+      ));
+    }
+  }
+
   /// Gems under the per-day cap, one per purchase per rule.
   void _capped(
     String who,
@@ -412,7 +569,9 @@ class _Run {
     final used = personRecord.seenRewards
         .where((id) => id.startsWith(extra) || id.startsWith(timely))
         .length;
-    if (used >= Balance.dailyGemCap) return;
+    // The cap of the tier held ON [day], so a purchase that syncs in after a
+    // tier-up is judged by its own day's cap.
+    if (used >= Balance.dailyGemCapFor(state.person(who).tierOn(day))) return;
     _grant(who,
         rewardId: rewardId,
         kind: 'gems',
@@ -451,16 +610,20 @@ class _Run {
         source: event.eventId);
   }
 
-  /// A Standard adult's active day: materials for the shared pool, delivered
-  /// at once (they never visit the hall to claim it).
+  /// A Standard adult's active day, recorded as their caravan reward (the
+  /// id marks the day). A Standard adult has no town, so the caravan itself
+  /// carries nothing here: its goods travel the trade road to the Adventure
+  /// adults active the same day. Delivered at once, since they never visit
+  /// the town to claim it.
   void _caravan(String who, GameDay day) {
     if (party.adventurers.isEmpty) return; // no party to supply
     final rewardId = caravanRewardId(who, day);
-    if (person(who).seenRewards.contains(rewardId)) return;
+    final record = person(who);
+    if (record.seenRewards.contains(rewardId)) return;
+    record.caravanDays.add(day);
     _grant(who,
         rewardId: rewardId,
         kind: 'caravan',
-        materials: Balance.caravanMaterials,
         reasonCode: GameReasonCodes.caravan);
     _claim(who, rewardId);
   }
