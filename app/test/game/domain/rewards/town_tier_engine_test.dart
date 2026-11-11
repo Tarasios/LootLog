@@ -187,4 +187,31 @@ void main() {
         r.reasonCode == GameReasonCodes.extraLog || r.reasonCode == GameReasonCodes.timely);
     expect(capped, hasLength(Balance.dailyGemCapFor(TownTier.hamlet)));
   });
+
+  test('the daily gem cap is the cap of the tier held ON the day of the log', () {
+    // Reach the hamlet on day 3; a phone that logged on day 2 syncs later.
+    final device = _Device('one')..log.addAll(_worth(_hamlet));
+    device.run(const [], _at(3));
+    expect(device.state.person(_ada).tierOn(GameDay.fromInstant(_at(2))), TownTier.outpost);
+    expect(device.state.person(_ada).townTier, TownTier.hamlet);
+    final lateBuys = [
+      for (var i = 0; i < 12; i++) _buy(_ada, _at(2, 17).add(Duration(minutes: i)), 'late$i'),
+    ];
+    final out = device.run(lateBuys, _at(3, 19));
+    final capped = out.whereType<RewardGranted>().where((r) =>
+        r.reasonCode == GameReasonCodes.extraLog || r.reasonCode == GameReasonCodes.timely);
+    expect(capped, hasLength(Balance.dailyGemCapFor(TownTier.outpost)),
+        reason: "day 2 was an outpost day, so day 2's cap applies");
+    expect(Balance.dailyGemCapFor(TownTier.outpost), lessThan(Balance.dailyGemCapFor(TownTier.hamlet)));
+  });
+
+  test('the engine and prosperityOf count festivals the same way', () {
+    // Monday to Friday logged; the run on Saturday holds the festival.
+    final device = _Device('one');
+    final week = [for (var day = 5; day <= 9; day++) _buy(_ada, _at(day, 17), 'w$day')];
+    device.run(week, _at(10));
+    final state = device.state;
+    expect(state.person(_ada).festivals, isNotEmpty, reason: 'a festival was held in the run');
+    expect(state.person(_ada).peakProsperity, prosperityOf(state, _ada, _at(10)));
+  });
 }

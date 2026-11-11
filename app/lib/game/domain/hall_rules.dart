@@ -163,6 +163,14 @@ MaterialBundle collectableNow(
 /// completed tier (or [Balance.maxTierWithoutCentralHall] without one).
 int maxTierAllowed(HallState hall, BuildingType type, DateTime now) {
   if (type == BuildingType.centralHall) return Balance.maxBuildingTier;
+  return maxTierUnderCentralHall(hall, now);
+}
+
+/// The highest tier any building other than the Central Hall may reach in
+/// [hall] at [now] (outpost buildings and every district's buildings alike):
+/// the Central Hall's completed tier, or [Balance.maxTierWithoutCentralHall]
+/// before it rises that far.
+int maxTierUnderCentralHall(HallState hall, DateTime now) {
   final hallTier = hall.completedTier(BuildingType.centralHall, now);
   return _min(Balance.maxBuildingTier,
       _max(Balance.maxTierWithoutCentralHall, hallTier));

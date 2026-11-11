@@ -11,7 +11,8 @@
 /// - Honest logging is what pays. No reward reads a purchase amount, and
 ///   nothing here is ever negative or taken back: editing or voiding a
 ///   purchase grants nothing and removes nothing.
-/// - Gems from logging are capped per day ([Balance.dailyGemCap]).
+/// - Gems from logging are capped per day ([Balance.dailyGemCapFor] the tier
+///   held that day).
 /// - A "nothing spent today" check-in counts as showing up.
 /// - Streaks forgive: a freeze token covers a missed day automatically.
 /// - Party rewards only add. A quiet partner costs the other nothing.
@@ -487,12 +488,8 @@ class _Run {
     final personState = state.person(who);
     final record = person(who);
     final town = townOf(who);
-    final prosperity = townProsperity(
-      town,
-      townDecorationsPlaced: state.decor.townPlacements.length,
-      festivalsHeld: record.festivalTiers.length,
-      at: now,
-    );
+    // This run's town and festivals, counted exactly as the town book counts.
+    final prosperity = prosperityOf(state, who, now, town: town, festivals: record.festivalTiers);
     var peak = personState.peakProsperity;
     if (prosperity > peak) {
       peak = prosperity;
@@ -509,7 +506,7 @@ class _Run {
     for (final reached in tiersDue(
       current: tier,
       peak: peak,
-      foodSecureFrom: (from) => foodSecure(town, from),
+      foodSecureFor: (target) => foodSecure(town, target),
     )) {
       tier = reached;
       out.add(TierReached(
@@ -565,7 +562,9 @@ class _Run {
     final used = personRecord.seenRewards
         .where((id) => id.startsWith(extra) || id.startsWith(timely))
         .length;
-    if (used >= Balance.dailyGemCapFor(state.person(who).townTier)) return;
+    // The cap of the tier held ON [day], so a purchase that syncs in after a
+    // tier-up is judged by its own day's cap.
+    if (used >= Balance.dailyGemCapFor(state.person(who).tierOn(day))) return;
     _grant(who,
         rewardId: rewardId,
         kind: 'gems',

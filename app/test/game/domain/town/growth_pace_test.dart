@@ -128,9 +128,12 @@ int _spend(_Player player, DateTime now) {
       if (farms.isEmpty && free((commands) => commands.startFarmBuilding(0, FarmBuildingType.farm))) {
         return true;
       }
-      if (farms.length == 1 &&
-          free((commands) => commands.startFarmBuilding(1, FarmBuildingType.granary))) {
-        return true;
+      // A village needs more food than the fields' edge can hold, so the
+      // granary comes right after the first farm, before any more fields.
+      final hasGranary = farms.values.any((b) => b.farmType == FarmBuildingType.granary);
+      if (!hasGranary) {
+        return farms.isNotEmpty &&
+            free((commands) => commands.startFarmBuilding(1, FarmBuildingType.granary));
       }
       for (final address in farms.keys) {
         final type = farms[address]!.farmType!;

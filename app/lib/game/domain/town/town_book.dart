@@ -56,9 +56,15 @@ class TownBook {
   final int foodStored;
   final int foodCapacity;
 
-  /// Food in store that makes the town food-secure.
+  /// Food in store that makes the town food-secure for the tier it grows
+  /// into next (a village needs a village's stock), or for its own tier at
+  /// the top.
   final int foodSecureTarget;
   final bool foodSecure;
+
+  /// The stores cannot hold [foodSecureTarget] yet: a (bigger) granary is
+  /// needed as well as harvests.
+  bool get needsMoreStorage => foodCapacity < foodSecureTarget;
 
   /// Every catalogue district, in catalogue order.
   final List<DistrictListing> districts;
@@ -84,6 +90,7 @@ TownBook townBook(GameState state, String personId, DateTime now) {
   final tier = person.townTier;
   final next = nextTier(tier);
   final prosperity = prosperityOf(state, personId, now);
+  final foodTier = next ?? tier;
   return TownBook(
     tier: tier,
     prosperity: prosperity,
@@ -94,8 +101,8 @@ TownBook townBook(GameState state, String personId, DateTime now) {
     dailyFoodNeed: dailyFoodNeed(tier),
     foodStored: town.food.stored,
     foodCapacity: foodCapacityAt(town, now),
-    foodSecureTarget: Balance.foodSecureDays * dailyFoodNeed(tier),
-    foodSecure: foodSecure(town, tier),
+    foodSecureTarget: Balance.foodSecureDays * dailyFoodNeed(foodTier),
+    foodSecure: foodSecure(town, foodTier),
     districts: [
       for (final spec in kDistricts)
         DistrictListing(

@@ -20,11 +20,18 @@ Nothing here may write ledger events except through the existing ledger API.
   slots, regions, seasonal bosses). The numbers are in `../config/balance.dart`.
 - `hall_rules.dart` — read-side rules shared by commands and UI:
   `workedMinutes`, `uncollectedProduction`, `collectableNow`,
-  `shiftSummary`, `fitInStorehouse`, `maxTierAllowed`. Production follows
+  `shiftSummary`, `fitInStorehouse`, `maxTierAllowed`,
+  `maxTierUnderCentralHall` (the gate for every non-hall building, district
+  buildings included). Production follows
   the working shift: the whole household day on
   `GameState.townActiveDaysOf(personId)` (that town's own adult's logged
   days; freeze-covered days do not count, and a Standard caravan day extends
   nobody's shift), the first `Balance.shortShiftHours` of any other day.
+  Two devices that collect (or harvest) the same producer while both are
+  offline each bank the hours since the last collection they saw, so the
+  overlap counts twice once they sync. That is the existing collect
+  behaviour, kept deliberately: each copy is still bounded by the
+  storehouse (or granary) cap, so the extra is at most one cap's worth.
 - `town/town_ownership.dart` — one town per Adventure adult. Until the
   one-time `TownsSplit` (written by the reward engine, owner = the Adventure
   adult with the most `PlotUnlocked`/`BuildingStarted`/`MaterialsCollected`,
@@ -53,7 +60,7 @@ Nothing here may write ledger events except through the existing ledger API.
   with its reward `tier:<who>:<tier>` (`Balance.tierRewards`). The village
   and beyond also wait for food in store (`town/food.dart`); a short town
   only waits, nothing is taken. Prosperity also counts districts bought
-  (`Balance.prosperityPerDistrict`) and district building tiers. The daily gem cap is `Balance.dailyGemCapFor(tier)`.
+  (`Balance.prosperityPerDistrict`) and district building tiers. The daily gem cap is `Balance.dailyGemCapFor(tier)` of the tier held ON the day of the log (`PersonState.tierOn(day)`), so a late-syncing purchase is judged by its own day's cap.
 - `town/districts.dart` — the district catalogue `kDistricts` (data: id,
   required tier, price, plot count, allowed building keys, tileset key):
   the outpost (the eleven hall plots, owned from the start), the farmland
@@ -70,8 +77,9 @@ Nothing here may write ledger events except through the existing ledger API.
   finished day: the need of the tier held that day
   (`Balance.populationByTier` × `Balance.foodPerResident`); a day is eaten
   once, a larger copy tops up the difference, the stores stop at zero.
-  `foodSecure` (`Balance.foodSecureDays` of need) gates the village and
-  beyond; a short town loses nothing.
+  `foodSecure` (`Balance.foodSecureDays` of the TARGET tier's need) gates
+  the village and beyond: a village needs a village's stock, more than the
+  fields' edge holds without a granary; a short town loses nothing.
 - `town/farmland.dart` — the plans behind `buyDistrict`, `startFarmBuilding`
   (one granary per town; tiers follow the Central Hall; an upgrade banks
   food first) and `harvestFood`.

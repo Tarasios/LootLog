@@ -60,14 +60,14 @@ void main() {
 
     test('tiersDue climbs one tier at a time up to the peak', () {
       final hamlet = Balance.tierProsperity[TownTier.hamlet]!;
-      expect(tiersDue(current: TownTier.outpost, peak: hamlet - 1, foodSecureFrom: (_) => true),
+      expect(tiersDue(current: TownTier.outpost, peak: hamlet - 1, foodSecureFor: (_) => true),
           isEmpty);
-      expect(tiersDue(current: TownTier.outpost, peak: hamlet, foodSecureFrom: (_) => true),
+      expect(tiersDue(current: TownTier.outpost, peak: hamlet, foodSecureFor: (_) => true),
           [TownTier.hamlet]);
       expect(
-          tiersDue(current: TownTier.hamlet, peak: 1 << 30, foodSecureFrom: (_) => true),
+          tiersDue(current: TownTier.hamlet, peak: 1 << 30, foodSecureFor: (_) => true),
           [TownTier.village, TownTier.town, TownTier.city]);
-      expect(tiersDue(current: TownTier.city, peak: 1 << 30, foodSecureFrom: (_) => true),
+      expect(tiersDue(current: TownTier.city, peak: 1 << 30, foodSecureFor: (_) => true),
           isEmpty);
     });
 
@@ -77,13 +77,13 @@ void main() {
       final due = tiersDue(
         current: TownTier.outpost,
         peak: village,
-        foodSecureFrom: (from) {
-          asked.add(from);
+        foodSecureFor: (target) {
+          asked.add(target);
           return false;
         },
       );
       expect(due, [TownTier.hamlet]);
-      expect(asked, [TownTier.hamlet], reason: 'the need of the tier being left');
+      expect(asked, [TownTier.village], reason: 'the need of the tier being grown into');
     });
 
     test('tier reward ids are per person and tier', () {

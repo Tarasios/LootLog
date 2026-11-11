@@ -67,7 +67,7 @@ import 'food.dart';
     if (tier > Balance.maxBuildingTier) return refuse(GameRejection.maxTierReached);
   }
   // Farm buildings follow the Central Hall like every non-hall building.
-  if (tier > maxTierAllowed(town, BuildingType.storehouse, now)) {
+  if (tier > maxTierUnderCentralHall(town, now)) {
     return refuse(GameRejection.needsCentralHall);
   }
   final bank = existing == null

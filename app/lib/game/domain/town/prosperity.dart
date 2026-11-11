@@ -5,7 +5,7 @@
 /// built, how it is decorated, and the festivals it has held. It can dip (a
 /// decoration stored away), so the reward engine stores the highest value
 /// seen in a `ProsperityReached` event and tiers read that peak. A tier past
-/// the hamlet also needs the town's food in store (`food.dart`); a town
+/// the hamlet also needs that tier's food in store (`food.dart`); a town
 /// that is short simply waits, and nothing is ever taken from it.
 ///
 /// Pure Dart, zero Flutter imports.
@@ -41,13 +41,22 @@ int townProsperity(
       festivalsHeld * Balance.prosperityPerFestival;
 }
 
-/// [personId]'s town prosperity at [at], as the engine and the town book
-/// read it from the state: the person's own town and festivals, and the
-/// household's town decorations on display.
-int prosperityOf(GameState state, String personId, DateTime at) => townProsperity(
-      state.townOf(personId),
+/// [personId]'s town prosperity at [at]: the person's own town and
+/// festivals, and the household's town decorations on display. The one
+/// place the engine and the town book both read it from. The engine passes
+/// the [town] and [festivals] of its run (a split or a festival it is
+/// writing now); everyone else reads them from the state.
+int prosperityOf(
+  GameState state,
+  String personId,
+  DateTime at, {
+  HallState? town,
+  Map<GameDay, FestivalTier>? festivals,
+}) =>
+    townProsperity(
+      town ?? state.townOf(personId),
       townDecorationsPlaced: state.decor.townPlacements.length,
-      festivalsHeld: state.person(personId).festivals.length,
+      festivalsHeld: (festivals ?? state.person(personId).festivals).length,
       at: at,
     );
 
@@ -63,18 +72,19 @@ bool tierNeedsFood(TownTier tier) => tier.index >= TownTier.village.index;
 
 /// The tiers a town at [current] grows into now, in order: each one whose
 /// threshold the [peak] meets, stopping at the first that needs food when
-/// [foodSecureFrom] (asked with the tier being left) says the stores are
-/// short. A short town keeps everything it has; it only waits.
+/// [foodSecureFor] (asked with the tier being grown into: a village needs a
+/// village's stock) says the stores are short. A short town keeps
+/// everything it has; it only waits.
 List<TownTier> tiersDue({
   required TownTier current,
   required int peak,
-  required bool Function(TownTier from) foodSecureFrom,
+  required bool Function(TownTier target) foodSecureFor,
 }) {
   final due = <TownTier>[];
   var from = current;
   for (var next = nextTier(from); next != null; next = nextTier(from)) {
     if (peak < tierThreshold(next)) break;
-    if (tierNeedsFood(next) && !foodSecureFrom(from)) break;
+    if (tierNeedsFood(next) && !foodSecureFor(next)) break;
     due.add(next);
     from = next;
   }

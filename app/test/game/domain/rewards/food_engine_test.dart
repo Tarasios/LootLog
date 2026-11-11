@@ -91,7 +91,8 @@ void main() {
 
   test('the village waits for food, and comes once the stores hold enough', () {
     final village = Balance.tierProsperity[TownTier.village]!;
-    final secure = _need * Balance.foodSecureDays;
+    final hamletSecure = _need * Balance.foodSecureDays;
+    final villageSecure = dailyFoodNeed(TownTier.village) * Balance.foodSecureDays;
     final hungry = _Device('one')..log.addAll(_farmTown(food: 0, prosperity: village));
     final waited = hungry.run(_at(2));
     expect(waited.whereType<TierReached>(), isEmpty);
@@ -99,8 +100,16 @@ void main() {
     expect(hungry.state.townOf(_ada).districts.owns(kFarmlandDistrictId), isTrue,
         reason: 'a hungry town keeps everything');
 
-    hungry.log.add(foodHarvested('fed', 0, secure, when: _at(2, 19), actor: _ada));
-    final grown = hungry.run(_at(2, 20));
+    // A hamlet's worth of food is not a village's.
+    hungry.log.add(foodHarvested('fed', 0, hamletSecure, when: _at(2, 19), actor: _ada));
+    expect(hungry.run(_at(2, 20)).whereType<TierReached>(), isEmpty);
+
+    // A village's stock needs a granary to hold it.
+    expect(villageSecure, greaterThan(_cap), reason: 'a granary is worthwhile');
+    hungry.log
+      ..add(farmBuilt('granary', 1, FarmBuildingType.granary, when: _at(2, 20), actor: _ada))
+      ..add(foodHarvested('fed-more', 0, villageSecure, when: _at(2, 21), actor: _ada));
+    final grown = hungry.run(_at(2, 22));
     expect(grown.whereType<TierReached>().single.tier, TownTier.village);
   });
 

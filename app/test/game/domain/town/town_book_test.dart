@@ -39,7 +39,9 @@ void main() {
     expect(book.nextTierNeedsFood, isTrue);
     expect(book.foodSecure, isFalse);
     expect(book.waitingOnFood, isTrue);
-    expect(book.foodSecureTarget, Balance.foodSecureDays * dailyFoodNeed(TownTier.hamlet));
+    expect(book.foodSecureTarget, Balance.foodSecureDays * dailyFoodNeed(TownTier.village),
+        reason: "a village needs a village's food");
+    expect(book.dailyFoodNeed, dailyFoodNeed(TownTier.hamlet), reason: 'today the hamlet eats');
     expect(book.population, populationOf(TownTier.hamlet));
     expect(book.foodCapacity, Balance.granaryFoodCapacityByTier[0]);
     expect(book.districts.singleWhere((d) => d.spec.id == kFarmlandDistrictId).forSale, isTrue);
