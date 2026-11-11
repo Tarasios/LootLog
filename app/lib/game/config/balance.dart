@@ -71,6 +71,55 @@ abstract final class Balance {
   /// partner whose device was offline for a few days.
   static const int rewardLookbackDays = 7;
 
+  // ---- Daily town events ---------------------------------------------------
+
+  /// How likely each daily event is when a person opens their day (out of
+  /// the total). A windfall needs a producer; without one the roll is among
+  /// the others.
+  static const Map<DailyEventKind, int> dailyEventWeights = {
+    DailyEventKind.trader: 40,
+    DailyEventKind.windfall: 40,
+    DailyEventKind.visitor: 20,
+  };
+
+  /// A windfall is this many hours of one producer's current-tier output.
+  static const int windfallHours = 4;
+
+  /// What a trader asks for (of the pool's most plentiful material) and
+  /// hands back (of its scarcest), by completed Central Hall tier (index 0 =
+  /// none). Fewer back than asked: the trader brings what the hall lacks.
+  static const List<int> traderGiveByHallTier = [20, 30, 45, 60, 80, 100];
+  static const List<int> traderReceiveByHallTier = [8, 12, 18, 24, 32, 40];
+
+  static int traderGiveAmount(int hallTier) =>
+      traderGiveByHallTier[hallTier.clamp(0, traderGiveByHallTier.length - 1)];
+  static int traderReceiveAmount(int hallTier) => traderReceiveByHallTier[
+      hallTier.clamp(0, traderReceiveByHallTier.length - 1)];
+
+  /// The materials a trader deals in: everything the Storehouse holds.
+  static const List<MaterialKind> tradeMaterials = [
+    MaterialKind.lumber,
+    MaterialKind.stone,
+    MaterialKind.ore,
+    MaterialKind.herbs,
+    MaterialKind.hide,
+    MaterialKind.crystal,
+    MaterialKind.essence,
+  ];
+
+  /// A visitor's gift: [visitorGift] of one of [visitorGiftMaterials], or,
+  /// [visitorGemChancePermille] of the time, [visitorGiftGems] gems.
+  static const int visitorGift = 5;
+  static const List<MaterialKind> visitorGiftMaterials = [
+    MaterialKind.lumber,
+    MaterialKind.stone,
+    MaterialKind.ore,
+    MaterialKind.herbs,
+    MaterialKind.hide,
+  ];
+  static const int visitorGemChancePermille = 200;
+  static const int visitorGiftGems = 2;
+
   // ---- Chests -------------------------------------------------------------
 
   /// What each chest rolls when opened. Every chest is earned by budgeting

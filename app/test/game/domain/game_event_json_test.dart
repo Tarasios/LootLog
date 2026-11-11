@@ -91,6 +91,31 @@ final List<GameEvent> _samples = [
     createdAt: at(20),
     itemId: 'outfit_ranger',
   ),
+  DailyEventOffered(
+    eventId: 'e22',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(21),
+    createdAt: at(22),
+    offerId: 'daily.event:$robin:2026-10-01',
+    day: const GameDay(2026, 10, 1),
+    kind: DailyEventKind.trader,
+    gives: MaterialBundle({MaterialKind.lumber: 20}),
+    receives: Loot(gems: 1, materials: MaterialBundle({MaterialKind.ore: 8})),
+    flavourKey: 'trader.2',
+    plotIndex: 4,
+  ),
+  DailyEventResolved(
+    eventId: 'e23',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(23),
+    createdAt: at(23),
+    offerId: 'daily.event:$robin:2026-10-01',
+    accepted: true,
+    paid: MaterialBundle({MaterialKind.lumber: 20}),
+    received: Loot(materials: MaterialBundle({MaterialKind.ore: 8})),
+  ),
 ];
 
 void main() {
@@ -156,6 +181,58 @@ void main() {
     expect(decoded, isA<UnknownGameEvent>());
     expect(decoded.type, 'ExpeditionStarted');
     expect(decoded.toJson(), raw);
+  });
+
+  test('a daily event of a kind this build lacks is kept as UnknownGameEvent',
+      () {
+    final raw = _samples.whereType<DailyEventOffered>().single.toJson();
+    (raw['payload'] as Map<String, dynamic>)['kind'] = 'fireworks';
+    final decoded = GameEvent.fromJson(raw);
+    expect(decoded, isA<UnknownGameEvent>());
+    expect(decoded.toJson(), raw);
+  });
+
+  test('an older build sees the daily event types as UnknownGameEvent', () {
+    // An older build has no case for these types: it takes the default
+    // branch, exactly like any type it has never heard of.
+    for (final event in _samples.where((sample) =>
+        sample is DailyEventOffered || sample is DailyEventResolved)) {
+      final raw = event.toJson()..['type'] = 'Future${event.type}';
+      final decoded = GameEvent.fromJson(raw);
+      expect(decoded, isA<UnknownGameEvent>());
+      expect(decoded.toJson(), raw);
+    }
+  });
+
+  test('a windfall-free offer omits its plot, and a decline its amounts', () {
+    final offer = DailyEventOffered(
+      eventId: 'x4',
+      deviceId: 'dev-1',
+      actorId: robin,
+      occurredAt: at(0),
+      createdAt: at(0),
+      offerId: 'daily.event:$robin:2026-10-01',
+      day: const GameDay(2026, 10, 1),
+      kind: DailyEventKind.visitor,
+      gives: const MaterialBundle.empty(),
+      receives: const Loot(gems: 2),
+      flavourKey: 'visitor.1',
+    );
+    final decoded = GameEvent.fromJson(offer.toJson()) as DailyEventOffered;
+    expect(decoded.plotIndex, isNull);
+    final decline = GameEvent.fromJson({
+      ...DailyEventResolved(
+        eventId: 'x5',
+        deviceId: 'dev-1',
+        actorId: robin,
+        occurredAt: at(0),
+        createdAt: at(0),
+        offerId: offer.offerId,
+        accepted: false,
+      ).toJson(),
+    }) as DailyEventResolved;
+    expect(decline.paid.isEmpty, isTrue);
+    expect(decline.received, Loot.none);
   });
 
   test('a missing schemaVersion reads as version 1', () {

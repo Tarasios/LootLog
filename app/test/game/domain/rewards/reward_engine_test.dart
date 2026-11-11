@@ -468,7 +468,10 @@ void main() {
       final out = dev.run(daily(5, 5), _at(9, 5));
       expect(out.whereType<StreakFreezeUsed>(), isEmpty);
       // Nothing negative is emitted — only the new day's rewards.
-      expect(out.every((e) => e is RewardGranted || e is ChestGranted), isTrue);
+      expect(
+          out.every((e) =>
+              e is RewardGranted || e is ChestGranted || e is DailyEventOffered),
+          isTrue);
       expect(dev.state.person(_ada).streak.count, 1);
     });
 

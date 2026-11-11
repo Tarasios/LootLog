@@ -16,6 +16,9 @@
 /// - Streaks forgive: a freeze token covers a missed day automatically.
 /// - Party rewards only add. A quiet partner costs the other nothing.
 ///
+/// Opening a day also brings that day's town event (`town/daily_event.dart`),
+/// rolled once from the ledger event that opened it.
+///
 /// Pure Dart, zero Flutter imports.
 library;
 
@@ -28,6 +31,7 @@ import '../game_event_stamp.dart';
 import '../game_state.dart';
 import '../game_values.dart';
 import '../reason_codes.dart';
+import '../town/daily_event.dart';
 import 'month_end_rewards.dart';
 
 export '../game_event_stamp.dart';
@@ -171,6 +175,7 @@ class _Person {
         frontier = state.streak.lastDay,
         seenRewards = {...state.seenRewardIds},
         seenChests = {...state.seenChestIds},
+        seenOffers = {...state.seenOfferIds},
         wallet = state.freezeTokens,
         waitingTokens = [
           for (final reward in state.unclaimedRewards.values)
@@ -184,6 +189,7 @@ class _Person {
   GameDay? frontier;
   final Set<String> seenRewards;
   final Set<String> seenChests;
+  final Set<String> seenOffers;
 
   /// Claimed freeze tokens.
   int wallet;
@@ -255,6 +261,7 @@ class _Run {
       personRecord
         ..logged.add(day)
         ..cover(day);
+      _dailyEvent(who, day, event);
     }
 
     if (purchase != null) {
@@ -271,6 +278,37 @@ class _Run {
 
     tokens(who);
     _weekly(who, day.weekStart);
+  }
+
+  /// Today's town event, rolled from the ledger event that opened the day.
+  /// Only today gets one: an offer can only be taken on its own day, so a
+  /// catch-up over earlier days offers nothing.
+  void _dailyEvent(String who, GameDay day, Event opener) {
+    if (day != today) return;
+    final offerId = dailyEventOfferId(who, day);
+    if (!person(who).seenOffers.add(offerId)) return;
+    final offer = rollDailyOffer(
+      personId: who,
+      day: day,
+      seedEventId: opener.eventId,
+      hall: state.hall,
+      now: now,
+    );
+    out.add(DailyEventOffered(
+      eventId: stamp.newEventId(),
+      deviceId: stamp.deviceId,
+      actorId: who,
+      // Stamped with the logged instant, like the day's pouch.
+      occurredAt: opener.createdAt,
+      createdAt: now,
+      offerId: offer.offerId,
+      day: offer.day,
+      kind: offer.kind,
+      gives: offer.gives,
+      receives: offer.receives,
+      flavourKey: offer.flavourKey,
+      plotIndex: offer.plotIndex,
+    ));
   }
 
   /// Gems under the per-day cap, one per purchase per rule.

@@ -1,0 +1,12 @@
+{
+  "_comment": "Daily town events in Adventure mode (game words are fine). Every line is listed in docs/voice-lines.md beside its trigger. Placeholders filled by the app: {gives} {receives} {building}. An event is always a treat, never a test: taking it is a choice and waving it off costs nothing. A missing key falls back to the built-in line.",
+  "trader.1": "A travelling trader sets up by the well. Swap {gives} for {receives}?",
+  "trader.2": "A cart rolls in with just what the yard is short of: {receives} for {gives}.",
+  "trader.3": "A merchant tips her hat. \"I'll take {gives} off your hands for {receives}.\"",
+  "windfall.1": "The {building} crew is in fine form today: {receives} extra, ready to bring in.",
+  "windfall.2": "A lucky find at the {building}! {receives} waiting to be stacked.",
+  "windfall.3": "The {building} had a cracking morning. {receives} more for the stores.",
+  "visitor.1": "An old friend stops by with a gift: {receives}.",
+  "visitor.2": "A neighbour leaves a parcel at your door: {receives}.",
+  "visitor.3": "A wandering bard pays for supper with {receives}."
+}

@@ -49,6 +49,8 @@ const List<String> kGameEventTypes = [
   'ItemPlaced',
   'ItemStored',
   'ItemEquipped',
+  'DailyEventOffered',
+  'DailyEventResolved',
 ];
 
 /// Base class for every game event.
@@ -360,6 +362,28 @@ sealed class GameEvent {
           eventId: eventId, deviceId: deviceId, actorId: actorId,
           occurredAt: occurredAt, createdAt: createdAt, schemaVersion: schemaVersion,
           itemId: payload['itemId'] as String,
+        );
+      case 'DailyEventOffered':
+        return DailyEventOffered(
+          eventId: eventId, deviceId: deviceId, actorId: actorId,
+          occurredAt: occurredAt, createdAt: createdAt, schemaVersion: schemaVersion,
+          offerId: payload['offerId'] as String,
+          day: GameDay.parse(payload['day'] as String),
+          kind: gameEnumByName(
+              DailyEventKind.values, payload['kind'] as String, 'daily event kind'),
+          gives: _materials(payload['gives']),
+          receives: _loot(payload['receives']),
+          flavourKey: payload['flavourKey'] as String,
+          plotIndex: payload['plotIndex'] as int?,
+        );
+      case 'DailyEventResolved':
+        return DailyEventResolved(
+          eventId: eventId, deviceId: deviceId, actorId: actorId,
+          occurredAt: occurredAt, createdAt: createdAt, schemaVersion: schemaVersion,
+          offerId: payload['offerId'] as String,
+          accepted: payload['accepted'] as bool,
+          paid: _materials(payload['paid']),
+          received: _loot(payload['received']),
         );
       default:
         return UnknownGameEvent._(envelope, type, payload);
@@ -1005,6 +1029,96 @@ class ItemEquipped extends GameEvent {
 
   @override
   Map<String, dynamic> payload() => {'itemId': itemId};
+}
+
+/// Something turned up in town when [actorId] opened [day] with their first
+/// log or "no spend" check-in: a trader, a producer's good day, or a visitor
+/// (see `town/daily_event.dart`). Rolled once by the reward engine, seeded by
+/// the ledger event that opened the day, and stored here. [offerId] is
+/// `daily.event:<person>:<day>`, so a second device's copy is ignored.
+class DailyEventOffered extends GameEvent {
+  const DailyEventOffered({
+    required super.eventId,
+    required super.deviceId,
+    required super.actorId,
+    required super.occurredAt,
+    required super.createdAt,
+    super.schemaVersion,
+    required this.offerId,
+    required this.day,
+    required this.kind,
+    required this.gives,
+    required this.receives,
+    required this.flavourKey,
+    this.plotIndex,
+  });
+
+  final String offerId;
+
+  /// The household day the offer belongs to; it can be taken only that day.
+  final GameDay day;
+  final DailyEventKind kind;
+
+  /// What the player hands over from the shared pool (a trader only).
+  final MaterialBundle gives;
+
+  /// What the player gets: materials for the pool and/or gems.
+  final Loot receives;
+
+  /// Which line of `town_events.json` tells the story.
+  final String flavourKey;
+
+  /// A windfall's producer plot; null for the other kinds.
+  final int? plotIndex;
+
+  @override
+  String get type => 'DailyEventOffered';
+
+  @override
+  Map<String, dynamic> payload() => {
+        'offerId': offerId,
+        'day': day.toKey(),
+        'kind': kind.name,
+        'gives': gives.toJson(),
+        'receives': receives.toJson(),
+        'flavourKey': flavourKey,
+        if (plotIndex != null) 'plotIndex': plotIndex,
+      };
+}
+
+/// [actorId] took ([accepted]) or waved off today's offer. What actually
+/// moved was settled when the command ran and is stored here: [paid] left the
+/// shared pool and [received] arrived (materials trimmed to the Storehouse).
+/// Both are empty for a decline.
+class DailyEventResolved extends GameEvent {
+  const DailyEventResolved({
+    required super.eventId,
+    required super.deviceId,
+    required super.actorId,
+    required super.occurredAt,
+    required super.createdAt,
+    super.schemaVersion,
+    required this.offerId,
+    required this.accepted,
+    this.paid = const MaterialBundle.empty(),
+    this.received = Loot.none,
+  });
+
+  final String offerId;
+  final bool accepted;
+  final MaterialBundle paid;
+  final Loot received;
+
+  @override
+  String get type => 'DailyEventResolved';
+
+  @override
+  Map<String, dynamic> payload() => {
+        'offerId': offerId,
+        'accepted': accepted,
+        'paid': paid.toJson(),
+        'received': received.toJson(),
+      };
 }
 
 /// An event this build cannot interpret: an unknown type, or a known type

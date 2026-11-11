@@ -78,6 +78,10 @@ enum GameWarningCode {
 
   /// Storing a placement that does not exist; ignored.
   unknownPlacement,
+
+  /// A daily event resolved that is not waiting (already resolved, typically
+  /// on another device, or never offered); nothing moved.
+  unknownOffer,
 }
 
 /// One recorded inconsistency, tied to the event that caused it.
@@ -282,6 +286,57 @@ class PendingReward {
   int get hashCode => Object.hash(rewardId, kind, reasonCode, loot, grantedAt);
 }
 
+/// A daily town event waiting for its person to take it or wave it off (see
+/// `town/daily_event.dart`). Amounts were rolled when it was offered.
+class DailyOffer {
+  const DailyOffer({
+    required this.offerId,
+    required this.day,
+    required this.kind,
+    required this.gives,
+    required this.receives,
+    required this.flavourKey,
+    this.plotIndex,
+  });
+
+  final String offerId;
+
+  /// The household day it belongs to; only that day's offer can be taken.
+  final GameDay day;
+  final DailyEventKind kind;
+
+  /// What the player hands over from the shared pool (a trader only).
+  final MaterialBundle gives;
+
+  /// What the player gets: materials for the pool and/or gems.
+  final Loot receives;
+
+  /// Which line of `town_events.json` tells the story.
+  final String flavourKey;
+
+  /// A windfall's producer plot; null for the other kinds.
+  final int? plotIndex;
+
+  @override
+  bool operator ==(Object other) =>
+      other is DailyOffer &&
+      other.offerId == offerId &&
+      other.day == day &&
+      other.kind == kind &&
+      other.gives == gives &&
+      other.receives == receives &&
+      other.flavourKey == flavourKey &&
+      other.plotIndex == plotIndex;
+
+  @override
+  int get hashCode =>
+      Object.hash(offerId, day, kind, gives, receives, flavourKey, plotIndex);
+
+  @override
+  String toString() => 'DailyOffer($offerId, ${kind.name}, gives $gives, '
+      'receives $receives)';
+}
+
 /// A person's logging streak, derived from the set of covered household-local
 /// days (logged, checked in, or frozen).
 class StreakState {
@@ -434,6 +489,8 @@ class PersonState {
     this.partyId,
     this.seenRewardIds = const {},
     this.seenChestIds = const {},
+    this.dailyOffers = const {},
+    this.seenOfferIds = const {},
   });
 
   final String personId;
@@ -466,6 +523,15 @@ class PersonState {
   /// Every chest id ever granted to this person, opened or not.
   final Set<String> seenChestIds;
 
+  /// Daily town events not yet taken or waved off, by offer id. Older days'
+  /// offers stay here untouched (nothing is revoked); only today's can be
+  /// taken, see [GameState.offerFor].
+  final Map<String, DailyOffer> dailyOffers;
+
+  /// Every daily-event offer id ever offered to this person, resolved or not,
+  /// so a second device's copy is never offered twice.
+  final Set<String> seenOfferIds;
+
   PersonState copyWith({
     HeroState? hero,
     int? gems,
@@ -479,6 +545,8 @@ class PersonState {
     Object? partyId = _unset,
     Set<String>? seenRewardIds,
     Set<String>? seenChestIds,
+    Map<String, DailyOffer>? dailyOffers,
+    Set<String>? seenOfferIds,
   }) =>
       PersonState(
         personId: personId,
@@ -496,6 +564,8 @@ class PersonState {
         partyId: identical(partyId, _unset) ? this.partyId : partyId as String?,
         seenRewardIds: seenRewardIds ?? this.seenRewardIds,
         seenChestIds: seenChestIds ?? this.seenChestIds,
+        dailyOffers: dailyOffers ?? this.dailyOffers,
+        seenOfferIds: seenOfferIds ?? this.seenOfferIds,
       );
 
   @override
@@ -513,7 +583,9 @@ class PersonState {
       _mapsEqual(other.ritual, ritual) &&
       other.partyId == partyId &&
       _setsEqual(other.seenRewardIds, seenRewardIds) &&
-      _setsEqual(other.seenChestIds, seenChestIds);
+      _setsEqual(other.seenChestIds, seenChestIds) &&
+      _mapsEqual(other.dailyOffers, dailyOffers) &&
+      _setsEqual(other.seenOfferIds, seenOfferIds);
 
   @override
   int get hashCode => Object.hash(personId, gems, freezeTokens, partyId);
@@ -569,6 +641,16 @@ class GameState {
           for (final rewardId in someone.seenRewardIds)
             ?caravanRewardDay(rewardId),
       };
+
+  /// [personId]'s daily town event for [today], if one waits; null when none
+  /// was offered or it was already taken or waved off. Earlier days' offers
+  /// are simply not today's.
+  DailyOffer? offerFor(String personId, GameDay today) {
+    for (final offer in person(personId).dailyOffers.values) {
+      if (offer.day == today) return offer;
+    }
+    return null;
+  }
 
   /// Applies one event incrementally. Events must arrive in canonical
   /// `(occurredAt, eventId)` order: re-applying the cursor event is a no-op,

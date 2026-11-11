@@ -340,6 +340,38 @@ void _apply(_GameStateDraft draft, GameEvent event) {
         draft.decor = draft.decor.equipOutfit(actor, equip.itemId);
       }
 
+    case DailyEventOffered offered:
+      final person = draft.person(actor);
+      // A second device's copy of the same day's offer is ignored.
+      if (person.seenOfferIds.contains(offered.offerId)) return;
+      draft.put(person.copyWith(
+        seenOfferIds: _with(person.seenOfferIds, offered.offerId),
+        dailyOffers: _put(
+          person.dailyOffers,
+          offered.offerId,
+          DailyOffer(
+            offerId: offered.offerId,
+            day: offered.day,
+            kind: offered.kind,
+            gives: offered.gives,
+            receives: offered.receives,
+            flavourKey: offered.flavourKey,
+            plotIndex: offered.plotIndex,
+          ),
+        ),
+      ));
+
+    case DailyEventResolved resolved:
+      final person = draft.person(actor);
+      if (!person.dailyOffers.containsKey(resolved.offerId)) {
+        draft.warn(GameWarningCode.unknownOffer, resolved.offerId);
+        return;
+      }
+      draft.put(person.copyWith(
+          dailyOffers: _without(person.dailyOffers, resolved.offerId)));
+      draft.adjustPool(resolved.paid, -1);
+      draft.credit(actor, resolved.received);
+
     case UnknownGameEvent _:
       return;
   }

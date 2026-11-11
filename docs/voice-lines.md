@@ -302,6 +302,8 @@ shortfalls at buildings and expeditions.
 | `notYourRoom` | This is someone else's room. Yours is waiting for you. |
 | `notEquippable` | Only outfits and titles can be worn. |
 | `starterAlreadyClaimed` | Your starter set is already home. |
+| `unknownOffer` | That visitor has already been seen to. |
+| `offerExpired` | That visitor has moved on. Someone new turns up tomorrow when you log. |
 
 ### `reasons`
 
@@ -382,3 +384,30 @@ goal), `{days}`, `{percent}`.
 | `goalProgress` | A savings goal has some progress (the goals furthest along, one per statue spot) | The goal's statue spot | Keep the goal vivid and celebrate how far it has come (a percent, never dollars) | {name} {percent}% |
 | `chestWaiting` | An unopened chest waits in the inbox | The Central Hall | Point at the reward | Chest waiting |
 | `upgradeReady` | A building can be upgraded right now | That building's plot | Point at something fun to do next | Ready to upgrade |
+
+## Town events (`town_events.json`)
+
+Adventure-only: the daily town event. When a person opens their day with a
+first log or a "no spend" check-in, something turns up in town: a trader, a
+producer having a good day, or a visitor with a gift. The amounts are rolled
+once and stored; the line only frames them. Taking it is a choice and waving
+it off costs nothing, so no line ever pressures or scolds. Each key holds one
+line; the engine picks one of a kind's keys (`trader.1`–`trader.3` and so
+on). A missing or empty key falls back to the built-in line in
+`app/lib/game/domain/town/town_event_lines.dart`, and
+`app/test/game/domain/town/town_event_lines_test.dart` checks the shipped
+file matches those built-in lines and that nothing shames. Placeholders:
+`{gives}` and `{receives}` (amounts in game words), `{building}` (the
+producer).
+
+| Key | Trigger | Intended outcome | Current line |
+|-----|---------|------------------|--------------|
+| `trader.1` | A trader offers to swap the pool's most plentiful material for its scarcest | A fair, friendly deal the player can take or leave | A travelling trader sets up by the well. Swap {gives} for {receives}? |
+| `trader.2` | As `trader.1` | Same | A cart rolls in with just what the yard is short of: {receives} for {gives}. |
+| `trader.3` | As `trader.1` | Same | A merchant tips her hat. "I'll take {gives} off your hands for {receives}." |
+| `windfall.1` | A producer has a good day: four hours of its output, free | Celebrate the town working well because the day was logged | The {building} crew is in fine form today: {receives} extra, ready to bring in. |
+| `windfall.2` | As `windfall.1` | Same | A lucky find at the {building}! {receives} waiting to be stacked. |
+| `windfall.3` | As `windfall.1` | Same | The {building} had a cracking morning. {receives} more for the stores. |
+| `visitor.1` | A visitor brings a small gift (a few materials, or two gems) | A warm surprise for showing up | An old friend stops by with a gift: {receives}. |
+| `visitor.2` | As `visitor.1` | Same | A neighbour leaves a parcel at your door: {receives}. |
+| `visitor.3` | As `visitor.1` | Same | A wandering bard pays for supper with {receives}. |
