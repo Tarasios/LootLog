@@ -326,7 +326,7 @@ was earned (by reward reason code).
 | `month.gold` | Bonus: a budget finished on target | A category finished the month on target (bonus only) |
 | `vault.quest` | Savings goal milestone | A savings goal reaches a percent milestone |
 | `vault.consistency` | Months of saving in a row | Consecutive months with a savings choice |
-| `festival.weekend` | The weekend festival | The weekend festival's loot, sized by the weekdays logged (a market day is always held); a grand festival's duplicate decoration comes as gems under this code too |
+| `festival.weekend` | The weekend festival | The weekend festival's loot, sized by the weekdays logged: one reward per tier reached, each adding what that tier adds, so a festival topped up by late-syncing logs shows as more than one line |
 | `festival.joint` | Bonus: the party kept the week together | Two or more Adventure adults each logged at least three weekdays (additive; never names anyone) |
 
 
@@ -416,7 +416,7 @@ announce it and take no placeholders.
 | `visitor.1` | A visitor brings a small gift (a few materials, or two gems) | A warm surprise for showing up | An old friend stops by with a gift: {receives}. |
 | `visitor.2` | As `visitor.1` | Same | A neighbour leaves a parcel at your door: {receives}. |
 | `visitor.3` | As `visitor.1` | Same | A wandering bard pays for supper with {receives}. |
-| `festival.marketDay` | The weekend festival after a week with 0–2 weekdays logged (held once the person shows up that weekend or later) | Celebrate the town every weekend: a quiet week is still a market day, never a loss | It's market day! Stalls line the square and the whole town turns out. |
+| `festival.marketDay` | The weekend festival after a week with 0–2 weekdays logged (a quiet week is held once the person shows up that weekend or later, if they had already been around by its Sunday; never for a week before someone first came) | Celebrate the town every weekend: a quiet week is still a market day, never a loss | It's market day! Stalls line the square and the whole town turns out. |
 | `festival.fair` | The weekend festival after 3–4 weekdays logged | Celebrate a well-kept week | A fair fills the square this weekend. The town is in high spirits after a well-kept week. |
 | `festival.grandFestival` | The weekend festival after all 5 weekdays logged (with a festival decoration when the catalogue has one) | The big weekly celebration | A grand festival! Lanterns, music and dancing: every weekday kept, and the whole town celebrates. |
 | `festival.joint` | The joint festival bonus: two or more Adventure adults reached a fair the same week | Celebrate the party together without naming anyone | The whole party kept the week together, and the festival is all the merrier for it. |

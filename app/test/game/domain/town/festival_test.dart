@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lootlog/game/config/balance.dart';
 import 'package:lootlog/game/domain/game_state.dart';
 import 'package:lootlog/game/domain/game_values.dart';
 import 'package:lootlog/game/domain/town/festival.dart';
@@ -64,7 +65,6 @@ void main() {
       expect(
         festivalWeeksDue(
           loggedDays: {_monday},
-          heldWeeks: const {},
           today: _monday.addDays(4),
           oldest: _monday,
         ),
@@ -72,53 +72,65 @@ void main() {
       );
     });
 
-    test('from Saturday on, once', () {
+    test('from Saturday on', () {
       expect(
         festivalWeeksDue(
           loggedDays: {_monday},
-          heldWeeks: const {},
           today: saturday,
           oldest: _monday,
         ),
         [_monday],
       );
+    });
+
+    test('a quiet week waits until a returning person shows up', () {
+      final lastFriday = _monday.addDays(-3);
       expect(
         festivalWeeksDue(
-          loggedDays: {_monday},
-          heldWeeks: {_monday},
+          loggedDays: {lastFriday},
           today: saturday,
+          oldest: _monday,
+        ),
+        isEmpty,
+      );
+      // Showing up the next Tuesday still holds the quiet week's market day.
+      final tuesday = _monday.addDays(8);
+      expect(
+        festivalWeeksDue(
+          loggedDays: {lastFriday, tuesday},
+          today: tuesday,
+          oldest: _monday,
+        ),
+        [_monday],
+      );
+    });
+
+    test("a first show-up on the weekend holds that weekend's market day", () {
+      final sunday = saturday.next();
+      expect(
+        festivalWeeksDue(loggedDays: {sunday}, today: sunday, oldest: _monday),
+        [_monday],
+      );
+    });
+
+    test('a brand-new person has no festival for a week before they came', () {
+      final tuesday = _monday.addDays(8);
+      expect(
+        festivalWeeksDue(
+          loggedDays: {tuesday},
+          today: tuesday,
           oldest: _monday,
         ),
         isEmpty,
       );
     });
 
-    test('a week with no weekday waits until the person shows up', () {
-      expect(
-        festivalWeeksDue(
-          loggedDays: const {},
-          heldWeeks: const {},
-          today: saturday,
-          oldest: _monday,
-        ),
-        isEmpty,
-      );
-      final sunday = saturday.next();
-      expect(
-        festivalWeeksDue(
-          loggedDays: {sunday},
-          heldWeeks: const {},
-          today: sunday,
-          oldest: _monday,
-        ),
-        [_monday],
-      );
-      // Showing up the next Tuesday still holds last week's market day.
+    test('days backing the party as a caravan count as having been there', () {
       final tuesday = _monday.addDays(8);
       expect(
         festivalWeeksDue(
           loggedDays: {tuesday},
-          heldWeeks: const {},
+          caravanDays: {_monday.addDays(2)},
           today: tuesday,
           oldest: _monday,
         ),
@@ -131,7 +143,6 @@ void main() {
       expect(
         festivalWeeksDue(
           loggedDays: {_monday, later},
-          heldWeeks: const {},
           today: later,
           oldest: later.addDays(-7),
         ),
@@ -140,5 +151,35 @@ void main() {
         [_monday.addDays(7)],
       );
     });
+  });
+
+  test('each tier pays only what it adds over the tier below', () {
+    final market = festivalTierReward(FestivalTier.marketDay);
+    final fair = festivalTierReward(FestivalTier.fair);
+    final grand = festivalTierReward(FestivalTier.grandFestival);
+    expect(market, Balance.festivalRewards[FestivalTier.marketDay]);
+    expect(
+      market.gems + fair.gems,
+      Balance.festivalRewards[FestivalTier.fair]!.gems,
+    );
+    expect(
+      market.materials + fair.materials,
+      Balance.festivalRewards[FestivalTier.fair]!.materials,
+    );
+    expect(
+      market.gems + fair.gems + grand.gems,
+      Balance.festivalRewards[FestivalTier.grandFestival]!.gems,
+    );
+    expect(
+      market.materials + fair.materials + grand.materials,
+      Balance.festivalRewards[FestivalTier.grandFestival]!.materials,
+    );
+  });
+
+  test('reward ids name the person, the week and the tier', () {
+    expect(
+      festivalRewardId('ada', _monday, FestivalTier.fair),
+      'festival:ada:2026-10-05:fair',
+    );
   });
 }

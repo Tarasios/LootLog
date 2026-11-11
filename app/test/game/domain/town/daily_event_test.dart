@@ -69,9 +69,33 @@ void main() {
   });
 
   test('a hall with no producer never rolls a windfall', () {
-    final kinds = _many(emptyHall).map((offer) => offer.kind).toSet();
+    final stockedHall = _hall([
+      collected(
+        'c1',
+        'plot-0',
+        MaterialBundle({MaterialKind.stone: 60}),
+        when: at(1),
+      ),
+    ]);
+    final kinds = _many(stockedHall).map((offer) => offer.kind).toSet();
     expect(kinds, isNot(contains(DailyEventKind.windfall)));
     expect(kinds, containsAll([DailyEventKind.trader, DailyEventKind.visitor]));
+  });
+
+  test("a hall that can't pay a trader gets a visitor instead", () {
+    final kinds = _many(emptyHall).map((offer) => offer.kind).toSet();
+    expect(kinds, {DailyEventKind.visitor});
+    final thinHall = _hall([
+      built('b1', 0, BuildingType.lumberyard, when: at(0)),
+      collected(
+        'c1',
+        'plot-0',
+        MaterialBundle({MaterialKind.lumber: Balance.traderGiveAmount(0) - 1}),
+        when: at(1),
+      ),
+    ]);
+    final thinKinds = _many(thinHall).map((offer) => offer.kind).toSet();
+    expect(thinKinds, {DailyEventKind.windfall, DailyEventKind.visitor});
   });
 
   test('a windfall is four hours of that producer at its current tier', () {
@@ -117,14 +141,18 @@ void main() {
     },
   );
 
-  test('a trader never swaps a material for itself, even in an empty hall', () {
-    for (final offer in _many(emptyHall)) {
-      if (offer.kind != DailyEventKind.trader) continue;
-      final given = offer.gives.amounts.keys.single;
-      final received = offer.receives.materials.amounts.keys.single;
-      expect(given, isNot(received));
-    }
-  });
+  test(
+    'a trader never swaps a material for itself, and can always be paid',
+    () {
+      for (final offer in _many(lumberHall)) {
+        if (offer.kind != DailyEventKind.trader) continue;
+        final given = offer.gives.amounts.keys.single;
+        final received = offer.receives.materials.amounts.keys.single;
+        expect(given, isNot(received));
+        expect(lumberHall.materials.covers(offer.gives), isTrue);
+      }
+    },
+  );
 
   test("a trader's amounts grow with the Central Hall", () {
     final grandHall = _hall([

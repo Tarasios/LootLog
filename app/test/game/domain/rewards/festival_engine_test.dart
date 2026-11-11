@@ -86,9 +86,7 @@ class _Device {
     return out;
   }
 
-  // Logging in the week of the 5th also shows up after the weekend of the
-  // 3rd, which holds that week's market day; these helpers look only at the
-  // week under test.
+  // These helpers look only at the week under test.
   List<FestivalHeld> festivals([List<GameEvent>? events]) => [
     for (final festival in (events ?? log).whereType<FestivalHeld>())
       if (festival.week == _week) festival,
@@ -97,7 +95,7 @@ class _Device {
   List<RewardGranted> grants(String reasonCode, [List<GameEvent>? events]) => [
     for (final grant in (events ?? log).whereType<RewardGranted>())
       if (grant.reasonCode == reasonCode &&
-          grant.rewardId.endsWith(_week.toKey()))
+          grant.rewardId.contains(':${_week.toKey()}'))
         grant,
   ];
 }
@@ -117,11 +115,25 @@ void main() {
       expect(festival.week, _week);
       expect(festival.tier, FestivalTier.grandFestival);
       expect(festival.weekdaysLogged, 5);
-      final reward = dev.grants(GameReasonCodes.festival, out).single;
-      expect(reward.rewardId, 'festival:$_ada:2026-10-05');
+      // One reward per tier reached, each adding what its tier adds.
+      final rewards = dev.grants(GameReasonCodes.festival, out);
+      expect(
+        {for (final reward in rewards) reward.rewardId},
+        {
+          'festival:$_ada:2026-10-05:marketDay',
+          'festival:$_ada:2026-10-05:fair',
+          'festival:$_ada:2026-10-05:grandFestival',
+        },
+      );
       final loot = Balance.festivalRewards[FestivalTier.grandFestival]!;
-      expect(reward.gems, loot.gems);
-      expect(reward.materials, loot.materials);
+      expect(rewards.fold(0, (sum, reward) => sum + reward.gems), loot.gems);
+      expect(
+        rewards.fold(
+          const MaterialBundle.empty(),
+          (MaterialBundle sum, reward) => sum + reward.materials,
+        ),
+        loot.materials,
+      );
       expect(
         dev.state.person(_ada).festivals[_week],
         FestivalTier.grandFestival,
@@ -142,7 +154,9 @@ void main() {
         );
         expect(dev.festivals().single.tier, tier, reason: '$weekdays weekdays');
         expect(
-          dev.grants(GameReasonCodes.festival).single.gems,
+          dev
+              .grants(GameReasonCodes.festival)
+              .fold(0, (sum, reward) => sum + reward.gems),
           Balance.festivalRewards[tier]!.gems,
         );
       }
@@ -160,7 +174,7 @@ void main() {
       dev.run(events, _oct(10));
       expect(dev.festivals(dev.run(events, _oct(10, 20))), isEmpty);
       expect(dev.festivals(dev.run(const [], _oct(11))), isEmpty);
-      expect(dev.grants(GameReasonCodes.festival), hasLength(1));
+      expect(dev.grants(GameReasonCodes.festival), hasLength(2));
     });
 
     test('two devices holding the same festival credit it once', () {
@@ -171,7 +185,10 @@ void main() {
       expect(merged.person(_ada).festivals[_week], FestivalTier.fair);
       expect(
         merged.person(_ada).unclaimedRewards.keys,
-        contains('festival:$_ada:2026-10-05'),
+        containsAll([
+          'festival:$_ada:2026-10-05:marketDay',
+          'festival:$_ada:2026-10-05:fair',
+        ]),
       );
       expect(merged.warnings, isEmpty);
     });
@@ -212,6 +229,43 @@ void main() {
       expect(dev.festivals(out), isEmpty);
     });
 
+    test('not on Saturday morning UTC, while it is still Friday at home', () {
+      final dev = _Device();
+      // 05:00 UTC on the 10th is 22:00 on Friday the 9th in Vancouver.
+      final out = dev.run(
+        ledger.days(_ada, [5, 6, 7]),
+        DateTime.utc(2026, 10, 10, 5),
+      );
+      expect(dev.festivals(out), isEmpty);
+    });
+
+    test(
+      'a brand-new player has no festival for the week before they came',
+      () {
+        final dev = _Device();
+        final out = dev.run(ledger.days(_ada, [12]), _oct(12));
+        expect(out.whereType<FestivalHeld>(), isEmpty);
+      },
+    );
+
+    test('an adult who just switched from Standard keeps their quiet week', () {
+      // Ben backed the party as a Standard adult on Wednesday the 7th...
+      final caravanDays = _Device(party: _adaWithStandardBen);
+      caravanDays.run([
+        ...ledger.days(_ada, [5]),
+        ...ledger.days(_ben, [7]),
+      ], _oct(7));
+      // ...then switched to Adventure and first logged as one on the 12th.
+      final switched = _Device(party: _duo)..log.addAll(caravanDays.log);
+      final out = switched.run(ledger.days(_ben, [12]), _oct(12));
+      final held = [
+        for (final festival in out.whereType<FestivalHeld>())
+          if (festival.actorId == _ben) festival,
+      ];
+      expect(held.single.week, _week);
+      expect(held.single.tier, FestivalTier.marketDay);
+    });
+
     test('a Standard adult holds no festival', () {
       final dev = _Device(party: _adaWithStandardBen);
       dev.run(ledger.days(_ben, [5, 6, 7, 8, 9, 10]), _oct(10));
@@ -232,6 +286,63 @@ void main() {
       final after = dev.state.person(_ada);
       expect(after.festivals, before.festivals);
       expect(after.seenRewardIds, before.seenRewardIds);
+    });
+  });
+
+  group('logs that arrive late top the festival up', () {
+    /// What a device ends up holding for the week under test: the tier per
+    /// person, every festival reward id, and the festival gems waiting.
+    Map<String, Object> summary(GameState state) => {
+      for (final who in [_ada, _ben])
+        who: [
+          state.person(who).festivals[_week],
+          ([
+            for (final id in state.person(who).seenRewardIds)
+              if (id.startsWith('festival')) id,
+          ]..sort()).join(','),
+          state
+              .person(who)
+              .unclaimedRewards
+              .values
+              .where((reward) => reward.rewardId.startsWith('festival'))
+              .fold(0, (sum, reward) => sum + reward.loot.gems),
+        ].join(' | '),
+    };
+
+    late List<Event> adaEarly;
+    late List<Event> adaLate;
+    late List<Event> benWeek;
+    setUp(() {
+      adaEarly = ledger.days(_ada, [5, 6]);
+      adaLate = ledger.days(_ada, [7, 8]);
+      benWeek = ledger.days(_ben, [5, 6, 7]);
+    });
+
+    test('on one device, as the missing weekdays sync in', () {
+      final everything = _Device(party: _duo)
+        ..run([...adaEarly, ...adaLate, ...benWeek], _oct(10));
+      final stale = _Device(party: _duo)
+        ..run([...adaEarly, ...benWeek], _oct(10));
+      expect(stale.state.person(_ada).festivals[_week], FestivalTier.marketDay);
+      expect(stale.grants(GameReasonCodes.festivalJoint), isEmpty);
+
+      final topUp = stale.run([...adaEarly, ...adaLate, ...benWeek], _oct(11));
+      expect(stale.festivals(topUp).single.tier, FestivalTier.fair);
+      expect(stale.grants(GameReasonCodes.festivalJoint, topUp), hasLength(2));
+      expect(summary(stale.state), summary(everything.state));
+    });
+
+    test('across two devices, once their logs merge', () {
+      final everything = _Device(party: _duo)
+        ..run([...adaEarly, ...adaLate, ...benWeek], _oct(10));
+      final phone = _Device(party: _duo, name: 'phone')
+        ..run([...adaEarly, ...benWeek], _oct(10));
+      final desktop = _Device(party: _duo, name: 'desktop')
+        ..run([...adaEarly, ...adaLate, ...benWeek], _oct(10, 20));
+      final merged = projectGameState([...phone.log, ...desktop.log]);
+      expect(summary(merged), summary(everything.state));
+      final reversed = projectGameState([...desktop.log, ...phone.log]);
+      expect(summary(reversed), summary(everything.state));
     });
   });
 

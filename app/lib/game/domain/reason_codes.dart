@@ -24,6 +24,19 @@ GameDay? caravanRewardDay(String rewardId) {
 
 const String _caravanRewardPrefix = 'caravan:';
 
+/// The acquisition id of [personId]'s grand-festival decoration for the
+/// week starting [week].
+String festivalDecorAcquisitionId(String personId, GameDay week) =>
+    '$_festivalDecorPrefix$personId:${week.toKey()}';
+
+/// Whether [acquisitionId] is a grand-festival decoration, which the
+/// projection turns into gems when the item is already owned (so devices
+/// that disagreed about ownership converge).
+bool isFestivalDecorAcquisition(String acquisitionId) =>
+    acquisitionId.startsWith(_festivalDecorPrefix);
+
+const String _festivalDecorPrefix = 'festival.decor:';
+
 /// The `reasonCode`s with meaning to the projection. Other codes are free-form.
 abstract final class GameReasonCodes {
   /// The once-a-day reward for logging at least one purchase.

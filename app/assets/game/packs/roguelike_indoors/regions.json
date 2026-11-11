@@ -18,6 +18,7 @@
     "furniture.plant.default.idle": [16, 0],
     "furniture.painting.default.idle": [19, 12],
     "furniture.painting.banner.idle": [20, 15, 1, 2],
+    "town_decor.banner.festival.idle": [20, 15, 1, 2],
     "furniture.wardrobe.default.idle": [0, 17, 2, 1],
     "furniture.desk.default.idle": [5, 4, 2, 1],
     "furniture.armchair.default.idle": [0, 3],

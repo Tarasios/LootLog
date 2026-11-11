@@ -184,7 +184,10 @@ class _Person {
         seenRewards = {...state.seenRewardIds},
         seenChests = {...state.seenChestIds},
         seenOffers = {...state.seenOfferIds},
-        festivalWeeks = {...state.festivals.keys},
+        festivalTiers = {...state.festivals},
+        caravanDays = {
+          for (final rewardId in state.seenRewardIds) ?caravanRewardDay(rewardId),
+        },
         wallet = state.freezeTokens,
         waitingTokens = [
           for (final reward in state.unclaimedRewards.values)
@@ -201,7 +204,11 @@ class _Person {
   final Set<String> seenOffers;
 
   /// The Mondays of the weeks whose festival is held.
-  final Set<GameDay> festivalWeeks;
+  /// The festival tier held per week (by its Monday).
+  final Map<GameDay, FestivalTier> festivalTiers;
+
+  /// Days the person backed the party as a Standard adult.
+  final Set<GameDay> caravanDays;
 
   /// Claimed freeze tokens.
   int wallet;
@@ -323,37 +330,46 @@ class _Run {
     ));
   }
 
-  /// Holds each weekend festival due for [who] (see `festivalWeeksDue`):
-  /// the festival itself and its loot, sized by the week's town spirit.
+  /// Holds each weekend festival due for [who] (see `festivalWeeksDue`),
+  /// sized by the week's town spirit. A device that sees more logged
+  /// weekdays than the tier already held tops it up: a new `FestivalHeld`
+  /// and one reward per tier reached, each paying what that tier adds, so
+  /// every device ends with the same rewards whatever it saw first.
   void festivals(String who, GameDay oldest) {
     final record = person(who);
     final due = festivalWeeksDue(
       loggedDays: record.logged,
-      heldWeeks: record.festivalWeeks,
+      caravanDays: record.caravanDays,
       today: today,
       oldest: oldest,
     );
     for (final week in due) {
       final weekdays = weekdaysLogged(record.logged, week);
       final tier = festivalTierFor(weekdays);
-      record.festivalWeeks.add(week);
-      out.add(FestivalHeld(
-        eventId: stamp.newEventId(),
-        deviceId: stamp.deviceId,
-        actorId: who,
-        occurredAt: now,
-        createdAt: now,
-        week: week,
-        tier: tier,
-        weekdaysLogged: weekdays,
-      ));
-      final loot = Balance.festivalRewards[tier]!;
-      _grant(who,
-          rewardId: festivalRewardId(who, week),
-          kind: 'festival',
-          gems: loot.gems,
-          materials: loot.materials,
-          reasonCode: GameReasonCodes.festival);
+      final held = record.festivalTiers[week];
+      if (held == null || tier.index > held.index) {
+        record.festivalTiers[week] = tier;
+        out.add(FestivalHeld(
+          eventId: stamp.newEventId(),
+          deviceId: stamp.deviceId,
+          actorId: who,
+          occurredAt: now,
+          createdAt: now,
+          week: week,
+          tier: tier,
+          weekdaysLogged: weekdays,
+        ));
+      }
+      final reached = record.festivalTiers[week]!;
+      for (final step in FestivalTier.values.take(reached.index + 1)) {
+        final loot = festivalTierReward(step);
+        _grant(who,
+            rewardId: festivalRewardId(who, week, step),
+            kind: 'festival',
+            gems: loot.gems,
+            materials: loot.materials,
+            reasonCode: GameReasonCodes.festival);
+      }
     }
   }
 

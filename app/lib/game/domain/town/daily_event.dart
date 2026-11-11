@@ -40,7 +40,8 @@ List<String> dailyEventFlavourKeys(DailyEventKind kind) => [
 /// the day).
 ///
 /// The kind follows [Balance.dailyEventWeights]; a windfall needs a working
-/// producer, otherwise the roll is among the other kinds.
+/// producer and a trader a pool that can pay its asking price, otherwise the
+/// roll is among the other kinds (a visitor always can come).
 DailyOffer rollDailyOffer({
   required String personId,
   required GameDay day,
@@ -50,7 +51,16 @@ DailyOffer rollDailyOffer({
 }) {
   final rng = GameRng.forEvent(seedEventId);
   final producers = _workingProducers(hall, now);
-  final kind = _rollKind(rng, hasProducer: producers.isNotEmpty);
+  final hallTier = hall.completedTier(BuildingType.centralHall, now);
+  final (:plentiful, :scarce) = _tradePair(hall.materials);
+  final traderGives = MaterialBundle({
+    plentiful: Balance.traderGiveAmount(hallTier),
+  });
+  final kind = _rollKind(
+    rng,
+    hasProducer: producers.isNotEmpty,
+    canPayTrader: hall.materials.covers(traderGives),
+  );
   final offerId = dailyEventOfferId(personId, day);
   final flavourKey = rng.pick(dailyEventFlavourKeys(kind));
 
@@ -76,10 +86,8 @@ DailyOffer rollDailyOffer({
         plotIndex: plot.index,
       );
     case DailyEventKind.trader:
-      final hallTier = hall.completedTier(BuildingType.centralHall, now);
-      final (:plentiful, :scarce) = _tradePair(hall.materials);
       return offer(
-        gives: MaterialBundle({plentiful: Balance.traderGiveAmount(hallTier)}),
+        gives: traderGives,
         receives: Loot(
           materials: MaterialBundle({
             scarce: Balance.traderReceiveAmount(hallTier),
@@ -99,10 +107,15 @@ DailyOffer rollDailyOffer({
   }
 }
 
-DailyEventKind _rollKind(GameRng rng, {required bool hasProducer}) {
+DailyEventKind _rollKind(
+  GameRng rng, {
+  required bool hasProducer,
+  required bool canPayTrader,
+}) {
   final weights = [
     for (final kind in DailyEventKind.values)
-      if (hasProducer || kind != DailyEventKind.windfall)
+      if ((hasProducer || kind != DailyEventKind.windfall) &&
+          (canPayTrader || kind != DailyEventKind.trader))
         (kind: kind, weight: Balance.dailyEventWeights[kind] ?? 0),
   ];
   final total = weights.fold(0, (sum, entry) => sum + entry.weight);

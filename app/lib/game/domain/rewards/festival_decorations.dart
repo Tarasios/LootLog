@@ -4,13 +4,13 @@
 /// so the reward runner calls it after the engine, from the festivals the
 /// projection holds. Granted once per person per week (a deterministic
 /// acquisition id), rolled with the RNG seeded by that id so every device
-/// picks the same item, and a decoration the household already has becomes
-/// gems instead, as in a chest. Never taken back.
+/// picks the same item. A decoration the household already has becomes gems
+/// instead, as in a chest, decided by the projection so devices converge.
+/// Never taken back.
 ///
 /// Pure Dart, zero Flutter imports.
 library;
 
-import '../../config/balance.dart';
 import '../clock.dart';
 import '../decor/catalog.dart';
 import '../decor/decor_values.dart';
@@ -21,11 +21,7 @@ import '../game_values.dart';
 import '../reason_codes.dart';
 import 'reward_engine.dart';
 
-/// The id of [personId]'s grand-festival decoration for [week]: the
-/// `ItemAcquired` acquisition id, or the `RewardGranted` reward id when it
-/// came as gems for a duplicate.
-String festivalDecorAcquisitionId(String personId, GameDay week) =>
-    'festival.decor:$personId:${week.toKey()}';
+export '../reason_codes.dart' show festivalDecorAcquisitionId;
 
 class FestivalDecorations {
   const FestivalDecorations();
@@ -51,42 +47,23 @@ class FestivalDecorations {
       ]..sort();
       for (final week in grandWeeks) {
         final grantId = festivalDecorAcquisitionId(who, week);
-        if (state.decor.seenAcquisitionIds.contains(grantId) ||
-            person.seenRewardIds.contains(grantId)) {
-          continue;
-        }
+        if (state.decor.seenAcquisitionIds.contains(grantId)) continue;
         final item = GameRng.forEvent(grantId).pick(pool);
-        final alreadyOwned = item.placeableInTown
-            ? state.decor.townOwned.containsKey(item.id)
-            : state.decor.ownedCount(who, item.id) > 0;
+        // Always the item: the projection turns it into gems when the
+        // household already has one, so devices that disagreed converge.
         grants.add(
-          alreadyOwned
-              ? RewardGranted(
-                  eventId: stamp.newEventId(),
-                  deviceId: stamp.deviceId,
-                  actorId: who,
-                  occurredAt: now,
-                  createdAt: now,
-                  rewardId: grantId,
-                  kind: 'gems',
-                  gems: Balance.duplicateDecorGems,
-                  materials: const MaterialBundle.empty(),
-                  tokens: 0,
-                  reasonCode: GameReasonCodes.festival,
-                  sourceLedgerEventIds: const [],
-                )
-              : ItemAcquired(
-                  eventId: stamp.newEventId(),
-                  deviceId: stamp.deviceId,
-                  actorId: who,
-                  occurredAt: now,
-                  createdAt: now,
-                  acquisitionId: grantId,
-                  itemId: item.id,
-                  // An existing source, so older builds still decode it.
-                  source: DecorSource.milestone,
-                  toTown: item.placeableInTown,
-                ),
+          ItemAcquired(
+            eventId: stamp.newEventId(),
+            deviceId: stamp.deviceId,
+            actorId: who,
+            occurredAt: now,
+            createdAt: now,
+            acquisitionId: grantId,
+            itemId: item.id,
+            // An existing source, so older builds still decode it.
+            source: DecorSource.milestone,
+            toTown: item.placeableInTown,
+          ),
         );
       }
     }

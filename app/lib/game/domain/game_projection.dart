@@ -284,6 +284,16 @@ void _apply(_GameStateDraft draft, GameEvent event) {
         draft.warn(GameWarningCode.duplicateAcquisition, acquisition.acquisitionId);
         return;
       }
+      // A festival decoration the household already has comes as gems,
+      // decided here so every device agrees whatever it knew when granting.
+      final alreadyOwned = acquisition.toTown
+          ? (draft.decor.townOwned[acquisition.itemId] ?? 0) > 0
+          : draft.decor.ownedCount(actor, acquisition.itemId) > 0;
+      if (isFestivalDecorAcquisition(acquisition.acquisitionId) && alreadyOwned) {
+        draft.decor = draft.decor.markSeen(acquisition.acquisitionId);
+        draft.adjustGems(actor, Balance.duplicateDecorGems);
+        return;
+      }
       draft.decor = draft.decor.acquire(
         personId: actor,
         itemId: acquisition.itemId,
@@ -374,8 +384,10 @@ void _apply(_GameStateDraft draft, GameEvent event) {
 
     case FestivalHeld festival:
       final person = draft.person(actor);
-      // One festival per week: a second device's copy is ignored.
-      if (person.festivals.containsKey(festival.week)) return;
+      // The highest tier held for the week stands: a device that saw more
+      // logged weekdays tops it up, and a lower or repeated copy is ignored.
+      final held = person.festivals[festival.week];
+      if (held != null && held.index >= festival.tier.index) return;
       draft.put(person.copyWith(
           festivals: _put(person.festivals, festival.week, festival.tier)));
 

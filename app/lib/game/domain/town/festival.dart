@@ -23,9 +23,38 @@ String festivalFlavourKey(FestivalTier tier) => 'festival.${tier.name}';
 /// The `town_events.json` key of the line for the joint festival bonus.
 const String kJointFestivalFlavourKey = 'festival.joint';
 
-/// The festival reward's id: one per person per week.
-String festivalRewardId(String personId, GameDay week) =>
-    'festival:$personId:${week.toKey()}';
+/// The id of the festival reward for reaching [tier] in [week] (the market
+/// day's when no tier is named): one per person, week and tier, so a device
+/// that later sees more logged weekdays tops the festival up instead of
+/// being locked to the first tier held.
+String festivalRewardId(
+  String personId,
+  GameDay week, [
+  FestivalTier tier = FestivalTier.marketDay,
+]) => 'festival:$personId:${week.toKey()}:${tier.name}';
+
+/// Every festival reward id [personId] can hold for [week], one per tier
+/// (market day first). A screen showing a week's festival loot reads these.
+List<String> festivalRewardIds(String personId, GameDay week) => [
+  for (final tier in FestivalTier.values)
+    festivalRewardId(personId, week, tier),
+];
+
+/// What reaching [tier] adds over the tier below it. Paid once per tier
+/// reached, so a week's rewards sum to `Balance.festivalRewards[tier]`.
+Loot festivalTierReward(FestivalTier tier) {
+  final reward = Balance.festivalRewards[tier]!;
+  if (tier.index == 0) return reward;
+  final below = Balance.festivalRewards[FestivalTier.values[tier.index - 1]]!;
+  return Loot(
+    gems: reward.gems - below.gems,
+    materials: MaterialBundle({
+      for (final kind in MaterialKind.values)
+        kind: reward.materials[kind] - below.materials[kind],
+    }),
+    tokens: reward.tokens - below.tokens,
+  );
+}
 
 /// The joint festival bonus's id: one per person per week.
 String jointFestivalRewardId(String personId, GameDay week) =>
@@ -83,18 +112,29 @@ List<GameDay> festivalWeeksInWindow({
 }
 
 /// The Mondays of the weeks whose festival is due for a person as of
-/// [today]: the weekend has begun, it is not wholly before [oldest] (the
-/// reward lookback), it was not held already ([heldWeeks]), and the person
-/// either logged a weekday that week or has shown up since its Saturday.
+/// [today], whatever tier they already hold: the weekend has begun, it is
+/// not wholly before [oldest] (the reward lookback), and either
+/// - the person logged a weekday that week, or
+/// - they have shown up since its Saturday and had already been around by
+///   its Sunday: a logged day, or a day backing the party as a Standard
+///   adult ([caravanDays]), on or before it. A first show-up on the weekend
+///   itself counts, so a brand-new person gets no festival for a week
+///   before they came, while a returning one's quiet week still gets its
+///   market day.
 List<GameDay> festivalWeeksDue({
   required Set<GameDay> loggedDays,
-  required Set<GameDay> heldWeeks,
+  Set<GameDay> caravanDays = const {},
   required GameDay today,
   required GameDay oldest,
-}) => [
-  for (final monday in festivalWeeksInWindow(today: today, oldest: oldest))
-    if (!heldWeeks.contains(monday) &&
-        (weekdaysLogged(loggedDays, monday) > 0 ||
-            loggedDays.any((day) => day >= monday.addDays(5) && day <= today)))
-      monday,
-];
+}) {
+  bool cameBy(GameDay sunday) =>
+      loggedDays.any((day) => day <= sunday) ||
+      caravanDays.any((day) => day <= sunday);
+  return [
+    for (final monday in festivalWeeksInWindow(today: today, oldest: oldest))
+      if (weekdaysLogged(loggedDays, monday) > 0 ||
+          (loggedDays.any((day) => day >= monday.addDays(5) && day <= today) &&
+              cameBy(monday.addDays(6))))
+        monday,
+  ];
+}

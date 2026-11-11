@@ -161,7 +161,8 @@ void main() {
       expect(pouch.actorId, _ada);
       expect(pouch.gems, 5);
       final p = dev.state.person(_ada);
-      expect(p.unclaimedRewards.keys, contains(pouch.rewardId));
+      // A first-ever log holds no festival for the week before: exact keys.
+      expect(p.unclaimedRewards.keys, [pouch.rewardId]);
       expect(p.gems, 0); // not in the wallet until tapped in the hall
       expect(p.streak.loggedDays, {_day(10, 1)});
     });

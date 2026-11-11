@@ -132,6 +132,24 @@ void main() {
       expect(merged, phone.state);
     });
 
+    test("devices that saw different openers keep the earlier one's offer", () {
+      // The phone saw only the morning purchase, the desktop only the
+      // evening one; each rolled the day's offer from its own opener.
+      final morning = ledger.buy(_ada, _at(10, 1, 17));
+      final evening = ledger.buy(_ada, _at(10, 1, 23));
+      final phone = _Device(name: 'phone')..run([morning], _at(10, 1, 23));
+      final desktop = _Device(name: 'desktop')..run([evening], _at(10, 1, 23));
+      final merged = projectGameState([...phone.log, ...desktop.log]);
+      final reversed = projectGameState([...desktop.log, ...phone.log]);
+      final offer = merged.offerFor(_ada, const GameDay(2026, 10, 1))!;
+      expect(merged.person(_ada).dailyOffers, hasLength(1));
+      expect(reversed.offerFor(_ada, const GameDay(2026, 10, 1)), offer);
+      final phoneOffer = phone.offers().single;
+      expect(offer.kind, phoneOffer.kind);
+      expect(offer.receives, phoneOffer.receives);
+      expect(offer.flavourKey, phoneOffer.flavourKey);
+    });
+
     test('the offer is rolled from the ledger event that opened the day', () {
       final dev = _Device();
       final opener = ledger.buy(_ada, _at(10, 1));

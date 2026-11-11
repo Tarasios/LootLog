@@ -50,6 +50,25 @@ void main() {
     }
   });
 
+  test('every town piece has a town_decor key the packs can draw', () {
+    final regionKeys = {
+      for (final pack in Directory('assets/game/packs').listSync())
+        if (File('${pack.path}/regions.json').existsSync())
+          ...((jsonDecode(File('${pack.path}/regions.json').readAsStringSync())
+                  as Map<String, dynamic>)['regions'] as Map)
+              .keys
+              .cast<String>(),
+    };
+    for (final item in catalog.items.where((item) => item.placeableInTown)) {
+      expect(item.assetKey.category, 'town_decor', reason: item.id);
+      expect(
+        item.assetKey.fallbackChain.any((key) => regionKeys.contains(key.value)),
+        isTrue,
+        reason: '${item.id} (${item.assetKey.value}) has no pack art',
+      );
+    }
+  });
+
   test('every purchasable town decoration id starts with town_', () {
     for (final item in catalog.shopPool) {
       if (item.kind == DecorKind.townDecor) expect(item.id, startsWith('town_'));

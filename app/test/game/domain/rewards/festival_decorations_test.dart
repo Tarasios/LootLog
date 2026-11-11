@@ -131,16 +131,63 @@ void main() {
       owned,
       _held('h1', _ada, FestivalTier.grandFestival),
     ], onlyOne);
-    final gems = out.single as RewardGranted;
-    expect(gems.actorId, _ada);
-    expect(gems.rewardId, festivalDecorAcquisitionId(_ada, _week));
-    expect(gems.gems, Balance.duplicateDecorGems);
+    // The grant is always the item; the projection turns a duplicate into
+    // gems, so devices that disagreed about ownership still converge.
+    final grant = out.single as ItemAcquired;
+    expect(grant.acquisitionId, festivalDecorAcquisitionId(_ada, _week));
+    final state = projectGameState([
+      owned,
+      _held('h1', _ada, FestivalTier.grandFestival),
+      ...out,
+    ]);
+    expect(state.decor.townOwned['town_festival_lantern'], 1);
+    expect(state.person(_ada).gems, Balance.duplicateDecorGems);
+    expect(state.decor.seenAcquisitionIds, contains(grant.acquisitionId));
     final again = _evaluate([
       owned,
       _held('h1', _ada, FestivalTier.grandFestival),
       ...out,
     ], onlyOne);
     expect(again, isEmpty);
+  });
+
+  test('two devices that disagreed about ownership converge', () {
+    final onlyOne = DecorCatalog([_festivalItem('town_festival_lantern')]);
+    final owned = ItemAcquired(
+      eventId: 'a0',
+      deviceId: 'dev-1',
+      actorId: _ben,
+      occurredAt: _saturday,
+      createdAt: _saturday,
+      acquisitionId: 'earlier',
+      itemId: 'town_festival_lantern',
+      source: DecorSource.milestone,
+      toTown: true,
+    );
+    final held = _held('h1', _ada, FestivalTier.grandFestival);
+    // One device already had the lantern, the other had not heard of it.
+    final knowing = _evaluate([owned, held], onlyOne);
+    final unaware = [
+      for (final event in _evaluate([held], onlyOne))
+        if (event is ItemAcquired)
+          ItemAcquired(
+            eventId: 'other-${event.eventId}',
+            deviceId: 'dev-3',
+            actorId: event.actorId,
+            occurredAt: event.occurredAt,
+            createdAt: event.createdAt,
+            acquisitionId: event.acquisitionId,
+            itemId: event.itemId,
+            source: event.source,
+            toTown: event.toTown,
+          ),
+    ];
+    final merged = projectGameState([owned, held, ...knowing, ...unaware]);
+    final reversed = projectGameState([...unaware, ...knowing, held, owned]);
+    for (final state in [merged, reversed]) {
+      expect(state.decor.townOwned['town_festival_lantern'], 1);
+      expect(state.person(_ada).gems, Balance.duplicateDecorGems);
+    }
   });
 
   test('catalogue entries tagged "festival" form the festival pool', () {
