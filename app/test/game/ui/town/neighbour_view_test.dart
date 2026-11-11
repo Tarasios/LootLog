@@ -19,6 +19,7 @@ import 'package:lootlog/game/ui/hall_ledger_view.dart';
 import 'package:lootlog/game/ui/town/gift_dialog.dart';
 import 'package:lootlog/game/ui/town/town_shell.dart';
 
+import '../../domain/town/growth_fixtures.dart' show tierReached;
 import '../hall_harness.dart';
 import 'town_test_overrides.dart';
 
@@ -27,13 +28,13 @@ const Size _smallPhone = Size(360, 780);
 
 /// Robin (this device) and Sam are Adventure neighbours with their own
 /// towns; Robin holds 100 lumber and 60 stone.
-List<GameEvent> _neighbourEvents({int samLumber = 0}) => [
+List<GameEvent> _neighbourEvents({int samLumber = 0, MaterialBundle? robinHolds}) => [
   partyJoined('p01', kHouseholdPartyId, when: before(const Duration(days: 3))),
   partyJoined('p02', kHouseholdPartyId, when: before(const Duration(days: 3)), actor: sam),
   townsSplit('p03', robin, when: before(const Duration(days: 3))),
   granted('p04',
       when: before(const Duration(days: 2)),
-      materials: MaterialBundle({MaterialKind.lumber: 100, MaterialKind.stone: 60})),
+      materials: robinHolds ?? MaterialBundle({MaterialKind.lumber: 100, MaterialKind.stone: 60})),
   claimed('p05', 'reward-p04', when: before(const Duration(days: 2))),
   if (samLumber > 0) ...[
     granted('p06', when: before(const Duration(days: 2)), actor: sam, materials: MaterialBundle({MaterialKind.lumber: samLumber})),
@@ -50,9 +51,14 @@ HallLedgerView _view({bool samInAdventure = true, bool alone = false, String me 
   habitsAvailable: true,
 );
 
-Widget _host(InMemoryGameEventStore store, {HallLedgerView? view, AdventureTier tier = AdventureTier.pixel}) =>
+Widget _host(
+  InMemoryGameEventStore store, {
+  HallLedgerView? view,
+  AdventureTier tier = AdventureTier.pixel,
+  bool popups = false,
+}) =>
     ProviderScope(
-      overrides: townTestOverrides(tier: tier, liveStore: store, view: view ?? _view()),
+      overrides: townTestOverrides(tier: tier, liveStore: store, view: view ?? _view(), loopPopups: popups),
       child: MaterialApp(home: TownShell(onOpenLedger: () {}, ambientLife: false)),
     );
 
@@ -218,6 +224,90 @@ void main() {
     expect(log.bottom, lessThanOrEqualTo(_smallPhone.height));
     await tester.tap(find.byKey(const ValueKey('neighbour-gift')));
     await _pumpUi(tester);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets("no celebration opens over a neighbour's town", (tester) async {
+    final store = await storeWith(_neighbourEvents());
+    await _pump(tester, _host(store, popups: true));
+    await _visitSam(tester);
+    await store.append([tierReached('t-hamlet', TownTier.hamlet, when: kHallNow)]);
+    // The app comes back to the front while visiting: an entry, but not home.
+    for (final state in const [
+      AppLifecycleState.inactive,
+      AppLifecycleState.hidden,
+      AppLifecycleState.paused,
+      AppLifecycleState.hidden,
+      AppLifecycleState.inactive,
+      AppLifecycleState.resumed,
+    ]) {
+      tester.binding.handleAppLifecycleStateChanged(state);
+    }
+    await _pumpUi(tester);
+    await _pumpUi(tester);
+    expect(find.textContaining('Smoke from new chimneys'), findsNothing);
+    expect(find.text('Visiting Sam'), findsOneWidget);
+    // Home again, the entry celebrates.
+    await tester.tap(find.byKey(const ValueKey('neighbour-back')));
+    await _pumpUi(tester);
+    await _pumpUi(tester);
+    expect(find.textContaining('Smoke from new chimneys'), findsOneWidget);
+  });
+
+  testWidgets('decorating ends when a visit starts; nothing can be placed', (tester) async {
+    final store = await storeWith(_neighbourEvents());
+    await _pump(tester, _host(store));
+    await tester.tap(find.byKey(const ValueKey('town-menu')));
+    await _pumpUi(tester);
+    await tester.tap(find.textContaining('Decorate town'));
+    await _pumpUi(tester);
+    expect(_scene(tester).onCellTap, isNotNull);
+    await _visitSam(tester);
+    expect(_scene(tester).onCellTap, isNull, reason: 'no placeItem can run while visiting');
+    await tester.tap(find.byKey(const ValueKey('neighbour-back')));
+    await _pumpUi(tester);
+    expect(_scene(tester).onCellTap, isNull, reason: 'decorating ended with the visit');
+    expect(await _events<ItemPlaced>(store), isEmpty);
+  });
+
+  testWidgets('a chosen amount never outlives the materials behind it', (tester) async {
+    final store = await storeWith(_neighbourEvents());
+    await _pump(tester, _host(store));
+    await _visitSam(tester);
+    await tester.tap(find.byKey(const ValueKey('neighbour-gift')));
+    await _pumpUi(tester);
+    for (var tap = 0; tap < 3; tap++) {
+      await tester.tap(find.byKey(const ValueKey('gift-more-lumber')));
+      await tester.pump();
+    }
+    expect(tester.widget<Text>(find.byKey(const ValueKey('gift-amount-lumber'))).data, '30');
+    // Another device spends 90 of Robin's 100 lumber meanwhile.
+    await store.append([
+      built('p08', 0, BuildingType.lumberyard,
+          when: kHallNow.subtract(const Duration(minutes: 1)), cost: Loot(materials: MaterialBundle({MaterialKind.lumber: 90}))),
+    ]);
+    await _pumpUi(tester);
+    expect(tester.widget<Text>(find.byKey(const ValueKey('gift-amount-lumber'))).data, '10');
+    await tester.tap(find.byKey(const ValueKey('gift-send')));
+    await _pumpUi(tester);
+    expect((await _events<GiftSent>(store)).single.bundle, MaterialBundle({MaterialKind.lumber: 10}));
+  });
+
+  testWidgets('the gift dialog scrolls through all eight materials on a small phone', (tester) async {
+    final store = await storeWith(_neighbourEvents(robinHolds: MaterialBundle({
+      for (final kind in MaterialKind.values) kind: 20,
+    })));
+    await _pump(tester, _host(store), size: _smallPhone);
+    await _visitSam(tester);
+    await tester.tap(find.byKey(const ValueKey('neighbour-gift')));
+    await _pumpUi(tester);
+    expect(tester.takeException(), isNull);
+    final last = find.byKey(ValueKey('gift-more-${MaterialKind.values.last.name}'));
+    await tester.ensureVisible(last);
+    await tester.pump();
+    await tester.tap(last);
+    await tester.pump();
+    expect(tester.widget<Text>(find.byKey(ValueKey('gift-amount-${MaterialKind.values.last.name}'))).data, '10');
     expect(tester.takeException(), isNull);
   });
 }

@@ -104,4 +104,39 @@ void main() {
       expect(camera.cellAt(point.x, point.y, 400, 300), const TownCell(5, 7));
     });
   });
+
+  group('a phone HUD over the scene', () {
+    // A 390 x 844 phone at zoom 2: 640 screen px of map, chips over the top
+    // 150 px and the log stack over the bottom 260 px.
+    CameraControls phoneCamera() => CameraControls(
+      worldWidth: 28 * kTileSize,
+      worldHeight: 20 * kTileSize,
+      zoom: 2,
+      margin: 6 * kTileSize,
+    )
+      ..setViewport(390, 844)
+      ..setInsets(top: 150, bottom: 260);
+
+    test('the map sits centred in the band between the HUD rows', () {
+      final camera = phoneCamera();
+      final mapCentre = camera.worldToScreen(14 * kTileSize, 10 * kTileSize, 390, 844);
+      expect(mapCentre.y, closeTo((150 + (844 - 260)) / 2, 1));
+    });
+
+    test('the camera pans far enough to lift the bottom row clear of the HUD', () {
+      final camera = phoneCamera()..panByScreen(0, -100000);
+      final bottomEdge = camera.worldToScreen(0, 20 * kTileSize, 390, 844);
+      expect(bottomEdge.y, lessThanOrEqualTo(844 - 260));
+      camera.panByScreen(0, 100000);
+      final topEdge = camera.worldToScreen(0, 0, 390, 844);
+      expect(topEdge.y, greaterThanOrEqualTo(150));
+    });
+
+    test('a pan the player made survives new insets', () {
+      final camera = phoneCamera()..panByScreen(0, -40);
+      final centre = camera.centerY;
+      camera.setInsets(top: 150, bottom: 300);
+      expect(camera.centerY, centre);
+    });
+  });
 }

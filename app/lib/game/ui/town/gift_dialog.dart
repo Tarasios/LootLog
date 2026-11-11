@@ -66,6 +66,15 @@ class _GiftDialogState extends ConsumerState<GiftDialog> {
       for (final kind in MaterialKind.values)
         if (held[kind] > 0) kind,
     ];
+    // Clamp the choice against what is live now: another device may have
+    // spent the materials or filled the neighbour's storehouse meanwhile,
+    // and a row that disappears must not still be sent.
+    final limits = {
+      for (final kind in kinds) kind: _min(held[kind], giftRoom(game, neighbour.memberId, kind, now)),
+    };
+    _chosen
+      ..removeWhere((kind, _) => !limits.containsKey(kind))
+      ..updateAll((kind, amount) => amount.clamp(0, limits[kind]!));
     final name = {'name': neighbour.name};
     final rows = <Widget>[
       Text(lines.line('gift.intro', name), style: framedBodyStyle(context)),
@@ -80,7 +89,8 @@ class _GiftDialogState extends ConsumerState<GiftDialog> {
       const SizedBox(height: AdventureTokens.gap),
       if (kinds.isEmpty) Text(lines.line('gift.nothing'), style: framedBodyStyle(context)),
       for (final kind in kinds)
-        _stepperRow(context, kind, held: held[kind], room: giftRoom(game, neighbour.memberId, kind, now)),
+        _stepperRow(context, kind,
+            held: held[kind], room: giftRoom(game, neighbour.memberId, kind, now), most: limits[kind]!),
     ];
     final anyChosen = _chosen.values.any((amount) => amount > 0);
     final send = WoodButton(
@@ -121,8 +131,13 @@ class _GiftDialogState extends ConsumerState<GiftDialog> {
 
   /// One material: its picture and name, what you hold and the room left,
   /// and a stepper bounded by both.
-  Widget _stepperRow(BuildContext context, MaterialKind kind, {required int held, required int room}) {
-    final most = held < room ? held : room;
+  Widget _stepperRow(
+    BuildContext context,
+    MaterialKind kind, {
+    required int held,
+    required int room,
+    required int most,
+  }) {
     final amount = _chosen[kind] ?? 0;
     void change(int delta) => setState(() => _chosen[kind] = (amount + delta).clamp(0, most));
     return Padding(
@@ -193,3 +208,5 @@ class _GiftDialogState extends ConsumerState<GiftDialog> {
       ..showSnackBar(SnackBar(content: Text(lines.line(moved == chosen ? 'gift.sent' : 'gift.trimmed', fill))));
   }
 }
+
+int _min(int first, int second) => first < second ? first : second;

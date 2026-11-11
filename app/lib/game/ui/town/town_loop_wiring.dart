@@ -75,6 +75,7 @@ mixin TownLoopWiring<Shell extends ConsumerStatefulWidget> on ConsumerState<Shel
     required String meId,
     required DateTime now,
     required AssetRegistry registry,
+    bool visiting = false,
   }) {
     final lines = watchRef.watch(townEventLinesProvider).value ?? TownEventLines.defaults;
     final shown = watchRef.watch(townLoopShownProvider);
@@ -84,7 +85,8 @@ mixin TownLoopWiring<Shell extends ConsumerStatefulWidget> on ConsumerState<Shel
       shown,
       lines,
       tierDue: shown.tierDue(game.person(meId), now),
-      ready: meId.isNotEmpty && ref.read(gameStateProvider).hasValue,
+      // Never over a neighbour's town: the entry waits until the visit ends.
+      ready: !visiting && meId.isNotEmpty && ref.read(gameStateProvider).hasValue,
     );
     final offer = view.offer;
     final away = view.away;

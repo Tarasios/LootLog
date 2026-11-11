@@ -15,6 +15,7 @@ import '../../domain/town/town_view.dart';
 import '../camera_controls.dart';
 import '../goal_picture_frame.dart';
 import '../pack_atlas.dart';
+import 'name_label.dart';
 
 Vector2 cellPosition(TownCell cell) =>
     Vector2(cell.column * kTileSize, cell.row * kTileSize);
@@ -39,10 +40,10 @@ TextPaint _smallLabelPaint({Color colour = const Color(0xFF140C1C)}) =>
     TextPaint(style: TextStyle(fontSize: 5, color: colour));
 
 /// A name centred just under a 2x2-tile building or house.
-TextComponent _nameUnder(Vector2 buildingSize, String text) => TextComponent(
+TextComponent _nameUnder(Vector2 buildingSize, String text) => ViewportClampedLabel(
   text: text,
-  position: Vector2(buildingSize.x / 2, buildingSize.y + 1),
-  anchor: Anchor.topCenter,
+  home: Vector2(buildingSize.x / 2, buildingSize.y + 1),
+  ownerWidth: buildingSize.x,
   textRenderer: _smallLabelPaint(),
 );
 

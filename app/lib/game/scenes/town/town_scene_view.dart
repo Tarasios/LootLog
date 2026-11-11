@@ -50,6 +50,7 @@ class TownSceneView extends StatefulWidget {
     this.visitorTag,
     this.onVisitorTap,
     this.onSwipePastEdge,
+    this.hudInsets = EdgeInsets.zero,
   });
 
   final TownView view;
@@ -89,6 +90,10 @@ class TownSceneView extends StatefulWidget {
 
   /// A drag pushed on past the map's west (-1) or east (+1) edge.
   final void Function(int direction)? onSwipePastEdge;
+
+  /// The screen pixels a phone HUD covers at the top and bottom: the camera
+  /// centres the district between them and pans far enough to clear them.
+  final EdgeInsets hudInsets;
 
   /// How far a drag must push past the edge to change district.
   static const double edgeSwipeDistance = 72;
@@ -133,6 +138,7 @@ class _TownSceneViewState extends State<TownSceneView> {
   /// already moved (a post-frame fit would draw one frame at the wrong zoom).
   void _fitViewport(BoxConstraints constraints) {
     _camera.setViewport(constraints.maxWidth, constraints.maxHeight);
+    _applyInsets();
     if (_zoomFitted) return;
     final height = constraints.maxHeight;
     if (!height.isFinite || height <= 0) return;
@@ -143,6 +149,18 @@ class _TownSceneViewState extends State<TownSceneView> {
         worldHeight: widget.view.layout.rows * kTileSize,
       ),
     );
+    _appliedInsets = null;
+    _applyInsets();
+  }
+
+  EdgeInsets? _appliedInsets;
+
+  /// Tells the camera what the HUD covers, once per change.
+  void _applyInsets() {
+    final insets = widget.hudInsets;
+    if (insets == _appliedInsets) return;
+    _appliedInsets = insets;
+    _camera.setInsets(top: insets.top, bottom: insets.bottom);
   }
 
   @override

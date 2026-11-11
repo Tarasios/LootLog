@@ -11,54 +11,44 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/time.dart' show Month;
-import '../../../features/menu/manage_screen.dart';
-import '../../../features/rewards/trophy_hall_screen.dart';
-import '../../../features/settings/play_mode.dart';
-import '../../../features/settings/play_mode_switch.dart';
-import '../../../ui/format.dart';
 import '../../assets/asset_registry.dart';
 import '../../assets/game_asset_scope.dart';
 import '../../data/game_providers.dart';
 import '../../domain/decor/catalog.dart';
-import '../../domain/decor/decor_values.dart';
 import '../../domain/game_state.dart';
 import '../../domain/game_values.dart';
 import '../../domain/town/districts.dart' show kOutpostDistrictId;
 import '../../domain/town/town_growth_lines.dart';
-import '../../domain/town/town_layout.dart' show TownCell;
 import '../../domain/town/town_tags.dart';
 import '../../domain/town/town_view.dart';
 import '../../scenes/town/town_game.dart' show TownGame;
 import '../../scenes/town/town_scene_view.dart';
 import '../../skin_prefs.dart';
-import '../building_sheet.dart';
 import '../decor/goal_pictures.dart';
 import '../decor/room_screen.dart';
 import '../decor/shop_screen.dart';
 import '../dungeon/dungeon_providers.dart';
 import '../dungeon/dungeon_screen.dart';
 import '../game_home.dart';
-import '../habit_actions.dart';
 import '../hall_common.dart';
-import '../hall_home_sections.dart' show HallHomeData;
 import '../hall_ledger_view.dart';
 import '../hall_status.dart';
 import '../hall_voice.dart';
-import '../kit/kit.dart' show HudChip;
-import 'farm_plot_sheet.dart';
 import 'neighbour_providers.dart';
 import 'town_book_screen.dart';
 import 'town_decorate_panel.dart';
+import 'town_decorate_wiring.dart';
 import 'town_district_wiring.dart';
 import 'town_growth_providers.dart';
 import 'town_home_layout.dart';
-import 'town_hud.dart';
+import 'hud_insets.dart';
+import 'town_home_hud.dart';
 import 'town_inbox_sheet.dart';
 import 'town_ledger_provider.dart';
 import 'town_loop_wiring.dart';
-import 'town_menu_dialog.dart';
 import 'town_neighbour_wiring.dart';
 import 'town_place_openers.dart';
+import 'town_shell_actions.dart';
 import 'town_shell_events.dart';
 import 'town_townsfolk.dart';
 
@@ -108,36 +98,21 @@ class _TownShellState extends ConsumerState<TownShell>
         TownShellEvents<TownShell>,
         TownLoopWiring<TownShell>,
         TownDistrictWiring<TownShell>,
-        TownNeighbourWiring<TownShell> {
-  /// "Decorate town" mode: taps place the picked item instead of opening
-  /// buildings.
-  bool _decorating = false;
-  DecorItem? _picked;
+        TownNeighbourWiring<TownShell>,
+        TownShellActions,
+        TownDecorateWiring {
+  /// How much of a phone's scene the HUD covers (the HUDs measure it).
+  final HudInsets _hudInsets = HudInsets();
 
-  Future<void> _placeInTown(TownCell cell) async {
-    final picked = _picked;
-    if (picked == null) return;
-    await runHallCommand(
-      context,
-      ref,
-      (service) => service.placeItem(
-        itemId: picked.id,
-        space: DecorSpace.town,
-        column: cell.column,
-        row: cell.row,
-      ),
-    );
-    if (mounted) setState(() => _picked = null);
+  @override
+  void dispose() {
+    _hudInsets.dispose();
+    super.dispose();
   }
 
-  /// Decorations stand in the outpost, so decorating opens it.
-  void _toggleDecorating() {
-    if (!_decorating) openDistrict(kOutpostDistrictId);
-    setState(() {
-      _decorating = !_decorating;
-      _picked = null;
-    });
-  }
+  /// A visit is strictly read-only: decorating ends when one starts.
+  @override
+  void onVisitStarted() => endDecorating();
 
   @override
   Widget build(BuildContext context) {
@@ -214,42 +189,48 @@ class _TownShellState extends ConsumerState<TownShell>
             meId: ledgerView.meId ?? '',
             now: now,
             registry: registryLoad.value ?? AssetRegistry.bundled,
+            visiting: visiting != null,
           );
+          final decorating = decoratingTown && visiting == null;
           final scene = registryLoad.isLoading && !registryLoad.hasValue
               // The scene reads its art once, so wait for the registry.
               ? const ColoredBox(color: TownGame.forestColour)
               // A new household seed grows a new forest: rebuild the scene.
               : slidingDistrict(KeyedSubtree(
                   key: ValueKey('$scatterSeed:${visiting?.memberId}'),
-                  child: TownSceneView(
+                  child: ValueListenableBuilder<EdgeInsets>(
+                    valueListenable: _hudInsets,
+                    builder: (context, hudInsets, _) => TownSceneView(
                     key: const ValueKey('town-scene'),
+                    hudInsets: hudInsets,
                     view: townView,
                     registry: registryLoad.value ?? AssetRegistry.bundled,
                     onTarget: (target) => visiting != null
                         ? openVisitTarget(target, townView, visiting)
                         : target is SignpostTarget
                         ? openSignpost(neighbours)
-                        : _openTarget(target),
+                        : openHomeTarget(target),
                     ambientLife: widget.ambientLife,
                     townsfolk: townsfolk,
                     catalog: catalog,
                     pictures: goalPictures,
-                    onCellTap: _decorating ? (cell) => unawaited(_placeInTown(cell)) : null,
+                    onCellTap: decorating ? (cell) => unawaited(placeInTown(cell)) : null,
                     logPulse: logPulse,
                     scatter: scatter,
-                    tags: _decorating ? const [] : tags,
+                    tags: decorating ? const [] : tags,
                     // The visitor and the festival bunting are in the outpost.
                     loop: inOutpost ? loop.scene : TownLoopScene.none,
-                    visitorTag: _decorating || !inOutpost ? null : loop.visitorTag,
-                    onVisitorTap: _decorating || !inOutpost ? null : loop.onVisitorTap,
-                    onSwipePastEdge: _decorating ? null : (direction) => openNeighbour(shownTown, direction),
+                    visitorTag: decorating || !inOutpost ? null : loop.visitorTag,
+                    onVisitorTap: decorating || !inOutpost ? null : loop.onVisitorTap,
+                    onSwipePastEdge: decorating ? null : (direction) => openNeighbour(shownTown, direction),
+                  ),
                   ),
                 ));
           return Scaffold(
             backgroundColor: TownGame.forestColour,
             body: TownHomeLayout(
               scene: scene,
-              onOpenGoals: _openGoals,
+              onOpenGoals: openGoals,
               onOpenLedger: onOpenLedger,
               buildHud: (onQuests) => visiting != null
                   ? neighbourHud(
@@ -257,154 +238,39 @@ class _TownShellState extends ConsumerState<TownShell>
                       game: game,
                       meId: ledgerView.meId ?? '',
                       now: now,
-                      onLogPurchase: _logPurchase,
+                      onLogPurchase: logPurchase,
                       districtStrip: districtStrip(shownTown, growthLines, readOnly: true),
+                      insets: _hudInsets,
                     )
-                  : TownHud(
-                figures: TownHudFigures(
-                  dateLabel: '${monthAbbreviation(today.month)} · day ${today.day}',
-                  streak: liveStreak(me.streak, today, tokens: me.freezeTokens),
-                  freezeTokens: me.freezeTokens,
-                  gems: me.gems,
-                  inboxCount: me.unopenedChests.length + me.unclaimedRewards.length,
-                  goldPouch: ledger.goldPouch,
-                  warChest: ledger.warChest,
-                ),
-                onQuests: onQuests,
-                spiritBar: loop.spiritBar,
-                logNotes: loop.logNotes,
-                noSpendCheckIn: NoSpendCheckIn(
-                  key: const ValueKey('town-no-spend'),
-                  explainWhenUnavailable: true,
-                  data: HallHomeData(
-                    game: game,
-                    view: ledgerView,
-                    voice: voice,
-                    now: now,
-                    onOpenLedger: onOpenLedger,
-                    links: links,
-                  ),
-                  builder: (context, action) =>
-                      // Never wider than a narrow phone's corner (it ellipsizes).
-                      HudChip(
-                        icon: action.icon,
-                        value: action.shortLabel,
-                        onTap: action.onPressed,
-                        maxWidth: MediaQuery.sizeOf(context).width - 24,
-                        prose: true,
-                      ),
-                ),
-                onLogPurchase: _logPurchase,
-                onShop: _openShop,
-                onInbox: () => showTownInbox(context, onOpenLedger: onOpenLedger, links: links),
-                onLedger: onOpenLedger,
-                onMenu: _openMenu,
-                onDate: () => unawaited(TownBookScreen.open(context)),
-                districtStrip: _decorating ? null : districtStrip(myTown, growthLines),
-                decoratePanel: _decorating
-                    ? TownDecoratePanel(
-                        personId: ledgerView.meId ?? '',
-                        picked: _picked,
-                        onPick: (item) => setState(() => _picked = item),
-                      )
-                    : null,
-              ),
+                  : TownHomeHud(
+                      game: game,
+                      ledgerView: ledgerView,
+                      voice: voice,
+                      now: now,
+                      ledger: ledger,
+                      loop: loop,
+                      links: links,
+                      onOpenLedger: onOpenLedger,
+                      onLogPurchase: logPurchase,
+                      onShop: openShop,
+                      onInbox: () => showTownInbox(context, onOpenLedger: onOpenLedger, links: links),
+                      onMenu: openTownMenu,
+                      onDate: () => unawaited(TownBookScreen.open(context)),
+                      onQuests: onQuests,
+                      districtStrip: decorating ? null : districtStrip(myTown, growthLines),
+                      decoratePanel: decorating
+                          ? TownDecoratePanel(
+                              personId: ledgerView.meId ?? '',
+                              picked: pickedDecoration,
+                              onPick: pickDecoration,
+                            )
+                          : null,
+                      insets: _hudInsets,
+                    ),
             ),
           );
         }),
       ),
     );
   }
-
-  void _openTarget(TownTarget target) {
-    final openers = widget.openers;
-    switch (target) {
-      case PlotTarget(:final plotIndex, :final districtId) when districtId != kOutpostDistrictId:
-        unawaited(showFarmPlotSheet(context, plotIndex: plotIndex));
-      case PlotTarget(:final plotIndex):
-        unawaited(
-          showBuildingSheet(
-            context,
-            plotIndex: plotIndex,
-            onOpenLedger: widget.onOpenLedger,
-            links: widget.links,
-          ),
-        );
-      case HouseTarget(:final personId):
-        final openRoom = openers.openRoom;
-        if (openRoom != null) {
-          openRoom(context, personId);
-        } else {
-          unawaited(
-            showPlaceComingSheet(context, title: 'Home', body: 'Rooms you can decorate are on their way.'),
-          );
-        }
-      case SignpostTarget():
-        break; // The shell opens the signpost before it gets here.
-      case GateTarget():
-        final openDungeon = openers.openDungeon;
-        if (openDungeon != null) {
-          openDungeon(context);
-        } else {
-          unawaited(
-            showPlaceComingSheet(
-              context,
-              title: 'The dungeon gate',
-              body: 'Each month the gate opens for dividing your leftovers.',
-            ),
-          );
-        }
-    }
-  }
-
-  /// Quick entry: one tap from the town (the ledger when no link is wired).
-  void _logPurchase() {
-    final openEntry = widget.links.logPurchase;
-    if (openEntry != null) {
-      openEntry(context);
-    } else {
-      widget.onOpenLedger();
-    }
-  }
-
-  /// The ledger's Goals pane (the ledger when no link is wired).
-  void _openGoals() {
-    final openGoalsPane = widget.links.openGoals;
-    if (openGoalsPane != null) {
-      openGoalsPane(context);
-    } else {
-      widget.onOpenLedger();
-    }
-  }
-
-  void _openShop() {
-    final openShop = widget.openers.openShop;
-    if (openShop != null) {
-      openShop(context);
-    } else {
-      unawaited(
-        showPlaceComingSheet(
-          context,
-          title: 'Shop',
-          body: 'A new set of decorations arrives every day — opening soon.',
-        ),
-      );
-    }
-  }
-
-  void _openMenu() => unawaited(
-    showTownMenu(
-      context,
-      TownMenuActions(
-        decorating: _decorating,
-        openSettings: () => unawaited(ManageScreen.open(context)),
-        switchToStandard: () =>
-            unawaited(confirmAndSwitchPlayMode(context, ref, PlayMode.standard, returnHome: true)),
-        toggleTextMode: () => ref.read(adventureTierProvider.notifier).toggle(),
-        toggleDecorating: _toggleDecorating,
-        openTrophies: () => unawaited(TrophyHallScreen.open(context)),
-        openTownBook: () => unawaited(TownBookScreen.open(context)),
-      ),
-    ),
-  );
 }

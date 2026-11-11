@@ -20,6 +20,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../kit/kit.dart';
+import 'hud_insets.dart';
 import 'town_hud_chips.dart';
 
 export 'town_hud_chips.dart' show TownHudFigures;
@@ -46,6 +47,7 @@ class TownHud extends StatelessWidget {
     this.logNotes = const [],
     this.districtStrip,
     this.onDate,
+    this.insets,
   });
 
   final TownHudFigures figures;
@@ -79,6 +81,22 @@ class TownHud extends StatelessWidget {
   /// Opens the town book from the date chip.
   final VoidCallback? onDate;
 
+  /// Where a phone HUD reports how much of the scene it covers.
+  final HudInsets? insets;
+
+  /// [child], reporting its height (plus the edge and [safe] area) to
+  /// [insets] as top cover ([top]) or bottom cover, on a phone.
+  Widget _measured(Widget child, {required bool top, required Object piece, required double safe}) {
+    final insets = this.insets;
+    if (insets == null) return child;
+    return ReportSize(
+      onSize: (size) => top
+          ? insets.reportTop(piece, size.height + _kEdge + safe)
+          : insets.setBottom(size.height + _kEdge + safe),
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) => SafeArea(
     child: LayoutBuilder(
@@ -106,16 +124,22 @@ class TownHud extends StatelessWidget {
           chips: _treasureChips(compact, cornerWidth),
         );
         final cornerStrip = compact || decoratePanel != null ? null : districtStrip;
+        final padding = MediaQuery.paddingOf(context);
+        if (!compact) WidgetsBinding.instance.addPostFrameCallback((_) => insets?.clear());
+        Widget measuredTop(Widget corner, Object piece) =>
+            compact ? _measured(corner, top: true, piece: piece, safe: padding.top) : corner;
+        Widget measuredBottom(Widget stack) =>
+            compact ? _measured(stack, top: false, piece: 'bottom', safe: padding.bottom) : stack;
         return Stack(
           children: [
-            Positioned(top: _kEdge, left: _kEdge, child: timeCorner),
-            Positioned(top: _kEdge, right: _kEdge, child: treasureCorner),
+            Positioned(top: _kEdge, left: _kEdge, child: measuredTop(timeCorner, 'time')),
+            Positioned(top: _kEdge, right: _kEdge, child: measuredTop(treasureCorner, 'treasure')),
             if (decoratePanel != null)
               Positioned(
                 left: 0,
                 right: 0,
                 bottom: 0,
-                child: Column(
+                child: measuredBottom(Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Logging a purchase stays one tap away while decorating.
@@ -132,10 +156,10 @@ class TownHud extends StatelessWidget {
                     ),
                     decoratePanel,
                   ],
-                ),
+                )),
               )
             else if (compact)
-              Positioned(left: _kEdge, right: _kEdge, bottom: _kEdge, child: _compactBottom())
+              Positioned(left: _kEdge, right: _kEdge, bottom: _kEdge, child: measuredBottom(_compactBottom()))
             else ...[
               Positioned(left: _kEdge, bottom: _kEdge, child: _logColumn()),
               Positioned(

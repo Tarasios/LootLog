@@ -18,6 +18,7 @@ import '../../domain/town/neighbours.dart';
 import '../../domain/town/town_growth_lines.dart';
 import '../../domain/town/town_view.dart';
 import 'gift_dialog.dart';
+import 'hud_insets.dart';
 import 'neighbour_actions.dart';
 import 'neighbour_providers.dart';
 import 'neighbour_view.dart';
@@ -34,10 +35,17 @@ mixin TownNeighbourWiring<Shell extends ConsumerStatefulWidget> on ConsumerState
   TownNeighbour? visitingAmong(List<TownNeighbour> neighbours) =>
       neighbours.where((neighbour) => neighbour.canVisit && neighbour.memberId == _visitingId).firstOrNull;
 
+  /// Called as a visit starts, inside its `setState`: the shell ends
+  /// anything a visit must not carry (decorating).
+  void onVisitStarted() {}
+
   /// Walks down the road into [neighbour]'s outpost.
   void visitNeighbour(TownNeighbour neighbour) {
     openDistrict(kOutpostDistrictId);
-    setState(() => _visitingId = neighbour.memberId);
+    setState(() {
+      onVisitStarted();
+      _visitingId = neighbour.memberId;
+    });
   }
 
   /// Back to this adult's own outpost.
@@ -88,6 +96,7 @@ mixin TownNeighbourWiring<Shell extends ConsumerStatefulWidget> on ConsumerState
     required DateTime now,
     required VoidCallback onLogPurchase,
     Widget? districtStrip,
+    HudInsets? insets,
   }) {
     final lines = ref.watch(neighbourLinesProvider).value ?? NeighbourLines.defaults;
     final cheered = cheeredToday(game, meId, visiting, now);
@@ -99,6 +108,7 @@ mixin TownNeighbourWiring<Shell extends ConsumerStatefulWidget> on ConsumerState
       onCheer: cheered ? null : () => unawaited(cheerNeighbour(context, ref, visiting, lines)),
       cheerLabel: cheered ? lines.line('cheer.done') : 'Cheer',
       districtStrip: districtStrip,
+      insets: insets,
     );
   }
 }

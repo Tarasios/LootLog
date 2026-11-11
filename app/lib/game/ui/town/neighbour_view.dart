@@ -14,6 +14,8 @@ import '../../domain/town/town_view.dart';
 import '../hall_framed.dart';
 import '../hall_names.dart';
 import '../kit/kit.dart';
+import 'hud_insets.dart';
+import 'town_hud.dart' show kTownHudCompactWidth;
 
 /// Keeps the HUD clear of the window edge.
 const double _kEdge = 12;
@@ -29,7 +31,11 @@ class NeighbourHud extends StatelessWidget {
     required this.onCheer,
     required this.cheerLabel,
     this.districtStrip,
+    this.insets,
   });
+
+  /// Where a phone HUD reports how much of the scene it covers.
+  final HudInsets? insets;
 
   /// "Visiting Sam".
   final String header;
@@ -46,6 +52,23 @@ class NeighbourHud extends StatelessWidget {
   /// The neighbour's districts (owned ones only; nothing to buy here).
   final Widget? districtStrip;
 
+  /// [child], reporting its cover to [insets] on a phone.
+  Widget _measured(BuildContext context, Widget child, {required bool top}) {
+    final insets = this.insets;
+    if (insets == null) return child;
+    if (MediaQuery.sizeOf(context).width >= kTownHudCompactWidth) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => insets.clear());
+      return child;
+    }
+    final padding = MediaQuery.paddingOf(context);
+    return ReportSize(
+      onSize: (size) => top
+          ? insets.reportTop('visit', size.height + _kEdge + padding.top)
+          : insets.setBottom(size.height + _kEdge + padding.bottom),
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) => SafeArea(
     child: Stack(
@@ -54,7 +77,7 @@ class NeighbourHud extends StatelessWidget {
           top: _kEdge,
           left: _kEdge,
           right: _kEdge,
-          child: Row(
+          child: _measured(context, top: true, Row(
             children: [
               WoodButton(
                 key: const ValueKey('neighbour-back'),
@@ -75,13 +98,13 @@ class NeighbourHud extends StatelessWidget {
                 ),
               ),
             ],
-          ),
+          )),
         ),
         Positioned(
           left: _kEdge,
           right: _kEdge,
           bottom: _kEdge,
-          child: Column(
+          child: _measured(context, top: false, Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (districtStrip case final strip?) ...[strip, const SizedBox(height: AdventureTokens.gap)],
@@ -110,7 +133,7 @@ class NeighbourHud extends StatelessWidget {
                 ],
               ),
             ],
-          ),
+          )),
         ),
       ],
     ),
