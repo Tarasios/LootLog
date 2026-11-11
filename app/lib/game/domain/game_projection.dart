@@ -372,6 +372,13 @@ void _apply(_GameStateDraft draft, GameEvent event) {
       draft.adjustPool(resolved.paid, -1);
       draft.credit(actor, resolved.received);
 
+    case FestivalHeld festival:
+      final person = draft.person(actor);
+      // One festival per week: a second device's copy is ignored.
+      if (person.festivals.containsKey(festival.week)) return;
+      draft.put(person.copyWith(
+          festivals: _put(person.festivals, festival.week, festival.tier)));
+
     case UnknownGameEvent _:
       return;
   }

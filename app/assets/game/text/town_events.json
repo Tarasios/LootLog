@@ -1,5 +1,5 @@
 {
-  "_comment": "Daily town events in Adventure mode (game words are fine). Every line is listed in docs/voice-lines.md beside its trigger. Placeholders filled by the app: {gives} {receives} {building}. An event is always a treat, never a test: taking it is a choice and waving it off costs nothing. A missing key falls back to the built-in line.",
+  "_comment": "Daily town events and weekend festivals in Adventure mode (game words are fine). Every line is listed in docs/voice-lines.md beside its trigger. Placeholders filled by the app: {gives} {receives} {building}. An event is always a treat, never a test: taking it is a choice and waving it off costs nothing. A missing key falls back to the built-in line.",
   "trader.1": "A travelling trader sets up by the well. Swap {gives} for {receives}?",
   "trader.2": "A cart rolls in with just what the yard is short of: {receives} for {gives}.",
   "trader.3": "A merchant tips her hat. \"I'll take {gives} off your hands for {receives}.\"",
@@ -8,5 +8,9 @@
   "windfall.3": "The {building} had a cracking morning. {receives} more for the stores.",
   "visitor.1": "An old friend stops by with a gift: {receives}.",
   "visitor.2": "A neighbour leaves a parcel at your door: {receives}.",
-  "visitor.3": "A wandering bard pays for supper with {receives}."
+  "visitor.3": "A wandering bard pays for supper with {receives}.",
+  "festival.marketDay": "It's market day! Stalls line the square and the whole town turns out.",
+  "festival.fair": "A fair fills the square this weekend. The town is in high spirits after a well-kept week.",
+  "festival.grandFestival": "A grand festival! Lanterns, music and dancing: every weekday kept, and the whole town celebrates.",
+  "festival.joint": "The whole party kept the week together, and the festival is all the merrier for it."
 }

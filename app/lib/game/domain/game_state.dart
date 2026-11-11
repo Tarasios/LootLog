@@ -491,6 +491,7 @@ class PersonState {
     this.seenChestIds = const {},
     this.dailyOffers = const {},
     this.seenOfferIds = const {},
+    this.festivals = const {},
   });
 
   final String personId;
@@ -532,6 +533,10 @@ class PersonState {
   /// so a second device's copy is never offered twice.
   final Set<String> seenOfferIds;
 
+  /// The weekend festivals this person's town has held, by the Monday of
+  /// their week. Never taken back.
+  final Map<GameDay, FestivalTier> festivals;
+
   PersonState copyWith({
     HeroState? hero,
     int? gems,
@@ -547,6 +552,7 @@ class PersonState {
     Set<String>? seenChestIds,
     Map<String, DailyOffer>? dailyOffers,
     Set<String>? seenOfferIds,
+    Map<GameDay, FestivalTier>? festivals,
   }) =>
       PersonState(
         personId: personId,
@@ -566,6 +572,7 @@ class PersonState {
         seenChestIds: seenChestIds ?? this.seenChestIds,
         dailyOffers: dailyOffers ?? this.dailyOffers,
         seenOfferIds: seenOfferIds ?? this.seenOfferIds,
+        festivals: festivals ?? this.festivals,
       );
 
   @override
@@ -585,7 +592,8 @@ class PersonState {
       _setsEqual(other.seenRewardIds, seenRewardIds) &&
       _setsEqual(other.seenChestIds, seenChestIds) &&
       _mapsEqual(other.dailyOffers, dailyOffers) &&
-      _setsEqual(other.seenOfferIds, seenOfferIds);
+      _setsEqual(other.seenOfferIds, seenOfferIds) &&
+      _mapsEqual(other.festivals, festivals);
 
   @override
   int get hashCode => Object.hash(personId, gems, freezeTokens, partyId);

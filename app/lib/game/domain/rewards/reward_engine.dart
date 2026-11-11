@@ -17,7 +17,8 @@
 /// - Party rewards only add. A quiet partner costs the other nothing.
 ///
 /// Opening a day also brings that day's town event (`town/daily_event.dart`),
-/// rolled once from the ledger event that opened it.
+/// rolled once from the ledger event that opened it; every weekend brings a
+/// festival sized to the weekdays logged (`town/festival.dart`).
 ///
 /// Pure Dart, zero Flutter imports.
 library;
@@ -32,6 +33,7 @@ import '../game_state.dart';
 import '../game_values.dart';
 import '../reason_codes.dart';
 import '../town/daily_event.dart';
+import '../town/festival.dart';
 import 'month_end_rewards.dart';
 
 export '../game_event_stamp.dart';
@@ -154,6 +156,12 @@ class RewardEngine {
       run.bridge(adult.memberId, today);
       run.tokens(adult.memberId);
     }
+    // Festivals are held for every Adventure adult on every run, not only
+    // for whoever just logged.
+    for (final adult in party.adventurers) {
+      run.festivals(adult.memberId, oldest);
+    }
+    run.jointFestivals(oldest);
 
     run.out.addAll(monthEnd.evaluate(ledger, gameState, clock,
         party: party, stamp: stamp, household: household));
@@ -176,6 +184,7 @@ class _Person {
         seenRewards = {...state.seenRewardIds},
         seenChests = {...state.seenChestIds},
         seenOffers = {...state.seenOfferIds},
+        festivalWeeks = {...state.festivals.keys},
         wallet = state.freezeTokens,
         waitingTokens = [
           for (final reward in state.unclaimedRewards.values)
@@ -190,6 +199,9 @@ class _Person {
   final Set<String> seenRewards;
   final Set<String> seenChests;
   final Set<String> seenOffers;
+
+  /// The Mondays of the weeks whose festival is held.
+  final Set<GameDay> festivalWeeks;
 
   /// Claimed freeze tokens.
   int wallet;
@@ -309,6 +321,62 @@ class _Run {
       flavourKey: offer.flavourKey,
       plotIndex: offer.plotIndex,
     ));
+  }
+
+  /// Holds each weekend festival due for [who] (see `festivalWeeksDue`):
+  /// the festival itself and its loot, sized by the week's town spirit.
+  void festivals(String who, GameDay oldest) {
+    final record = person(who);
+    final due = festivalWeeksDue(
+      loggedDays: record.logged,
+      heldWeeks: record.festivalWeeks,
+      today: today,
+      oldest: oldest,
+    );
+    for (final week in due) {
+      final weekdays = weekdaysLogged(record.logged, week);
+      final tier = festivalTierFor(weekdays);
+      record.festivalWeeks.add(week);
+      out.add(FestivalHeld(
+        eventId: stamp.newEventId(),
+        deviceId: stamp.deviceId,
+        actorId: who,
+        occurredAt: now,
+        createdAt: now,
+        week: week,
+        tier: tier,
+        weekdaysLogged: weekdays,
+      ));
+      final loot = Balance.festivalRewards[tier]!;
+      _grant(who,
+          rewardId: festivalRewardId(who, week),
+          kind: 'festival',
+          gems: loot.gems,
+          materials: loot.materials,
+          reasonCode: GameReasonCodes.festival);
+    }
+  }
+
+  /// The joint bonus for every Adventure adult at a fair or better in a
+  /// week at least one other Adventure adult also reached a fair. Additive:
+  /// someone alone simply has no bonus, and nobody is ever named.
+  void jointFestivals(GameDay oldest) {
+    for (final week in festivalWeeksInWindow(today: today, oldest: oldest)) {
+      final festive = [
+        for (final adult in party.adventurers)
+          if (weekdaysLogged(person(adult.memberId).logged, week) >=
+              Balance.festivalFairWeekdays)
+            adult.memberId,
+      ];
+      if (festive.length < 2) continue;
+      for (final who in festive) {
+        _grant(who,
+            rewardId: jointFestivalRewardId(who, week),
+            kind: 'gems',
+            gems: Balance.jointFestivalGems,
+            reasonCode: GameReasonCodes.festivalJoint);
+      }
+    }
   }
 
   /// Gems under the per-day cap, one per purchase per rule.

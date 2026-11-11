@@ -116,6 +116,16 @@ final List<GameEvent> _samples = [
     paid: MaterialBundle({MaterialKind.lumber: 20}),
     received: Loot(materials: MaterialBundle({MaterialKind.ore: 8})),
   ),
+  FestivalHeld(
+    eventId: 'e24',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(24),
+    createdAt: at(24),
+    week: const GameDay(2026, 9, 28),
+    tier: FestivalTier.fair,
+    weekdaysLogged: 4,
+  ),
 ];
 
 void main() {
@@ -202,6 +212,20 @@ void main() {
       expect(decoded, isA<UnknownGameEvent>());
       expect(decoded.toJson(), raw);
     }
+  });
+
+  test('a festival of a tier this build lacks is kept as UnknownGameEvent, '
+      'and an older build sees the type as unknown', () {
+    final raw = _samples.whereType<FestivalHeld>().single.toJson();
+    final newerTier = {
+      ...raw,
+      'payload': {...raw['payload'] as Map<String, dynamic>, 'tier': 'carnival'},
+    };
+    expect(GameEvent.fromJson(newerTier), isA<UnknownGameEvent>());
+    final olderBuild = {...raw, 'type': 'FutureFestivalHeld'};
+    final decoded = GameEvent.fromJson(olderBuild);
+    expect(decoded, isA<UnknownGameEvent>());
+    expect(decoded.toJson(), olderBuild);
   });
 
   test('a windfall-free offer omits its plot, and a decline its amounts', () {

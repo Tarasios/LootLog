@@ -51,6 +51,7 @@ const List<String> kGameEventTypes = [
   'ItemEquipped',
   'DailyEventOffered',
   'DailyEventResolved',
+  'FestivalHeld',
 ];
 
 /// Base class for every game event.
@@ -384,6 +385,15 @@ sealed class GameEvent {
           accepted: payload['accepted'] as bool,
           paid: _materials(payload['paid']),
           received: _loot(payload['received']),
+        );
+      case 'FestivalHeld':
+        return FestivalHeld(
+          eventId: eventId, deviceId: deviceId, actorId: actorId,
+          occurredAt: occurredAt, createdAt: createdAt, schemaVersion: schemaVersion,
+          week: GameDay.parse(payload['week'] as String),
+          tier: gameEnumByName(
+              FestivalTier.values, payload['tier'] as String, 'festival tier'),
+          weekdaysLogged: payload['weekdaysLogged'] as int,
         );
       default:
         return UnknownGameEvent._(envelope, type, payload);
@@ -1118,6 +1128,42 @@ class DailyEventResolved extends GameEvent {
         'accepted': accepted,
         'paid': paid.toJson(),
         'received': received.toJson(),
+      };
+}
+
+/// [actorId]'s town held its weekend festival for the Monday-to-Sunday
+/// [week] (keyed by its Monday), sized by the [weekdaysLogged] that week
+/// (see `town/festival.dart`). Granted once per person per week by the
+/// reward engine from that Saturday on, alongside a `RewardGranted` with the
+/// festival's loot; a second device's copy is ignored.
+class FestivalHeld extends GameEvent {
+  const FestivalHeld({
+    required super.eventId,
+    required super.deviceId,
+    required super.actorId,
+    required super.occurredAt,
+    required super.createdAt,
+    super.schemaVersion,
+    required this.week,
+    required this.tier,
+    required this.weekdaysLogged,
+  });
+
+  /// The Monday of the week the festival closes.
+  final GameDay week;
+  final FestivalTier tier;
+
+  /// Town spirit: the weekdays (Monday to Friday) the person logged, 0–5.
+  final int weekdaysLogged;
+
+  @override
+  String get type => 'FestivalHeld';
+
+  @override
+  Map<String, dynamic> payload() => {
+        'week': week.toKey(),
+        'tier': tier.name,
+        'weekdaysLogged': weekdaysLogged,
       };
 }
 

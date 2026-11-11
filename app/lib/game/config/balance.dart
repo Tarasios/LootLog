@@ -120,6 +120,28 @@ abstract final class Balance {
   static const int visitorGemChancePermille = 200;
   static const int visitorGiftGems = 2;
 
+  // ---- Town spirit and the weekend festival --------------------------------
+
+  /// Weekdays logged (Monday to Friday) at or above which the weekend
+  /// festival is a fair, and a grand festival. Below [festivalFairWeekdays]
+  /// it is a market day — there is always a festival.
+  static const int festivalFairWeekdays = 3;
+  static const int festivalGrandWeekdays = 5;
+
+  /// What each festival brings (a grand festival also brings one festival
+  /// decoration when the catalogue has any).
+  static final Map<FestivalTier, Loot> festivalRewards = {
+    FestivalTier.marketDay: const Loot(gems: 2),
+    FestivalTier.fair: Loot(gems: 6, materials: _m(lumber: 10, stone: 10)),
+    FestivalTier.grandFestival:
+        Loot(gems: 12, materials: _m(lumber: 20, stone: 20, herbs: 10)),
+  };
+
+  /// Gems each Adventure adult at a fair or better gets when at least one
+  /// other Adventure adult reached a fair or better the same week. Additive:
+  /// nothing is lost when alone.
+  static const int jointFestivalGems = 4;
+
   // ---- Chests -------------------------------------------------------------
 
   /// What each chest rolls when opened. Every chest is earned by budgeting

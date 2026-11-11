@@ -40,6 +40,16 @@ void main() {
     }
   });
 
+  test('the festival pool has three exclusive town decorations', () {
+    final pool = catalog.festivalPool;
+    expect(pool, hasLength(greaterThanOrEqualTo(3)));
+    for (final item in pool) {
+      expect(item.exclusive, isTrue, reason: item.id);
+      expect(item.placeableInTown, isTrue, reason: item.id);
+      expect(item.id, startsWith('town_'), reason: item.id);
+    }
+  });
+
   test('every purchasable town decoration id starts with town_', () {
     for (final item in catalog.shopPool) {
       if (item.kind == DecorKind.townDecor) expect(item.id, startsWith('town_'));

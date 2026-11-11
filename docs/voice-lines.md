@@ -326,6 +326,8 @@ was earned (by reward reason code).
 | `month.gold` | Bonus: a budget finished on target | A category finished the month on target (bonus only) |
 | `vault.quest` | Savings goal milestone | A savings goal reaches a percent milestone |
 | `vault.consistency` | Months of saving in a row | Consecutive months with a savings choice |
+| `festival.weekend` | The weekend festival | The weekend festival's loot, sized by the weekdays logged (a market day is always held); a grand festival's duplicate decoration comes as gems under this code too |
+| `festival.joint` | Bonus: the party kept the week together | Two or more Adventure adults each logged at least three weekdays (additive; never names anyone) |
 
 
 ## Month-end dungeon lines (`dungeon_lines.json`)
@@ -387,8 +389,9 @@ goal), `{days}`, `{percent}`.
 
 ## Town events (`town_events.json`)
 
-Adventure-only: the daily town event. When a person opens their day with a
-first log or a "no spend" check-in, something turns up in town: a trader, a
+Adventure-only: the daily town event and the weekend festival. When a
+person opens their day with a first log or a "no spend" check-in, something
+turns up in town: a trader, a
 producer having a good day, or a visitor with a gift. The amounts are rolled
 once and stored; the line only frames them. Taking it is a choice and waving
 it off costs nothing, so no line ever pressures or scolds. Each key holds one
@@ -398,7 +401,9 @@ on). A missing or empty key falls back to the built-in line in
 `app/test/game/domain/town/town_event_lines_test.dart` checks the shipped
 file matches those built-in lines and that nothing shames. Placeholders:
 `{gives}` and `{receives}` (amounts in game words), `{building}` (the
-producer).
+producer). Every weekend the town also holds a festival sized to the
+weekdays (Monday to Friday) the person logged; the `festival.*` keys
+announce it and take no placeholders.
 
 | Key | Trigger | Intended outcome | Current line |
 |-----|---------|------------------|--------------|
@@ -411,3 +416,7 @@ producer).
 | `visitor.1` | A visitor brings a small gift (a few materials, or two gems) | A warm surprise for showing up | An old friend stops by with a gift: {receives}. |
 | `visitor.2` | As `visitor.1` | Same | A neighbour leaves a parcel at your door: {receives}. |
 | `visitor.3` | As `visitor.1` | Same | A wandering bard pays for supper with {receives}. |
+| `festival.marketDay` | The weekend festival after a week with 0–2 weekdays logged (held once the person shows up that weekend or later) | Celebrate the town every weekend: a quiet week is still a market day, never a loss | It's market day! Stalls line the square and the whole town turns out. |
+| `festival.fair` | The weekend festival after 3–4 weekdays logged | Celebrate a well-kept week | A fair fills the square this weekend. The town is in high spirits after a well-kept week. |
+| `festival.grandFestival` | The weekend festival after all 5 weekdays logged (with a festival decoration when the catalogue has one) | The big weekly celebration | A grand festival! Lanterns, music and dancing: every weekday kept, and the whole town celebrates. |
+| `festival.joint` | The joint festival bonus: two or more Adventure adults reached a fair the same week | Celebrate the party together without naming anyone | The whole party kept the week together, and the festival is all the merrier for it. |

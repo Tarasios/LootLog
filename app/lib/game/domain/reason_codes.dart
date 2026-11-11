@@ -69,6 +69,13 @@ abstract final class GameReasonCodes {
   /// Gems for consecutive closed months with a savings allocation.
   static const String vaultSavingsStreak = 'vault.consistency';
 
+  /// The weekend festival's loot, sized by the week's town spirit.
+  static const String festival = 'festival.weekend';
+
+  /// Bonus gems when two or more Adventure adults reached a fair or better
+  /// the same week (additive; never names anyone).
+  static const String festivalJoint = 'festival.joint';
+
   /// Rewards whose grant marks their household-local day as covered in the
   /// person's streak. The reward engine must grant at most one per person per
   /// day (the daily gem cap) and stamp it with the logged day's `occurredAt`.

@@ -2,8 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:lootlog/game/domain/game_values.dart';
 import 'package:lootlog/game/domain/town/daily_event.dart';
+import 'package:lootlog/game/domain/town/festival.dart';
 import 'package:lootlog/game/domain/town/town_event_lines.dart';
 
 final _shame = RegExp(
@@ -28,6 +29,21 @@ void main() {
         );
       }
     }
+  });
+
+  test('every festival tier, and the joint bonus, has a built-in line', () {
+    for (final tier in FestivalTier.values) {
+      expect(festivalFlavourKey(tier), 'festival.${tier.name}');
+      expect(
+        TownEventLines.defaults.line(festivalFlavourKey(tier)).trim(),
+        isNotEmpty,
+        reason: tier.name,
+      );
+    }
+    expect(
+      TownEventLines.defaults.line(kJointFestivalFlavourKey).trim(),
+      isNotEmpty,
+    );
   });
 
   test('the shipped town_events.json carries the built-in lines', () {

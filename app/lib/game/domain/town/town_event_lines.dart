@@ -1,6 +1,6 @@
-/// The wording of the town's daily events (and, from the festival, its
-/// weekend festivals), read from `assets/game/text/town_events.json` with a
-/// built-in line for every key, so a half-edited file never blanks a story.
+/// The wording of the town's daily events and weekend festivals, read from
+/// `assets/game/text/town_events.json` with a built-in line for every key,
+/// so a half-edited file never blanks a story.
 /// Every line is listed in `docs/voice-lines.md` beside its trigger.
 ///
 /// Placeholders the screen fills: `{gives}` and `{receives}` (amounts, in
@@ -69,4 +69,12 @@ const Map<String, String> _builtIn = {
   'visitor.1': 'An old friend stops by with a gift: {receives}.',
   'visitor.2': 'A neighbour leaves a parcel at your door: {receives}.',
   'visitor.3': 'A wandering bard pays for supper with {receives}.',
+  'festival.marketDay':
+      "It's market day! Stalls line the square and the whole town turns out.",
+  'festival.fair':
+      'A fair fills the square this weekend. The town is in high spirits after a well-kept week.',
+  'festival.grandFestival':
+      'A grand festival! Lanterns, music and dancing: every weekday kept, and the whole town celebrates.',
+  'festival.joint':
+      'The whole party kept the week together, and the festival is all the merrier for it.',
 };
