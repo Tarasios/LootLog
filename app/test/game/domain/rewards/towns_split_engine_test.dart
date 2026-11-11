@@ -48,9 +48,10 @@ class _Device {
         newEventId: () => '$name-${(_ids++).toString().padLeft(5, '0')}',
       );
 
-  List<GameEvent> run(List<Event> ledger, DateTime now) {
-    final out = const RewardEngine(monthEnd: NoMonthEndRewards())
-        .evaluate(ledger, state, FixedClock(now), party: party, stamp: stamp);
+  List<GameEvent> run(List<Event> ledger, DateTime now, {bool mayMigrateTowns = true}) {
+    final out = const RewardEngine(monthEnd: NoMonthEndRewards()).evaluate(
+        ledger, state, FixedClock(now),
+        party: party, stamp: stamp, mayMigrateTowns: mayMigrateTowns);
     log.addAll(out);
     return out;
   }
@@ -66,6 +67,17 @@ class _Device {
 
 void main() {
   group('the engine splits a shared town once', () {
+    test('a device still waiting on sync never splits; the shared town keeps working', () {
+      final device = _Device('one');
+      final out = device.run([_buy(_ada, _at(1), 'e1')], _at(1, 19), mayMigrateTowns: false);
+      expect(out.whereType<TownsSplit>(), isEmpty);
+      expect(out.whereType<RewardGranted>(), isNotEmpty, reason: 'rewards still come');
+      expect(device.state.townsSplit, isFalse);
+      expect(device.state.townOf(_ada), device.state.townOf(_ben));
+      // Once synced, the next run splits.
+      expect(device.run(const [], _at(1, 20)).whereType<TownsSplit>(), hasLength(1));
+    });
+
     test('the first run writes one TownsSplit with the welcome grant', () {
       final device = _Device('one');
       final out = device.run([_buy(_ada, _at(1), 'e1')], _at(1, 19));

@@ -130,6 +130,7 @@ void _apply(_GameStateDraft draft, GameEvent event) {
         draft.warn(GameWarningCode.duplicateUnlock, 'plot ${unlocked.plotIndex}');
         return;
       }
+      if (draft.cannotPay(actor, Loot(gems: unlocked.gemCost))) return;
       draft.setTown(
           actor,
           town.copyWith(
@@ -161,6 +162,7 @@ void _apply(_GameStateDraft draft, GameEvent event) {
             '${started.buildingType.name} tier ${started.tier}');
         return;
       }
+      if (draft.cannotPay(actor, started.cost)) return;
       draft.setTown(
         actor,
         town.copyWith(
@@ -485,6 +487,7 @@ void _apply(_GameStateDraft draft, GameEvent event) {
         draft.warn(outcome.warning!, purchase.districtId);
         return;
       }
+      if (draft.cannotPay(actor, purchase.cost)) return;
       draft.setTown(actor, town.copyWith(districts: districts));
       draft.pay(actor, purchase.cost);
 
@@ -497,6 +500,7 @@ void _apply(_GameStateDraft draft, GameEvent event) {
             '${started.buildingKey} tier ${started.tier} on ${started.districtId} ${started.plotIndex}');
         return;
       }
+      if (draft.cannotPay(actor, started.cost)) return;
       draft.setTown(actor, town.copyWith(districts: districts));
       draft.pay(actor, started.cost);
 
@@ -626,6 +630,34 @@ class _GameStateDraft {
       warn(GameWarningCode.materialsCapped, over.join(', '));
     }
     setTown(personId, hall.copyWith(materials: MaterialBundle(next)));
+  }
+
+  /// After the split, whether [cost] is more than [personId]'s own town and
+  /// wallet hold; if so the event is not applied and the shortfall is
+  /// recorded with the clamp warnings. A stale or older-build event never
+  /// lands nearly free by clamping the pool. Before the split, pools clamp
+  /// as they always did.
+  bool cannotPay(String personId, Loot cost) {
+    if (!ownership.isSplit) return false;
+    final gems = person(personId).gems;
+    if (gems < cost.gems) {
+      warn(GameWarningCode.gemsClamped, '$personId short ${cost.gems - gems}');
+      return true;
+    }
+    final tokens = person(personId).freezeTokens;
+    if (tokens < cost.tokens) {
+      warn(GameWarningCode.tokensClamped, '$personId short ${cost.tokens - tokens}');
+      return true;
+    }
+    final held = town(personId).materials;
+    if (!held.covers(cost.materials)) {
+      warn(GameWarningCode.materialsClamped, [
+        for (final entry in cost.materials.amounts.entries)
+          if (held[entry.key] < entry.value) '${entry.key.name} ${entry.value - held[entry.key]}',
+      ].join(', '));
+      return true;
+    }
+    return false;
   }
 
   void credit(String personId, Loot loot) {

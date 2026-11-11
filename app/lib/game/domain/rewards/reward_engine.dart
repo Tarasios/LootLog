@@ -125,6 +125,12 @@ class RewardEngine {
   /// already rewarded is skipped and activity older than [lookbackDays] is
   /// ignored. Month-end rewards need the whole ledger, or its reduced
   /// [household] state (see [MonthEndRewards]).
+  ///
+  /// [mayMigrateTowns] says this device is not waiting on sync (no paired
+  /// hubs, or a clean cycle with every hub since the app started), so it may
+  /// write the one-time `TownsSplit`. Until then the shared town keeps
+  /// working: two unsynced devices splitting at once could each name a
+  /// different owner, and the later split's interim play would be set aside.
   List<GameEvent> evaluate(
     Iterable<Event> newLedgerEvents,
     GameState gameState,
@@ -132,6 +138,7 @@ class RewardEngine {
     required Party party,
     required GameEventStamp stamp,
     HouseholdState? household,
+    bool mayMigrateTowns = true,
   }) {
     final now = clock.now();
     final today = GameDay.fromInstant(now);
@@ -150,7 +157,7 @@ class RewardEngine {
       });
 
     final run = _Run(gameState, party, stamp, now, today);
-    run.splitTowns();
+    if (mayMigrateTowns) run.splitTowns();
     for (final event in rewardable) {
       final adult = party.adult(event.userId)!;
       switch (event) {

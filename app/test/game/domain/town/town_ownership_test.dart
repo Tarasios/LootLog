@@ -11,6 +11,7 @@ import 'package:lootlog/game/domain/town/town_ownership.dart';
 import 'package:lootlog/game/domain/town/town_view.dart';
 
 import '../game_fixtures.dart';
+import 'growth_fixtures.dart' show districtPurchased, farmBuilt;
 
 MaterialBundle _lumber(int amount) => MaterialBundle({MaterialKind.lumber: amount});
 
@@ -209,7 +210,98 @@ void main() {
     });
   });
 
+  group('a build the actor cannot pay for after the split is not applied', () {
+    // An older build or a stale device can write a cost the actor's own town
+    // and wallet do not hold. Clamping the pool would make it nearly free.
+    List<GameWarningCode> codesOf(GameState state) =>
+        [for (final warning in state.warnings) warning.code];
+
+    test('a building whose materials the town lacks stands nowhere, charged nothing', () {
+      final split = projectGameState(_sharedThenSplit());
+      final state = projectGameState([
+        ..._sharedThenSplit(),
+        built('s1', 1, BuildingType.lumberyard, when: at(30), actor: sam, cost: Loot(materials: _lumber(20))),
+      ]);
+      expect(state.townOf(sam), split.townOf(sam));
+      expect(codesOf(state), [GameWarningCode.materialsClamped]);
+    });
+
+    test('a build the town can pay for still applies and is charged', () {
+      final state = projectGameState([
+        ..._sharedThenSplit(),
+        built('s1', 1, BuildingType.lumberyard, when: at(30), actor: sam, cost: Loot(materials: _welcome)),
+      ]);
+      expect(state.townOf(sam).plots[1]?.building?.type, BuildingType.lumberyard);
+      expect(state.townOf(sam).materials, const MaterialBundle.empty());
+      expect(state.warnings, isEmpty);
+    });
+
+    test('a plot unlock the wallet cannot pay for is not applied', () {
+      final split = projectGameState(_sharedThenSplit());
+      final state = projectGameState([
+        ..._sharedThenSplit(),
+        unlocked('s1', 5, when: at(30), actor: sam, gemCost: 20),
+      ]);
+      expect(state.townOf(sam), split.townOf(sam));
+      expect(state.person(sam).gems, 0);
+      expect(codesOf(state), [GameWarningCode.gemsClamped]);
+    });
+
+    test('a district or farm building the actor cannot pay for is not applied', () {
+      final split = projectGameState(_sharedThenSplit());
+      final state = projectGameState([
+        ..._sharedThenSplit(),
+        districtPurchased('s1', 'farmland', when: at(30), actor: sam, cost: const Loot(gems: 40)),
+      ]);
+      expect(state.townOf(sam), split.townOf(sam));
+      expect(codesOf(state), [GameWarningCode.gemsClamped]);
+      final farmed = projectGameState([
+        ..._sharedThenSplit(),
+        districtPurchased('s1', 'farmland', when: at(30), actor: sam),
+        farmBuilt('s2', 0, FarmBuildingType.farm, when: at(31), actor: sam, cost: Loot(materials: _lumber(20))),
+      ]);
+      expect(farmed.townOf(sam).districts.buildings, isEmpty);
+      expect(codesOf(farmed), [GameWarningCode.materialsClamped]);
+    });
+  });
+
   group('convergence', () {
+    test('device B acted between two competing splits: both devices converge, nothing doubles', () {
+      final shared = _sharedThenSplit().take(5).toList();
+      // Device A split first, to Robin.
+      final deviceA = [
+        townsSplit('x-a', robin, when: at(20), welcome: _welcome),
+        collected('x-a1', 'plot-3', _lumber(6), when: at(25)),
+      ];
+      // Device B, unsynced, split a minute later to Sam and kept playing:
+      // Sam collected and upgraded "his" shared quarry, and Robin built in
+      // what B showed as Robin's new welcome town.
+      final deviceB = [
+        townsSplit('x-b', sam, when: at(21), welcome: _lumber(10)),
+        collected('x-b1', 'plot-0', MaterialBundle({MaterialKind.stone: 4}), when: at(22), actor: sam),
+        built('x-b2', 0, BuildingType.quarry, when: at(23), actor: sam, tier: 2, cost: Loot(materials: _lumber(10))),
+        built('x-b3', 1, BuildingType.storehouse, when: at(24), cost: Loot(materials: _lumber(10))),
+      ];
+      final onA = projectGameState([...shared, ...deviceA, ...deviceB]);
+      final onB = projectGameState([...deviceB, ...shared, ...deviceA].reversed);
+      expect(onA, onB);
+      expect(onA.ownership.split?.ownerId, robin, reason: 'the earliest split stands');
+      // Sam's quarry collect and upgrade were in the town that went to
+      // Robin: credited and charged nowhere.
+      expect(onA.townOf(sam).materials, _welcome);
+      expect(onA.townOf(sam).plots.values.every((plot) => plot.building == null), isTrue);
+      expect(onA.townOf(robin).plots[0]?.building?.tier, 1);
+      // Robin's build on B fits Robin's real town and is paid from it, once.
+      expect(onA.townOf(robin).plots[1]?.building?.type, BuildingType.storehouse);
+      expect(onA.townOf(robin).materials, _lumber(26),
+          reason: '30 shared + 6 collected - 10 paid once');
+      final random = Random(11);
+      for (var round = 0; round < 20; round++) {
+        final shuffled = [...shared, ...deviceA, ...deviceB]..shuffle(random);
+        expect(projectGameState(shuffled), onA);
+      }
+    });
+
     test('two devices emitting different splits agree on the earliest', () {
       final shared = _sharedThenSplit().take(5).toList();
       final fromRobin = townsSplit('z-robin', robin, when: at(20), welcome: _welcome);

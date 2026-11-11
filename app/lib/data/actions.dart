@@ -24,8 +24,10 @@ import '../game/rewards/rewards.dart';
 import 'blobs/blob_store.dart';
 import 'blobs/media_ingest.dart';
 import 'db/database.dart';
+import '../features/sync/sync_status.dart';
 import 'game_rewards.dart';
 import 'providers.dart';
+import 'sync/sync_service.dart' show liveSyncStatusProvider;
 
 part 'actions/habit_actions.dart';
 part 'actions/household_setup_actions.dart';
@@ -73,9 +75,15 @@ final gameRewardRunnerProvider = Provider<GameRewardRunner?>(
   (ref) {
     final setup = ref.watch(localSetupProvider).value;
     if (setup == null) return null;
+    final db = ref.watch(appDatabaseProvider);
     return GameRewardRunner(
-      db: ref.watch(appDatabaseProvider),
+      db: db,
       deviceId: ref.watch(deviceIdProvider),
+      // The one-time town split waits until this device is not waiting on
+      // sync: no paired hub, or a clean cycle with every hub since start.
+      mayMigrateTowns: () async =>
+          (await db.pairedHubDao.all()).isEmpty ||
+          ref.read(liveSyncStatusProvider) == SyncStatus.synced,
     );
   },
   dependencies: [localSetupProvider, appDatabaseProvider, deviceIdProvider],

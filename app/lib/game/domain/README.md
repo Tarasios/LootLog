@@ -40,6 +40,23 @@ Nothing here may write ledger events except through the existing ledger API.
   `HallState.starter()` plus `Balance.welcomeGrant`. Read a town with
   `GameState.townOf(personId)`; town events apply to their actor's town; the
   earliest split by `(occurredAt, eventId)` stands on every device.
+  The engine writes the split only when its caller says this device is not
+  waiting on sync (`mayMigrateTowns`: no paired hub, or a clean cycle with
+  every paired hub since the app started); until then the shared town keeps
+  working. If two unsynced devices still split with different owners, the
+  earlier split wins everywhere, and the later device's interim town events
+  replay against the winning towns: an event that fits the actor's own town
+  there (an open plot, the next tier, a building that town has, a cost it
+  can pay) applies and is charged once; one that does not (a collect from
+  a building that went to the other owner, an upgrade of it, a build its
+  own town cannot pay for) is recorded as a warning and moves nothing.
+  Rewards and gems are never affected (pinned in `town_ownership_test`,
+  "device B acted between two competing splits").
+- After the split a `BuildingStarted`, `PlotUnlocked`, `DistrictPurchased`
+  or `DistrictBuildingStarted` whose cost the actor's own town and wallet
+  cannot pay at that point is not applied (`gemsClamped` /
+  `materialsClamped` warning), so a stale or older-build event never lands
+  nearly free through the pool clamp.
 - `town/trade_road.dart` — on each day two or more adults were active, every
   active Adventure adult gets a caravan (`RewardGranted`
   `trade.road:<who>:<day>:<neighbour>`) from every other active neighbour:
