@@ -653,13 +653,13 @@ void main() {
       await tester.tap(find.text('No spend today'));
       await pumpUi(tester);
       expect(habits.checkIns, 1);
-      expect(find.text('Today already counts'), findsOneWidget);
+      expect(find.text('Today counts'), findsOneWidget);
       expect(find.byType(SnackBar), findsOneWidget);
     });
 
     testWidgets('a covered day shows the check-in as done', (tester) async {
       await pumpShell(tester, host(tier: AdventureTier.pixel));
-      expect(find.text('Today already counts'), findsOneWidget);
+      expect(find.text('Today counts'), findsOneWidget);
       expect(tester.widget<HudChip>(noSpendChip()).onTap, isNull);
     });
 

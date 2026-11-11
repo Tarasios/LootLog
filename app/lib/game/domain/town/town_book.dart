@@ -38,6 +38,7 @@ class TownBook {
     required this.foodCapacity,
     required this.foodSecureTarget,
     required this.foodSecure,
+    required this.hasGranary,
     required this.districts,
   });
 
@@ -61,6 +62,9 @@ class TownBook {
   /// the top.
   final int foodSecureTarget;
   final bool foodSecure;
+
+  /// A completed granary stands in the farmland.
+  final bool hasGranary;
 
   /// The stores cannot hold [foodSecureTarget] yet: a (bigger) granary is
   /// needed as well as harvests.
@@ -103,6 +107,7 @@ TownBook townBook(GameState state, String personId, DateTime now) {
     foodCapacity: foodCapacityAt(town, now),
     foodSecureTarget: Balance.foodSecureDays * dailyFoodNeed(foodTier),
     foodSecure: foodSecure(town, foodTier),
+    hasGranary: town.districts.completedFarmTier(FarmBuildingType.granary, now) > 0,
     districts: [
       for (final spec in kDistricts)
         DistrictListing(

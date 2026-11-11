@@ -251,7 +251,7 @@ class _TownShellState extends ConsumerState<TownShell>
                 ),
                 onQuests: onQuests,
                 spiritBar: loop.spiritBar,
-                logHint: loop.logNotes,
+                logNotes: loop.logNotes,
                 noSpendCheckIn: NoSpendCheckIn(
                   key: const ValueKey('town-no-spend'),
                   explainWhenUnavailable: true,
@@ -267,9 +267,10 @@ class _TownShellState extends ConsumerState<TownShell>
                       // Never wider than a narrow phone's corner (it ellipsizes).
                       HudChip(
                         icon: action.icon,
-                        value: action.label,
+                        value: action.shortLabel,
                         onTap: action.onPressed,
                         maxWidth: MediaQuery.sizeOf(context).width - 24,
+                        prose: true,
                       ),
                 ),
                 onLogPurchase: _logPurchase,

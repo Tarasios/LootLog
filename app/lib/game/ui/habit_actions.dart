@@ -32,9 +32,13 @@ class HabitActionView {
     required this.done,
     required this.available,
     required this.onPressed,
-  });
+    String? shortLabel,
+  }) : shortLabel = shortLabel ?? label;
 
   final String label;
+
+  /// The label where room is tight (the town HUD's chip row).
+  final String shortLabel;
   final IconData icon;
 
   /// Already done for today / this week.
@@ -90,6 +94,7 @@ class _NoSpendCheckInState extends ConsumerState<NoSpendCheckIn> {
       context,
       HabitActionView(
         label: covered ? 'Today already counts' : 'No spend today',
+        shortLabel: covered ? 'Today counts' : 'No spend today',
         icon: covered ? Icons.check : Icons.nights_stay_outlined,
         done: covered,
         available: available,

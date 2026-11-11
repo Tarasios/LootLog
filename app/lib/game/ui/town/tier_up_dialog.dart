@@ -49,7 +49,7 @@ class TierUpDialog extends StatelessWidget {
       ),
       actions: [
         WoodButton(label: 'Town book', tone: WoodButtonTone.secondary, onPressed: onOpenBook),
-        WoodButton(label: 'Hooray!', onPressed: onClose),
+        WoodButton(label: lines.line('tier.cheer'), onPressed: onClose),
       ],
     );
   }

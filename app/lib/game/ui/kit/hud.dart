@@ -30,6 +30,8 @@ const double _kMeterUnboundedWidth = 96;
 /// optional caption [label]. [valueKey] goes on the value's [Text], so a test
 /// or a reward animation can find the number. With [onTap] it is a button.
 /// With [maxWidth] it never grows past that width; its text ellipsizes.
+/// A [prose] chip (a note such as "Today already counts", not a number)
+/// sets its value in the pixel label face.
 class HudChip extends StatelessWidget {
   const HudChip({
     super.key,
@@ -40,6 +42,7 @@ class HudChip extends StatelessWidget {
     this.onTap,
     this.valueKey,
     this.maxWidth,
+    this.prose = false,
   });
 
   final IconData icon;
@@ -52,6 +55,10 @@ class HudChip extends StatelessWidget {
   /// When set, the chip is at most this wide and its text ellipsizes to fit;
   /// otherwise it takes its natural width (in an unbounded row too).
   final double? maxWidth;
+
+  /// The value is words, set in the pixel label face rather than the
+  /// amount face.
+  final bool prose;
 
   @override
   Widget build(BuildContext context) {
@@ -77,7 +84,7 @@ class HudChip extends StatelessWidget {
             key: valueKey,
             maxLines: 1,
             overflow: overflow,
-            style: AdventureTokens.amount(context),
+            style: prose ? AdventureTokens.label(context) : AdventureTokens.amount(context),
           )),
           if (label != null) ...[
             const SizedBox(width: 4),

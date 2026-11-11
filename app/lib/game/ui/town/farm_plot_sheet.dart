@@ -215,7 +215,8 @@ class _Field {
   /// The next tier's cost and button, or the top.
   Widget upgrade(FarmBuildingType type, int next, GameRejection? rejection) {
     if (next > Balance.maxBuildingTier) {
-      return Text('At its finest: tier ${Balance.maxBuildingTier} is the top.', style: framedMutedStyle(context));
+      return Text(fillLine(lines.line('farm.atTop'), {'tier': '${Balance.maxBuildingTier}'}),
+          style: framedMutedStyle(context));
     }
     return FramedSection(
       title: 'Upgrade to tier $next',

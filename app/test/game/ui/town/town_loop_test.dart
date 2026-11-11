@@ -81,6 +81,24 @@ Future<List<T>> eventsOfType<T extends GameEvent>(InMemoryGameEventStore store) 
 
 void main() {
   group('while you were away', () {
+    testWidgets('at 360x780 the crews chip, the check-in and the strip never overflow', (tester) async {
+      final store = await storeWith([
+        ...sampleEvents(),
+        built('x0001', 2, BuildingType.quarry, when: before(const Duration(hours: 4))),
+      ]);
+      await pumpTown(tester, townHost(liveStore: store), size: const Size(360, 780));
+      expect(tester.takeException(), isNull);
+      final crews = tester.getRect(find.byKey(const ValueKey('town-away-chip')));
+      final checkIn = tester.getRect(find.byKey(const ValueKey('town-no-spend')));
+      final log = tester.getRect(find.textContaining('Log purchase'));
+      for (final rect in [crews, checkIn, log]) {
+        expect(rect.left, greaterThanOrEqualTo(0));
+        expect(rect.right, lessThanOrEqualTo(360));
+        expect(rect.bottom, lessThanOrEqualTo(780));
+      }
+      expect(log.top, greaterThan(checkIn.bottom));
+    });
+
     testWidgets('waits behind a chip; Collect all banks each producer once', (tester) async {
       final store = await storeWith([
         ...sampleEvents(),

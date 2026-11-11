@@ -2,10 +2,11 @@
 /// builder's: the date, streak and freeze tokens top-left; gems, the gold
 /// pouch and the war chest top-right; "Log purchase" (with the no-spend
 /// check-in above it) bottom-left; Shop, Inbox, Ledger and Menu bottom-right.
-/// The district strip sits at the top centre under the chips. A narrow
-/// window stacks the corners and lays the buttons in one row along the
-/// bottom, with the district strip just above Log purchase (in thumb reach,
-/// never over it). Tapping the date opens the town book. Each top corner is
+/// On a wide window the district strip sits above the corner buttons, at
+/// the window's edge where the forest frames the map, so it never covers a
+/// field or its label. A narrow window stacks the corners and lays the
+/// buttons in one row along the bottom, with the district strip just above
+/// Log purchase (in thumb reach, never over it). Tapping the date opens the town book. Each top corner is
 /// held to half the width, its chips ellipsizing, so the corners never
 /// collide. While decorating, the
 /// decoration tray replaces the buttons (Log purchase stays, and the Menu,
@@ -42,7 +43,7 @@ class TownHud extends StatelessWidget {
     this.onQuests,
     this.decoratePanel,
     this.spiritBar,
-    this.logHint,
+    this.logNotes = const [],
     this.districtStrip,
     this.onDate,
   });
@@ -66,9 +67,11 @@ class TownHud extends StatelessWidget {
   /// The week's town spirit, under the date chip.
   final Widget? spiritBar;
 
-  /// Notes over the check-in: what the crews made, "Log today to open the
-  /// town".
-  final Widget? logHint;
+  /// Notes beside the check-in: what the crews made, "Log today to open the
+  /// town". They share a row with the check-in when they fit the width
+  /// (a Wrap), so a phone stacks at most strip + one chip row in the usual
+  /// case.
+  final List<Widget> logNotes;
 
   /// The strip of districts; hidden while decorating.
   final Widget? districtStrip;
@@ -102,29 +105,11 @@ class TownHud extends StatelessWidget {
           alignEnd: true,
           chips: _treasureChips(compact, cornerWidth),
         );
-        final topStrip = compact || decoratePanel != null ? null : districtStrip;
+        final cornerStrip = compact || decoratePanel != null ? null : districtStrip;
         return Stack(
           children: [
-            if (topStrip == null) ...[
-              Positioned(top: _kEdge, left: _kEdge, child: timeCorner),
-              Positioned(top: _kEdge, right: _kEdge, child: treasureCorner),
-            ] else
-              // The strip hangs under the taller corner, centred.
-              Positioned(
-                top: _kEdge,
-                left: _kEdge,
-                right: _kEdge,
-                child: Column(
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [timeCorner, const Spacer(), treasureCorner],
-                    ),
-                    const SizedBox(height: AdventureTokens.gap),
-                    topStrip,
-                  ],
-                ),
-              ),
+            Positioned(top: _kEdge, left: _kEdge, child: timeCorner),
+            Positioned(top: _kEdge, right: _kEdge, child: treasureCorner),
             if (decoratePanel != null)
               Positioned(
                 left: 0,
@@ -156,9 +141,15 @@ class TownHud extends StatelessWidget {
               Positioned(
                 right: _kEdge,
                 bottom: _kEdge,
-                child: Row(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
-                  children: _spaced(_cornerButtons()),
+                  children: [
+                    if (cornerStrip != null) ...[cornerStrip, const SizedBox(height: AdventureTokens.gap)],
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: _spaced(_cornerButtons()),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -205,13 +196,17 @@ class TownHud extends StatelessWidget {
     onPressed: onLogPurchase,
   );
 
-  /// The notes, the check-in and Log purchase, with [strip] (the phone's
-  /// district strip) just above Log purchase.
+  /// The notes and the check-in (one row when they fit), then Log purchase,
+  /// with [strip] (the phone's district strip) just above Log purchase.
   Widget _logColumn({Widget? strip}) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      if (logHint case final hint?) ...[hint, const SizedBox(height: AdventureTokens.gap)],
-      noSpendCheckIn,
+      Wrap(
+        spacing: AdventureTokens.gap,
+        runSpacing: AdventureTokens.gap,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [...logNotes, noSpendCheckIn],
+      ),
       const SizedBox(height: AdventureTokens.gap),
       if (strip != null) ...[strip, const SizedBox(height: AdventureTokens.gap)],
       _logButton(),

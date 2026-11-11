@@ -13,6 +13,7 @@ import 'package:lootlog/game/domain/game_event_store.dart';
 import 'package:lootlog/game/domain/game_values.dart';
 import 'package:lootlog/game/domain/town/districts.dart';
 import 'package:lootlog/game/domain/town/town_book.dart';
+import 'package:lootlog/game/scenes/camera_controls.dart';
 import 'package:lootlog/game/scenes/town/town_scene_view.dart';
 import 'package:lootlog/game/skin_prefs.dart';
 import 'package:lootlog/game/ui/game_home.dart';
@@ -131,6 +132,41 @@ void main() {
     expect(textOf('book-population'), '${book.population}');
     expect(textOf('book-food-need'), '${book.dailyFoodNeed}');
     expect(textOf('book-food-stored'), '${book.foodStored}');
+  });
+
+  testWidgets("the book's food line says what is needed, stored and how to get it", (tester) async {
+    final store = await storeWith(_hamletEvents(owned: true));
+    await _pumpShell(tester, _host(store));
+    await tester.tap(find.byKey(const ValueKey('town-hud-date')));
+    await _pumpUi(tester);
+    final book = townBook(await stateOf(store), robin, kHallNow);
+    expect(book.needsMoreStorage, isTrue, reason: 'no granary yet');
+    expect(
+      find.text('Food for a Village: ${book.foodStored} of ${book.foodSecureTarget} stored. '
+          'Harvest your farms and build a granary to hold it.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('on a 1440x900 desktop the strip stays clear of the farmland map', (tester) async {
+    const size = Size(1440, 900);
+    await _pumpShell(tester, _host(await storeWith(_hamletEvents(owned: true))), size: size);
+    await tester.tap(find.byKey(const ValueKey('district-farmland')));
+    await _pumpUi(tester);
+    expect(_sceneDistrict(tester), kFarmlandDistrictId);
+    expect(tester.takeException(), isNull);
+    final layout = tester.widget<TownSceneView>(find.byType(TownSceneView).last).view.layout;
+    final zoom = CameraControls.fitZoom(viewportHeight: size.height, worldHeight: layout.rows * 16.0);
+    final mapHalfWidth = layout.columns * 16.0 * zoom / 2;
+    // The scene may share the window with the docked quest board.
+    final scene = tester.getRect(find.byType(TownSceneView).last);
+    final mapRect = Rect.fromLTRB(
+        scene.center.dx - mapHalfWidth, scene.top, scene.center.dx + mapHalfWidth, scene.bottom);
+    final strip = tester.getRect(find.byKey(const ValueKey('district-strip')));
+    expect(strip.overlaps(mapRect), isFalse, reason: 'strip $strip vs map $mapRect');
+    expect(strip.right, lessThanOrEqualTo(size.width));
+    final menu = tester.getRect(find.byKey(const ValueKey('town-menu')));
+    expect(strip.bottom, lessThanOrEqualTo(menu.top), reason: 'above the buttons');
   });
 
   testWidgets('the town book opens from the Menu too', (tester) async {

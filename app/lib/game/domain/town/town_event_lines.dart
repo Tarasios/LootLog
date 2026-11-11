@@ -113,7 +113,7 @@ const Map<String, String> _builtIn = {
   'festival.name.grandFestival': 'grand festival',
   'festival.reward': 'The festival brings {reward}.',
   'festival.claimed': 'Its gifts are already in your stores.',
-  'away.chip': 'Crews made {count}: collect',
+  'away.chip': 'Crews made {count}',
   'away.welcome': 'Welcome back!',
   'away.title': 'While you were away',
   'away.fullDays': 'Full days: the ledger was kept.',

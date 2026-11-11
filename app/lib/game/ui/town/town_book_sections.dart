@@ -65,10 +65,10 @@ class PeopleSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          BookStat(label: 'Residents', value: '${book.population}', valueKey: 'book-population'),
-          BookStat(label: 'Food a day', value: '${book.dailyFoodNeed}', valueKey: 'book-food-need'),
+          BookStat(label: lines.line('book.stat.residents'), value: '${book.population}', valueKey: 'book-population'),
+          BookStat(label: lines.line('book.stat.foodNeed'), value: '${book.dailyFoodNeed}', valueKey: 'book-food-need'),
           BookStat(
-            label: 'Food in store',
+            label: lines.line('book.stat.foodStored'),
             value: '${book.foodStored}',
             valueKey: 'book-food-stored',
             suffix: ' / ${book.foodCapacity}',

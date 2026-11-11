@@ -143,7 +143,9 @@ class NextTierSection extends StatelessWidget {
           if (book.nextTierNeedsFood)
             NeedLine(
               met: book.foodSecure,
-              text: fillLine(lines.line(book.foodSecure ? 'book.foodDone' : 'book.foodToGo'), {
+              text: fillLine(lines.line(_foodLineKey(book)), {
+                'tier': lines.line(tierNameKey(next)),
+                'stored': '${book.foodStored}',
                 'food': '$food',
                 'missing': '${food - book.foodStored}',
               }),
@@ -156,6 +158,14 @@ class NextTierSection extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The food need's line: ready, or what to do next (harvest, and build or
+/// raise the granary when the stores could not hold it).
+String _foodLineKey(TownBook book) {
+  if (book.foodSecure) return 'book.foodDone';
+  if (!book.needsMoreStorage) return 'book.foodToGo';
+  return book.hasGranary ? 'book.foodToGoBiggerGranary' : 'book.foodToGoGranary';
 }
 
 /// One need of the next tier: a tick when met, an arrow toward the next

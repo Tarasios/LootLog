@@ -41,7 +41,7 @@ typedef TownLoopParts = ({
   String? visitorTag,
   VoidCallback? onVisitorTap,
   Widget spiritBar,
-  Widget? logNotes,
+  List<Widget> logNotes,
 });
 
 /// The town loop for the shell's state.
@@ -99,6 +99,7 @@ mixin TownLoopWiring<Shell extends ConsumerStatefulWidget> on ConsumerState<Shel
           color: AdventureTokens.gainInk,
           value: fillLine(lines.line('away.chip'), {'count': '$madeCount'}),
           maxWidth: MediaQuery.sizeOf(context).width - 24,
+          prose: true,
           onTap: () => unawaited(showAwaySummary(context, ref, summary: away, lines: lines)),
         ),
       if (!view.dayOpened && meId.isNotEmpty) TownLogHint(lines.line('tag.openTown')),
@@ -121,17 +122,7 @@ mixin TownLoopWiring<Shell extends ConsumerStatefulWidget> on ConsumerState<Shel
         weekend: view.weekend,
         onTap: () => unawaited(showTownSpiritDialog(context, view, lines)),
       ),
-      logNotes: notes.isEmpty
-          ? null
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final (index, note) in notes.indexed) ...[
-                  if (index > 0) const SizedBox(height: AdventureTokens.gap),
-                  note,
-                ],
-              ],
-            ),
+      logNotes: notes,
     );
   }
 

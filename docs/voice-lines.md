@@ -440,7 +440,7 @@ announce it and take no placeholders. The town loop's lines (`away.*`,
 | `festival.name.grandFestival` | As `festival.name.marketDay` | Same | grand festival |
 | `festival.reward` | The festival celebration, while its gifts wait in the inbox ({reward}: what they hold) | Point at the gifts; `Claim` takes them through the inbox's claim | The festival brings {reward}. |
 | `festival.claimed` | The festival celebration after its gifts were claimed | Keep the moment happy with nothing left to do | Its gifts are already in your stores. |
-| `away.chip` | A small HUD chip over the check-in while producers hold something to collect ({count}: how many materials fit) | Point at the crews' work without ever standing between the player and Log purchase; tapping opens the summary | Crews made {count}: collect |
+| `away.chip` | A small HUD chip over the check-in while producers hold something to collect ({count}: how many materials fit) | Point at the crews' work without ever standing between the player and Log purchase; tapping opens the summary (kept short, so it shares a row with the check-in on a phone) | Crews made {count} |
 | `away.welcome` | The "while you were away" summary's ribbon, opened from the `away.chip` chip | A warm hello | Welcome back! |
 | `away.title` | The heading of that pop-up's summary (and its text-home section) | Show what the town did on its own | While you were away |
 | `away.fullDays` | The summary (or a producer's sheet) when every day since the last collection was logged | Credit the kept ledger for the full days | Full days: the ledger was kept. |
@@ -520,8 +520,10 @@ food only waits to grow: never say "lost", "missed", "starving" or
 | `book.nextTier` | The next-tier card's heading ({tier}) | Name the goal | Growing into a {tier} |
 | `book.prosperityDone` | The next tier's prosperity is met ({needed}) | Tick it off | Prosperity {needed}: reached! |
 | `book.prosperityToGo` | The next tier's prosperity is not met yet ({needed}, {missing}) | Phrase it as what to do next | Prosperity {needed}: {missing} to go. Build, upgrade and decorate to get there. |
-| `book.foodDone` | The next tier needs food and the stores have it ({food}) | Tick it off | {food} food in store: ready! |
-| `book.foodToGo` | The next tier needs food the stores do not hold yet ({food}, {missing}) | Phrase it as what to do next; never a failure | {food} food in store: {missing} more to gather. Harvest your farms to fill the stores. |
+| `book.foodDone` | The next tier needs food and the stores have it ({tier}: the next tier, {stored}, {food}: three days of the NEXT tier's meals) | Tick it off | Food for a {tier}: {stored} of {food} stored. Ready! |
+| `book.foodToGo` | The next tier needs food the stores could hold but do not yet ({tier}, {stored}, {food}, {missing}) | Say what is needed, what is stored, and what to do next; never a failure | Food for a {tier}: {stored} of {food} stored. Harvest your farms to fill the stores. |
+| `book.foodToGoGranary` | As above, with no granary and the stores too small to hold it | Same, and point at the granary | Food for a {tier}: {stored} of {food} stored. Harvest your farms and build a granary to hold it. |
+| `book.foodToGoBiggerGranary` | As above, with a granary too small to hold it | Same, and point at raising the granary | Food for a {tier}: {stored} of {food} stored. Harvest your farms and raise the granary to hold it. |
 | `book.waitingOnHarvest` | The prosperity is enough but the stores are short | Reassure, and point at the farms | The town is waiting on the harvest. It keeps everything while it waits. |
 | `book.people` | The people-and-food card ({population}, {need}) | Plain facts | {population} residents eat {need} food a day. |
 | `book.daysCovered` | The people-and-food card ({days}: whole days the stores cover) | Plain facts | Enough for {days} days of meals. |
@@ -532,3 +534,6 @@ food only waits to grow: never say "lost", "missed", "starving" or
 | `book.decorations` | The album card ({count}) | Count what was earned | Decorations owned: {count} |
 | `book.noDecorations` | The album card with nothing owned | A next step | No decorations yet. The shop and chests bring them. |
 | `tier.gifts` | The tier celebration, under its line ({tier}) | Point at the reward | Gifts for the new {tier} wait in your inbox. |
+| `tier.cheer` | The tier celebration's close button | Celebrate with the player | Hooray! |
+| `book.stat.residents` / `book.stat.foodNeed` / `book.stat.foodStored` | The people-and-food card's figures | Name each number plainly | Residents / Food a day / Food in store |
+| `farm.atTop` | A farm building at the top tier ({tier}) | Admire it; nothing left to buy | At its finest: tier {tier} is the top. |

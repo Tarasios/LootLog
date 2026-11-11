@@ -139,9 +139,13 @@ const Map<String, String> _builtIn = {
   'book.prosperityDone': 'Prosperity {needed}: reached!',
   'book.prosperityToGo':
       'Prosperity {needed}: {missing} to go. Build, upgrade and decorate to get there.',
-  'book.foodDone': '{food} food in store: ready!',
+  'book.foodDone': 'Food for a {tier}: {stored} of {food} stored. Ready!',
   'book.foodToGo':
-      '{food} food in store: {missing} more to gather. Harvest your farms to fill the stores.',
+      'Food for a {tier}: {stored} of {food} stored. Harvest your farms to fill the stores.',
+  'book.foodToGoGranary':
+      'Food for a {tier}: {stored} of {food} stored. Harvest your farms and build a granary to hold it.',
+  'book.foodToGoBiggerGranary':
+      'Food for a {tier}: {stored} of {food} stored. Harvest your farms and raise the granary to hold it.',
   'book.waitingOnHarvest':
       'The town is waiting on the harvest. It keeps everything while it waits.',
   'book.people': '{population} residents eat {need} food a day.',
@@ -153,4 +157,9 @@ const Map<String, String> _builtIn = {
   'book.decorations': 'Decorations owned: {count}',
   'book.noDecorations': 'No decorations yet. The shop and chests bring them.',
   'tier.gifts': 'Gifts for the new {tier} wait in your inbox.',
+  'tier.cheer': 'Hooray!',
+  'book.stat.residents': 'Residents',
+  'book.stat.foodNeed': 'Food a day',
+  'book.stat.foodStored': 'Food in store',
+  'farm.atTop': 'At its finest: tier {tier} is the top.',
 };
