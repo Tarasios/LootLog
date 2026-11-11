@@ -10,6 +10,7 @@ import '../game_values.dart';
 import '../hall_rules.dart';
 import 'districts.dart';
 import 'food.dart';
+import 'neighbours.dart';
 import 'town_layout.dart';
 
 sealed class TownTarget {
@@ -40,6 +41,17 @@ class HouseTarget extends TownTarget {
 
   @override
   int get hashCode => personId.hashCode;
+}
+
+/// The signpost to the neighbouring towns.
+class SignpostTarget extends TownTarget {
+  const SignpostTarget();
+
+  @override
+  bool operator ==(Object other) => other is SignpostTarget;
+
+  @override
+  int get hashCode => 1;
 }
 
 class GateTarget extends TownTarget {
@@ -154,6 +166,7 @@ class TownView {
     this.dungeonOpen = false,
     this.townPlacements = const [],
     this.goalPictures = const {},
+    this.neighbours = const [],
   });
 
   final List<TownPlotView> plots;
@@ -173,6 +186,15 @@ class TownView {
   /// their own picture.
   final Map<String, String> goalPictures;
 
+  /// The other adults, for the signpost and the caravan camp (outpost).
+  final List<TownNeighbour> neighbours;
+
+  /// The signpost stands when a neighbour's town can be visited.
+  bool get showsSignpost => layout.signpost != null && neighbours.any((n) => n.canVisit);
+
+  /// A Standard adult's supply caravan camps beside the road.
+  bool get showsCaravanCamp => layout.caravanCamp != null && neighbours.any((n) => n.isCaravan);
+
   /// The district [districtId] of the town [viewerId] sees: their own
   /// town's plots, with (in the outpost) the household's residents and town
   /// decorations. A district with no map yet draws the outpost.
@@ -184,6 +206,7 @@ class TownView {
     String districtId = kOutpostDistrictId,
     bool dungeonOpen = false,
     Map<String, String> goalPictures = const {},
+    List<TownNeighbour> neighbours = const [],
   }) {
     final activeDays = game.townActiveDaysOf(viewerId);
     final town = game.townOf(viewerId);
@@ -220,6 +243,7 @@ class TownView {
         game.decor.townPlacements..sort((first, second) => first.placementId.compareTo(second.placementId)),
       ),
       goalPictures: Map.unmodifiable(goalPictures),
+      neighbours: List.unmodifiable(neighbours),
     );
   }
 
@@ -288,6 +312,7 @@ class TownView {
       _sameItems(other.plots, plots) &&
       _sameItems(other.residents, residents) &&
       _sameItems(other.townPlacements, townPlacements) &&
+      _sameItems(other.neighbours, neighbours) &&
       _samePictures(other.goalPictures, goalPictures);
 
   @override
@@ -297,6 +322,7 @@ class TownView {
         Object.hashAll(plots),
         Object.hashAll(residents),
         Object.hashAll(townPlacements),
+        Object.hashAll(neighbours),
         Object.hashAll(goalPictures.entries.map((entry) => Object.hash(entry.key, entry.value))),
       );
 
@@ -319,6 +345,7 @@ class TownView {
   /// What a tap on [cell] means, or null for scenery.
   TownTarget? targetAt(TownCell cell) {
     if (layout.hasGate && cell == layout.gate) return const GateTarget();
+    if (showsSignpost && cell == layout.signpost) return const SignpostTarget();
     for (final plot in plots) {
       if (_covers(plot.origin, cell)) return PlotTarget(plot.plotIndex, districtId: plot.districtId);
     }

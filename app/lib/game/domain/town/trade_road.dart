@@ -23,6 +23,14 @@ import '../game_values.dart';
 String tradeRoadRewardId(String who, GameDay day, String neighbourId) =>
     'trade.road:$who:${day.toKey()}:$neighbourId';
 
+/// The neighbour whose caravan trade-road reward [rewardId] is, or null for
+/// an id that is not one.
+String? tradeRoadNeighbourOf(String rewardId) {
+  final parts = rewardId.split(':');
+  if (parts.length != 4 || '${parts[0]}:' != 'trade.road:') return null;
+  return parts[3];
+}
+
 /// What [giverTown]'s caravan carries at [now]: [Balance.tradeRoadAmount]
 /// of the material its busiest producer makes (highest hourly rate at the
 /// tier in service, ties to the earlier [MaterialKind]), scaled by that

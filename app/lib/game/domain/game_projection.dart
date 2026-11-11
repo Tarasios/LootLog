@@ -21,6 +21,7 @@ import 'game_event.dart';
 import 'game_state.dart';
 import 'game_values.dart';
 import 'reason_codes.dart';
+import 'town/cheers.dart';
 import 'town/districts.dart';
 import 'town/food.dart';
 import 'town/gifts.dart';
@@ -456,6 +457,14 @@ void _apply(_GameStateDraft draft, GameEvent event) {
         ..setTown(actor, outcome.sender)
         ..setTown(gift.toPersonId, outcome.recipient);
 
+    case CheerSent sent:
+      // Cosmetic: one cheer per sender, neighbour and day; the earliest copy
+      // stands, and a cheer to oneself is ignored.
+      final key = cheerId(actor, sent.toPersonId, sent.day);
+      if (sent.toPersonId == actor || draft.cheers.containsKey(key)) return;
+      draft.cheers = _put(draft.cheers, key,
+          Cheer(fromId: actor, toId: sent.toPersonId, day: sent.day, at: sent.occurredAt));
+
     case ProsperityReached reached:
       final person = draft.person(actor);
       if (reached.value <= person.peakProsperity) return;
@@ -524,6 +533,7 @@ class _GameStateDraft {
       : towns = prior.towns,
         ownership = prior.ownership,
         decor = prior.decor,
+        cheers = prior.cheers,
         _people = prior.people,
         _warnings = prior.warnings;
 
@@ -534,6 +544,7 @@ class _GameStateDraft {
   Map<String, HallState> towns;
   TownOwnership ownership;
   DecorState decor;
+  Map<String, Cheer> cheers;
   Map<String, PersonState> _people;
   List<GameWarning> _warnings;
 
@@ -636,6 +647,7 @@ class _GameStateDraft {
         warnings: _warnings,
         cursor: applied,
         decor: decor,
+        cheers: cheers,
       );
 }
 

@@ -80,6 +80,12 @@ class _Device {
 }
 
 void main() {
+  test('a trade-road reward id names the neighbour whose caravan it is', () {
+    final day = GameDay.fromInstant(DateTime.utc(2026, 10, 3, 18));
+    expect(tradeRoadNeighbourOf(tradeRoadRewardId('u1', day, 'u2')), 'u2');
+    expect(tradeRoadNeighbourOf('log.daily:u1:2026-10-03'), isNull);
+  });
+
   group('tradeRoadDelivery', () {
     HallState townWith(Map<int, (BuildingType, int)> buildings) =>
         HallState.starter().copyWith(plots: {

@@ -367,6 +367,10 @@ abstract final class Balance {
   static final MaterialBundle welcomeGrant =
       MaterialBundle({MaterialKind.lumber: 40, MaterialKind.stone: 40});
 
+  /// How much one tap of a gift dialog's stepper adds or takes away (the last
+  /// step stops at what you hold or what the neighbour has room for).
+  static const int giftStepAmount = 10;
+
   /// What a neighbour's trade caravan brings on a day both of you were
   /// active, by the tier in service of the neighbour's busiest producer
   /// (index 0 = no producer yet). Generated, never taken from them.

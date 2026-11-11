@@ -86,9 +86,12 @@ mixin TownDistrictWiring<Shell extends ConsumerStatefulWidget> on ConsumerState<
 
   /// The strip for [town]: owned districts open, the others explain what
   /// opens them through the picker.
-  Widget districtStrip(HallState town, TownGrowthLines lines) => DistrictStrip(
+  /// With [readOnly] (a neighbour's town) only owned districts show and
+  /// there is no picker: nothing is for sale on a visit.
+  Widget districtStrip(HallState town, TownGrowthLines lines, {bool readOnly = false}) => DistrictStrip(
     entries: [
       for (final district in stripDistricts)
+        if (!readOnly || town.districts.owns(district.id))
         DistrictStripEntry(
           districtId: district.id,
           name: lines.line(districtNameKey(district.id)),
@@ -99,7 +102,7 @@ mixin TownDistrictWiring<Shell extends ConsumerStatefulWidget> on ConsumerState<
     ],
     openDistrictId: _openDistrictId,
     onSelect: (entry) => entry.owned ? openDistrict(entry.districtId) : openDistrictPicker(),
-    onMap: openDistrictPicker,
+    onMap: readOnly ? null : openDistrictPicker,
   );
 
   /// The district picker; a purchase opens the new district and celebrates.

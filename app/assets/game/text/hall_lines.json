@@ -179,6 +179,8 @@
     "notANeighbour": "That road doesn't lead to a town yet.",
     "emptyGift": "Choose something to send first.",
     "neighbourStorehouseFull": "Their Storehouse is full right now. Try again once they have room.",
+    "cheerToSelf": "Cheers travel to a neighbouring town. Your own town hears you anyway!",
+    "alreadyCheeredToday": "You cheered them today. Come back tomorrow to cheer again!",
     "unknownDistrict": "That district isn't on the map yet.",
     "districtAlreadyOwned": "That district is already part of your town.",
     "townTierTooLow": "That district opens as the town grows. Keep logging and it will come.",

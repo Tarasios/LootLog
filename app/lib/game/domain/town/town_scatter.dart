@@ -129,6 +129,8 @@ Set<TownCell> _occupiedCells(TownLayout layout) => {
       for (var row = -1; row < TownLayout.footprint; row++)
         TownCell(origin.column + column, origin.row + row),
   if (layout.hasGate) layout.gate,
+  ?layout.signpost,
+  ?layout.caravanCamp,
   ...layout.statueSpots,
   ...layout.treeCells,
   for (final landmark in layout.landmarks)

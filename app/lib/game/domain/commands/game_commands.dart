@@ -30,6 +30,7 @@ import '../game_state.dart';
 import '../game_values.dart';
 import '../hall_rules.dart';
 import '../reason_codes.dart';
+import '../town/cheers.dart';
 import '../town/districts.dart';
 import '../town/farmland.dart';
 import '../town/gifts.dart';
@@ -189,6 +190,12 @@ enum GameRejection {
 
   /// The neighbour's Storehouse has no room for any of it.
   neighbourStorehouseFull,
+
+  /// A cheer goes to a neighbouring town, not one's own.
+  cheerToSelf,
+
+  /// This neighbour was already cheered today (one cheer a day per pair).
+  alreadyCheeredToday,
 
   /// No district has that id.
   unknownDistrict,
@@ -559,6 +566,25 @@ class GameCommands {
         createdAt: _now,
         toPersonId: toPersonId,
         bundle: plan.moves,
+      ),
+    ]);
+  }
+
+  /// Cheers [toPersonId]'s town: a cosmetic `CheerSent` for today, once a
+  /// day per neighbour (`town/cheers.dart`). It moves nothing.
+  GameCommandResult cheer(String toPersonId) {
+    final today = GameDay.fromInstant(_now);
+    final rejection = planCheer(state, fromId: actorId, toId: toPersonId, day: today);
+    if (rejection != null) return _reject(rejection);
+    return _accept([
+      CheerSent(
+        eventId: stamp.newEventId(),
+        deviceId: stamp.deviceId,
+        actorId: actorId,
+        occurredAt: _now,
+        createdAt: _now,
+        toPersonId: toPersonId,
+        day: today,
       ),
     ]);
   }

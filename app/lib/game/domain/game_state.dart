@@ -15,6 +15,7 @@ import 'decor/decor_state.dart';
 import 'game_event.dart';
 import 'game_projection.dart';
 import 'game_values.dart';
+import 'town/cheers.dart';
 import 'town/districts.dart';
 import 'town/food.dart';
 import 'town/town_ownership.dart';
@@ -695,6 +696,7 @@ class GameState {
     this.warnings = const [],
     this.cursor,
     this.decor = DecorState.empty,
+    this.cheers = const {},
   });
 
   /// The state before any event: one shared starter town.
@@ -720,6 +722,10 @@ class GameState {
 
   /// Decoration inventories, placements and worn outfits and titles.
   final DecorState decor;
+
+  /// Cheers between neighbouring towns by `cheerId` (one per sender,
+  /// neighbour and day; the earliest copy stands). Cosmetic only.
+  final Map<String, Cheer> cheers;
 
   /// [personId]'s state, or an empty person if no event has touched them.
   PersonState person(String personId) =>
@@ -764,6 +770,7 @@ class GameState {
     List<GameWarning>? warnings,
     GameEvent? cursor,
     DecorState? decor,
+    Map<String, Cheer>? cheers,
   }) =>
       GameState(
         towns: towns ?? this.towns,
@@ -772,6 +779,7 @@ class GameState {
         warnings: warnings ?? this.warnings,
         cursor: cursor ?? this.cursor,
         decor: decor ?? this.decor,
+        cheers: cheers ?? this.cheers,
       );
 
   @override
@@ -781,7 +789,8 @@ class GameState {
       other.ownership == ownership &&
       _mapsEqual(other.people, people) &&
       _listsEqual(other.warnings, warnings) &&
-      other.decor == decor;
+      other.decor == decor &&
+      _mapsEqual(other.cheers, cheers);
 
   @override
   int get hashCode => Object.hash(towns.length, ownership, people.length, warnings.length);

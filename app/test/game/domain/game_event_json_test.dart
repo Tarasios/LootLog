@@ -144,6 +144,15 @@ final List<GameEvent> _samples = [
     toPersonId: sam,
     bundle: MaterialBundle({MaterialKind.ore: 12}),
   ),
+  CheerSent(
+    eventId: 'e26b',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(26),
+    createdAt: at(26),
+    toPersonId: sam,
+    day: GameDay.fromInstant(at(26)),
+  ),
   ProsperityReached(
     eventId: 'e27',
     deviceId: 'dev-1',
@@ -317,6 +326,16 @@ void main() {
       () {
     final raw = _samples.whereType<GiftSent>().single.toJson();
     final olderBuild = {...raw, 'type': 'FutureGiftSent'};
+    final decoded = GameEvent.fromJson(olderBuild);
+    expect(decoded, isA<UnknownGameEvent>());
+    expect(decoded.toJson(), olderBuild);
+  });
+
+  test('an older build sees a cheer as UnknownGameEvent and relays it verbatim',
+      () {
+    final raw = _samples.whereType<CheerSent>().single.toJson();
+    expect(raw['payload'], {'toPersonId': sam, 'day': GameDay.fromInstant(at(26)).toKey()});
+    final olderBuild = {...raw, 'type': 'FutureCheerSent'};
     final decoded = GameEvent.fromJson(olderBuild);
     expect(decoded, isA<UnknownGameEvent>());
     expect(decoded.toJson(), olderBuild);

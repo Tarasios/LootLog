@@ -28,6 +28,8 @@ const requiredKeys = [
   'town.gate.dungeon.idle',
   'town.house.default.idle',
   'town.wagon.default.idle',
+  'town.signpost.default.idle',
+  'town.caravan.camp.idle',
   'town.scaffold.default.idle',
   'town.plot.locked.idle',
   'town.plot.empty.idle',

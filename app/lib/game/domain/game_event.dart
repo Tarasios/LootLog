@@ -23,6 +23,7 @@ import 'decor/decor_values.dart';
 import 'game_values.dart';
 
 part 'game_event_growth.dart';
+part 'game_event_social.dart';
 
 /// The payload schema version this build writes. Bump it when a payload gains
 /// or changes a field, and keep decoding older versions.
@@ -57,6 +58,7 @@ const List<String> kGameEventTypes = [
   'TownsSplit',
   'GiftSent',
   ..._kGrowthEventTypes,
+  ..._kSocialEventTypes,
 ];
 
 /// Base class for every game event.
@@ -416,6 +418,7 @@ sealed class GameEvent {
         );
       default:
         return _decodeGrowth(envelope, type, payload) ??
+            _decodeSocial(envelope, type, payload) ??
             UnknownGameEvent._(envelope, type, payload);
     }
   }

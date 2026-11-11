@@ -157,6 +157,14 @@ class TownLayout {
     return const TownCell(27, _pathRow);
   }
 
+  /// The signpost to the neighbouring towns, where the outpost's east road
+  /// meets the forest, a step from the dungeon gate (outpost only).
+  TownCell? get signpost => _isFarmland ? null : const TownCell(25, _pathRow - 2);
+
+  /// Where a Standard adult's supply caravan camps, beside the signpost
+  /// (outpost only).
+  TownCell? get caravanCamp => _isFarmland ? null : const TownCell(26, _pathRow - 3);
+
   /// Spots for goal statues (the outpost's square only).
   List<TownCell> get statueSpots => _isFarmland ? const [] : _statues;
 

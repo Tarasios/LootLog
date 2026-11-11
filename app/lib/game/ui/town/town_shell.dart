@@ -46,6 +46,7 @@ import '../hall_status.dart';
 import '../hall_voice.dart';
 import '../kit/kit.dart' show HudChip;
 import 'farm_plot_sheet.dart';
+import 'neighbour_providers.dart';
 import 'town_book_screen.dart';
 import 'town_decorate_panel.dart';
 import 'town_district_wiring.dart';
@@ -56,6 +57,7 @@ import 'town_inbox_sheet.dart';
 import 'town_ledger_provider.dart';
 import 'town_loop_wiring.dart';
 import 'town_menu_dialog.dart';
+import 'town_neighbour_wiring.dart';
 import 'town_place_openers.dart';
 import 'town_shell_events.dart';
 import 'town_townsfolk.dart';
@@ -102,7 +104,11 @@ class TownShell extends ConsumerStatefulWidget {
 }
 
 class _TownShellState extends ConsumerState<TownShell>
-    with TownShellEvents<TownShell>, TownLoopWiring<TownShell>, TownDistrictWiring<TownShell> {
+    with
+        TownShellEvents<TownShell>,
+        TownLoopWiring<TownShell>,
+        TownDistrictWiring<TownShell>,
+        TownNeighbourWiring<TownShell> {
   /// "Decorate town" mode: taps place the picked item instead of opening
   /// buildings.
   bool _decorating = false;
@@ -158,7 +164,11 @@ class _TownShellState extends ConsumerState<TownShell>
     final scatter = scatterFor(openLayout, ledgerView.adults.map((adult) => adult.memberId));
     final me = game.person(ledgerView.meId ?? '');
     final myTown = game.townOf(ledgerView.meId ?? '');
-    final inOutpost = openDistrictId == kOutpostDistrictId;
+    final neighbours = myNeighbours(game, ledgerView);
+    // A visit shows the neighbour's town read-only (`TownNeighbourWiring`).
+    final visiting = visitingAmong(neighbours);
+    final shownTown = visiting == null ? myTown : game.townOf(visiting.memberId);
+    final inOutpost = openDistrictId == kOutpostDistrictId && visiting == null;
 
     return AdventureSpriteScope(
       child: HallTicker(
@@ -177,15 +187,13 @@ class _TownShellState extends ConsumerState<TownShell>
               pendingRitualMonths(me, now, firstBudgetMonth: ledgerView.firstBudgetMonth).isNotEmpty;
           final townView = TownView.from(
             game,
-            ledgerView.meId ?? '',
-            [
-              for (final adult in ledgerView.adults)
-                TownAdult(memberId: adult.memberId, name: adult.name, inAdventure: adult.inAdventure),
-            ],
+            visiting?.memberId ?? ledgerView.meId ?? '',
+            townAdults(ledgerView),
             now,
             districtId: openDistrictId,
-            dungeonOpen: dungeonOpen,
+            dungeonOpen: dungeonOpen && visiting == null,
             goalPictures: goalPictureShas,
+            neighbours: visiting == null ? neighbours : const [],
           );
           // Goals in progress live on the quest board, not as signs in the
           // square (the square keeps the statues of goals already won).
@@ -212,12 +220,16 @@ class _TownShellState extends ConsumerState<TownShell>
               ? const ColoredBox(color: TownGame.forestColour)
               // A new household seed grows a new forest: rebuild the scene.
               : slidingDistrict(KeyedSubtree(
-                  key: ValueKey(scatterSeed),
+                  key: ValueKey('$scatterSeed:${visiting?.memberId}'),
                   child: TownSceneView(
                     key: const ValueKey('town-scene'),
                     view: townView,
                     registry: registryLoad.value ?? AssetRegistry.bundled,
-                    onTarget: _openTarget,
+                    onTarget: (target) => visiting != null
+                        ? openVisitTarget(target, townView, visiting)
+                        : target is SignpostTarget
+                        ? openSignpost(neighbours)
+                        : _openTarget(target),
                     ambientLife: widget.ambientLife,
                     townsfolk: townsfolk,
                     catalog: catalog,
@@ -230,7 +242,7 @@ class _TownShellState extends ConsumerState<TownShell>
                     loop: inOutpost ? loop.scene : TownLoopScene.none,
                     visitorTag: _decorating || !inOutpost ? null : loop.visitorTag,
                     onVisitorTap: _decorating || !inOutpost ? null : loop.onVisitorTap,
-                    onSwipePastEdge: _decorating ? null : (direction) => openNeighbour(myTown, direction),
+                    onSwipePastEdge: _decorating ? null : (direction) => openNeighbour(shownTown, direction),
                   ),
                 ));
           return Scaffold(
@@ -239,7 +251,16 @@ class _TownShellState extends ConsumerState<TownShell>
               scene: scene,
               onOpenGoals: _openGoals,
               onOpenLedger: onOpenLedger,
-              buildHud: (onQuests) => TownHud(
+              buildHud: (onQuests) => visiting != null
+                  ? neighbourHud(
+                      visiting: visiting,
+                      game: game,
+                      meId: ledgerView.meId ?? '',
+                      now: now,
+                      onLogPurchase: _logPurchase,
+                      districtStrip: districtStrip(shownTown, growthLines, readOnly: true),
+                    )
+                  : TownHud(
                 figures: TownHudFigures(
                   dateLabel: '${monthAbbreviation(today.month)} · day ${today.day}',
                   streak: liveStreak(me.streak, today, tokens: me.freezeTokens),
@@ -318,6 +339,8 @@ class _TownShellState extends ConsumerState<TownShell>
             showPlaceComingSheet(context, title: 'Home', body: 'Rooms you can decorate are on their way.'),
           );
         }
+      case SignpostTarget():
+        break; // The shell opens the signpost before it gets here.
       case GateTarget():
         final openDungeon = openers.openDungeon;
         if (openDungeon != null) {

@@ -21,6 +21,8 @@ import '../domain/game_event.dart';
 import '../domain/game_state.dart';
 import '../domain/game_values.dart';
 import '../domain/hall_rules.dart';
+import '../domain/reason_codes.dart';
+import '../domain/town/neighbour_lines.dart';
 import '../game_sprite.dart';
 import 'building_sheet.dart';
 import 'decor/room_screen.dart';
@@ -37,6 +39,8 @@ import 'hall_names.dart';
 import 'hall_status.dart';
 import 'hall_voice.dart';
 import 'kit/kit.dart';
+import 'town/neighbour_inbox.dart';
+import 'town/neighbour_providers.dart';
 import 'town/town_decor_text_screen.dart';
 import 'vault_screen.dart';
 
@@ -409,7 +413,10 @@ class InboxPanel extends ConsumerWidget {
                               ? MaterialKind.lumber
                               : r.loot.materials.amounts.keys.first),
               scale: framed ? 2 : 1),
-          title: data.voice.reason(r.reasonCode),
+          title: r.reasonCode == GameReasonCodes.tradeRoad
+              ? tradeRoadInboxTitle(r.rewardId, r.loot, data.view,
+                  ref.watch(neighbourLinesProvider).value ?? NeighbourLines.defaults)
+              : data.voice.reason(r.reasonCode),
           subtitle: HallNames.loot(r.loot),
           action: 'Claim',
           onPressed: () => _claim(context, ref, r),

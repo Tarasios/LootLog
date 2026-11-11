@@ -308,6 +308,8 @@ shortfalls at buildings and expeditions.
 | `notANeighbour` | That road doesn't lead to a town yet. |
 | `emptyGift` | Choose something to send first. |
 | `neighbourStorehouseFull` | Their Storehouse is full right now. Try again once they have room. |
+| `cheerToSelf` | Cheers travel to a neighbouring town. Your own town hears you anyway! |
+| `alreadyCheeredToday` | You cheered them today. Come back tomorrow to cheer again! |
 | `unknownDistrict` | That district isn't on the map yet. |
 | `districtAlreadyOwned` | That district is already part of your town. |
 | `townTierTooLow` | That district opens as the town grows. Keep logging and it will come. |
@@ -537,3 +539,42 @@ food only waits to grow: never say "lost", "missed", "starving" or
 | `tier.cheer` | The tier celebration's close button | Celebrate with the player | Hooray! |
 | `book.stat.residents` / `book.stat.foodNeed` / `book.stat.foodStored` | The people-and-food card's figures | Name each number plainly | Residents / Food a day / Food in store |
 | `farm.atTop` | A farm building at the top tier ({tier}) | Admire it; nothing left to buy | At its finest: tier {tier} is the top. |
+
+## Neighbouring towns (`neighbours.json`)
+
+Adventure-only: the road between neighbouring towns, read by the signpost,
+a visit to a neighbour's town, the gift dialog, cheers and the inbox. Each
+key holds one line; a missing or empty key falls back to the built-in line
+in `app/lib/game/domain/town/neighbour_lines.dart`, and
+`app/test/game/domain/town/neighbour_lines_test.dart` checks the shipped
+file matches, that nothing shames, and that every key is listed here. A
+neighbour is never named as inactive or blamed, and a Standard adult's
+caravan is never named. Placeholders: `{name}`, `{tier}`, `{goods}`,
+`{capacity}`, `{prosperity}`.
+
+| Key | Trigger | Intended outcome | Current line |
+|-----|---------|------------------|--------------|
+| `signpost.title` | The signpost chooser's heading (several neighbours) | Name the road | The road to the neighbours |
+| `signpost.body` | The signpost chooser, above the neighbours | Invite a visit | Neighbouring towns lie down the east road. Whose town will you visit? |
+| `signpost.caravan` | The chooser, when a Standard adult camps by the road (never named) | Credit the caravan warmly | A supply caravan is camped by the road. It keeps the neighbouring towns stocked. |
+| `visit.header` | The compact header while visiting ({name}) | Say whose town this is | Visiting {name} |
+| `visit.welcome` | The visit's welcome note and the text tier ({name}, {tier}) | Make the visit feel friendly; say what a guest can do | You're a guest in {name}'s {tier}. Look around, send a gift or cheer them on! |
+| `visit.empty` | A tap on an empty plot while visiting ({name}) | Plain, warm facts | An open plot, ready for {name}'s next build. |
+| `visit.locked` | A tap on an unopened plot while visiting | Plain facts | Wild ground, not cleared yet. |
+| `visit.building` | A tap on a finished building while visiting ({tier}) | Admire it | Tier {tier}. Built with care. |
+| `visit.underConstruction` | A tap on a building under way while visiting ({tier}) | Plain facts | Under construction: tier {tier} is on its way. |
+| `gift.title` | The gift dialog's title (short: it sits on the ribbon) | Name the action | Send a gift |
+| `gift.intro` | The gift dialog, top ({name}) | Say what happens | Choose what to send from your stores. It travels the road to {name}'s town. |
+| `gift.room` | The gift dialog, under the intro ({name}, {capacity}) | Say how much fits, so nothing surprises | {name}'s storehouse holds up to {capacity} of each material. Each row shows the room left. |
+| `gift.nothing` | The gift dialog with empty stores | A next step, never a failure | Your stores are empty for now. Collect from your buildings, then send a gift. |
+| `gift.sent` | A gift arrived in full ({goods}, {name}) | Celebrate generosity | Sent {goods} to {name}'s town. What a neighbour! |
+| `gift.trimmed` | A gift partly fit the neighbour's storehouse ({name}, {goods}: what moved) | Say exactly what moved; the rest is safe | {name}'s storehouse took {goods}. The rest is still in yours. |
+| `cheer.sent` | After cheering a neighbour ({name}) | Celebrate | You cheered {name}'s town! |
+| `cheer.done` | The Cheer button once today's cheer is sent | Show it counted | Cheered today |
+| `cheer.received` | The inbox, for each cheer received in the last week ({name}) | Warmth from a neighbour | {name} cheered your town |
+| `cheer.section` | The inbox section listing cheers | Name the section | Cheers from the neighbours |
+| `trade.fromTown` | A trade-road caravan in the inbox from an Adventure neighbour ({name}, {goods}) | Name the goods and where they came from; positive only | A caravan from {name}'s town brought {goods} |
+| `trade.fromCaravan` | A trade-road caravan from the supply caravan (a Standard adult, never named; {goods}) | Same | The supply caravan brought {goods} down the trade road |
+| `text.title` | The text tier's neighbours section | Name the section | Neighbouring towns |
+| `text.town` | The text tier, per Adventure neighbour ({name}, {tier}, {prosperity}) | Plain, admiring facts | {name}'s {tier}: prosperity {prosperity}. |
+| `text.caravan` | The text tier, when a Standard adult runs the caravan (never named) | Credit the caravan | The supply caravan camps by the road, keeping the neighbouring towns stocked. |

@@ -188,6 +188,9 @@ class GameCommandsService {
   Future<GameCommandResult> sendGift(String toPersonId, MaterialBundle bundle) =>
       run((commands) => commands.sendGift(toPersonId, bundle));
 
+  /// Cheers [toPersonId]'s town (cosmetic, once a day per neighbour).
+  Future<GameCommandResult> cheer(String toPersonId) => run((commands) => commands.cheer(toPersonId));
+
   // ---- Heroes ------------------------------------------------------------------
 
   /// Upgrades [heroId]'s gear in [slot] by one tier (this device's adult pays).

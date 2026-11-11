@@ -88,6 +88,12 @@ class TownGame extends FlameGame {
   TownLoopScene loopScene;
   late final TownLoopLayer _loopLayer = TownLoopLayer(atlas);
 
+  /// The signpost to the neighbouring towns (the Tiny Town sign).
+  static const AssetKey signpostKey = AssetKey('town', 'signpost', 'default');
+
+  /// A Standard adult's supply caravan, camped beside the signpost.
+  static const AssetKey caravanCampKey = AssetKey('town', 'caravan', 'camp');
+
   /// Every key the scene can draw, for preloading.
   static Iterable<AssetKey> keysFor(TownView view, [DecorCatalog catalog = DecorCatalog.empty]) sync* {
     yield* const [
@@ -100,6 +106,8 @@ class TownGame extends FlameGame {
       AssetKey('town', 'gate', 'dungeon'),
       AssetKey('town', 'house'),
       AssetKey('town', 'wagon'),
+      signpostKey,
+      caravanCampKey,
       AssetKey('town', 'scaffold'),
       AssetKey('town', 'plot', 'locked'),
       AssetKey('town', 'plot', 'empty'),
@@ -289,9 +297,33 @@ class TownGame extends FlameGame {
       ..addAll([for (final plot in _view.plots) PlotComponent(atlas, plot)])
       ..addAll([
         for (final resident in _view.residents) HouseComponent(atlas, resident),
-      ]);
+      ])
+      ..addAll(_roadside());
     unawaited(world.addAll(_plotsAndHouses));
   }
+
+  /// The signpost to the neighbours and a Standard adult's caravan camp,
+  /// when the view has them. Neither is ever named after anyone.
+  List<Component> _roadside() => [
+        if (_view.layout.signpost case final cell? when _view.showsSignpost)
+          KeyedSprite(
+            atlas: atlas,
+            assetKey: signpostKey,
+            label: 'Signpost',
+            position: cellPosition(cell),
+            size: Vector2.all(kTileSize),
+            priority: 2,
+          ),
+        if (_view.layout.caravanCamp case final cell? when _view.showsCaravanCamp)
+          KeyedSprite(
+            atlas: atlas,
+            assetKey: caravanCampKey,
+            label: 'Caravan',
+            position: cellPosition(cell),
+            size: Vector2.all(kTileSize),
+            priority: 2,
+          ),
+      ];
 
   /// The most gems drawn flying for one log (the "+N" names the real count).
   static const int maxFlyingGems = 5;

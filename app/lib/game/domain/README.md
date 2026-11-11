@@ -83,6 +83,16 @@ Nothing here may write ledger events except through the existing ledger API.
 - `town/farmland.dart` — the plans behind `buyDistrict`, `startFarmBuilding`
   (one granary per town; tiers follow the Central Hall; an upgrade banks
   food first) and `harvestFood`.
+- `town/neighbours.dart` — `neighboursOf(state, viewerId, adults)`: the
+  other adults as the outpost's road sees them (an Adventure adult whose town
+  stands can be visited through the signpost, `TownLayout.signpost`; a
+  Standard adult is the unnamed caravan camp, `TownLayout.caravanCamp`), and
+  `giftRoom` (what a gift of one material can fill).
+- `town/cheers.dart` + `CheerSent {toPersonId, day}` (`game_event_social.dart`)
+  — a cosmetic cheer to a neighbour's town, once a day per sender and
+  neighbour (`cheerId`; the earliest copy stands, `GameState.cheers`). It
+  moves no gem or material; `cheersFor` feeds the inbox. Words in
+  `town/neighbour_lines.dart` (`assets/game/text/neighbours.json`).
 - `town/town_book.dart` — `townBook(state, personId, now)`: the UI's read
   model of a town's growth. `town/town_growth_lines.dart` holds its words
   (`assets/game/text/town_growth.json`).

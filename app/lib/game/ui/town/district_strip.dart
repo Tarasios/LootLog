@@ -46,7 +46,7 @@ class DistrictStrip extends StatelessWidget {
     required this.entries,
     required this.openDistrictId,
     required this.onSelect,
-    required this.onMap,
+    this.onMap,
   });
 
   final List<DistrictStripEntry> entries;
@@ -55,19 +55,21 @@ class DistrictStrip extends StatelessWidget {
   /// A district was tapped: the shell opens it, or explains a locked one.
   final void Function(DistrictStripEntry entry) onSelect;
 
-  /// Opens the district picker.
-  final VoidCallback onMap;
+  /// Opens the district picker; no map button when null (a visit).
+  final VoidCallback? onMap;
 
   @override
   Widget build(BuildContext context) => Row(
     key: const ValueKey('district-strip'),
     mainAxisSize: MainAxisSize.min,
     children: [
-      for (final entry in entries) ...[
+      for (final (index, entry) in entries.indexed) ...[
+        if (index > 0) const SizedBox(width: 6),
         Flexible(child: _districtButton(entry)),
-        const SizedBox(width: 6),
       ],
-      WoodButton(
+      if (onMap case final onMap?) ...[
+        const SizedBox(width: 6),
+        WoodButton(
         key: const ValueKey('district-map'),
         label: '',
         icon: Icons.map,
@@ -76,6 +78,7 @@ class DistrictStrip extends StatelessWidget {
         semanticsLabel: 'Districts',
         onPressed: onMap,
       ),
+      ],
     ],
   );
 
