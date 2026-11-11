@@ -161,7 +161,7 @@ void main() {
         personId: _ada,
         day: const GameDay(2026, 10, 1),
         seedEventId: opener.eventId,
-        hall: GameState.initial().hall,
+        hall: HallState.starter(),
         now: _at(10, 1, 21),
       );
       final offer = dev.offers(out).single;

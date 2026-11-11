@@ -2,9 +2,9 @@
 /// what a building has produced, what fits in the Storehouse, how high a
 /// building may go. Pure functions of the [HallState] and an instant.
 ///
-/// Production follows the working shift: on a household day anyone showed up
-/// (`GameState.townActiveDays`) the crews work the whole day; on any other
-/// day only the first [Balance.shortShiftHours]. Days are calendar days in
+/// Production follows the working shift: on a household day the town's own
+/// adult showed up (`GameState.townActiveDaysOf`) the crews work the whole
+/// day; on any other day only the first [Balance.shortShiftHours]. Days are calendar days in
 /// the household timezone ([GameDay]), never the device's local time.
 ///
 /// Pure Dart, zero Flutter imports.
@@ -16,8 +16,8 @@ import 'content.dart';
 import 'game_state.dart';
 import 'game_values.dart';
 
-/// Minutes of [from, to) a crew actually worked, given the days anyone
-/// showed up ([activeDays]). Each household day it touches contributes its
+/// Minutes of [from, to) a crew actually worked, given the days the town's
+/// adult showed up ([activeDays]). Each household day it touches contributes its
 /// overlap with that day's shift: the whole day when active, the first
 /// [Balance.shortShiftHours] otherwise.
 int workedMinutes(DateTime from, DateTime to, Set<GameDay> activeDays) {
@@ -133,8 +133,8 @@ DateTime _earlier(DateTime first, DateTime second) =>
 DateTime _later(DateTime first, DateTime second) =>
     first.isAfter(second) ? first : second;
 
-/// The part of [wanted] the shared pool has room for at [now]: each capped
-/// kind is limited to the Storehouse capacity minus what the pool holds.
+/// The part of [wanted] the town has room for at [now]: each capped kind is
+/// limited to the Storehouse capacity minus what the town holds.
 MaterialBundle fitInStorehouse(HallState hall, MaterialBundle wanted, DateTime now) {
   final capacity = hall.storageCapacityAt(now);
   return MaterialBundle({
@@ -145,8 +145,8 @@ MaterialBundle fitInStorehouse(HallState hall, MaterialBundle wanted, DateTime n
   });
 }
 
-/// What collecting [plotIndex] at [now] would bank, given the days anyone
-/// showed up ([activeDays]).
+/// What collecting [plotIndex] at [now] would bank, given the days the
+/// town's adult showed up ([activeDays]).
 MaterialBundle collectableNow(
   HallState hall,
   int plotIndex,

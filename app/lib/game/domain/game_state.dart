@@ -1,6 +1,7 @@
 /// The guild-hall [GameState]: a deterministic projection over the game event
-/// log (see `game_projection.dart`). Party-level hall state plus per-person
-/// state. Immutable; [GameState.apply] returns a new state.
+/// log (see `game_projection.dart`). One town per Adventure adult (see
+/// `town/town_ownership.dart`) plus per-person state. Immutable;
+/// [GameState.apply] returns a new state.
 ///
 /// Distinct from `DungeonState` (`lib/game/dungeon_state.dart`), the dungeon
 /// adapter's read-model of the ledger.
@@ -14,7 +15,7 @@ import 'decor/decor_state.dart';
 import 'game_event.dart';
 import 'game_projection.dart';
 import 'game_values.dart';
-import 'reason_codes.dart';
+import 'town/town_ownership.dart';
 
 /// Why the projection recorded a [GameWarning]. Warnings never block: the
 /// event log is the truth, so the projection applies what it safely can and
@@ -23,7 +24,8 @@ enum GameWarningCode {
   /// A gem debit exceeded the wallet; the wallet was clamped at zero.
   gemsClamped,
 
-  /// A material debit exceeded the shared pool; that kind was clamped at zero.
+  /// A material debit exceeded the town's stores; that kind was clamped at
+  /// zero.
   materialsClamped,
 
   /// A freeze-token debit exceeded the person's tokens; clamped at zero.
@@ -162,7 +164,7 @@ class PlotState {
   int get hashCode => Object.hash(index, building);
 }
 
-/// The party-level guild hall.
+/// One adult's town (the guild hall): its plots, buildings and stores.
 class HallState {
   const HallState({
     required this.plots,
@@ -170,10 +172,20 @@ class HallState {
     required this.lastCollectedAt,
   });
 
+  /// A brand-new town: the starting plots unlocked and empty, nothing
+  /// stored.
+  factory HallState.starter() => HallState(
+        plots: Map.unmodifiable({
+          for (var i = 0; i < Balance.startingPlotCount; i++) i: PlotState(i),
+        }),
+        materials: const MaterialBundle.empty(),
+        lastCollectedAt: const {},
+      );
+
   /// Unlocked plots by index.
   final Map<int, PlotState> plots;
 
-  /// The shared material pool.
+  /// The town's stored materials.
   final MaterialBundle materials;
 
   /// The last collection instant per building id.
@@ -192,7 +204,7 @@ class HallState {
   int completedTier(BuildingType type, DateTime at) =>
       plotOf(type)?.building?.tierAt(at) ?? 0;
 
-  /// How much of each (capped) material the shared pool may hold at [at].
+  /// How much of each (capped) material the town may store at [at].
   int storageCapacityAt(DateTime at) => Balance.storehouseCapacityByTier[
       completedTier(BuildingType.storehouse, at)];
 
@@ -599,33 +611,32 @@ class PersonState {
   int get hashCode => Object.hash(personId, gems, freezeTokens, partyId);
 }
 
-/// [GameState.townActiveDays] per state: a state never changes, so its
-/// active days are worked out once. An [Expando] keeps the state const and
-/// lets the cache go with the state.
+/// [GameState.townActiveDaysOf] per streak: a streak never changes, so its
+/// logged days are worked out once. An [Expando] keeps the state const and
+/// lets the cache go with the streak.
 final Expando<Set<GameDay>> _townActiveDaysCache = Expando('townActiveDays');
 
 /// The whole guild-hall game state.
 class GameState {
   const GameState({
-    required this.hall,
+    required this.ownership,
+    this.towns = const {},
     this.people = const {},
     this.warnings = const [],
     this.cursor,
     this.decor = DecorState.empty,
   });
 
-  /// The state before any event: the starting plots unlocked and empty.
-  factory GameState.initial() => GameState(
-        hall: HallState(
-          plots: Map.unmodifiable({
-            for (var i = 0; i < Balance.startingPlotCount; i++) i: PlotState(i),
-          }),
-          materials: const MaterialBundle.empty(),
-          lastCollectedAt: const {},
-        ),
-      );
+  /// The state before any event: one shared starter town.
+  factory GameState.initial() =>
+      GameState(ownership: TownOwnership.initial());
 
-  final HallState hall;
+  /// Each adult's own town by member id, once the towns are split. Read
+  /// through [townOf], which also covers an adult with no town yet.
+  final Map<String, HallState> towns;
+
+  /// The shared town before the split, and the split itself.
+  final TownOwnership ownership;
 
   /// Per-person state, for everyone any event has touched.
   final Map<String, PersonState> people;
@@ -644,17 +655,21 @@ class GameState {
   PersonState person(String personId) =>
       people[personId] ?? PersonState(personId: personId);
 
-  /// The household days anyone showed up: every Adventure adult's logged
-  /// days (freeze-covered days excluded) plus every Standard adult's caravan
-  /// days. On these days the town's crews work the full shift. Computed
-  /// once per state (the state is immutable) and remembered beside it.
-  Set<GameDay> get townActiveDays => _townActiveDaysCache[this] ??=
-      Set.unmodifiable({
-        for (final someone in people.values) ...someone.streak.loggedDays,
-        for (final someone in people.values)
-          for (final rewardId in someone.seenRewardIds)
-            ?caravanRewardDay(rewardId),
-      });
+  /// [personId]'s town: the shared town until the split; after it their own
+  /// (the starter town with the welcome grant if they have none yet).
+  HallState townOf(String personId) => ownership.townOf(personId, towns);
+
+  /// Whether the household's shared town has been split into one per adult.
+  bool get townsSplit => ownership.isSplit;
+
+  /// The household days [personId]'s town works the full shift: the days
+  /// that adult logged or checked in (freeze-covered days excluded). Worked
+  /// out once per streak (it is immutable) and remembered beside it.
+  Set<GameDay> townActiveDaysOf(String personId) {
+    final streak = person(personId).streak;
+    return _townActiveDaysCache[streak] ??=
+        Set.unmodifiable(streak.loggedDays);
+  }
 
   /// [personId]'s daily town event for [today], if one waits; null when none
   /// was offered or it was already taken or waved off. Earlier days' offers
@@ -673,14 +688,16 @@ class GameState {
   GameState apply(GameEvent event) => applyGameEvent(this, event);
 
   GameState copyWith({
-    HallState? hall,
+    Map<String, HallState>? towns,
+    TownOwnership? ownership,
     Map<String, PersonState>? people,
     List<GameWarning>? warnings,
     GameEvent? cursor,
     DecorState? decor,
   }) =>
       GameState(
-        hall: hall ?? this.hall,
+        towns: towns ?? this.towns,
+        ownership: ownership ?? this.ownership,
         people: people ?? this.people,
         warnings: warnings ?? this.warnings,
         cursor: cursor ?? this.cursor,
@@ -690,17 +707,18 @@ class GameState {
   @override
   bool operator ==(Object other) =>
       other is GameState &&
-      other.hall == hall &&
+      _mapsEqual(other.towns, towns) &&
+      other.ownership == ownership &&
       _mapsEqual(other.people, people) &&
       _listsEqual(other.warnings, warnings) &&
       other.decor == decor;
 
   @override
-  int get hashCode => Object.hash(hall, people.length, warnings.length);
+  int get hashCode => Object.hash(towns.length, ownership, people.length, warnings.length);
 
   @override
   String toString() => 'GameState(people: ${people.keys.toList()}, '
-      'pool: ${hall.materials}, warnings: $warnings)';
+      'towns: ${towns.keys.toList()}, split: $townsSplit, warnings: $warnings)';
 }
 
 bool _mapsEqual<K, V>(Map<K, V> first, Map<K, V> second) {

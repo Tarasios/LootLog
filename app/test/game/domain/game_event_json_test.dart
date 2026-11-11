@@ -126,6 +126,15 @@ final List<GameEvent> _samples = [
     tier: FestivalTier.fair,
     weekdaysLogged: 4,
   ),
+  TownsSplit(
+    eventId: 'e25',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(25),
+    createdAt: at(25),
+    ownerId: robin,
+    welcome: MaterialBundle({MaterialKind.lumber: 40, MaterialKind.stone: 40}),
+  ),
 ];
 
 void main() {
@@ -226,6 +235,29 @@ void main() {
     final decoded = GameEvent.fromJson(olderBuild);
     expect(decoded, isA<UnknownGameEvent>());
     expect(decoded.toJson(), olderBuild);
+  });
+
+  test('an older build sees the town split as UnknownGameEvent and relays it '
+      'verbatim', () {
+    final raw = _samples.whereType<TownsSplit>().single.toJson();
+    expect((raw['payload'] as Map<String, dynamic>)['splitId'], 'towns.split');
+    final olderBuild = {...raw, 'type': 'FutureTownsSplit'};
+    final decoded = GameEvent.fromJson(olderBuild);
+    expect(decoded, isA<UnknownGameEvent>());
+    expect(decoded.toJson(), olderBuild);
+  });
+
+  test('a split naming a material this build lacks is kept as UnknownGameEvent',
+      () {
+    final raw = _samples.whereType<TownsSplit>().single.toJson();
+    final newer = {
+      ...raw,
+      'payload': {
+        ...raw['payload'] as Map<String, dynamic>,
+        'welcome': {'moonstone': 3},
+      },
+    };
+    expect(GameEvent.fromJson(newer), isA<UnknownGameEvent>());
   });
 
   test('a windfall-free offer omits its plot, and a decline its amounts', () {

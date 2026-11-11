@@ -34,7 +34,7 @@ class TownLoopView {
     final monday = today.weekStart;
     final offer = game.offerFor(meId, today);
     final plotIndex = offer?.plotIndex;
-    final offerBuilding = plotIndex == null ? null : game.hall.plots[plotIndex]?.building?.type;
+    final offerBuilding = plotIndex == null ? null : game.townOf(meId).plots[plotIndex]?.building?.type;
     final festival = festivalToday(me, today);
     return TownLoopView(
       today: today,
@@ -54,7 +54,7 @@ class TownLoopView {
               ])
                 ?me.unclaimedRewards[rewardId],
             ],
-      away: awaySummary(game, now),
+      away: awaySummary(game, meId, now),
       offerBuilding: offerBuilding,
     );
   }

@@ -60,6 +60,9 @@ class HallHomeData {
 
   PersonState get me => game.person(view.meId ?? '');
   GameDay get today => GameDay.fromInstant(now);
+
+  /// The viewing adult's own town.
+  HallState get town => game.townOf(view.meId ?? '');
 }
 
 // ---------------------------------------------------------------------------
@@ -258,7 +261,7 @@ class _ScribeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tier = data.game.hall.completedTier(BuildingType.scribesDesk, data.now);
+    final tier = data.town.completedTier(BuildingType.scribesDesk, data.now);
     return Row(
       children: [
         GameSprite.fromKey(
@@ -608,7 +611,7 @@ class StoresPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hall = data.game.hall;
+    final hall = data.town;
     final capacity = hall.storageCapacityAt(data.now);
     final text = hallTextTier(context);
     return HallSection(
@@ -695,7 +698,7 @@ class PlotTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final plot = data.game.hall.plots[index];
+    final plot = data.town.plots[index];
     final b = plot?.building;
     final now = data.now;
     final text = hallTextTier(context);
@@ -726,8 +729,8 @@ class PlotTile extends StatelessWidget {
       if (!complete) {
         status = 'Ready in ${HallNames.duration(b.completesAt.difference(now))}';
       } else if (Balance.buildings[b.type]!.isProducer) {
-        final ready = collectableNow(data.game.hall, index, now,
-            activeDays: data.game.townActiveDays);
+        final ready = collectableNow(data.town, index, now,
+            activeDays: data.game.townActiveDaysOf(data.view.meId ?? ''));
         status = ready.isEmpty ? 'Working…' : '+${HallNames.bundle(ready)}';
       } else {
         status = 'Tier ${b.tier}';
@@ -792,7 +795,7 @@ class PlacesPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final me = data.me;
-    final hall = data.game.hall;
+    final hall = data.town;
     final forgeTier = hall.completedTier(BuildingType.forge, data.now);
     final trip = me.activeExpedition;
     final String tripStatus;

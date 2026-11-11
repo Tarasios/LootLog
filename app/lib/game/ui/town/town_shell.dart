@@ -177,6 +177,7 @@ class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<Town
               pendingRitualMonths(me, now, firstBudgetMonth: ledgerView.firstBudgetMonth).isNotEmpty;
           final townView = TownView.from(
             game,
+            ledgerView.meId ?? '',
             [
               for (final adult in ledgerView.adults)
                 TownAdult(memberId: adult.memberId, name: adult.name, inAdventure: adult.inAdventure),

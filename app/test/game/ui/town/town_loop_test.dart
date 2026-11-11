@@ -161,7 +161,7 @@ void main() {
     testWidgets('Trade swaps the goods once and the trader leaves', (tester) async {
       final store = await storeWith([...sampleEvents(), offered('x0001')]);
       await pumpTown(tester, townHost(liveStore: store, popups: false));
-      final lumberBefore = (await stateOf(store)).hall.materials[MaterialKind.lumber];
+      final lumberBefore = (await stateOf(store)).townOf(robin).materials[MaterialKind.lumber];
 
       await tester.tap(find.text('Trader in town'));
       await pumpSteps(tester);
@@ -174,8 +174,8 @@ void main() {
       expect(resolved, hasLength(1));
       expect(resolved.single.accepted, isTrue);
       final after = await stateOf(store);
-      expect(after.hall.materials[MaterialKind.lumber], lumberBefore - 10);
-      expect(after.hall.materials[MaterialKind.stone], 106);
+      expect(after.townOf(robin).materials[MaterialKind.lumber], lumberBefore - 10);
+      expect(after.townOf(robin).materials[MaterialKind.stone], 106);
       expect(find.text('Trader in town'), findsNothing);
     });
 

@@ -87,7 +87,7 @@ void main() {
     expect(resolved.accepted, isTrue);
     final state = town.state;
     expect(state.person(robin).gems, 2);
-    expect(state.hall.materials[MaterialKind.herbs], 5);
+    expect(state.townOf(robin).materials[MaterialKind.herbs], 5);
     expect(state.offerFor(robin, _today), isNull);
   });
 
@@ -115,7 +115,7 @@ void main() {
         resolved.received.materials,
         MaterialBundle({MaterialKind.lumber: 10}),
       );
-      expect(town.state.hall.materials[MaterialKind.lumber], 150);
+      expect(town.state.townOf(robin).materials[MaterialKind.lumber], 150);
       expect(
         town.state.warnings.where(
           (warning) => warning.code == GameWarningCode.materialsCapped,
@@ -144,7 +144,7 @@ void main() {
     expect(result.accepted, isTrue);
     final resolved = result.events.single as DailyEventResolved;
     expect(resolved.paid, MaterialBundle({MaterialKind.lumber: 20}));
-    final pool = town.state.hall.materials;
+    final pool = town.state.townOf(robin).materials;
     expect(pool[MaterialKind.lumber], 10);
     expect(pool[MaterialKind.ore], 8);
   });
@@ -191,7 +191,7 @@ void main() {
     expect(resolved.paid.isEmpty, isTrue);
     expect(resolved.received.isEmpty, isTrue);
     expect(
-      town.state.hall.materials,
+      town.state.townOf(robin).materials,
       MaterialBundle({MaterialKind.lumber: 30}),
     );
     expect(town.state.offerFor(robin, _today), isNull);

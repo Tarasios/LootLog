@@ -21,16 +21,25 @@ Nothing here may write ledger events except through the existing ledger API.
 - `hall_rules.dart` — read-side rules shared by commands and UI:
   `workedMinutes`, `uncollectedProduction`, `collectableNow`,
   `shiftSummary`, `fitInStorehouse`, `maxTierAllowed`. Production follows
-  the working shift: the whole household day on `GameState.townActiveDays`
-  (anyone's logged days plus Standard caravan days; freeze-covered days do
-  not count), the first `Balance.shortShiftHours` of any other day.
+  the working shift: the whole household day on
+  `GameState.townActiveDaysOf(personId)` (that town's own adult's logged
+  days; freeze-covered days do not count, and a Standard caravan day extends
+  nobody's shift), the first `Balance.shortShiftHours` of any other day.
+- `town/town_ownership.dart` — one town per Adventure adult. Until the
+  one-time `TownsSplit` (written by the reward engine, owner = the Adventure
+  adult with the most `PlotUnlocked`/`BuildingStarted`/`MaterialsCollected`,
+  ties to the smallest member id) the household shares one town; at the split
+  it goes whole to the owner and everyone else starts from
+  `HallState.starter()` plus `Balance.welcomeGrant`. Read a town with
+  `GameState.townOf(personId)`; town events apply to their actor's town; the
+  earliest split by `(occurredAt, eventId)` stands on every device.
 - `commands/game_commands.dart` — `GameCommands(state, clock, actorId,
   stamp)`: every guild-hall action as a pure function returning a
   `GameCommandResult` (events to append, or a `GameRejection`). Anything
   random or time-dependent is computed once here and stored in the event:
   - `unlockPlot(i)` — gem price from `Balance.plotUnlockCost`.
   - `startBuilding(i, type)` — build on an empty plot or upgrade the same
-    type by one tier; one of each building per hall; other buildings never
+    type by one tier; one of each building per town (the actor's own); other buildings never
     outrank the Central Hall; upgrades wait for construction to finish; a
     producer's upgrade banks its production first (`MaterialsCollected`),
     by the same working-shift rule as collecting.

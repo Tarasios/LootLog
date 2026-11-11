@@ -52,6 +52,7 @@ const List<String> kGameEventTypes = [
   'DailyEventOffered',
   'DailyEventResolved',
   'FestivalHeld',
+  'TownsSplit',
 ];
 
 /// Base class for every game event.
@@ -394,6 +395,13 @@ sealed class GameEvent {
           tier: gameEnumByName(
               FestivalTier.values, payload['tier'] as String, 'festival tier'),
           weekdaysLogged: payload['weekdaysLogged'] as int,
+        );
+      case 'TownsSplit':
+        return TownsSplit(
+          eventId: eventId, deviceId: deviceId, actorId: actorId,
+          occurredAt: occurredAt, createdAt: createdAt, schemaVersion: schemaVersion,
+          ownerId: payload['ownerId'] as String,
+          welcome: _materials(payload['welcome']),
         );
       default:
         return UnknownGameEvent._(envelope, type, payload);
@@ -1164,6 +1172,44 @@ class FestivalHeld extends GameEvent {
         'week': week.toKey(),
         'tier': tier.name,
         'weekdaysLogged': weekdaysLogged,
+      };
+}
+
+/// The household's one shared town became one town per adult (see
+/// `town/town_ownership.dart`): the shared town, whole, went to [ownerId],
+/// and every other adult's town starts from the starter town plus
+/// [welcome]. Written once by the reward engine with the fixed
+/// [splitId]; when two devices each wrote one, the earliest by
+/// `(occurredAt, eventId)` stands on every device and the rest are ignored.
+class TownsSplit extends GameEvent {
+  const TownsSplit({
+    required super.eventId,
+    required super.deviceId,
+    required super.actorId,
+    required super.occurredAt,
+    required super.createdAt,
+    super.schemaVersion,
+    required this.ownerId,
+    required this.welcome,
+  });
+
+  /// The idempotency key every split shares: there is only ever one.
+  static const String splitId = 'towns.split';
+
+  /// The adult who keeps the shared town.
+  final String ownerId;
+
+  /// What every other adult's new town starts with.
+  final MaterialBundle welcome;
+
+  @override
+  String get type => 'TownsSplit';
+
+  @override
+  Map<String, dynamic> payload() => {
+        'splitId': splitId,
+        'ownerId': ownerId,
+        'welcome': welcome.toJson(),
       };
 }
 

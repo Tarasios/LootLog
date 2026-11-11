@@ -201,7 +201,7 @@ class GameCommandResult {
 ///
 /// The actor is the person acting (a member id). Their hero's id is their
 /// member id. Gems are paid from the actor's wallet; materials from the
-/// shared pool.
+/// actor's own town, and every town command acts on that town only.
 class GameCommands {
   GameCommands({
     required this.state,
@@ -221,7 +221,7 @@ class GameCommands {
   final DecorCatalog catalog;
 
   late final DateTime _now = clock.now();
-  HallState get _hall => state.hall;
+  HallState get _hall => state.townOf(actorId);
   PersonState get _me => state.person(actorId);
 
   // ---- Hall ---------------------------------------------------------------
@@ -278,7 +278,7 @@ class GameCommands {
 
     final bank = existing != null && Balance.buildings[type]!.isProducer
         ? collectableNow(_hall, plotIndex, _now,
-            activeDays: state.townActiveDays)
+            activeDays: state.townActiveDaysOf(actorId))
         : null;
     final cost = Balance.buildingCost(type, tier);
     final pool = bank == null ? _hall.materials : _hall.materials + bank;
@@ -311,7 +311,7 @@ class GameCommands {
   /// collection, capped by the room left in the Storehouse (production past
   /// that is lost, as in any full yard). Collecting itself is never gated on
   /// logging; what the crews made follows the working shift (rule 10): the
-  /// full day on days anyone showed up, a short shift on the rest.
+  /// full day on days the actor showed up, a short shift on the rest.
   GameCommandResult collectMaterials(int plotIndex) {
     final plot = _hall.plots[plotIndex];
     if (plot == null) return _reject(GameRejection.plotLocked);
@@ -321,7 +321,7 @@ class GameCommands {
       return _reject(GameRejection.notAProducer);
     }
     final made = uncollectedProduction(_hall, plotIndex, _now,
-        activeDays: state.townActiveDays);
+        activeDays: state.townActiveDaysOf(actorId));
     if (made.isEmpty) return _reject(GameRejection.nothingToCollect);
     final fits = fitInStorehouse(_hall, made, _now);
     if (fits.isEmpty) return _reject(GameRejection.storehouseFull);

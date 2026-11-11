@@ -20,6 +20,9 @@
 /// rolled once from the ledger event that opened it; every weekend brings a
 /// festival sized to the weekdays logged (`town/festival.dart`).
 ///
+/// The first run on a household that still shares one town splits it, once,
+/// into one town per Adventure adult (`town/town_ownership.dart`).
+///
 /// Pure Dart, zero Flutter imports.
 library;
 
@@ -34,6 +37,7 @@ import '../game_values.dart';
 import '../reason_codes.dart';
 import '../town/daily_event.dart';
 import '../town/festival.dart';
+import '../town/town_ownership.dart';
 import 'month_end_rewards.dart';
 
 export '../game_event_stamp.dart';
@@ -138,6 +142,7 @@ class RewardEngine {
       });
 
     final run = _Run(gameState, party, stamp, now, today);
+    run.splitTowns();
     for (final event in rewardable) {
       final adult = party.adult(event.userId)!;
       switch (event) {
@@ -245,6 +250,38 @@ class _Run {
   /// Which ledger event opened each person's day: the earliest active one.
   final Map<String, String> _openers = {};
 
+  /// The split this run wrote, when the household still shared one town.
+  TownsSplit? _split;
+
+  /// Splits a still-shared town once (see `town/town_ownership.dart`). With
+  /// no Adventure adult there is nobody to own a town yet.
+  void splitTowns() {
+    if (state.townsSplit) return;
+    final owner = townsSplitOwner(
+      state.ownership.hallCommandCounts,
+      party.adventurers.map((adult) => adult.memberId),
+    );
+    if (owner == null) return;
+    final split = TownsSplit(
+      eventId: stamp.newEventId(),
+      deviceId: stamp.deviceId,
+      actorId: owner,
+      occurredAt: now,
+      createdAt: now,
+      ownerId: owner,
+      welcome: Balance.welcomeGrant,
+    );
+    _split = split;
+    out.add(split);
+  }
+
+  /// [who]'s town as it stands once this run's split (if any) applies.
+  HallState townOf(String who) {
+    final split = _split;
+    if (split == null) return state.townOf(who);
+    return townAfterSplit(state, who, ownerId: split.ownerId, welcome: split.welcome);
+  }
+
   _Person person(String id) =>
       _people.putIfAbsent(id, () => _Person(state.person(id)));
 
@@ -310,7 +347,7 @@ class _Run {
       personId: who,
       day: day,
       seedEventId: opener.eventId,
-      hall: state.hall,
+      hall: townOf(who),
       now: now,
     );
     out.add(DailyEventOffered(
@@ -451,16 +488,20 @@ class _Run {
         source: event.eventId);
   }
 
-  /// A Standard adult's active day: materials for the shared pool, delivered
-  /// at once (they never visit the hall to claim it).
+  /// A Standard adult's active day, recorded as their caravan reward (the
+  /// id marks the day). A Standard adult has no town, so the caravan itself
+  /// carries nothing here: its goods travel the trade road to the Adventure
+  /// adults active the same day. Delivered at once, since they never visit
+  /// the town to claim it.
   void _caravan(String who, GameDay day) {
     if (party.adventurers.isEmpty) return; // no party to supply
     final rewardId = caravanRewardId(who, day);
-    if (person(who).seenRewards.contains(rewardId)) return;
+    final record = person(who);
+    if (record.seenRewards.contains(rewardId)) return;
+    record.caravanDays.add(day);
     _grant(who,
         rewardId: rewardId,
         kind: 'caravan',
-        materials: Balance.caravanMaterials,
         reasonCode: GameReasonCodes.caravan);
     _claim(who, rewardId);
   }

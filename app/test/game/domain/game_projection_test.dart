@@ -53,9 +53,9 @@ void main() {
   group('initial state', () {
     test('the hall starts with the starting plots unlocked and empty', () {
       final s = projectGameState(const []);
-      expect(s.hall.plots.keys, List.generate(Balance.startingPlotCount, (i) => i));
-      expect(s.hall.plots.values.every((p) => p.building == null), isTrue);
-      expect(s.hall.materials.isEmpty, isTrue);
+      expect(s.townOf(robin).plots.keys, List.generate(Balance.startingPlotCount, (i) => i));
+      expect(s.townOf(robin).plots.values.every((p) => p.building == null), isTrue);
+      expect(s.townOf(robin).materials.isEmpty, isTrue);
       expect(s.warnings, isEmpty);
     });
 
@@ -82,7 +82,7 @@ void main() {
       expect(p.unclaimedRewards, isEmpty);
       expect(p.gems, 5);
       expect(p.freezeTokens, 1);
-      expect(s.hall.materials[MaterialKind.ore], 2);
+      expect(s.townOf(robin).materials[MaterialKind.ore], 2);
     });
 
     test('the same rewardId granted twice is credited once, even after claim', () {
@@ -113,7 +113,7 @@ void main() {
         unlocked('u1', 5, when: at(2), gemCost: 30),
         unlocked('u2', 5, when: at(3), gemCost: 30),
       ]);
-      expect(s.hall.plots.containsKey(5), isTrue);
+      expect(s.townOf(robin).plots.containsKey(5), isTrue);
       expect(s.person(robin).gems, 20);
       expect(codes(s), [GameWarningCode.duplicateUnlock]);
     });
@@ -121,7 +121,7 @@ void main() {
     test('a debit larger than the wallet clamps to zero and warns', () {
       final s = projectGameState([unlocked('u1', 5, when: at(0), gemCost: 30)]);
       expect(s.person(robin).gems, 0);
-      expect(s.hall.plots.containsKey(5), isTrue);
+      expect(s.townOf(robin).plots.containsKey(5), isTrue);
       expect(codes(s), [GameWarningCode.gemsClamped]);
       expect(s.warnings.single.eventId, 'u1');
     });
@@ -137,13 +137,13 @@ void main() {
             completesAt: at(62),
             cost: Loot(gems: 4, materials: mats({MaterialKind.stone: 5}))),
       ]);
-      final b = s.hall.plots[0]!.building!;
+      final b = s.townOf(robin).plots[0]!.building!;
       expect(b.type, BuildingType.quarry);
       expect(b.tier, 2);
       expect(b.startedAt, at(2));
       expect(b.completesAt, at(62));
       expect(s.person(robin).gems, 6);
-      expect(s.hall.materials[MaterialKind.stone], 3);
+      expect(s.townOf(robin).materials[MaterialKind.stone], 3);
       expect(s.warnings, isEmpty);
     });
 
@@ -152,7 +152,7 @@ void main() {
         built('b1', 0, BuildingType.quarry,
             when: at(0), cost: Loot(materials: mats({MaterialKind.stone: 5}))),
       ]);
-      expect(s.hall.materials[MaterialKind.stone], 0);
+      expect(s.townOf(robin).materials[MaterialKind.stone], 0);
       expect(codes(s), [GameWarningCode.materialsClamped]);
     });
 
@@ -166,8 +166,8 @@ void main() {
         built('b3', 0, BuildingType.forge, when: at(4), tier: 2, cost: const Loot(gems: 10)),
         built('b4', 0, BuildingType.mine, when: at(5), cost: const Loot(gems: 10)),
       ]);
-      expect(s.hall.plots[0]!.building!.type, BuildingType.forge);
-      expect(s.hall.plots[0]!.building!.tier, 2);
+      expect(s.townOf(robin).plots[0]!.building!.type, BuildingType.forge);
+      expect(s.townOf(robin).plots[0]!.building!.tier, 2);
       expect(s.person(robin).gems, 80);
       expect(codes(s), [GameWarningCode.duplicateBuild, GameWarningCode.plotOccupied]);
     });
@@ -175,7 +175,7 @@ void main() {
     test('building on a locked plot still applies (the event is the truth) '
         'but warns', () {
       final s = projectGameState([built('b1', 9, BuildingType.vault, when: at(0))]);
-      expect(s.hall.plots[9]!.building!.type, BuildingType.vault);
+      expect(s.townOf(robin).plots[9]!.building!.type, BuildingType.vault);
       expect(codes(s), [GameWarningCode.plotLocked]);
     });
 
@@ -185,9 +185,9 @@ void main() {
         collected('m1', 'plot-1', mats({MaterialKind.ore: 4}), when: at(30)),
         collected('m2', 'plot-1', mats({MaterialKind.ore: 2}), when: at(90), actor: sam),
       ]);
-      expect(s.hall.materials[MaterialKind.ore], 6);
-      expect(s.hall.lastCollectedAt['plot-1'], at(90));
-      expect(s.hall.plots[1]!.buildingId, 'plot-1');
+      expect(s.townOf(robin).materials[MaterialKind.ore], 6);
+      expect(s.townOf(robin).lastCollectedAt['plot-1'], at(90));
+      expect(s.townOf(robin).plots[1]!.buildingId, 'plot-1');
       expect(s.warnings, isEmpty);
     });
 
@@ -202,8 +202,8 @@ void main() {
               mats({MaterialKind.ore: 25, MaterialKind.stone: 5}),
               when: at(1)),
         ]);
-        expect(s.hall.materials[MaterialKind.ore], base);
-        expect(s.hall.materials[MaterialKind.stone], 5);
+        expect(s.townOf(robin).materials[MaterialKind.ore], base);
+        expect(s.townOf(robin).materials[MaterialKind.stone], 5);
         expect(codes(s), contains(GameWarningCode.materialsCapped));
       });
 
@@ -219,7 +219,7 @@ void main() {
           collected('m1', 'plot-0', mats({MaterialKind.lumber: t1 + 50}),
               when: at(20)),
         ]);
-        expect(s.hall.materials[MaterialKind.lumber], t1);
+        expect(s.townOf(robin).materials[MaterialKind.lumber], t1);
         final later = projectGameState([
           ...[
             built('b1', 0, BuildingType.storehouse, when: at(0)),
@@ -229,7 +229,7 @@ void main() {
           collected('m1', 'plot-0', mats({MaterialKind.lumber: t2 + 50}),
               when: at(80)),
         ]);
-        expect(later.hall.materials[MaterialKind.lumber], t2);
+        expect(later.townOf(robin).materials[MaterialKind.lumber], t2);
       });
 
       test('trophies are never capped', () {
@@ -238,7 +238,7 @@ void main() {
               when: at(0),
               rewards: Loot(materials: mats({MaterialKind.trophy: base + 5}))),
         ]);
-        expect(s.hall.materials[MaterialKind.trophy], base + 5);
+        expect(s.townOf(robin).materials[MaterialKind.trophy], base + 5);
         expect(s.warnings, isEmpty);
       });
 
@@ -248,10 +248,10 @@ void main() {
           built('b2', 0, BuildingType.forge,
               tier: 2, when: at(10), completesAt: at(70)),
         ]);
-        expect(s.hall.completedTier(BuildingType.forge, at(30)), 1);
-        expect(s.hall.completedTier(BuildingType.forge, at(70)), 2);
-        expect(s.hall.completedTier(BuildingType.mine, at(70)), 0);
-        expect(s.hall.storageCapacityAt(at(70)), base);
+        expect(s.townOf(robin).completedTier(BuildingType.forge, at(30)), 1);
+        expect(s.townOf(robin).completedTier(BuildingType.forge, at(70)), 2);
+        expect(s.townOf(robin).completedTier(BuildingType.mine, at(70)), 0);
+        expect(s.townOf(robin).storageCapacityAt(at(70)), base);
       });
     });
 
@@ -259,7 +259,7 @@ void main() {
       final s = projectGameState([
         collected('m1', 'plot-7', mats({MaterialKind.ore: 4}), when: at(0)),
       ]);
-      expect(s.hall.materials[MaterialKind.ore], 4);
+      expect(s.townOf(robin).materials[MaterialKind.ore], 4);
       expect(codes(s), [GameWarningCode.unknownBuilding]);
     });
   });
@@ -305,7 +305,7 @@ void main() {
       ]);
       expect(s.person(robin).activeExpedition, isNull);
       expect(s.person(robin).lastExpedition!.loot[MaterialKind.herbs], 5);
-      expect(s.hall.materials[MaterialKind.herbs], 5);
+      expect(s.townOf(robin).materials[MaterialKind.herbs], 5);
     });
 
     test('a second start while away is ignored; resolving with nothing active '
@@ -318,7 +318,7 @@ void main() {
         expeditionResolved('r2', ExpeditionRegion.theWilds,
             mats({MaterialKind.herbs: 5}), when: at(96)),
       ]);
-      expect(s.hall.materials[MaterialKind.herbs], 5);
+      expect(s.townOf(robin).materials[MaterialKind.herbs], 5);
       expect(codes(s), [
         GameWarningCode.expeditionAlreadyActive,
         GameWarningCode.noActiveExpedition,
@@ -341,7 +341,7 @@ void main() {
       expect(p.unopenedChests, {'chest-2': ChestType.iron});
       expect(p.gems, 4);
       expect(p.freezeTokens, 1);
-      expect(s.hall.materials[MaterialKind.crystal], 1);
+      expect(s.townOf(robin).materials[MaterialKind.crystal], 1);
       expect(codes(s), [GameWarningCode.unknownChest]);
     });
   });
@@ -435,7 +435,7 @@ void main() {
       expect(progress.boss!.won, isTrue);
       expect(progress.boss!.bossKey, 'boss.autumn.wyrm');
       expect(s.person(robin).gems, 6);
-      expect(s.hall.materials[MaterialKind.trophy], 1);
+      expect(s.townOf(robin).materials[MaterialKind.trophy], 1);
       expect(codes(s), [GameWarningCode.duplicateBossFight]);
     });
   });

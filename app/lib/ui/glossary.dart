@@ -300,9 +300,9 @@ abstract final class Glossary {
 
   // ---- Guild hall (Adventure only; Classic never shows the hall) ----------
 
-  /// The Adventure home: the party's base, built up by budgeting habits.
+  /// The Adventure home: each adult's own town, built up by budgeting habits.
   static const guildHall = GlossaryTerm(
-    internal: 'GameState.hall',
+    internal: 'GameState.townOf',
     classic: 'rewards hall',
     adventure: 'guild hall',
     helper: 'A game built from your budgeting habits. It never changes any '
@@ -318,12 +318,12 @@ abstract final class Glossary {
         'bought, never real money.',
   );
 
-  /// The shared building materials, made by buildings and expeditions.
+  /// A town's building materials, made by buildings and expeditions.
   static const materials = GlossaryTerm(
     internal: 'HallState.materials',
     classic: 'building materials',
     adventure: 'materials',
-    helper: 'Shared by the whole party. Buildings and expeditions produce '
+    helper: 'Each town keeps its own. Buildings and expeditions produce '
         'them; logging is never required to collect them.',
   );
 

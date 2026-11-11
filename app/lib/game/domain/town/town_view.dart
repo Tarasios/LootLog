@@ -151,18 +151,22 @@ class TownView {
   /// their own picture.
   final Map<String, String> goalPictures;
 
+  /// The town [viewerId] sees: their own town's plots, with the household's
+  /// residents and town decorations.
   static TownView from(
     GameState game,
+    String viewerId,
     List<TownAdult> adults,
     DateTime now, {
     TownLayout layout = TownLayout.standard,
     bool dungeonOpen = false,
     Map<String, String> goalPictures = const {},
   }) {
-    final activeDays = game.townActiveDays;
+    final activeDays = game.townActiveDaysOf(viewerId);
+    final town = game.townOf(viewerId);
     final plots = <TownPlotView>[
       for (var index = 0; index < layout.plotOrigins.length; index++)
-        _plotView(game.hall, index, layout.plotOrigins[index], now, activeDays),
+        _plotView(town, index, layout.plotOrigins[index], now, activeDays),
     ];
     final residents = <TownResident>[
       for (var slot = 0; slot < adults.length && slot < layout.houseOrigins.length; slot++)

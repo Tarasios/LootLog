@@ -71,7 +71,7 @@ void main() {
     final s = service();
     final r = await s.startBuilding(0, BuildingType.lumberyard);
     expect(r.accepted, isTrue);
-    expect((await state()).hall.plots[0]!.building!.type,
+    expect((await state()).townOf(_me).plots[0]!.building!.type,
         BuildingType.lumberyard);
     expect((await s.startBuilding(1, BuildingType.lumberyard)).rejection,
         GameRejection.buildingAlreadyInHall);
@@ -214,7 +214,7 @@ void main() {
       final sub = container.listen<AsyncValue<GameState>>(gameStateProvider,
           (_, next) {
         final v = next.value;
-        if (v != null && v.hall.plots[0]?.building != null && !built.isCompleted) {
+        if (v != null && v.townOf(_me).plots[0]?.building != null && !built.isCompleted) {
           built.complete(v);
         }
       }, fireImmediately: true);
@@ -229,7 +229,7 @@ void main() {
       );
       expect((await r.startBuilding(0, BuildingType.quarry)).accepted, isTrue);
       final s = await built.future.timeout(const Duration(seconds: 5));
-      expect(s.hall.plots[0]!.building!.type, BuildingType.quarry);
+      expect(s.townOf(_me).plots[0]!.building!.type, BuildingType.quarry);
     });
   });
 }

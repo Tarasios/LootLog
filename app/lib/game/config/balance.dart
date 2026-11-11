@@ -62,8 +62,9 @@ abstract final class Balance {
   /// The most freeze tokens a person holds at once (claimed or waiting).
   static const int maxFreezeTokens = 3;
 
-  /// What a Standard-mode adult's active day sends to the party pool.
-  static final MaterialBundle caravanMaterials =
+  /// What a Standard-mode adult's active day sends down the trade road to
+  /// each Adventure adult who was active the same day (the supply caravan).
+  static final MaterialBundle caravanTradeBundle =
       MaterialBundle({MaterialKind.lumber: 2, MaterialKind.stone: 1});
 
   /// How many days back activity is still rewarded. Bounds the catch-up when
@@ -343,8 +344,9 @@ abstract final class Balance {
     3000,
   ];
 
-  /// The working shift: on a household day anyone logged a purchase or
-  /// checked in (freeze-covered days do not count), producers work the full
+  /// The working shift: on a household day the town's own adult logged a
+  /// purchase or checked in (freeze-covered days do not count), producers
+  /// work the full
   /// day — 24 or more means the whole calendar day, 23 or 25 hours on a
   /// daylight-saving change.
   static const int fullShiftHours = 24;
@@ -357,6 +359,24 @@ abstract final class Balance {
   /// Materials the Storehouse never caps: trophies are mementos of boss
   /// wins, kept on the mantel rather than in the yard.
   static const Set<MaterialKind> uncappedMaterials = {MaterialKind.trophy};
+
+  // ---- Neighbouring towns ---------------------------------------------------
+
+  /// What a neighbour's new town starts with when the shared town is split
+  /// (the old shared town goes, whole, to the adult who built most of it).
+  static final MaterialBundle welcomeGrant =
+      MaterialBundle({MaterialKind.lumber: 40, MaterialKind.stone: 40});
+
+  /// What a neighbour's trade caravan brings on a day both of you were
+  /// active, by the tier in service of the neighbour's busiest producer
+  /// (index 0 = no producer yet). Generated, never taken from them.
+  static const List<int> tradeRoadAmountByTier = [3, 4, 6, 9, 13, 18];
+
+  static int tradeRoadAmount(int producerTier) => tradeRoadAmountByTier[
+      producerTier.clamp(0, tradeRoadAmountByTier.length - 1)];
+
+  /// What a neighbour with no producer yet sends down the trade road.
+  static const MaterialKind tradeRoadFallbackMaterial = MaterialKind.lumber;
 
   // ---- Hero gear ----------------------------------------------------------
 
