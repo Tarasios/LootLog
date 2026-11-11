@@ -378,6 +378,65 @@ abstract final class Balance {
   /// What a neighbour with no producer yet sends down the trade road.
   static const MaterialKind tradeRoadFallbackMaterial = MaterialKind.lumber;
 
+  // ---- Town growth: prosperity and tiers ------------------------------------
+  //
+  // Pace targets for an adult who logs daily and collects once a day (held
+  // by `test/game/domain/town/growth_pace_test.dart`): a build or upgrade
+  // most days in the first two weeks, the Hamlet within the first week, the
+  // Farmland affordable shortly after, the Village in about a month (it needs
+  // farms), and Town and City far beyond (their districts come later).
+
+  /// Prosperity per completed building tier, in every district: the town's
+  /// growth is mostly what has been built.
+  static const int prosperityPerBuildingTier = 10;
+
+  /// Prosperity per district bought beyond the outpost.
+  static const int prosperityPerDistrict = 40;
+
+  /// Prosperity per town decoration on display, for up to
+  /// [prosperityDecorationCap] of them: a garden helps, a hoard does not.
+  static const int prosperityPerDecoration = 5;
+  static const int prosperityDecorationCap = 10;
+
+  /// Prosperity per weekend festival held (every week someone shows up).
+  static const int prosperityPerFestival = 15;
+
+  /// The peak prosperity each tier needs. Going past the Hamlet also needs
+  /// food in store (see the food numbers below).
+  static const Map<TownTier, int> tierProsperity = {
+    TownTier.outpost: 0,
+    TownTier.hamlet: 80,
+    TownTier.village: 380,
+    TownTier.town: 1500,
+    TownTier.city: 4000,
+  };
+
+  /// What reaching each tier brings, claimed through the inbox: gems and a
+  /// chest-sized bundle of building materials.
+  static final Map<TownTier, Loot> tierRewards = {
+    TownTier.hamlet: Loot(gems: 20, materials: _m(lumber: 60, stone: 60)),
+    TownTier.village:
+        Loot(gems: 40, materials: _m(lumber: 120, stone: 120, ore: 40)),
+    TownTier.town: Loot(
+        gems: 80, materials: _m(lumber: 250, stone: 250, ore: 100, herbs: 60)),
+    TownTier.city: Loot(
+        gems: 150,
+        materials: _m(lumber: 500, stone: 500, ore: 200, crystal: 40)),
+  };
+
+  /// The daily cap on further-purchase and timely gems, by tier: it rises
+  /// gently, so a bigger town earns a little more from the same habit.
+  static const Map<TownTier, int> dailyGemCapByTier = {
+    TownTier.outpost: dailyGemCap,
+    TownTier.hamlet: 6,
+    TownTier.village: 7,
+    TownTier.town: 8,
+    TownTier.city: 10,
+  };
+
+  static int dailyGemCapFor(TownTier tier) =>
+      dailyGemCapByTier[tier] ?? dailyGemCap;
+
   // ---- Hero gear ----------------------------------------------------------
 
   /// Gear tops out at tier 5, and never above the Forge's completed tier

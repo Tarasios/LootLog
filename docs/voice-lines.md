@@ -333,6 +333,7 @@ was earned (by reward reason code).
 | `vault.consistency` | Months of saving in a row | Consecutive months with a savings choice |
 | `festival.weekend` | The weekend festival | The weekend festival's loot, sized by the weekdays logged: one reward per tier reached, each adding what that tier adds, so a festival topped up by late-syncing logs shows as more than one line |
 | `festival.joint` | Bonus: the party kept the week together | Two or more Adventure adults each logged at least three weekdays (additive; never names anyone) |
+| `town.tier` | The town grew into a new tier | The town's peak prosperity reached the next tier (and, from the village on, its food stores were enough): gems and building materials, once per tier, never taken back |
 
 
 ## Month-end dungeon lines (`dungeon_lines.json`)

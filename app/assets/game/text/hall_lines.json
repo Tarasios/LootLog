@@ -124,7 +124,8 @@
     "vault.consistency": "Months of saving in a row",
     "festival.weekend": "The weekend festival",
     "festival.joint": "Bonus: the party kept the week together",
-    "trade.road": "A caravan from a neighbouring town"
+    "trade.road": "A caravan from a neighbouring town",
+    "town.tier": "The town grew into a new tier"
   },
   "rejections": {
     "notEnoughGems": "A few more gems needed. They come from logging, so every entry brings this closer.",

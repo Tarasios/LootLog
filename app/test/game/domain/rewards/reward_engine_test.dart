@@ -493,7 +493,8 @@ void main() {
               e is RewardGranted ||
               e is ChestGranted ||
               e is DailyEventOffered ||
-              e is FestivalHeld),
+              e is FestivalHeld ||
+              e is ProsperityReached),
           isTrue);
       expect(dev.state.person(_ada).streak.count, 1);
     });
@@ -623,7 +624,9 @@ void main() {
               e is StreakFreezeUsed ||
               e is DailyEventOffered ||
               e is FestivalHeld ||
-              e is TownsSplit),
+              e is TownsSplit ||
+              e is ProsperityReached ||
+              e is TierReached),
           isTrue);
       expect(dev.state.warnings, isEmpty);
     });

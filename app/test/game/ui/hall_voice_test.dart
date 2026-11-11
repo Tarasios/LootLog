@@ -44,6 +44,7 @@ void main() {
       GameReasonCodes.festival,
       GameReasonCodes.festivalJoint,
       GameReasonCodes.tradeRoad,
+      GameReasonCodes.townTier,
     ]) {
       expect(voice.reasons[code], isNotNull, reason: code);
     }

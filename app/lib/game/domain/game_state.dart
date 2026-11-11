@@ -513,6 +513,8 @@ class PersonState {
     this.dailyOffers = const {},
     this.seenOfferIds = const {},
     this.festivals = const {},
+    this.peakProsperity = 0,
+    this.tiersReached = const {},
   });
 
   final String personId;
@@ -558,6 +560,28 @@ class PersonState {
   /// their week. Never taken back.
   final Map<GameDay, FestivalTier> festivals;
 
+  /// The highest prosperity this person's town has reached (see
+  /// `town/prosperity.dart`). Only ever rises.
+  final int peakProsperity;
+
+  /// When this person's town first reached each tier above the outpost.
+  /// Never taken back.
+  final Map<TownTier, DateTime> tiersReached;
+
+  /// The highest tier this person's town has reached.
+  TownTier get townTier => tierOn(null);
+
+  /// The tier the town held on household [day] (any tier reached that day
+  /// or earlier); with no day, the highest reached.
+  TownTier tierOn(GameDay? day) {
+    var tier = TownTier.outpost;
+    for (final entry in tiersReached.entries) {
+      if (entry.key.index <= tier.index) continue;
+      if (day == null || GameDay.fromInstant(entry.value) <= day) tier = entry.key;
+    }
+    return tier;
+  }
+
   PersonState copyWith({
     HeroState? hero,
     int? gems,
@@ -574,6 +598,8 @@ class PersonState {
     Map<String, DailyOffer>? dailyOffers,
     Set<String>? seenOfferIds,
     Map<GameDay, FestivalTier>? festivals,
+    int? peakProsperity,
+    Map<TownTier, DateTime>? tiersReached,
   }) =>
       PersonState(
         personId: personId,
@@ -594,6 +620,8 @@ class PersonState {
         dailyOffers: dailyOffers ?? this.dailyOffers,
         seenOfferIds: seenOfferIds ?? this.seenOfferIds,
         festivals: festivals ?? this.festivals,
+        peakProsperity: peakProsperity ?? this.peakProsperity,
+        tiersReached: tiersReached ?? this.tiersReached,
       );
 
   @override
@@ -614,7 +642,9 @@ class PersonState {
       _setsEqual(other.seenChestIds, seenChestIds) &&
       _mapsEqual(other.dailyOffers, dailyOffers) &&
       _setsEqual(other.seenOfferIds, seenOfferIds) &&
-      _mapsEqual(other.festivals, festivals);
+      _mapsEqual(other.festivals, festivals) &&
+      other.peakProsperity == peakProsperity &&
+      _mapsEqual(other.tiersReached, tiersReached);
 
   @override
   int get hashCode => Object.hash(personId, gems, freezeTokens, partyId);

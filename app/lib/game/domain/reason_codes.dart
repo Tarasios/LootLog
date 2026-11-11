@@ -94,6 +94,9 @@ abstract final class GameReasonCodes {
   /// the same week (additive; never names anyone).
   static const String festivalJoint = 'festival.joint';
 
+  /// The town grew into a new tier (one reward per person per tier).
+  static const String townTier = 'town.tier';
+
   /// Rewards whose grant marks their household-local day as covered in the
   /// person's streak. The reward engine must grant at most one per person per
   /// day (the daily gem cap) and stamp it with the logged day's `occurredAt`.

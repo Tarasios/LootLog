@@ -23,6 +23,9 @@
 /// The first run on a household that still shares one town splits it, once,
 /// into one town per Adventure adult (`town/town_ownership.dart`).
 ///
+/// Every run also grows each Adventure adult's town (`town/prosperity.dart`):
+/// a new peak prosperity, the tiers it opens and their rewards.
+///
 /// Pure Dart, zero Flutter imports.
 library;
 
@@ -37,6 +40,7 @@ import '../game_values.dart';
 import '../reason_codes.dart';
 import '../town/daily_event.dart';
 import '../town/festival.dart';
+import '../town/prosperity.dart';
 import '../town/town_ownership.dart';
 import '../town/trade_road.dart';
 import 'month_end_rewards.dart';
@@ -169,6 +173,9 @@ class RewardEngine {
     }
     run.jointFestivals(oldest);
     run.tradeRoads(oldest);
+    for (final adult in party.adventurers) {
+      run.townGrowth(adult.memberId);
+    }
 
     run.out.addAll(monthEnd.evaluate(ledger, gameState, clock,
         party: party, stamp: stamp, household: household));
@@ -469,6 +476,60 @@ class _Run {
     }
   }
 
+  /// [who]'s town growth: a new peak prosperity when the town's prosperity
+  /// rose past the stored one (topping it up, never locking a stale value
+  /// in), then every tier that peak opens and a reward for each tier
+  /// reached that was not granted yet. Tiers past the hamlet wait for food.
+  void townGrowth(String who) {
+    final personState = state.person(who);
+    final record = person(who);
+    final prosperity = townProsperity(
+      townOf(who),
+      townDecorationsPlaced: state.decor.townPlacements.length,
+      festivalsHeld: record.festivalTiers.length,
+      at: now,
+    );
+    var peak = personState.peakProsperity;
+    if (prosperity > peak) {
+      peak = prosperity;
+      out.add(ProsperityReached(
+        eventId: stamp.newEventId(),
+        deviceId: stamp.deviceId,
+        actorId: who,
+        occurredAt: now,
+        createdAt: now,
+        value: prosperity,
+      ));
+    }
+    var tier = personState.townTier;
+    for (final reached in tiersDue(
+      current: tier,
+      peak: peak,
+      // Food arrives with the farmland; until then the village waits.
+      foodSecureFrom: (_) => false,
+    )) {
+      tier = reached;
+      out.add(TierReached(
+        eventId: stamp.newEventId(),
+        deviceId: stamp.deviceId,
+        actorId: who,
+        occurredAt: now,
+        createdAt: now,
+        tier: reached,
+      ));
+    }
+    for (final reached in TownTier.values.skip(1).take(tier.index)) {
+      final loot = Balance.tierRewards[reached]!;
+      _grant(who,
+          rewardId: tierRewardId(who, reached),
+          kind: 'townTier',
+          gems: loot.gems,
+          materials: loot.materials,
+          tokens: loot.tokens,
+          reasonCode: GameReasonCodes.townTier);
+    }
+  }
+
   /// Gems under the per-day cap, one per purchase per rule.
   void _capped(
     String who,
@@ -485,7 +546,7 @@ class _Run {
     final used = personRecord.seenRewards
         .where((id) => id.startsWith(extra) || id.startsWith(timely))
         .length;
-    if (used >= Balance.dailyGemCap) return;
+    if (used >= Balance.dailyGemCapFor(state.person(who).townTier)) return;
     _grant(who,
         rewardId: rewardId,
         kind: 'gems',

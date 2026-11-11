@@ -144,6 +144,22 @@ final List<GameEvent> _samples = [
     toPersonId: sam,
     bundle: MaterialBundle({MaterialKind.ore: 12}),
   ),
+  ProsperityReached(
+    eventId: 'e27',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(27),
+    createdAt: at(27),
+    value: 85,
+  ),
+  TierReached(
+    eventId: 'e28',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(28),
+    createdAt: at(28),
+    tier: TownTier.hamlet,
+  ),
 ];
 
 void main() {
@@ -263,6 +279,26 @@ void main() {
     final decoded = GameEvent.fromJson(olderBuild);
     expect(decoded, isA<UnknownGameEvent>());
     expect(decoded.toJson(), olderBuild);
+  });
+
+  test('an older build sees prosperity and tiers as UnknownGameEvent and relays '
+      'them verbatim', () {
+    for (final event in _samples.where(
+        (event) => event is ProsperityReached || event is TierReached)) {
+      final olderBuild = {...event.toJson(), 'type': 'Future${event.type}'};
+      final decoded = GameEvent.fromJson(olderBuild);
+      expect(decoded, isA<UnknownGameEvent>());
+      expect(decoded.toJson(), olderBuild);
+    }
+  });
+
+  test('a tier this build lacks is kept as UnknownGameEvent', () {
+    final raw = _samples.whereType<TierReached>().single.toJson();
+    final newer = {
+      ...raw,
+      'payload': {...raw['payload'] as Map<String, dynamic>, 'tier': 'metropolis'},
+    };
+    expect(GameEvent.fromJson(newer), isA<UnknownGameEvent>());
   });
 
   test('a split naming a material this build lacks is kept as UnknownGameEvent',

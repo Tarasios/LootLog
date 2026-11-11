@@ -454,6 +454,18 @@ void _apply(_GameStateDraft draft, GameEvent event) {
         ..setTown(actor, outcome.sender)
         ..setTown(gift.toPersonId, outcome.recipient);
 
+    case ProsperityReached reached:
+      final person = draft.person(actor);
+      if (reached.value <= person.peakProsperity) return;
+      draft.put(person.copyWith(peakProsperity: reached.value));
+
+    case TierReached reached:
+      final person = draft.person(actor);
+      // The earliest instant per tier stands (events arrive in order).
+      if (person.tiersReached.containsKey(reached.tier)) return;
+      draft.put(person.copyWith(
+          tiersReached: _put(person.tiersReached, reached.tier, reached.occurredAt)));
+
     case UnknownGameEvent _:
       return;
   }

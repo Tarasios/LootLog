@@ -22,6 +22,8 @@ import '../../domain/time.dart';
 import 'decor/decor_values.dart';
 import 'game_values.dart';
 
+part 'game_event_growth.dart';
+
 /// The payload schema version this build writes. Bump it when a payload gains
 /// or changes a field, and keep decoding older versions.
 const int kGameEventSchemaVersion = 1;
@@ -54,6 +56,7 @@ const List<String> kGameEventTypes = [
   'FestivalHeld',
   'TownsSplit',
   'GiftSent',
+  ..._kGrowthEventTypes,
 ];
 
 /// Base class for every game event.
@@ -412,7 +415,8 @@ sealed class GameEvent {
           bundle: _materials(payload['bundle']),
         );
       default:
-        return UnknownGameEvent._(envelope, type, payload);
+        return _decodeGrowth(envelope, type, payload) ??
+            UnknownGameEvent._(envelope, type, payload);
     }
   }
 }

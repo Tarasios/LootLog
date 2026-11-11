@@ -44,6 +44,15 @@ Nothing here may write ledger events except through the existing ledger API.
   an Adventure neighbour's town (`GiftSent` stores what fits their
   Storehouse); the projection re-trims on a race so materials are always
   conserved and any overflow stays with the sender.
+- `town/prosperity.dart` — each town's growth. `townProsperity` counts
+  completed building tiers, town decorations on display (capped) and
+  festivals held. The reward engine stores a new peak in `ProsperityReached`
+  (the projection keeps the highest, so a decoration stored away never
+  lowers it) and each tier the peak opens in `TierReached` (`TownTier`
+  outpost, hamlet, village, town, city; thresholds `Balance.tierProsperity`),
+  with its reward `tier:<who>:<tier>` (`Balance.tierRewards`). The village
+  and beyond also wait for food in store; a short town only waits, nothing
+  is taken. The daily gem cap is `Balance.dailyGemCapFor(tier)`.
 - `commands/game_commands.dart` — `GameCommands(state, clock, actorId,
   stamp)`: every guild-hall action as a pure function returning a
   `GameCommandResult` (events to append, or a `GameRejection`). Anything

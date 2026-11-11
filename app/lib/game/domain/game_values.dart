@@ -173,6 +173,11 @@ enum DailyEventKind { trader, windfall, visitor }
 /// festival (all 5). See `town/festival.dart`.
 enum FestivalTier { marketDay, fair, grandFestival }
 
+/// How big a town has grown, from the outpost everyone starts with to a city
+/// (see `town/prosperity.dart`). A tier is reached once and never taken
+/// back. Only `TierReached`, a type older builds do not know, carries it.
+enum TownTier { outpost, hamlet, village, town, city }
+
 /// The month-end spoils ritual steps that precede the seasonal boss fight.
 enum RitualStep { reconcile, review, plan, contribute }
 
