@@ -91,4 +91,23 @@ void main() {
       );
     }
   });
+
+  test('the town loop lines exist and fill their placeholders', () {
+    const lines = TownEventLines.defaults;
+    for (final key in kTownLoopLineKeys) {
+      expect(lines.line(key).trim(), isNotEmpty, reason: key);
+    }
+    expect(lines.line('away.shortShifts'), contains('{quietDays}'));
+    expect(lines.line('tag.windfall'), contains('{building}'));
+    for (final tier in FestivalTier.values) {
+      expect(lines.line(festivalNameKey(tier)).trim(), isNotEmpty);
+    }
+  });
+
+  test('the shift lines never talk of losing, missing or penalties', () {
+    final lossWords = RegExp(r'\b(lost|lose|missed|miss|penalty|penalt)', caseSensitive: false);
+    for (final key in TownEventLines.defaults.keys) {
+      expect(lossWords.hasMatch(TownEventLines.defaults.line(key)), isFalse, reason: key);
+    }
+  });
 }

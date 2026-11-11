@@ -24,6 +24,7 @@
     "town_decor.lamp_post.default.idle": [9, 7],
     "town_decor.bench.default.idle": [10, 8],
     "town_decor.well.default.idle": [8, 8],
-    "town_decor.well.fountain.idle": [11, 10]
+    "town_decor.well.fountain.idle": [11, 10],
+    "town.visitor.trader.idle": [9, 4]
   }
 }

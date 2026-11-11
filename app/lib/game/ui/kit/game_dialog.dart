@@ -59,8 +59,9 @@ class GameDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final onClose = this.onClose;
-    // Leave the corner clear for the X (or balance it when there is none).
-    const ribbonInset = _kCloseSize + 16;
+    // Leave the corner clear for the X; with no X a long title may use the
+    // board's whole width.
+    final ribbonInset = onClose == null ? 16.0 : _kCloseSize + 16;
     return Material(
       type: MaterialType.transparency,
       child: DefaultTextStyle.merge(

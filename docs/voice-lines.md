@@ -403,7 +403,10 @@ file matches those built-in lines and that nothing shames. Placeholders:
 `{gives}` and `{receives}` (amounts in game words), `{building}` (the
 producer). Every weekend the town also holds a festival sized to the
 weekdays (Monday to Friday) the person logged; the `festival.*` keys
-announce it and take no placeholders.
+announce it and take no placeholders. The town loop's lines (`away.*`,
+`tag.*`, `spirit.*`, `festival.name.*`, `festival.reward`,
+`festival.claimed`) take `{quietDays}`, `{building}`, `{logged}`, `{more}`,
+`{festival}` and `{reward}` as noted.
 
 | Key | Trigger | Intended outcome | Current line |
 |-----|---------|------------------|--------------|
@@ -420,3 +423,23 @@ announce it and take no placeholders.
 | `festival.fair` | The weekend festival after 3–4 weekdays logged | Celebrate a well-kept week | A fair fills the square this weekend. The town is in high spirits after a well-kept week. |
 | `festival.grandFestival` | The weekend festival after all 5 weekdays logged (with a festival decoration when the catalogue has one) | The big weekly celebration | A grand festival! Lanterns, music and dancing: every weekday kept, and the whole town celebrates. |
 | `festival.joint` | The joint festival bonus: two or more Adventure adults reached a fair the same week | Celebrate the party together without naming anyone | The whole party kept the week together, and the festival is all the merrier for it. |
+| `festival.name.marketDay` | The festival's name: the celebration's ribbon, the spirit dialog and the text home (title-cased on a ribbon) | Name the weekend warmly | market day |
+| `festival.name.fair` | As `festival.name.marketDay` | Same | fair |
+| `festival.name.grandFestival` | As `festival.name.marketDay` | Same | grand festival |
+| `festival.reward` | The festival celebration, while its gifts wait in the inbox ({reward}: what they hold) | Point at the gifts; `Claim` takes them through the inbox's claim | The festival brings {reward}. |
+| `festival.claimed` | The festival celebration after its gifts were claimed | Keep the moment happy with nothing left to do | Its gifts are already in your stores. |
+| `away.welcome` | The "while you were away" pop-up's ribbon, on the first town visit of the day when the crews made something | A warm hello | Welcome back! |
+| `away.title` | The heading of that pop-up's summary (and its text-home section) | Show what the town did on its own | While you were away |
+| `away.fullDays` | The summary (or a producer's sheet) when every day since the last collection was logged | Credit the kept ledger for the full days | Full days: the ledger was kept. |
+| `away.shortShifts` | The summary (or a producer's sheet) when the stretch held a quiet day and today is not logged yet ({quietDays}: "2 quiet days") | Frame the short shift as the town working harder when the ledger is kept; never "lost", "missed" or "penalty" | Short shifts on {quietDays}. Log today and the crews work the full day. |
+| `away.shortShiftsLogged` | As `away.shortShifts`, when today is already logged | Same, acknowledging today | Short shifts on {quietDays}. Today is logged, so the crews are on the full day. |
+| `away.storehouseFull` | A summary row whose producer has nothing more that fits | Say plainly why it waits | Storehouse full |
+| `tag.trader` | The sign over a trader standing by the square | Invite a look | Trader in town |
+| `tag.windfall` | The sign over a producer's foreman having a good day ({building}) | Same | Good day at the {building} |
+| `tag.visitor` | The sign over a visitor with a gift | Same | A visitor |
+| `tag.openTown` | A muted note over the Log purchase button before this adult has logged today | Invite the day's first log (it brings the visitor) | Log today to open the town |
+| `spirit.title` | The town spirit dialog's ribbon (tap the pips under the date) and its text-home heading | Name the weekly meter | Town spirit |
+| `spirit.logged` | The spirit dialog ({logged}: weekdays logged, 0–5) | Count what was done, never what wasn't | {logged} of 5 weekdays logged this week. |
+| `spirit.weekday` | The spirit dialog on a weekday ({festival}: the festival earned so far) | Show the weekend is already something | Every weekday you log lifts the town. So far the weekend holds a {festival}. |
+| `spirit.next` | The spirit dialog on a weekday when a bigger festival is still reachable ({more}: "1 more weekday") | A gentle, reachable next step | Log {more} for a {festival}. |
+| `spirit.weekend` | The spirit dialog at the weekend | Celebrate | The weekend is here and the {festival} is on! |

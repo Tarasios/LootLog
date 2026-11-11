@@ -28,6 +28,7 @@ import 'hall_ledger_view.dart';
 import 'hall_names.dart';
 import 'hall_voice.dart';
 import 'kit/kit.dart';
+import 'town/shift_note.dart';
 import 'vault_screen.dart';
 
 /// Opens the sheet for [plotIndex]: a framed game dialog in the pixel tier,
@@ -314,6 +315,7 @@ class BuildingSheet extends ConsumerWidget {
                   style: framedBodyStyle(context)),
               const SizedBox(height: AppSpacing.xs),
               MaterialLine(fits, prefix: 'Ready to collect: '),
+              if (inService >= 1) ShiftNote(game: c.game, plotIndex: plotIndex, now: now),
               if (made != fits && !made.isEmpty)
                 Text(
                     'The Storehouse has room for only part of the '

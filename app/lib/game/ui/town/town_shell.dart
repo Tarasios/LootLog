@@ -48,6 +48,7 @@ import 'town_home_layout.dart';
 import 'town_hud.dart';
 import 'town_inbox_sheet.dart';
 import 'town_ledger_provider.dart';
+import 'town_loop_wiring.dart';
 import 'town_menu_dialog.dart';
 import 'town_place_openers.dart';
 import 'town_shell_events.dart';
@@ -94,7 +95,7 @@ class TownShell extends ConsumerStatefulWidget {
   ConsumerState<TownShell> createState() => _TownShellState();
 }
 
-class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<TownShell> {
+class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<TownShell>, TownLoopWiring<TownShell> {
   /// "Decorate town" mode: taps place the picked item instead of opening
   /// buildings.
   bool _decorating = false;
@@ -197,6 +198,13 @@ class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<Town
             ))
               if (tag.anchor is! StatueAnchor) tag,
           ];
+          final loop = townLoopParts(
+            tickRef,
+            game: game,
+            meId: ledgerView.meId ?? '',
+            now: now,
+            registry: registryLoad.value ?? AssetRegistry.bundled,
+          );
           final scene = registryLoad.isLoading && !registryLoad.hasValue
               // The scene reads its art once, so wait for the registry.
               ? const ColoredBox(color: TownGame.forestColour)
@@ -216,6 +224,9 @@ class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<Town
                     logPulse: logPulse,
                     scatter: scatter,
                     tags: _decorating ? const [] : tags,
+                    loop: loop.scene,
+                    visitorTag: _decorating ? null : loop.visitorTag,
+                    onVisitorTap: _decorating ? null : loop.onVisitorTap,
                   ),
                 );
           return Scaffold(
@@ -235,6 +246,8 @@ class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<Town
                   warChest: ledger.warChest,
                 ),
                 onQuests: onQuests,
+                spiritBar: loop.spiritBar,
+                logHint: loop.logHint,
                 noSpendCheckIn: NoSpendCheckIn(
                   key: const ValueKey('town-no-spend'),
                   explainWhenUnavailable: true,
@@ -247,7 +260,13 @@ class _TownShellState extends ConsumerState<TownShell> with TownShellEvents<Town
                     links: links,
                   ),
                   builder: (context, action) =>
-                      HudChip(icon: action.icon, value: action.label, onTap: action.onPressed),
+                      // Never wider than a narrow phone's corner (it ellipsizes).
+                      HudChip(
+                        icon: action.icon,
+                        value: action.label,
+                        onTap: action.onPressed,
+                        maxWidth: MediaQuery.sizeOf(context).width - 24,
+                      ),
                 ),
                 onLogPurchase: _logPurchase,
                 onShop: _openShop,

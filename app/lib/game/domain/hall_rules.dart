@@ -94,6 +94,12 @@ MaterialBundle uncollectedProduction(
   );
 }
 
+/// When [plotIndex]'s uncollected stretch began (its last collection, or
+/// its first completion), or null for an empty plot or a building that
+/// produces nothing. Read-only, for the town's "while you were away" note.
+DateTime? producerStretchStart(HallState hall, int plotIndex) =>
+    _producerOn(hall, plotIndex)?.from;
+
 /// The producer on [plotIndex] and the instant its uncollected stretch
 /// starts, or null for an empty plot or a building that produces nothing.
 ({BuildingState building, BuildingSpec spec, DateTime from})? _producerOn(

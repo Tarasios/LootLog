@@ -467,6 +467,13 @@ People: `npc.villager.a.idle`, `npc.villager.b.idle`, `npc.pet.default.idle`,
 `hero.body.default.idle` and the outfit bodies `hero.body.knight.idle`,
 `hero.body.ranger.idle`, `hero.body.rogue.idle`, `hero.body.wizard.idle`.
 
+The day's visitor, standing by the square (one 16×16 figure each):
+`town.visitor.trader.idle` (a travelling trader; the pack's wagon for now),
+`town.visitor.windfall.idle` (a producer's foreman having a good day),
+`town.visitor.visitor.idle` (a friend bringing a gift). With no art for one,
+the town draws the wagon or a villager instead, then the text card. The
+festival bunting over the square is drawn in code and needs no art.
+
 ### Key list — rooms (Roguelike Indoors)
 
 Room shell: `room.floor.wood.idle`, `room.wall.default.idle`.

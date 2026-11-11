@@ -24,9 +24,11 @@ import '../camera_controls.dart';
 import '../pack_atlas.dart';
 import '../scene_pictures.dart';
 import 'town_game.dart';
+import 'town_loop_components.dart';
 import 'town_tag_placement.dart';
 
 export 'town_game.dart' show LogPulse, TownsfolkEntry;
+export 'town_loop_components.dart' show TownLoopScene, kVisitorCell;
 
 class TownSceneView extends StatefulWidget {
   const TownSceneView({
@@ -42,6 +44,9 @@ class TownSceneView extends StatefulWidget {
     this.logPulse,
     this.scatter = const TownScatter(props: [], borderWidth: 0),
     this.tags = const [],
+    this.loop = TownLoopScene.none,
+    this.visitorTag,
+    this.onVisitorTap,
   });
 
   final TownView view;
@@ -71,6 +76,14 @@ class TownSceneView extends StatefulWidget {
   /// The small signs over buildings, the gate and the statues.
   final List<TownTag> tags;
 
+  /// The day's visitor and the weekend festival.
+  final TownLoopScene loop;
+
+  /// The sign over the visitor ("Trader in town"); unlike the other signs it
+  /// takes taps, as does the visitor's cell.
+  final String? visitorTag;
+  final VoidCallback? onVisitorTap;
+
   @override
   State<TownSceneView> createState() => _TownSceneViewState();
 }
@@ -85,6 +98,7 @@ class _TownSceneViewState extends State<TownSceneView> {
     catalog: widget.catalog,
     pictures: _pictures.images,
     scatter: widget.scatter,
+    loopScene: widget.loop,
   );
   int _zoomAtPinchStart = 3;
 
@@ -141,6 +155,7 @@ class _TownSceneViewState extends State<TownSceneView> {
     if (!listEquals(oldWidget.townsfolk, widget.townsfolk)) {
       unawaited(_game.updateTownsfolk(widget.townsfolk));
     }
+    if (oldWidget.loop != widget.loop) unawaited(_game.updateLoop(widget.loop));
     final pulse = widget.logPulse;
     if (pulse != null && pulse.sequence != oldWidget.logPulse?.sequence) {
       _game.celebrateLog(pulse);
@@ -173,10 +188,33 @@ class _TownSceneViewState extends State<TownSceneView> {
                 ),
               ),
             ),
+          ?_visitorSign(constraints),
         ],
       );
     },
   );
+
+  /// The visitor's sign, hung over its head; tapping it opens the visitor.
+  Widget? _visitorSign(BoxConstraints constraints) {
+    final text = widget.visitorTag;
+    if (text == null || widget.loop.visitorKey == null) return null;
+    final point = _camera.worldToScreen(
+      kVisitorCell.column * kTileSize + kTileSize / 2,
+      kVisitorCell.row * kTileSize,
+      constraints.maxWidth,
+      constraints.maxHeight,
+    );
+    return Positioned.fill(
+      child: CustomSingleChildLayout(
+        delegate: _TagLayout(Offset(point.x, point.y)),
+        child: GestureDetector(
+          key: const ValueKey('town-visitor-tag'),
+          onTap: widget.onVisitorTap,
+          child: FloatingTag(text),
+        ),
+      ),
+    );
+  }
 
   Offset _screenPoint(PlacedTownTag placed, BoxConstraints constraints) {
     final point = _camera.worldToScreen(
@@ -224,6 +262,11 @@ class _TownSceneViewState extends State<TownSceneView> {
         final onCellTap = widget.onCellTap;
         if (onCellTap != null) {
           onCellTap(cell);
+          return;
+        }
+        final onVisitorTap = widget.onVisitorTap;
+        if (onVisitorTap != null && widget.loop.visitorKey != null && cell == kVisitorCell) {
+          onVisitorTap();
           return;
         }
         final target = widget.view.targetAt(cell);

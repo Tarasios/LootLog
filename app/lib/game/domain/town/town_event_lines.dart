@@ -4,10 +4,40 @@
 /// Every line is listed in `docs/voice-lines.md` beside its trigger.
 ///
 /// Placeholders the screen fills: `{gives}` and `{receives}` (amounts, in
-/// game words), `{building}` (the producer having a good day).
+/// game words), `{building}` (the producer having a good day). The town
+/// loop's lines ([kTownLoopLineKeys]) add `{quietDays}` ("2 quiet days"),
+/// `{logged}` (weekdays logged), `{more}` ("1 more weekday"), `{festival}`
+/// (a festival's name) and `{reward}` (what it brings).
 ///
 /// Pure Dart, zero Flutter imports.
 library;
+
+import '../game_values.dart' show FestivalTier;
+
+/// The town loop's lines: the "while you were away" summary, the day's
+/// visitor tags, the town spirit and the festival celebration.
+const List<String> kTownLoopLineKeys = [
+  'away.welcome',
+  'away.title',
+  'away.fullDays',
+  'away.shortShifts',
+  'away.shortShiftsLogged',
+  'away.storehouseFull',
+  'tag.trader',
+  'tag.windfall',
+  'tag.visitor',
+  'tag.openTown',
+  'spirit.title',
+  'spirit.logged',
+  'spirit.weekday',
+  'spirit.next',
+  'spirit.weekend',
+  'festival.reward',
+  'festival.claimed',
+];
+
+/// The `town_events.json` key of a [tier] festival's short name.
+String festivalNameKey(FestivalTier tier) => 'festival.name.${tier.name}';
 
 /// The town's event lines by key (`trader.1`, `windfall.2`, ...).
 class TownEventLines {
@@ -77,4 +107,27 @@ const Map<String, String> _builtIn = {
       'A grand festival! Lanterns, music and dancing: every weekday kept, and the whole town celebrates.',
   'festival.joint':
       'The whole party kept the week together, and the festival is all the merrier for it.',
+  'festival.name.marketDay': 'market day',
+  'festival.name.fair': 'fair',
+  'festival.name.grandFestival': 'grand festival',
+  'festival.reward': 'The festival brings {reward}.',
+  'festival.claimed': 'Its gifts are already in your stores.',
+  'away.welcome': 'Welcome back!',
+  'away.title': 'While you were away',
+  'away.fullDays': 'Full days: the ledger was kept.',
+  'away.shortShifts':
+      'Short shifts on {quietDays}. Log today and the crews work the full day.',
+  'away.shortShiftsLogged':
+      'Short shifts on {quietDays}. Today is logged, so the crews are on the full day.',
+  'away.storehouseFull': 'Storehouse full',
+  'tag.trader': 'Trader in town',
+  'tag.windfall': 'Good day at the {building}',
+  'tag.visitor': 'A visitor',
+  'tag.openTown': 'Log today to open the town',
+  'spirit.title': 'Town spirit',
+  'spirit.logged': '{logged} of 5 weekdays logged this week.',
+  'spirit.weekday':
+      'Every weekday you log lifts the town. So far the weekend holds a {festival}.',
+  'spirit.next': 'Log {more} for a {festival}.',
+  'spirit.weekend': 'The weekend is here and the {festival} is on!',
 };
