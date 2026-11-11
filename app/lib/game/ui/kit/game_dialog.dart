@@ -153,7 +153,10 @@ class _ActionBar extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final (index, action) in actions.indexed) ...[
+          // The last action is the main one (it sits at the right on a wide
+          // screen), so stacked on a phone it comes first, under the thumb's
+          // reading order: the main action on top, the way out below it.
+          for (final (index, action) in actions.reversed.indexed) ...[
             if (index > 0) const SizedBox(height: AdventureTokens.gap),
             action,
           ],
