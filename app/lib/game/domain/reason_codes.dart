@@ -63,8 +63,13 @@ abstract final class GameReasonCodes {
   /// A freeze token earned by the streak.
   static const String streakToken = 'streak.token';
 
-  /// A Standard-mode partner's supply caravan for the party pool.
+  /// A Standard-mode partner's active day (the supply caravan). Its goods
+  /// travel the trade road ([tradeRoad]).
   static const String caravan = 'caravan.supply';
+
+  /// A neighbour's caravan on the trade road, on a day you were both active
+  /// (additive; never names anyone).
+  static const String tradeRoad = 'trade.road';
 
   /// The spoils chest for finishing a month's ritual (win or lose).
   static const String ritualSpoils = 'ritual.spoils';

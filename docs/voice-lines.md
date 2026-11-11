@@ -304,6 +304,10 @@ shortfalls at buildings and expeditions.
 | `starterAlreadyClaimed` | Your starter set is already home. |
 | `unknownOffer` | That visitor has already been seen to. |
 | `offerExpired` | That visitor has moved on. Someone new turns up tomorrow when you log. |
+| `giftToSelf` | Gifts travel to a neighbouring town. Your own stores are already yours. |
+| `notANeighbour` | That road doesn't lead to a town yet. |
+| `emptyGift` | Choose something to send first. |
+| `neighbourStorehouseFull` | Their Storehouse is full right now. Try again once they have room. |
 
 ### `reasons`
 
@@ -320,7 +324,8 @@ was earned (by reward reason code).
 | `week.reconcile` | Reconciled the week | The weekly reconcile chest |
 | `week.party` | The whole party showed up | Everyone in the party logged this week (additive; never names anyone) |
 | `streak.token` | Streak milestone | A streak milestone reward (freeze token or decoration) |
-| `caravan.supply` | Supply caravan | A Standard-mode partner's budgeting feeding the party |
+| `caravan.supply` | Supply caravan | A Standard-mode partner's active day (its goods travel the trade road) |
+| `trade.road` | A caravan from a neighbouring town | A neighbour (Adventure or Standard) was active the same day as you: generated goods, never taken from them (additive; never names anyone) |
 | `ritual.spoils` | Finished the month's ritual | The month-end dungeon is finished: the spoils chest |
 | `ritual.bonus` | Bonus: month-end rituals on time | On-time month-end ritual bonus gems |
 | `month.gold` | Bonus: a budget finished on target | A category finished the month on target (bonus only) |

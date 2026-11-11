@@ -21,6 +21,7 @@ import 'game_event.dart';
 import 'game_state.dart';
 import 'game_values.dart';
 import 'reason_codes.dart';
+import 'town/gifts.dart';
 import 'town/town_ownership.dart';
 
 /// Canonical event order: `occurredAt`, then `eventId` as the tiebreak.
@@ -416,6 +417,24 @@ void _apply(_GameStateDraft draft, GameEvent event) {
       draft
         ..ownership = applied.ownership
         ..towns = applied.towns;
+
+    case GiftSent gift:
+      if (!draft.ownership.isSplit || gift.toPersonId == actor) {
+        draft.warn(GameWarningCode.giftIgnored, gift.toPersonId);
+        return;
+      }
+      final outcome = moveGift(
+        sender: draft.town(actor),
+        recipient: draft.town(gift.toPersonId),
+        bundle: gift.bundle,
+        at: gift.occurredAt,
+      );
+      if (outcome.moved != gift.bundle) {
+        draft.warn(GameWarningCode.giftTrimmed, gift.toPersonId);
+      }
+      draft
+        ..setTown(actor, outcome.sender)
+        ..setTown(gift.toPersonId, outcome.recipient);
 
     case UnknownGameEvent _:
       return;

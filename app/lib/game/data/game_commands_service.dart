@@ -166,6 +166,13 @@ class GameCommandsService {
     required bool accept,
   }) => run((commands) => commands.resolveDailyEvent(offerId, accept: accept));
 
+  // ---- Neighbours ----------------------------------------------------------------
+
+  /// Sends [bundle] from this device's adult's town to [toPersonId]'s. The
+  /// `GiftSent` event holds what actually moved.
+  Future<GameCommandResult> sendGift(String toPersonId, MaterialBundle bundle) =>
+      run((commands) => commands.sendGift(toPersonId, bundle));
+
   // ---- Heroes ------------------------------------------------------------------
 
   /// Upgrades [heroId]'s gear in [slot] by one tier (this device's adult pays).

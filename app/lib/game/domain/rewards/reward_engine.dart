@@ -38,6 +38,7 @@ import '../reason_codes.dart';
 import '../town/daily_event.dart';
 import '../town/festival.dart';
 import '../town/town_ownership.dart';
+import '../town/trade_road.dart';
 import 'month_end_rewards.dart';
 
 export '../game_event_stamp.dart';
@@ -167,6 +168,7 @@ class RewardEngine {
       run.festivals(adult.memberId, oldest);
     }
     run.jointFestivals(oldest);
+    run.tradeRoads(oldest);
 
     run.out.addAll(monthEnd.evaluate(ledger, gameState, clock,
         party: party, stamp: stamp, household: household));
@@ -430,6 +432,40 @@ class _Run {
             gems: Balance.jointFestivalGems,
             reasonCode: GameReasonCodes.festivalJoint);
       }
+    }
+  }
+
+  /// The trade road's caravans (`town/trade_road.dart`) for every day since
+  /// the towns were split, within the lookback. Additive only: someone
+  /// alone that day simply has no caravan.
+  void tradeRoads(GameDay oldest) {
+    final splitAt = _split?.occurredAt ?? state.ownership.split?.splitAt;
+    if (splitAt == null) return;
+    final opened = GameDay.fromInstant(splitAt);
+    final standardIds = {
+      for (final adult in party.adults)
+        if (!adult.inAdventure) adult.memberId,
+    };
+    final due = tradeRoadCaravansDue(
+      from: opened > oldest ? opened : oldest,
+      to: today,
+      adventurerDays: {
+        for (final adult in party.adventurers)
+          adult.memberId: person(adult.memberId).logged,
+      },
+      caravanDays: {
+        for (final id in standardIds) id: person(id).caravanDays,
+      },
+    );
+    for (final caravan in due) {
+      final goods = standardIds.contains(caravan.neighbourId)
+          ? Balance.caravanTradeBundle
+          : tradeRoadDelivery(townOf(caravan.neighbourId), now);
+      _grant(caravan.who,
+          rewardId: tradeRoadRewardId(caravan.who, caravan.day, caravan.neighbourId),
+          kind: 'tradeRoad',
+          materials: goods,
+          reasonCode: GameReasonCodes.tradeRoad);
     }
   }
 

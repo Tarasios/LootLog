@@ -30,6 +30,7 @@ import '../game_state.dart';
 import '../game_values.dart';
 import '../hall_rules.dart';
 import '../reason_codes.dart';
+import '../town/gifts.dart';
 
 /// Why a command was refused. The UI maps each to friendly copy.
 enum GameRejection {
@@ -174,6 +175,18 @@ enum GameRejection {
 
   /// The daily event belonged to an earlier day.
   offerExpired,
+
+  /// A gift goes to a neighbour, not to oneself.
+  giftToSelf,
+
+  /// The recipient has no town to send to (not an Adventure neighbour).
+  notANeighbour,
+
+  /// A gift needs at least one material.
+  emptyGift,
+
+  /// The neighbour's Storehouse has no room for any of it.
+  neighbourStorehouseFull,
 }
 
 /// What a command decided: the events to append, or why not.
@@ -438,6 +451,29 @@ class GameCommands {
         accepted: accept,
         paid: paid,
         received: received,
+      ),
+    ]);
+  }
+
+  // ---- Neighbours -----------------------------------------------------------
+
+  /// Sends [bundle] from the actor's town to [toPersonId]'s, a neighbouring
+  /// Adventure town (`town/gifts.dart`). What the neighbour's Storehouse has
+  /// room for moves, and that is what the `GiftSent` event stores.
+  GameCommandResult sendGift(String toPersonId, MaterialBundle bundle) {
+    final plan = planGift(state,
+        fromId: actorId, toId: toPersonId, bundle: bundle, now: _now);
+    final rejection = plan.rejection;
+    if (rejection != null) return _reject(rejection);
+    return _accept([
+      GiftSent(
+        eventId: stamp.newEventId(),
+        deviceId: stamp.deviceId,
+        actorId: actorId,
+        occurredAt: _now,
+        createdAt: _now,
+        toPersonId: toPersonId,
+        bundle: plan.moves,
       ),
     ]);
   }

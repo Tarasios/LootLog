@@ -123,7 +123,8 @@
     "vault.quest": "Savings goal milestone",
     "vault.consistency": "Months of saving in a row",
     "festival.weekend": "The weekend festival",
-    "festival.joint": "Bonus: the party kept the week together"
+    "festival.joint": "Bonus: the party kept the week together",
+    "trade.road": "A caravan from a neighbouring town"
   },
   "rejections": {
     "notEnoughGems": "A few more gems needed. They come from logging, so every entry brings this closer.",
@@ -172,6 +173,10 @@
     "notEquippable": "Only outfits and titles can be worn.",
     "starterAlreadyClaimed": "Your starter set is already home.",
     "unknownOffer": "That visitor has already been seen to.",
-    "offerExpired": "That visitor has moved on. Someone new turns up tomorrow when you log."
+    "offerExpired": "That visitor has moved on. Someone new turns up tomorrow when you log.",
+    "giftToSelf": "Gifts travel to a neighbouring town. Your own stores are already yours.",
+    "notANeighbour": "That road doesn't lead to a town yet.",
+    "emptyGift": "Choose something to send first.",
+    "neighbourStorehouseFull": "Their Storehouse is full right now. Try again once they have room."
   }
 }

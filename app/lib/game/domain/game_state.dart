@@ -84,6 +84,14 @@ enum GameWarningCode {
   /// A daily event resolved that is not waiting (already resolved, typically
   /// on another device, or never offered); nothing moved.
   unknownOffer,
+
+  /// A gift moved less than it named: the sender held less, or the
+  /// neighbour's Storehouse had less room, by the time it applied. What did
+  /// not move stayed with the sender.
+  giftTrimmed,
+
+  /// A gift to oneself, or sent before the towns were split; nothing moved.
+  giftIgnored,
 }
 
 /// One recorded inconsistency, tied to the event that caused it.

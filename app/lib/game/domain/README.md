@@ -33,6 +33,17 @@ Nothing here may write ledger events except through the existing ledger API.
   `HallState.starter()` plus `Balance.welcomeGrant`. Read a town with
   `GameState.townOf(personId)`; town events apply to their actor's town; the
   earliest split by `(occurredAt, eventId)` stands on every device.
+- `town/trade_road.dart` — on each day two or more adults were active, every
+  active Adventure adult gets a caravan (`RewardGranted`
+  `trade.road:<who>:<day>:<neighbour>`) from every other active neighbour:
+  `Balance.tradeRoadAmount` of that neighbour's busiest material (highest
+  hourly rate, ties by enum order) scaled by its producer tier, or
+  `Balance.caravanTradeBundle` from a Standard neighbour. Generated, never
+  taken; one per neighbour so a late-syncing log tops the day up.
+- `town/gifts.dart` — `GameCommands.sendGift(to, bundle)` moves materials to
+  an Adventure neighbour's town (`GiftSent` stores what fits their
+  Storehouse); the projection re-trims on a race so materials are always
+  conserved and any overflow stays with the sender.
 - `commands/game_commands.dart` — `GameCommands(state, clock, actorId,
   stamp)`: every guild-hall action as a pure function returning a
   `GameCommandResult` (events to append, or a `GameRejection`). Anything

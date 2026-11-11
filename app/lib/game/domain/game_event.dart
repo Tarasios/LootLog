@@ -53,6 +53,7 @@ const List<String> kGameEventTypes = [
   'DailyEventResolved',
   'FestivalHeld',
   'TownsSplit',
+  'GiftSent',
 ];
 
 /// Base class for every game event.
@@ -402,6 +403,13 @@ sealed class GameEvent {
           occurredAt: occurredAt, createdAt: createdAt, schemaVersion: schemaVersion,
           ownerId: payload['ownerId'] as String,
           welcome: _materials(payload['welcome']),
+        );
+      case 'GiftSent':
+        return GiftSent(
+          eventId: eventId, deviceId: deviceId, actorId: actorId,
+          occurredAt: occurredAt, createdAt: createdAt, schemaVersion: schemaVersion,
+          toPersonId: payload['toPersonId'] as String,
+          bundle: _materials(payload['bundle']),
         );
       default:
         return UnknownGameEvent._(envelope, type, payload);
@@ -1210,6 +1218,34 @@ class TownsSplit extends GameEvent {
         'splitId': splitId,
         'ownerId': ownerId,
         'welcome': welcome.toJson(),
+      };
+}
+
+/// [actorId] sent [bundle] from their town to [toPersonId]'s, a
+/// neighbouring town. [bundle] is what actually moved, settled when the
+/// command ran (trimmed to the room in the neighbour's Storehouse).
+class GiftSent extends GameEvent {
+  const GiftSent({
+    required super.eventId,
+    required super.deviceId,
+    required super.actorId,
+    required super.occurredAt,
+    required super.createdAt,
+    super.schemaVersion,
+    required this.toPersonId,
+    required this.bundle,
+  });
+
+  final String toPersonId;
+  final MaterialBundle bundle;
+
+  @override
+  String get type => 'GiftSent';
+
+  @override
+  Map<String, dynamic> payload() => {
+        'toPersonId': toPersonId,
+        'bundle': bundle.toJson(),
       };
 }
 

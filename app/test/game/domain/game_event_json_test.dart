@@ -135,6 +135,15 @@ final List<GameEvent> _samples = [
     ownerId: robin,
     welcome: MaterialBundle({MaterialKind.lumber: 40, MaterialKind.stone: 40}),
   ),
+  GiftSent(
+    eventId: 'e26',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(26),
+    createdAt: at(26),
+    toPersonId: sam,
+    bundle: MaterialBundle({MaterialKind.ore: 12}),
+  ),
 ];
 
 void main() {
@@ -242,6 +251,15 @@ void main() {
     final raw = _samples.whereType<TownsSplit>().single.toJson();
     expect((raw['payload'] as Map<String, dynamic>)['splitId'], 'towns.split');
     final olderBuild = {...raw, 'type': 'FutureTownsSplit'};
+    final decoded = GameEvent.fromJson(olderBuild);
+    expect(decoded, isA<UnknownGameEvent>());
+    expect(decoded.toJson(), olderBuild);
+  });
+
+  test('an older build sees a gift as UnknownGameEvent and relays it verbatim',
+      () {
+    final raw = _samples.whereType<GiftSent>().single.toJson();
+    final olderBuild = {...raw, 'type': 'FutureGiftSent'};
     final decoded = GameEvent.fromJson(olderBuild);
     expect(decoded, isA<UnknownGameEvent>());
     expect(decoded.toJson(), olderBuild);
