@@ -177,5 +177,12 @@
   "book.stat.homes": "Homes",
   "book.stat.guards": "Guards",
   "book.stat.fields": "Fields",
-  "farm.fieldOpensAt": "This field opens when your town becomes a {tier}."
+  "farm.fieldOpensAt": "This field opens when your town becomes a {tier}.",
+  "district.short.outpost": "Outpost",
+  "district.short.farmland": "Farmland",
+  "district.short.guardPost": "Guards",
+  "district.short.residential": "Homes",
+  "district.short.park": "Park",
+  "district.short.marketRow": "Market",
+  "district.short.castleHill": "Castle"
 }

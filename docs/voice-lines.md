@@ -596,6 +596,13 @@ food only waits to grow: never say "lost", "missed", "starving" or
 | `castle.done.towers` | The towers were finished | Celebrate | Towers rise at every corner of the Castle. |
 | `castle.done.banners` | The last stage: the Castle is complete | The biggest celebration; credit the habit | Banners fly from every tower: the Castle is complete! A year of logging built this. |
 | `castle.titleEarned` | The castle title was granted | Celebrate | You are now Keeper of the Castle. |
+| `district.short.outpost` | The open district's short name on the district strip (the picker and headers keep the full name) | Name it in a word | Outpost |
+| `district.short.farmland` | The open district's short name on the district strip (the picker and headers keep the full name) | Name it in a word | Farmland |
+| `district.short.guardPost` | The open district's short name on the district strip (the picker and headers keep the full name) | Name it in a word | Guards |
+| `district.short.residential` | The open district's short name on the district strip (the picker and headers keep the full name) | Name it in a word | Homes |
+| `district.short.park` | The open district's short name on the district strip (the picker and headers keep the full name) | Name it in a word | Park |
+| `district.short.marketRow` | The open district's short name on the district strip (the picker and headers keep the full name) | Name it in a word | Market |
+| `district.short.castleHill` | The open district's short name on the district strip (the picker and headers keep the full name) | Name it in a word | Castle |
 | `district.bought.guardPost` | The Guard Post was bought | Celebrate; name the first step | Stone walls and a watchful gate: the Guard Post is yours. A watchtower brings the first guards. |
 | `district.bought.residential` | The Residential Quarter was bought | Celebrate; name the first step | Garden gates and fresh paint: the Residential Quarter is yours. A cottage brings new neighbours. |
 | `district.bought.park` | The Park was bought | Celebrate; name the first step | Lawns, lamps and a quiet pond: the Park is yours. Plant a garden and the town takes a breath. |

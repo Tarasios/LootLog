@@ -17,6 +17,7 @@ import 'package:lootlog/game/ui/hall_common.dart' show HallLinks;
 import 'package:lootlog/game/ui/town/castle_sheet.dart';
 import 'package:lootlog/game/ui/town/civic_plot_sheet.dart';
 import 'package:lootlog/game/ui/town/town_book_screen.dart';
+import 'package:lootlog/game/ui/town/town_shell.dart';
 
 import '../../domain/town/growth_fixtures.dart';
 import '../hall_harness.dart' show before, kHallNow, robin, stateOf, storeWith;
@@ -67,6 +68,23 @@ void main() {
       expect(find.byType(TownSceneView), findsOneWidget, reason: 'the old district is let go');
     }
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the strip names the open district shortly and keeps it fully in view', (tester) async {
+    await _pump(tester, longRoadHost(await storeWith(longRoadEvents(TownTier.city))));
+    await _openDistrict(tester, kResidentialDistrictId);
+    expect(find.descendant(of: find.byKey(const ValueKey('district-residential')), matching: find.textContaining('Homes', findRichText: true)),
+        findsOneWidget);
+    for (final id in [kCastleHillDistrictId, kOutpostDistrictId, kMarketRowDistrictId]) {
+      // Opened by a swipe or the picker: the strip scrolls to it by itself.
+      final shell = tester.state(find.byType(TownShell)) as dynamic;
+      shell.openDistrict(id);
+      await _frames(tester);
+      final viewport = tester.getRect(find.byKey(const ValueKey('district-strip-scroll')));
+      final button = tester.getRect(find.byKey(ValueKey('district-$id')));
+      expect(button.left, greaterThanOrEqualTo(viewport.left), reason: id);
+      expect(button.right, lessThanOrEqualTo(viewport.right), reason: id);
+    }
   });
 
   testWidgets('Castle Hill stays locked until the city, and says so in the picker', (tester) async {

@@ -55,7 +55,29 @@ class TownGame extends FlameGame {
          worldWidth: view.layout.columns * kTileSize,
          worldHeight: view.layout.rows * kTileSize,
          margin: scatter.borderWidth * kTileSize,
+         focusY: plotFocusY(view.layout),
+         focusBottom: plotFocusBottom(view.layout),
        );
+
+  /// The foot of a phone-sized district's lowest plot name (null for the
+  /// outpost and a map without plots).
+  static double? plotFocusBottom(TownLayout layout) {
+    if (layout == TownLayout.standard || layout.plotOrigins.isEmpty) return null;
+    final lowest = layout.plotOrigins.map((origin) => origin.row).reduce(math.max);
+    return (lowest + TownLayout.footprint) * kTileSize + kTileSize / 2;
+  }
+
+  /// The middle of a phone-sized district's plots, from the row their tall
+  /// art overhangs to the names under them, so the first view on a phone
+  /// keeps the lower plots' names clear of the HUD; null (the middle of
+  /// the map) for the outpost and a map without plots.
+  static double? plotFocusY(TownLayout layout) {
+    if (layout == TownLayout.standard || layout.plotOrigins.isEmpty) return null;
+    final rows = [for (final origin in layout.plotOrigins) origin.row];
+    final top = (rows.reduce(math.min) - 1) * kTileSize;
+    final bottom = (rows.reduce(math.max) + TownLayout.footprint) * kTileSize + kTileSize / 2;
+    return (top + bottom) / 2;
+  }
 
   /// Beyond the scattered forest (a window larger than town and border).
   static const Color forestColour = Color(0xFF346524);

@@ -67,6 +67,48 @@ void main() {
   });
 
   testWithGame<TownGame>(
+      'a field a later tier opens names that tier on its lot',
+      () => _sceneOf([
+            ...tierWith(TownTier.village),
+            districtPurchased('farmland', kFarmlandDistrictId, when: at(0)),
+          ], kFarmlandDistrictId), (game) async {
+    await game.ready();
+    final plots = game.world.children.whereType<PlotComponent>().toList();
+    String nameOf(PlotComponent plot) => plot.children.whereType<TextComponent>().single.text;
+    expect(nameOf(plots[6]), 'Town');
+    expect(nameOf(plots[11]), 'City');
+  });
+
+  testWithGame<TownGame>(
+      'a resting farm with food waiting shows the ready marker and the sleep bubble',
+      () => TownGame(
+            atlas: PackAtlas(AssetRegistry.empty, Images(prefix: 'assets/game/')),
+            view: TownView(
+              layout: TownLayout.farmland,
+              residents: const [],
+              plots: [
+                TownPlotView(
+                  plotIndex: 6,
+                  origin: TownLayout.farmland.plotOrigins[6],
+                  unlocked: true,
+                  districtId: kFarmlandDistrictId,
+                  farmType: FarmBuildingType.farm,
+                  tier: 1,
+                  readyToCollect: true,
+                  resting: true,
+                ),
+              ],
+            ),
+            ambientLife: false,
+          ), (game) async {
+    await game.ready();
+    final plot = game.world.children.whereType<PlotComponent>().single;
+    expect(plot.children.whereType<ReadyBubble>(), hasLength(1));
+    expect(plot.children.whereType<KeyedSprite>().where((sprite) => sprite.assetKey == GameAssetKeys.farmResting),
+        hasLength(1));
+  });
+
+  testWithGame<TownGame>(
       'a farm resting for want of guards wears a sleep bubble, not a ready marker',
       () => _sceneOf([
             ...tierWith(TownTier.town),

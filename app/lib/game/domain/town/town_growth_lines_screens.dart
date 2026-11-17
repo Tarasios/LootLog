@@ -15,6 +15,13 @@
 library;
 
 const Map<String, String> kScreenGrowthLines = {
+  'district.short.outpost': 'Outpost',
+  'district.short.farmland': 'Farmland',
+  'district.short.guardPost': 'Guards',
+  'district.short.residential': 'Homes',
+  'district.short.park': 'Park',
+  'district.short.marketRow': 'Market',
+  'district.short.castleHill': 'Castle',
   'district.bought.guardPost':
       'Stone walls and a watchful gate: the Guard Post is yours. A watchtower brings the first guards.',
   'district.bought.residential':

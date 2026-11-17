@@ -271,7 +271,11 @@ class PlotComponent extends PositionComponent {
     final String label;
     if (!plot.unlocked) {
       key = const AssetKey('town', 'plot', 'locked');
-      label = 'Locked';
+      // A field a later tier opens names that tier ("Town", "City").
+      label = switch (plot.opensAt) {
+        final tier? => AssetKey.humanize(tier.name),
+        null => 'Locked',
+      };
     } else if (buildingKey == null) {
       key = emptyPlotKey(plot.districtId);
       label = 'Build';
@@ -307,20 +311,20 @@ class PlotComponent extends PositionComponent {
       );
     }
     add(_nameUnder(size, label));
+    // Food grown before the farm rested still waits: the ready marker
+    // first, the calm sleep bubble (never a warning) beside it.
+    if (plot.readyToCollect) add(ReadyBubble(position: Vector2(size.x - 4, -2)));
     if (plot.resting) {
-      // A calm sleep bubble, never a warning: the farm keeps everything.
       add(
         KeyedSprite(
           atlas: atlas,
           assetKey: GameAssetKeys.farmResting,
           label: 'Zz',
-          position: Vector2(size.x - kTileSize * 0.75, -kTileSize * 0.5),
+          position: Vector2(plot.readyToCollect ? 0 : size.x - kTileSize * 0.75, -kTileSize * 0.5),
           size: Vector2.all(kTileSize * 0.75),
           priority: 4,
         ),
       );
-    } else if (plot.readyToCollect) {
-      add(ReadyBubble(position: Vector2(size.x - 4, -2)));
     }
   }
 }

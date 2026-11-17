@@ -99,6 +99,7 @@ class TownPlotView {
     this.completesAt,
     this.readyToCollect = false,
     this.resting = false,
+    this.opensAt,
   });
 
   final int plotIndex;
@@ -125,6 +126,10 @@ class TownPlotView {
   /// and grows again once guarded (never a failing look).
   final bool resting;
 
+  /// For a field of an owned district that a later tier opens (the
+  /// farmland's fields at the Town and the City), that tier.
+  final TownTier? opensAt;
+
   @override
   bool operator ==(Object other) =>
       other is TownPlotView &&
@@ -139,7 +144,8 @@ class TownPlotView {
       other.underConstruction == underConstruction &&
       other.completesAt == completesAt &&
       other.readyToCollect == readyToCollect &&
-      other.resting == resting;
+      other.resting == resting &&
+      other.opensAt == opensAt;
 
   @override
   int get hashCode => Object.hash(
@@ -155,6 +161,7 @@ class TownPlotView {
         completesAt,
         readyToCollect,
         resting,
+        opensAt,
       );
 }
 
@@ -340,7 +347,19 @@ class TownView {
               building.farmType != null &&
               uncollectedFood(town, address, now, activeDays: activeDays) > 0),
       resting: farmResting(town, address, now),
+      opensAt: _opensAt(town, address, tier),
     );
+  }
+
+  /// The tier that opens [address] for a town that owns its district but
+  /// has not reached that tier yet; null otherwise.
+  static TownTier? _opensAt(HallState town, PlotAddress address, TownTier tier) {
+    final district = districtById(address.districtId);
+    if (district == null || !town.districts.owns(district.id) || plotIsOpen(town, address, tier)) return null;
+    for (final later in TownTier.values) {
+      if (later.index > tier.index && address.plotIndex < districtPlotCount(district, later)) return later;
+    }
+    return null;
   }
 
   static bool _covers(TownCell origin, TownCell cell) =>

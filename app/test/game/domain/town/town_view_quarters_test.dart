@@ -74,6 +74,17 @@ void main() {
     expect(viewOf(events(guarded: true)).plots[restingPlot].resting, isFalse);
   });
 
+  test('a farmland field the tier has not opened names the tier that opens it', () {
+    final game = projectGameState([
+      ...tierWith(TownTier.village),
+      districtPurchased('farmland', kFarmlandDistrictId, when: at(0)),
+    ]);
+    final plots = TownView.from(game, robin, _adults, at(10), districtId: kFarmlandDistrictId).plots;
+    expect(plots[5].opensAt, isNull);
+    expect(plots[6].opensAt, TownTier.town);
+    expect(plots[11].opensAt, TownTier.city);
+  });
+
   group('Castle Hill', () {
     test('an empty hill before the first stage, with taps on the Castle', () {
       final game = projectGameState(tierWith(TownTier.city));

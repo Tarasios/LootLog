@@ -104,6 +104,7 @@ mixin TownDistrictWiring<Shell extends ConsumerStatefulWidget> on ConsumerState<
             DistrictStripEntry(
               districtId: district.id,
               name: lines.line(districtNameKey(district.id)),
+              shortName: lines.line('district.short.${district.id}'),
               icon: districtIcon(district.id),
               owned: open.contains(district),
               lockedLabel: lines.line(tierNameKey(district.requiredTier)),
