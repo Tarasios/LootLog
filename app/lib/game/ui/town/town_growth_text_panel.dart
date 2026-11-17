@@ -12,6 +12,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../ui/theme.dart';
 import '../../domain/town/districts.dart';
+import '../../domain/town/guards.dart';
+import '../../domain/game_values.dart' show TownTier;
 import '../../domain/town/town_book.dart';
 import '../../domain/town/town_growth_lines.dart';
 import '../hall_common.dart';
@@ -65,13 +67,13 @@ class TownGrowthPanel extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          for (final listing in book.districts) _districtRow(context, lines, listing),
+          for (final listing in book.districts) _districtRow(context, lines, listing, book),
           if (ownsFarmland)
             Wrap(
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
               children: [
-                for (var plot = 0; plot < districtById(kFarmlandDistrictId)!.plotCount; plot++)
+                for (var plot = 0; plot < districtPlotCount(districtById(kFarmlandDistrictId)!, book.tier); plot++)
                   OutlinedButton(
                     key: ValueKey('text-field-$plot'),
                     onPressed: () => unawaited(showFarmPlotSheet(context, plotIndex: plot)),
@@ -88,14 +90,17 @@ class TownGrowthPanel extends ConsumerWidget {
     final building = data.town.districts.buildingAt(PlotAddress(kFarmlandDistrictId, plot));
     final type = building?.farmType;
     if (building == null || type == null) return 'Field ${plot + 1}: empty';
-    return 'Field ${plot + 1}: ${lines.line(farmBuildingNameKey(type))} T${building.tier}';
+    final resting = farmResting(data.town, PlotAddress(kFarmlandDistrictId, plot), data.now) ? ' (resting)' : '';
+    return 'Field ${plot + 1}: ${lines.line(farmBuildingNameKey(type))} T${building.tier}$resting';
   }
 
-  Widget _districtRow(BuildContext context, TownGrowthLines lines, DistrictListing listing) {
+  Widget _districtRow(BuildContext context, TownGrowthLines lines, DistrictListing listing, TownBook book) {
     final spec = listing.spec;
     final tierName = lines.line(tierNameKey(spec.requiredTier));
     final status = listing.owned
         ? lines.line('district.owned')
+        : spec.id == kCastleHillDistrictId
+            ? lines.line(book.tier == TownTier.city ? 'district.castleOpen' : 'castle.teaser')
         : !spec.purchasable
             ? lines.line('district.comingLater')
             : listing.forSale

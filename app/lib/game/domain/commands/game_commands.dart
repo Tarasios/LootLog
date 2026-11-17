@@ -30,10 +30,13 @@ import '../game_state.dart';
 import '../game_values.dart';
 import '../hall_rules.dart';
 import '../reason_codes.dart';
+import '../town/castle.dart';
 import '../town/cheers.dart';
 import '../town/districts.dart';
 import '../town/farmland.dart';
 import '../town/gifts.dart';
+import '../town/goods.dart';
+import '../town/quarters.dart';
 
 /// Why a command was refused. The UI maps each to friendly copy.
 enum GameRejection {
@@ -214,6 +217,30 @@ enum GameRejection {
 
   /// The granary has no room for any of the harvest.
   granaryFull,
+
+  /// That building stands in another district.
+  wrongDistrict,
+
+  /// The town's goods are short.
+  notEnoughGoods,
+
+  /// No workshop stands finished on Market Row.
+  noWorkshop,
+
+  /// No workshop has that recipe.
+  unknownRecipe,
+
+  /// A job needs at least one batch, and no more than the workshop takes.
+  invalidBatches,
+
+  /// Every workshop is busy with a job.
+  workshopBusy,
+
+  /// The Castle's current stage is still being built.
+  castleUnderConstruction,
+
+  /// Every Castle stage is built.
+  castleComplete,
 }
 
 /// What a command decided: the events to append, or why not.
@@ -409,6 +436,102 @@ class GameCommands {
         tier: plan.tier,
         cost: plan.cost,
         completesAt: _now.add(Balance.buildTimeByTier[plan.tier - 1]),
+      ),
+    ]);
+  }
+
+  /// Builds civic building [type] on an empty plot of [districtId] (tier 1)
+  /// or upgrades the [type] standing there by one tier
+  /// (`town/quarters.dart`).
+  GameCommandResult startCivicBuilding(String districtId, int plotIndex, CivicBuildingType type) {
+    final plan = planCivicBuilding(state, actorId, districtId, plotIndex, type, _now);
+    final rejection = plan.rejection;
+    if (rejection != null) return _reject(rejection);
+    return _accept([
+      CivicBuildingStarted(
+        eventId: stamp.newEventId(),
+        deviceId: stamp.deviceId,
+        actorId: actorId,
+        occurredAt: _now,
+        createdAt: _now,
+        districtId: districtId,
+        plotIndex: plotIndex,
+        buildingKey: type.name,
+        tier: plan.tier,
+        cost: plan.cost,
+        goods: plan.goods,
+        completesAt: _now.add(Balance.buildTimeByTier[plan.tier - 1]),
+      ),
+    ]);
+  }
+
+  // ---- Goods and the Castle ---------------------------------------------------
+
+  /// Starts [batches] batches of [recipeId] on the best idle workshop
+  /// (`town/goods.dart`); what goes in, what comes out and when it is done
+  /// are stored in the event.
+  GameCommandResult startRefining(String recipeId, int batches) {
+    final plan = planStartRefining(state, actorId, recipeId, batches, _now);
+    final rejection = plan.rejection;
+    if (rejection != null) return _reject(rejection);
+    final workshop = plan.workshop!;
+    return _accept([
+      RefiningStarted(
+        eventId: stamp.newEventId(),
+        deviceId: stamp.deviceId,
+        actorId: actorId,
+        occurredAt: _now,
+        createdAt: _now,
+        districtId: workshop.districtId,
+        plotIndex: workshop.plotIndex,
+        recipeId: recipeId,
+        batches: batches,
+        input: plan.input,
+        output: plan.output,
+        completesAt: plan.completesAt!,
+      ),
+    ]);
+  }
+
+  /// Collects every finished workshop job's goods.
+  GameCommandResult collectGoods() {
+    final plan = planCollectGoods(state, actorId, _now);
+    final rejection = plan.rejection;
+    if (rejection != null) return _reject(rejection);
+    return _accept([
+      for (final (:address, :job) in plan.done)
+        GoodsCollected(
+          eventId: stamp.newEventId(),
+          deviceId: stamp.deviceId,
+          actorId: actorId,
+          occurredAt: _now,
+          createdAt: _now,
+          districtId: address.districtId,
+          plotIndex: address.plotIndex,
+          jobId: job.jobId,
+          goods: job.output,
+        ),
+    ]);
+  }
+
+  /// Begins the Castle's next stage (`town/castle.dart`).
+  GameCommandResult startCastleStage() {
+    final plan = planCastleStage(state, actorId, _now);
+    final rejection = plan.rejection;
+    if (rejection != null) return _reject(rejection);
+    final spec = plan.spec!;
+    return _accept([
+      CastleStageStarted(
+        eventId: stamp.newEventId(),
+        deviceId: stamp.deviceId,
+        actorId: actorId,
+        occurredAt: _now,
+        createdAt: _now,
+        stage: plan.stage,
+        stageKey: spec.key,
+        cost: spec.cost,
+        goods: spec.goods,
+        completesAt: plan.completesAt!,
       ),
     ]);
   }

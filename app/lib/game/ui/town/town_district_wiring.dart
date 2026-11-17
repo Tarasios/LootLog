@@ -11,7 +11,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/game_state.dart';
+import '../../domain/game_values.dart' show TownTier;
 import '../../domain/town/districts.dart';
+import '../../domain/town/long_road_book.dart' show districtVisitable;
 import '../../domain/town/town_growth_lines.dart';
 import '../../domain/town/town_layout.dart';
 import '../../domain/town/town_scatter.dart';
@@ -73,37 +75,46 @@ mixin TownDistrictWiring<Shell extends ConsumerStatefulWidget> on ConsumerState<
     });
   }
 
-  /// Opens the owned district next to the open one in [direction] (+1 east,
-  /// -1 west), if there is one.
-  void openNeighbour(HallState town, int direction) {
+  /// Opens the district the town can walk into next to the open one in
+  /// [direction] (+1 east, -1 west), if there is one.
+  void openNeighbour(HallState town, TownTier tier, int direction) {
     final owned = [
       for (final district in stripDistricts)
-        if (town.districts.owns(district.id)) district.id,
+        if (districtVisitable(town, tier, district.id)) district.id,
     ];
     final index = owned.indexOf(_openDistrictId) + direction;
     if (index >= 0 && index < owned.length) openDistrict(owned[index]);
   }
 
-  /// The strip for [town]: owned districts open, the others explain what
-  /// opens them through the picker.
-  /// With [readOnly] (a neighbour's town) only owned districts show and
-  /// there is no picker: nothing is for sale on a visit.
-  Widget districtStrip(HallState town, TownGrowthLines lines, {bool readOnly = false}) => DistrictStrip(
-    entries: [
-      for (final district in stripDistricts)
-        if (!readOnly || town.districts.owns(district.id))
-        DistrictStripEntry(
-          districtId: district.id,
-          name: lines.line(districtNameKey(district.id)),
-          icon: districtIcon(district.id),
-          owned: town.districts.owns(district.id),
-          lockedLabel: lines.line(tierNameKey(district.requiredTier)),
-        ),
-    ],
-    openDistrictId: _openDistrictId,
-    onSelect: (entry) => entry.owned ? openDistrict(entry.districtId) : openDistrictPicker(),
-    onMap: readOnly ? null : openDistrictPicker,
-  );
+  /// The strip for a [tier] [town]: the districts it can walk into, and
+  /// while that is only the outpost, the next one as a padlock that
+  /// explains what opens it through the picker (later districts wait in
+  /// the picker, so a phone's strip stays short and names stay readable).
+  /// With [readOnly] (a neighbour's town) only the districts it can walk
+  /// into show and there is no picker: nothing is for sale on a visit.
+  Widget districtStrip(HallState town, TownTier tier, TownGrowthLines lines, {bool readOnly = false}) {
+    final open = [for (final district in stripDistricts) if (districtVisitable(town, tier, district.id)) district];
+    final nextLocked = readOnly || open.length > 1
+        ? null
+        : stripDistricts.where((district) => !districtVisitable(town, tier, district.id)).firstOrNull;
+    return DistrictStrip(
+      entries: [
+        for (final district in stripDistricts)
+          if (open.contains(district) || district == nextLocked)
+            DistrictStripEntry(
+              districtId: district.id,
+              name: lines.line(districtNameKey(district.id)),
+              shortName: lines.line('district.short.${district.id}'),
+              icon: districtIcon(district.id),
+              owned: open.contains(district),
+              lockedLabel: lines.line(tierNameKey(district.requiredTier)),
+            ),
+      ],
+      openDistrictId: _openDistrictId,
+      onSelect: (entry) => entry.owned ? openDistrict(entry.districtId) : openDistrictPicker(),
+      onMap: readOnly ? null : openDistrictPicker,
+    );
+  }
 
   /// The district picker; a purchase opens the new district and celebrates.
   void openDistrictPicker() => unawaited(

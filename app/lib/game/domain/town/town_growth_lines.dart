@@ -14,6 +14,11 @@
 library;
 
 import '../game_values.dart';
+import 'town_growth_lines_long_road.dart';
+import 'town_growth_lines_screens.dart';
+
+export 'town_growth_lines_long_road.dart'
+    show castleStageDoneKey, castleStageNameKey, civicBuildingBlurbKey, civicBuildingNameKey, goodsNameKey;
 
 /// The key of [tier]'s name.
 String tierNameKey(TownTier tier) => 'tier.name.${tier.name}';
@@ -65,6 +70,12 @@ class TownGrowthLines {
 }
 
 const Map<String, String> _builtIn = {
+  ..._stageTwoLines,
+  ...kLongRoadGrowthLines,
+  ...kScreenGrowthLines,
+};
+
+const Map<String, String> _stageTwoLines = {
   'tier.name.outpost': 'Outpost',
   'tier.name.hamlet': 'Hamlet',
   'tier.name.village': 'Village',

@@ -1,7 +1,10 @@
 /// The sheet for one farmland field: what can be planted on an empty field
 /// (farm, orchard, granary, each with its cost and any gate in plain
 /// words), and for a farm building its build timer, the food it grows and
-/// a Harvest button, the granary's room, and its next upgrade. Every gate
+/// a Harvest button, the granary's room, and its next upgrade. A farm
+/// resting until guards watch its field says so calmly and what to build;
+/// a field the town's tier has not opened yet says which tier opens it.
+/// Every gate
 /// is the real command dry-run, so the sheet and the rules never disagree.
 /// A framed game dialog in the pixel tier, a bottom sheet in the text tier.
 library;
@@ -18,6 +21,7 @@ import '../../domain/commands/game_commands.dart';
 import '../../domain/game_values.dart';
 import '../../domain/town/districts.dart';
 import '../../domain/town/food.dart';
+import '../../domain/town/guards.dart';
 import '../../domain/town/town_growth_lines.dart';
 import '../hall_common.dart';
 import '../hall_framed.dart';
@@ -66,9 +70,16 @@ class FarmPlotSheet extends ConsumerWidget {
       final field = _Field(context: context, ref: ref, plotIndex: plotIndex, lines: lines, voice: voice);
       final String title;
       final List<Widget> children;
+      final tier = game.person(meId ?? '').townTier;
       if (!town.districts.owns(kFarmlandDistrictId)) {
         title = 'Field ${plotIndex + 1}';
         children = [Text(lines.line('farm.locked'), style: framedBodyStyle(context))];
+      } else if (!plotIsOpen(town, address, tier)) {
+        title = 'Field ${plotIndex + 1}';
+        children = [
+          Text(fillLine(lines.line('farm.fieldOpensAt'), {'tier': lines.line(tierNameKey(_tierOpening(plotIndex)))}),
+              key: const ValueKey('farm-field-opens'), style: framedBodyStyle(context)),
+        ];
       } else if (building == null || type == null) {
         title = 'Field ${plotIndex + 1}';
         children = [
@@ -81,6 +92,11 @@ class FarmPlotSheet extends ConsumerWidget {
         final activeDays = game.townActiveDaysOf(meId ?? '');
         children = [
           ...field.progress(building, now),
+          if (farmResting(town, address, now)) ...[
+            Text(lines.line('guards.resting'), key: const ValueKey('farm-resting'), style: framedBodyStyle(context)),
+            Text(lines.line('guards.whatToBuild'), style: framedMutedStyle(context)),
+            const SizedBox(height: AppSpacing.sm),
+          ],
           if (Balance.farmBuildings[type]!.growsFood)
             field.harvest(
               type,
@@ -122,6 +138,12 @@ class FarmPlotSheet extends ConsumerWidget {
     });
   }
 }
+
+/// The first tier whose farmland opens field [plotIndex].
+TownTier _tierOpening(int plotIndex) => TownTier.values.firstWhere(
+      (tier) => (Balance.farmlandPlotsByTier[tier] ?? 0) > plotIndex,
+      orElse: () => TownTier.city,
+    );
 
 /// The pieces of one field's sheet, and the commands behind its buttons.
 class _Field {

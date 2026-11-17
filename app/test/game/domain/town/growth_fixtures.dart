@@ -3,6 +3,7 @@
 library;
 
 import 'package:lootlog/game/domain/decor/decor_values.dart';
+import 'package:lootlog/game/config/balance.dart';
 import 'package:lootlog/game/domain/game_event.dart';
 import 'package:lootlog/game/domain/game_values.dart';
 
@@ -162,3 +163,105 @@ List<GameEvent> hamletWith({int gems = 0, int lumber = 0, int stone = 0, String 
           materials: MaterialBundle({MaterialKind.lumber: lumber, MaterialKind.stone: stone})),
       claimed('funds-claim-$actor', 'funds-$actor', when: at(-1), actor: actor),
     ];
+
+CivicBuildingStarted civicBuilt(String id, String districtId, int plotIndex, CivicBuildingType type,
+        {required DateTime when,
+        String actor = robin,
+        int tier = 1,
+        Loot cost = Loot.none,
+        GoodsBundle goods = const GoodsBundle.empty(),
+        DateTime? completesAt}) =>
+    CivicBuildingStarted(
+      eventId: id,
+      deviceId: 'dev-1',
+      actorId: actor,
+      occurredAt: when,
+      createdAt: when,
+      districtId: districtId,
+      plotIndex: plotIndex,
+      buildingKey: type.name,
+      tier: tier,
+      cost: cost,
+      goods: goods,
+      completesAt: completesAt ?? when,
+    );
+
+/// [actor] at [tier] with [gems] gems and [materials] in the town, all
+/// claimed, and (from tier 1 up to [hallTier]) a Central Hall on plot 0 and
+/// a Storehouse on plot 1, so upgrades and big stores fit.
+List<GameEvent> tierWith(TownTier tier,
+        {int gems = 0,
+        MaterialBundle materials = const MaterialBundle.empty(),
+        int hallTier = 5,
+        String actor = robin}) =>
+    [
+      for (final reached in TownTier.values.skip(1).take(tier.index))
+        tierReached('${reached.name}-$actor', reached, when: at(-3), actor: actor),
+      for (var level = 1; level <= hallTier; level++) ...[
+        built('hall-$actor-$level', 0, BuildingType.centralHall, when: at(-10 + level), tier: level, actor: actor),
+        built('store-$actor-$level', 1, BuildingType.storehouse, when: at(-10 + level), tier: level, actor: actor),
+      ],
+      granted('funds-$actor', when: at(-2), actor: actor, rewardId: 'funds-$actor', gems: gems, materials: materials),
+      claimed('funds-claim-$actor', 'funds-$actor', when: at(-1), actor: actor),
+    ];
+
+RefiningStarted refiningStarted(String id, int plotIndex, String recipeId,
+        {required DateTime when,
+        required DateTime completesAt,
+        int batches = 1,
+        MaterialBundle input = const MaterialBundle.empty(),
+        GoodsBundle output = const GoodsBundle.empty(),
+        String actor = robin,
+        String device = 'dev-1'}) =>
+    RefiningStarted(
+      eventId: id,
+      deviceId: device,
+      actorId: actor,
+      occurredAt: when,
+      createdAt: when,
+      districtId: 'marketRow',
+      plotIndex: plotIndex,
+      recipeId: recipeId,
+      batches: batches,
+      input: input,
+      output: output,
+      completesAt: completesAt,
+    );
+
+GoodsCollected goodsCollected(String id, int plotIndex, String jobId, GoodsBundle goods,
+        {required DateTime when, String actor = robin, String device = 'dev-1'}) =>
+    GoodsCollected(
+      eventId: id,
+      deviceId: device,
+      actorId: actor,
+      occurredAt: when,
+      createdAt: when,
+      districtId: 'marketRow',
+      plotIndex: plotIndex,
+      jobId: jobId,
+      goods: goods,
+    );
+
+/// Castle stage [stage] begun at [when]; it finishes after the stage's
+/// build days unless [completesAt] says otherwise.
+CastleStageStarted castleStageStarted(String id, int stage,
+        {required DateTime when,
+        DateTime? completesAt,
+        String? stageKey,
+        Loot cost = Loot.none,
+        GoodsBundle goods = const GoodsBundle.empty(),
+        String actor = robin,
+        String device = 'dev-1'}) =>
+    CastleStageStarted(
+      eventId: id,
+      deviceId: device,
+      actorId: actor,
+      occurredAt: when,
+      createdAt: when,
+      stage: stage,
+      stageKey: stageKey ?? const ['foundation', 'keep', 'walls', 'towers', 'banners'][stage - 1],
+      cost: cost,
+      goods: goods,
+      completesAt: completesAt ??
+          when.add(Duration(days: Balance.castleStages[(stage - 1).clamp(0, 4)].buildDays)),
+    );

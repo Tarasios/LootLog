@@ -1,5 +1,6 @@
 /// The town's read model for one district: what stands on each plot, who
-/// lives in each house (the outpost), and what a tap on a cell means.
+/// lives in each house (the outpost), how far the Castle has risen (Castle
+/// Hill), and what a tap on a cell means.
 /// Derived from the game state and the household roster on every build;
 /// never stored. Pure Dart.
 library;
@@ -10,6 +11,7 @@ import '../game_values.dart';
 import '../hall_rules.dart';
 import 'districts.dart';
 import 'food.dart';
+import 'guards.dart';
 import 'neighbours.dart';
 import 'town_layout.dart';
 
@@ -54,6 +56,17 @@ class SignpostTarget extends TownTarget {
   int get hashCode => 1;
 }
 
+/// The Castle on Castle Hill.
+class CastleTarget extends TownTarget {
+  const CastleTarget();
+
+  @override
+  bool operator ==(Object other) => other is CastleTarget;
+
+  @override
+  int get hashCode => 2;
+}
+
 class GateTarget extends TownTarget {
   const GateTarget();
 
@@ -80,10 +93,13 @@ class TownPlotView {
     this.districtId = kOutpostDistrictId,
     this.buildingType,
     this.farmType,
+    this.civicType,
     this.tier = 0,
     this.underConstruction = false,
     this.completesAt,
     this.readyToCollect = false,
+    this.resting = false,
+    this.opensAt,
   });
 
   final int plotIndex;
@@ -96,10 +112,23 @@ class TownPlotView {
 
   /// What stands on a farmland plot.
   final FarmBuildingType? farmType;
+
+  /// What stands on a civic quarter's plot.
+  final CivicBuildingType? civicType;
   final int tier;
   final bool underConstruction;
   final DateTime? completesAt;
+
+  /// Food to harvest, or a workshop job done.
   final bool readyToCollect;
+
+  /// A farm resting until guards watch over its field: it keeps everything
+  /// and grows again once guarded (never a failing look).
+  final bool resting;
+
+  /// For a field of an owned district that a later tier opens (the
+  /// farmland's fields at the Town and the City), that tier.
+  final TownTier? opensAt;
 
   @override
   bool operator ==(Object other) =>
@@ -110,10 +139,13 @@ class TownPlotView {
       other.districtId == districtId &&
       other.buildingType == buildingType &&
       other.farmType == farmType &&
+      other.civicType == civicType &&
       other.tier == tier &&
       other.underConstruction == underConstruction &&
       other.completesAt == completesAt &&
-      other.readyToCollect == readyToCollect;
+      other.readyToCollect == readyToCollect &&
+      other.resting == resting &&
+      other.opensAt == opensAt;
 
   @override
   int get hashCode => Object.hash(
@@ -123,10 +155,13 @@ class TownPlotView {
         districtId,
         buildingType,
         farmType,
+        civicType,
         tier,
         underConstruction,
         completesAt,
         readyToCollect,
+        resting,
+        opensAt,
       );
 }
 
@@ -167,6 +202,8 @@ class TownView {
     this.townPlacements = const [],
     this.goalPictures = const {},
     this.neighbours = const [],
+    this.castleStagesDone = 0,
+    this.castleUnderConstruction = false,
   });
 
   final List<TownPlotView> plots;
@@ -188,6 +225,13 @@ class TownView {
 
   /// The other adults, for the signpost and the caravan camp (outpost).
   final List<TownNeighbour> neighbours;
+
+  /// How many Castle stages stand finished (Castle Hill; 0 is the empty
+  /// hill with its survey flag).
+  final int castleStagesDone;
+
+  /// The builders are raising the next Castle stage.
+  final bool castleUnderConstruction;
 
   /// The signpost stands when a neighbour's town can be visited.
   bool get showsSignpost => layout.signpost != null && neighbours.any((n) => n.canVisit);
@@ -212,11 +256,15 @@ class TownView {
     final town = game.townOf(viewerId);
     final layout = TownLayout.forDistrict(districtId) ?? TownLayout.standard;
     if (layout != TownLayout.standard) {
+      final castle = town.castle;
       return TownView(
         layout: layout,
+        castleStagesDone: layout.castleOrigin == null ? 0 : castle.stagesCompleteAt(now),
+        castleUnderConstruction: layout.castleOrigin != null && castle.stagesCompleteAt(now) < castle.stagesStarted,
         plots: List.unmodifiable([
           for (var index = 0; index < layout.plotOrigins.length; index++)
-            _districtPlotView(town, PlotAddress(layout.districtId, index), layout.plotOrigins[index], now, activeDays),
+            _districtPlotView(town, PlotAddress(layout.districtId, index), layout.plotOrigins[index], now, activeDays,
+                tier: game.person(viewerId).townTier),
         ]),
         residents: const [],
       );
@@ -277,23 +325,41 @@ class TownView {
     PlotAddress address,
     TownCell origin,
     DateTime now,
-    Set<GameDay> activeDays,
-  ) {
+    Set<GameDay> activeDays, {
+    required TownTier tier,
+  }) {
     final building = town.districts.buildingAt(address);
     final underConstruction = building != null && !building.isCompleteAt(now);
+    final jobDone = town.goods.jobs[address]?.isDoneAt(now) ?? false;
     return TownPlotView(
       plotIndex: address.plotIndex,
       origin: origin,
-      unlocked: plotIsOpen(town, address),
+      unlocked: plotIsOpen(town, address, tier),
       districtId: address.districtId,
       farmType: building?.farmType,
+      civicType: building?.civicType,
       tier: building?.tier ?? 0,
       underConstruction: underConstruction,
       completesAt: building?.completesAt,
-      readyToCollect: building != null &&
-          !underConstruction &&
-          uncollectedFood(town, address, now, activeDays: activeDays) > 0,
+      readyToCollect: jobDone ||
+          (building != null &&
+              !underConstruction &&
+              building.farmType != null &&
+              uncollectedFood(town, address, now, activeDays: activeDays) > 0),
+      resting: farmResting(town, address, now),
+      opensAt: _opensAt(town, address, tier),
     );
+  }
+
+  /// The tier that opens [address] for a town that owns its district but
+  /// has not reached that tier yet; null otherwise.
+  static TownTier? _opensAt(HallState town, PlotAddress address, TownTier tier) {
+    final district = districtById(address.districtId);
+    if (district == null || !town.districts.owns(district.id) || plotIsOpen(town, address, tier)) return null;
+    for (final later in TownTier.values) {
+      if (later.index > tier.index && address.plotIndex < districtPlotCount(district, later)) return later;
+    }
+    return null;
   }
 
   static bool _covers(TownCell origin, TownCell cell) =>
@@ -309,6 +375,8 @@ class TownView {
       other is TownView &&
       other.layout == layout &&
       other.dungeonOpen == dungeonOpen &&
+      other.castleStagesDone == castleStagesDone &&
+      other.castleUnderConstruction == castleUnderConstruction &&
       _sameItems(other.plots, plots) &&
       _sameItems(other.residents, residents) &&
       _sameItems(other.townPlacements, townPlacements) &&
@@ -319,6 +387,8 @@ class TownView {
   int get hashCode => Object.hash(
         layout,
         dungeonOpen,
+        castleStagesDone,
+        castleUnderConstruction,
         Object.hashAll(plots),
         Object.hashAll(residents),
         Object.hashAll(townPlacements),
@@ -346,6 +416,7 @@ class TownView {
   TownTarget? targetAt(TownCell cell) {
     if (layout.hasGate && cell == layout.gate) return const GateTarget();
     if (showsSignpost && cell == layout.signpost) return const SignpostTarget();
+    if (layout.castleCovers(cell)) return const CastleTarget();
     for (final plot in plots) {
       if (_covers(plot.origin, cell)) return PlotTarget(plot.plotIndex, districtId: plot.districtId);
     }

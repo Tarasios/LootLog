@@ -22,6 +22,7 @@ import '../../domain/town/town_view.dart';
 import '../camera_controls.dart';
 import '../pack_atlas.dart';
 import '../scene_effects.dart';
+import 'castle_component.dart';
 import 'town_components.dart';
 import 'town_loop_components.dart';
 
@@ -54,7 +55,29 @@ class TownGame extends FlameGame {
          worldWidth: view.layout.columns * kTileSize,
          worldHeight: view.layout.rows * kTileSize,
          margin: scatter.borderWidth * kTileSize,
+         focusY: plotFocusY(view.layout),
+         focusBottom: plotFocusBottom(view.layout),
        );
+
+  /// The foot of a phone-sized district's lowest plot name (null for the
+  /// outpost and a map without plots).
+  static double? plotFocusBottom(TownLayout layout) {
+    if (layout == TownLayout.standard || layout.plotOrigins.isEmpty) return null;
+    final lowest = layout.plotOrigins.map((origin) => origin.row).reduce(math.max);
+    return (lowest + TownLayout.footprint) * kTileSize + kTileSize / 2;
+  }
+
+  /// The middle of a phone-sized district's plots, from the row their tall
+  /// art overhangs to the names under them, so the first view on a phone
+  /// keeps the lower plots' names clear of the HUD; null (the middle of
+  /// the map) for the outpost and a map without plots.
+  static double? plotFocusY(TownLayout layout) {
+    if (layout == TownLayout.standard || layout.plotOrigins.isEmpty) return null;
+    final rows = [for (final origin in layout.plotOrigins) origin.row];
+    final top = (rows.reduce(math.min) - 1) * kTileSize;
+    final bottom = (rows.reduce(math.max) + TownLayout.footprint) * kTileSize + kTileSize / 2;
+    return (top + bottom) / 2;
+  }
 
   /// Beyond the scattered forest (a window larger than town and border).
   static const Color forestColour = Color(0xFF346524);
@@ -112,6 +135,8 @@ class TownGame extends FlameGame {
       AssetKey('town', 'plot', 'locked'),
       AssetKey('town', 'plot', 'empty'),
       GameAssetKeys.farmPlotEmpty,
+      GameAssetKeys.farmResting,
+      GameAssetKeys.castleScaffold,
       AssetKey('hero', 'body'),
       AssetKey('npc', 'pet', 'default'),
     ];
@@ -123,7 +148,9 @@ class TownGame extends FlameGame {
     }
     for (final plot in view.plots) {
       if (plotArtKey(plot) case final key?) yield key;
+      if (!plot.unlocked || plotArtKey(plot) == null) yield emptyPlotKey(plot.districtId);
     }
+    if (view.layout.castleOrigin != null) yield GameAssetKeys.castleStage(view.castleStagesDone);
     for (final placement in view.townPlacements) {
       final item = catalog.itemFor(placement.itemId);
       if (item != null) yield item.assetKey;
@@ -156,7 +183,8 @@ class TownGame extends FlameGame {
           label: landmark.label,
           position: cellPosition(landmark.origin),
           size: Vector2(landmark.columns * kTileSize, landmark.rows * kTileSize),
-          priority: 2,
+          // A hill or an arch over the lane lies under everything else.
+          priority: landmark.underlay ? 1 : 2,
         ),
       );
     }
@@ -298,7 +326,18 @@ class TownGame extends FlameGame {
       ..addAll([
         for (final resident in _view.residents) HouseComponent(atlas, resident),
       ])
-      ..addAll(_roadside());
+      ..addAll(_roadside())
+      ..addAll([
+        if (_view.layout.castleOrigin case final origin?)
+          CastleComponent(
+            atlas,
+            origin: origin,
+            columns: _view.layout.castleColumns,
+            rows: _view.layout.castleRows,
+            stagesDone: _view.castleStagesDone,
+            building: _view.castleUnderConstruction,
+          ),
+      ]);
     unawaited(world.addAll(_plotsAndHouses));
   }
 

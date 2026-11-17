@@ -32,6 +32,7 @@
     {"id": "streak_30_item", "name": "Banner of the Month", "kind": "furniture", "rarity": "rare", "asset": "furniture.painting.banner.idle", "footprint": [1, 2], "exclusive": true},
     {"id": "streak_100_title", "name": "Legend of the Hearth", "kind": "title", "rarity": "rare", "asset": "title.legend.default.idle", "exclusive": true},
     {"id": "streak_100_item", "name": "Hearthstone fountain", "kind": "townDecor", "rarity": "rare", "asset": "town_decor.well.fountain.idle", "exclusive": true},
+    {"id": "castle_title", "name": "Keeper of the Castle", "kind": "title", "rarity": "rare", "asset": "title.castle.default.idle", "exclusive": true},
     {"id": "trophy_cup", "name": "Goal trophy", "kind": "furniture", "rarity": "rare", "asset": "furniture.trophy_stand.default.idle", "exclusive": true},
     {"id": "town_statue_plain", "name": "Goal statue", "kind": "townDecor", "rarity": "rare", "asset": "town_decor.statue.default.idle", "exclusive": true},
     {"id": "town_festival_lantern", "name": "Festival lantern", "kind": "townDecor", "rarity": "rare", "asset": "town_decor.lamp_post.festival.idle", "exclusive": true, "tags": ["festival"]},

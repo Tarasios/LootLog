@@ -37,12 +37,12 @@ Iterable<String> _labels(Component component) =>
     component.children.whereType<TextComponent>().map((label) => label.text);
 
 void main() {
-  testWithGame<TownGame>('the farmland draws its six fields, its landmarks and no gate or houses', _buildFarmland, (
+  testWithGame<TownGame>('the farmland draws all twelve fields, its landmarks and no gate or houses', _buildFarmland, (
     game,
   ) async {
     await game.ready();
     final plots = game.world.children.whereType<PlotComponent>().toList();
-    expect(plots, hasLength(6));
+    expect(plots, hasLength(12));
     expect(game.world.children.whereType<HouseComponent>(), isEmpty);
     final labels = game.world.children.whereType<KeyedSprite>().map((sprite) => sprite.label).toList();
     expect(labels, isNot(contains('Gate')));

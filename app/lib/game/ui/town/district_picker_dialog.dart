@@ -15,6 +15,7 @@ import '../../assets/pack_sprite.dart';
 import '../../data/game_providers.dart';
 import '../../domain/game_values.dart';
 import '../../domain/town/districts.dart';
+import '../../domain/town/long_road_book.dart' show districtVisitable;
 import '../../domain/town/town_book.dart';
 import '../../domain/town/town_growth_lines.dart';
 import '../../domain/town/town_layout.dart';
@@ -31,6 +32,10 @@ import 'town_loop_view.dart' show fillLine;
 AssetKey? districtPicture(String districtId) => switch (districtId) {
   kOutpostDistrictId => GameAssetKeys.building(BuildingType.centralHall, 1),
   kFarmlandDistrictId => GameAssetKeys.farmBuilding(FarmBuildingType.farm, 2),
+  kGuardPostDistrictId => GameAssetKeys.civicBuilding(CivicBuildingType.watchtower, 2),
+  kResidentialDistrictId => GameAssetKeys.civicBuilding(CivicBuildingType.cottage, 2),
+  kParkDistrictId => GameAssetKeys.civicBuilding(CivicBuildingType.fountain, 2),
+  kMarketRowDistrictId => GameAssetKeys.civicBuilding(CivicBuildingType.stall, 2),
   _ => null,
 };
 
@@ -83,6 +88,7 @@ class DistrictPickerDialog extends ConsumerWidget {
             const SizedBox(height: AdventureTokens.gap),
             _DistrictCard(
               listing: listing,
+              visitable: districtVisitable(game.townOf(meId ?? ''), book.tier, listing.spec.id),
               lines: lines,
               rejection: listing.forSale
                   ? previewRejection(game, meId, clock, (commands) => commands.buyDistrict(listing.spec.id))
@@ -104,6 +110,7 @@ class DistrictPickerDialog extends ConsumerWidget {
 class _DistrictCard extends StatelessWidget {
   const _DistrictCard({
     required this.listing,
+    required this.visitable,
     required this.lines,
     required this.rejection,
     required this.voice,
@@ -112,6 +119,9 @@ class _DistrictCard extends StatelessWidget {
   });
 
   final DistrictListing listing;
+
+  /// The town can walk into it (owned, or Castle Hill at the city).
+  final bool visitable;
   final TownGrowthLines lines;
   final GameRejection? rejection;
   final HallVoice voice;
@@ -154,22 +164,31 @@ class _DistrictCard extends StatelessWidget {
     );
   }
 
+  Widget _visit() => Align(
+    alignment: Alignment.centerLeft,
+    child: WoodButton(
+      key: ValueKey('district-visit-${listing.spec.id}'),
+      label: 'Visit',
+      dense: true,
+      tone: WoodButtonTone.secondary,
+      onPressed: onVisit,
+    ),
+  );
+
   List<Widget> _status(BuildContext context, String tierName) {
     final spec = listing.spec;
     if (listing.owned) {
       return [
         Text(lines.line('district.owned'), style: framedMutedStyle(context)),
-        if (TownLayout.forDistrict(spec.id) != null)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: WoodButton(
-              key: ValueKey('district-visit-${spec.id}'),
-              label: 'Visit',
-              dense: true,
-              tone: WoodButtonTone.secondary,
-              onPressed: onVisit,
-            ),
-          ),
+        if (TownLayout.forDistrict(spec.id) != null) _visit(),
+      ];
+    }
+    if (spec.id == kCastleHillDistrictId) {
+      // Never bought: the Castle rises there once the town is a city.
+      if (visitable) return [Text(lines.line('district.castleOpen'), style: framedMutedStyle(context)), _visit()];
+      return [
+        Text(fillLine(lines.line('district.opensAt'), {'tier': tierName}), style: framedGateStyle(context)),
+        Text(lines.line('castle.teaser'), style: framedMutedStyle(context)),
       ];
     }
     if (!spec.purchasable) {

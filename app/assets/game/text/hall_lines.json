@@ -125,7 +125,8 @@
     "festival.weekend": "The weekend festival",
     "festival.joint": "Bonus: the party kept the week together",
     "trade.road": "A caravan from a neighbouring town",
-    "town.tier": "The town grew into a new tier"
+    "town.tier": "The town grew into a new tier",
+    "castle.stage": "A stage of the Castle was finished"
   },
   "rejections": {
     "notEnoughGems": "A few more gems needed. They come from logging, so every entry brings this closer.",
@@ -185,7 +186,15 @@
     "districtAlreadyOwned": "That district is already part of your town.",
     "townTierTooLow": "That district opens as the town grows. Keep logging and it will come.",
     "districtNotOpenYet": "That district is still being surveyed. It opens in a later season.",
-    "districtNotOwned": "Buy the farmland first, then the fields are yours to plant.",
-    "granaryFull": "The granary is full. Build or raise a granary to store more food."
+    "districtNotOwned": "Buy that district first, then its plots are yours to build on.",
+    "granaryFull": "The granary is full. Build or raise a granary to store more food.",
+    "wrongDistrict": "That building belongs in another district. Each district has its own buildings.",
+    "notEnoughGoods": "A few more goods are needed. Your Market Row workshops can make them.",
+    "noWorkshop": "Goods are made in a workshop. Build one on Market Row first.",
+    "unknownRecipe": "The workshops don't know that recipe yet.",
+    "invalidBatches": "Choose how many batches: at least one, and no more than the workshop can take.",
+    "workshopBusy": "Every workshop is busy. Collect the finished goods, or build another workshop.",
+    "castleUnderConstruction": "The builders are still at work on this stage. The next one follows when it's done.",
+    "castleComplete": "The Castle stands complete, banners and all!"
   }
 }

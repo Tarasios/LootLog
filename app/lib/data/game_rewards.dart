@@ -16,6 +16,7 @@ import '../game/domain/clock.dart';
 import '../game/domain/decor/catalog.dart';
 import '../game/domain/game_projection.dart';
 import '../game/domain/party_sync.dart';
+import '../game/domain/rewards/castle_title.dart';
 import '../game/domain/rewards/festival_decorations.dart';
 import '../game/domain/rewards/reward_engine.dart';
 import '../game/domain/rewards/streak_milestones.dart';
@@ -156,6 +157,8 @@ class GameRewardRunner {
     final milestones = [
       ...const StreakMilestones()
           .evaluate(afterEngine, party, catalog, clock, stamp),
+      // The finished Castle's title, once.
+      ...const CastleTitle().evaluate(afterEngine, party, catalog, clock, stamp),
       // A grand festival's decoration, from the festivals the engine held.
       ...const FestivalDecorations()
           .evaluate(afterEngine, party, catalog, clock, stamp),

@@ -45,8 +45,8 @@ void main() {
       expect(_farmland.tilesetKey, isNotEmpty);
     });
 
-    test('later districts are listed as teasers that cannot be bought yet', () {
-      for (final id in ['guardPost', 'residential', 'park', 'marketRow']) {
+    test('castle hill is listed as a teaser that cannot be bought', () {
+      for (final id in ['castleHill']) {
         final teaser = districtById(id);
         expect(teaser, isNotNull, reason: id);
         expect(teaser!.purchasable, isFalse, reason: id);
@@ -125,7 +125,7 @@ void main() {
       expect(commandsFor(state).buyDistrict('nowhere').rejection, GameRejection.unknownDistrict);
       expect(commandsFor(state).buyDistrict(kOutpostDistrictId).rejection,
           GameRejection.districtAlreadyOwned);
-      expect(commandsFor(state).buyDistrict('park').rejection, GameRejection.districtNotOpenYet);
+      expect(commandsFor(state).buyDistrict('castleHill').rejection, GameRejection.districtNotOpenYet);
 
       final bought = projectGameState([...funded(), districtPurchased('d1', kFarmlandDistrictId, when: at(1))]);
       expect(commandsFor(bought).buyDistrict(kFarmlandDistrictId).rejection,
@@ -278,5 +278,13 @@ void main() {
       townProsperity(state.townOf(robin), townDecorationsPlaced: 0, festivalsHeld: 0, at: at(100)),
       Balance.prosperityPerDistrict + 3 * Balance.prosperityPerBuildingTier,
     );
+  });
+
+  test('the first finish of a building is part of its identity and its hash', () {
+    DistrictBuildingState building(DateTime first) => DistrictBuildingState(
+        key: 'cottage', tier: 2, startedAt: at(10), completesAt: at(20), firstCompletedAt: first);
+    expect(building(at(5)), isNot(building(at(6))));
+    expect(building(at(5)).hashCode, building(at(5)).hashCode);
+    expect(building(at(5)).hashCode, isNot(building(at(6)).hashCode));
   });
 }

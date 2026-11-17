@@ -11,17 +11,20 @@ import 'package:image/image.dart' as img;
 const int tile = 16;
 const String _townSheet = 'assets/game/packs/tiny_town/tilemap_packed.png';
 const String _farmSheet = 'assets/game/packs/tiny_farm/tilemap_packed.png';
+const String _dungeonSheet = 'assets/game/packs/tiny_dungeon/tilemap_packed.png';
 
 /// A sheet cell, as (column, row).
 typedef Cell = (int, int);
 
 late img.Image _town;
 late img.Image _farm;
+late img.Image _dungeon;
 
-/// Reads the Tiny Town and Tiny Farm sheets.
+/// Reads the Tiny Town, Tiny Farm and Tiny Dungeon sheets.
 void loadSourceSheets() {
   _town = img.decodePng(File(_townSheet).readAsBytesSync())!.convert(numChannels: 4);
   _farm = img.decodePng(File(_farmSheet).readAsBytesSync())!.convert(numChannels: 4);
+  _dungeon = img.decodePng(File(_dungeonSheet).readAsBytesSync())!.convert(numChannels: 4);
 }
 
 img.Image _crop(img.Image sheet, Cell cell) =>
@@ -29,6 +32,7 @@ img.Image _crop(img.Image sheet, Cell cell) =>
 
 img.Image townCell(Cell cell) => _crop(_town, cell);
 img.Image farmCell(Cell cell) => _crop(_farm, cell);
+img.Image dungeonCell(Cell cell) => _crop(_dungeon, cell);
 
 /// A transparent image [columns] × [rows] cells.
 img.Image blank(int columns, int rows) =>
@@ -36,6 +40,37 @@ img.Image blank(int columns, int rows) =>
 
 void draw(img.Image target, img.Image source, int x, int y) =>
     img.compositeImage(target, source, dstX: x, dstY: y);
+
+/// Tiny Town's palette, for the few things drawn by hand.
+final img.Color outline = img.ColorRgba8(63, 38, 49, 255);
+final img.Color woodLight = img.ColorRgba8(234, 165, 108, 255);
+final img.Color woodMid = img.ColorRgba8(189, 108, 74, 255);
+final img.Color woodDark = img.ColorRgba8(118, 59, 54, 255);
+final img.Color stoneLight = img.ColorRgba8(192, 203, 220, 255);
+final img.Color stoneMid = img.ColorRgba8(139, 155, 180, 255);
+final img.Color stoneDark = img.ColorRgba8(90, 105, 136, 255);
+final img.Color grassLight = img.ColorRgba8(139, 216, 125, 255);
+final img.Color grass = img.ColorRgba8(132, 198, 105, 255);
+final img.Color grassShade = img.ColorRgba8(101, 165, 86, 255);
+final img.Color grassDark = img.ColorRgba8(71, 159, 74, 255);
+final img.Color red = img.ColorRgba8(195, 75, 53, 255);
+final img.Color brightRed = img.ColorRgba8(232, 69, 55, 255);
+final img.Color yellow = img.ColorRgba8(253, 190, 83, 255);
+final img.Color blue = img.ColorRgba8(0, 154, 220, 255);
+final img.Color paleBlue = img.ColorRgba8(118, 228, 255, 255);
+final img.Color white = img.ColorRgba8(255, 255, 255, 255);
+final img.Color pink = img.ColorRgba8(255, 112, 109, 255);
+
+/// Fills the [width] × [height] rectangle at ([x], [y]).
+void fillRect(img.Image target, int x, int y, int width, int height, img.Color colour) {
+  for (var row = y; row < y + height; row++) {
+    for (var column = x; column < x + width; column++) {
+      if (column >= 0 && row >= 0 && column < target.width && row < target.height) {
+        target.setPixel(column, row, colour);
+      }
+    }
+  }
+}
 
 /// A red pennant on a dark pole, planted at [x] on the top row: the
 /// tier-5 mark.

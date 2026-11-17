@@ -20,7 +20,7 @@ void main() {
   });
 
   test('one plot per farmland plot the rules know', () {
-    expect(layout.plotOrigins, hasLength(districtById(kFarmlandDistrictId)!.plotCount));
+    expect(layout.plotOrigins, hasLength(districtMaxPlotCount(districtById(kFarmlandDistrictId)!)));
     expect(layout.houseOrigins, isEmpty);
     expect(layout.statueSpots, isEmpty);
     expect(layout.hasGate, isFalse);
@@ -58,12 +58,18 @@ void main() {
         for (var row = 0; row < layout.rows; row++)
           if (layout.groundAt(TownCell(column, row)) == TownGround.path) TownCell(column, row),
     };
+    // A field off the lane is reached across the field beside it.
+    Set<TownCell> near(TownCell origin) => {
+          for (var column = origin.column - 2; column < origin.column + 4; column++)
+            for (var row = origin.row - 2; row < origin.row + 4; row++) TownCell(column, row),
+        };
+    final reached = {
+      for (final origin in layout.plotOrigins)
+        if (near(origin).any(pathCells.contains)) origin,
+    };
     for (final origin in layout.plotOrigins) {
-      final near = [
-        for (var column = origin.column - 2; column < origin.column + 4; column++)
-          for (var row = origin.row; row < origin.row + 2; row++) TownCell(column, row),
-      ];
-      expect(near.any(pathCells.contains), isTrue, reason: 'plot at $origin is off the lane');
+      final besideReached = reached.any((other) => near(origin).contains(other));
+      expect(reached.contains(origin) || besideReached, isTrue, reason: 'plot at $origin is off the lane');
     }
   });
 
@@ -77,10 +83,13 @@ void main() {
     expect(layout.landmarks.map((landmark) => landmark.assetKey), contains('farm.barn.default.idle'));
   });
 
-  test('every district with a map has a layout; the teasers have none yet', () {
+  test('every catalogue district has a layout; one a newer build adds has none', () {
     expect(TownLayout.forDistrict(kOutpostDistrictId), TownLayout.standard);
     expect(TownLayout.forDistrict(kFarmlandDistrictId), TownLayout.farmland);
-    expect(TownLayout.forDistrict('guardPost'), isNull);
+    for (final district in kDistricts) {
+      expect(TownLayout.forDistrict(district.id)?.districtId, district.id);
+    }
+    expect(TownLayout.forDistrict('skyHarbour'), isNull);
     expect(TownLayout.standard.hasGate, isTrue);
     expect(TownLayout.standard.landmarks, isEmpty);
   });

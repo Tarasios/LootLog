@@ -35,6 +35,32 @@ const requiredKeys = [
   'town.plot.empty.idle',
   'farm.plot.empty.idle',
   'farm.barn.default.idle',
+  'farm.resting.sign.idle',
+  'guard.wall.default.idle',
+  'guard.tower.default.idle',
+  'guard.gate.default.idle',
+  'guard.rack.default.idle',
+  'guard.target.default.idle',
+  'guard.barrel.default.idle',
+  'npc.guard.default.idle',
+  'residential.garden.default.idle',
+  'residential.beehive.default.idle',
+  'residential.barrel.default.idle',
+  'park.flowerbed.default.idle',
+  'park.lamp.default.idle',
+  'park.bench.default.idle',
+  'market.stall.red.idle',
+  'market.stall.blue.idle',
+  'market.stall.green.idle',
+  'market.crate.default.idle',
+  'market.sack.default.idle',
+  'market.barrel.default.idle',
+  'castle.hill.default.idle',
+  'castle.scaffold.default.idle',
+  'plot.guard_post.empty.idle',
+  'plot.residential.empty.idle',
+  'plot.park.empty.idle',
+  'plot.market_row.empty.idle',
   'farm.crop.wheat.idle',
   'farm.hay.default.idle',
   'npc.animal.cow.idle',
@@ -153,12 +179,31 @@ void main() {
       }
     });
 
+    test('every civic building has all five tiers in town_composed', () {
+      final regions = readRegions('town_composed');
+      for (final type in CivicBuildingType.values) {
+        for (var tier = 1; tier <= GameAssetKeys.buildingTiers; tier++) {
+          expect(regions, contains(GameAssetKeys.civicBuilding(type, tier).value));
+        }
+      }
+    });
+
+    test('the Castle has a look for every stage from the surveyed hill to the banners', () {
+      final regions = readRegions('town_composed');
+      for (var stage = 0; stage <= 5; stage++) {
+        final cell = regions[GameAssetKeys.castleStage(stage).value];
+        expect(cell, isNotNull, reason: 'stage $stage');
+        expect([cell![2], cell[3]], [6, 6]);
+      }
+    });
+
     test('tiers 1-2 stand on 2x2 cells, tiers 3-5 rise to 2x3', () {
       final regions = readRegions('town_composed');
       final keys = [
         for (var tier = 1; tier <= GameAssetKeys.buildingTiers; tier++) ...[
           for (final type in BuildingType.values) (GameAssetKeys.building(type, tier), tier),
           for (final type in FarmBuildingType.values) (GameAssetKeys.farmBuilding(type, tier), tier),
+          for (final type in CivicBuildingType.values) (GameAssetKeys.civicBuilding(type, tier), tier),
         ],
       ];
       for (final (key, tier) in keys) {

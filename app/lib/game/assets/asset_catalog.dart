@@ -37,6 +37,26 @@ abstract final class GameAssetKeys {
   /// An empty farmland plot: tilled soil inside a fence.
   static const farmPlotEmpty = AssetKey('farm', 'plot', 'empty');
 
+  /// The small sleep bubble over a farm resting until guards watch its
+  /// field.
+  static const farmResting = AssetKey('farm', 'resting', 'sign');
+
+  /// The civic quarters' buildings: `building.<civic type>.t<tier>.<state>`,
+  /// e.g. `building.guild_hall.t3.idle`.
+  static AssetKey civicBuilding(CivicBuildingType type, int tier,
+          {String state = AssetKey.idleState}) =>
+      AssetKey('building', AssetKey.snakeSegment(type.name), 't$tier', state);
+
+  /// An empty plot in civic quarter [districtId]: `plot.<district>.empty`.
+  static AssetKey civicPlotEmpty(String districtId) =>
+      AssetKey('plot', AssetKey.snakeSegment(districtId), 'empty');
+
+  /// The Castle with [stagesDone] stages finished (0 is the surveyed hill).
+  static AssetKey castleStage(int stagesDone) => AssetKey('castle', 'stage', 's$stagesDone');
+
+  /// Builders' scaffolding over the Castle while a stage rises.
+  static const castleScaffold = AssetKey('castle', 'scaffold');
+
   // ---- Materials, currency, chests ----------------------------------------
 
   /// `material.<kind>.icon.idle`, e.g. `material.ore.icon.idle`.

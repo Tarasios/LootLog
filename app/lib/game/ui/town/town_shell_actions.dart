@@ -1,4 +1,5 @@
-/// What the town shell's taps and buttons open at home: a plot's sheet, a
+/// What the town shell's taps and buttons open at home: a plot's sheet (a
+/// hall building's, a farmland field's or a civic plot's), the Castle, a
 /// house's room, the dungeon gate, quick entry, the Goals pane and the shop.
 /// A shell mixin so `town_shell.dart` stays a readable build.
 library;
@@ -7,9 +8,11 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../domain/town/districts.dart' show kOutpostDistrictId;
+import '../../domain/town/districts.dart' show kFarmlandDistrictId, kOutpostDistrictId;
 import '../../domain/town/town_view.dart';
 import '../building_sheet.dart';
+import 'castle_sheet.dart';
+import 'civic_plot_sheet.dart';
 import 'farm_plot_sheet.dart';
 import 'town_place_openers.dart';
 import 'town_shell.dart';
@@ -19,8 +22,12 @@ mixin TownShellActions on ConsumerState<TownShell> {
   void openHomeTarget(TownTarget target) {
     final openers = widget.openers;
     switch (target) {
-      case PlotTarget(:final plotIndex, :final districtId) when districtId != kOutpostDistrictId:
+      case PlotTarget(:final plotIndex, :final districtId) when districtId == kFarmlandDistrictId:
         unawaited(showFarmPlotSheet(context, plotIndex: plotIndex));
+      case PlotTarget(:final plotIndex, :final districtId) when districtId != kOutpostDistrictId:
+        unawaited(showCivicPlotSheet(context, districtId: districtId, plotIndex: plotIndex));
+      case CastleTarget():
+        unawaited(showCastleSheet(context));
       case PlotTarget(:final plotIndex):
         unawaited(
           showBuildingSheet(context, plotIndex: plotIndex, onOpenLedger: widget.onOpenLedger, links: widget.links),

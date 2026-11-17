@@ -40,6 +40,11 @@ class TierUpDialog extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(lines.line(tierReachedKey(tier)), style: framedBodyStyle(context)),
+          // The city's hill is ready for its Castle: name the long goal.
+          if (tier == TownTier.city) ...[
+            const SizedBox(height: AdventureTokens.gap),
+            Text(lines.line('district.castleOpen'), style: framedBodyStyle(context)),
+          ],
           const SizedBox(height: AdventureTokens.gap),
           Text(
             fillLine(lines.line('tier.gifts'), {'tier': name}),

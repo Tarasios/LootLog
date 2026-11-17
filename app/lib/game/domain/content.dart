@@ -64,6 +64,98 @@ class FarmBuildingSpec {
   bool get growsFood => foodPerHour.isNotEmpty;
 }
 
+/// One building of the Guard Post, Residential Quarter, Park or Market Row:
+/// its district, what it costs and what it adds to the town. Every list is
+/// indexed by tier − 1.
+class CivicBuildingSpec {
+  const CivicBuildingSpec({
+    required this.districtId,
+    required this.upgradeBase,
+    this.goodsBase = const GoodsBundle.empty(),
+    this.housingByTier = const [],
+    this.guardsByTier = const [],
+    this.prosperityByTier = const [],
+    this.unique = false,
+  });
+
+  /// The district whose plots it stands on.
+  final String districtId;
+
+  /// The materials one cost unit takes, scaled per tier like a hall
+  /// building's.
+  final MaterialBundle upgradeBase;
+
+  /// The refined goods one goods unit takes, scaled per tier by
+  /// `Balance.civicGoodsMultiplierByTier` (tiers below the goods tier cost
+  /// none).
+  final GoodsBundle goodsBase;
+
+  /// Residents it houses.
+  final List<int> housingByTier;
+
+  /// Guard capacity it adds.
+  final List<int> guardsByTier;
+
+  /// Prosperity it adds beyond the usual per-tier amount (park buildings
+  /// and the guild hall).
+  final List<int> prosperityByTier;
+
+  /// Only one may stand in a town.
+  final bool unique;
+
+  /// What [list] holds at tier [tier] (0 below tier 1 or past its end).
+  static int at(List<int> list, int tier) =>
+      tier < 1 || list.isEmpty ? 0 : list[(tier > list.length ? list.length : tier) - 1];
+}
+
+/// One Market Row workshop recipe: what a batch takes, what it makes and
+/// how long it takes.
+class RefiningRecipe {
+  const RefiningRecipe({
+    required this.input,
+    required this.output,
+    required this.outputPerBatch,
+    required this.minutesPerBatch,
+  });
+
+  /// Raw materials one batch takes.
+  final MaterialBundle input;
+
+  /// The good it makes, and how many a batch makes.
+  final GoodsKind output;
+  final int outputPerBatch;
+
+  /// How long one batch takes in the workshop.
+  final int minutesPerBatch;
+}
+
+/// One stage of the Castle on Castle Hill.
+class CastleStageSpec {
+  const CastleStageSpec({
+    required this.key,
+    required this.cost,
+    required this.goods,
+    required this.buildDays,
+    required this.prosperity,
+  });
+
+  /// Stable id (`foundation`, `keep`, ...), stored in `CastleStageStarted`
+  /// and used in the asset key and reward id.
+  final String key;
+
+  /// Gems and materials it takes.
+  final Loot cost;
+
+  /// Refined goods it takes.
+  final GoodsBundle goods;
+
+  /// How many days the builders work on it.
+  final int buildDays;
+
+  /// Prosperity it adds once finished.
+  final int prosperity;
+}
+
 /// One hero gear slot: the gear types it accepts and its cost unit.
 class GearSlotSpec {
   const GearSlotSpec({required this.gearTypes, required this.baseCost});

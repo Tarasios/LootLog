@@ -210,6 +210,57 @@ final List<GameEvent> _samples = [
     day: GameDay.fromInstant(at(0)),
     amount: 10,
   ),
+  CivicBuildingStarted(
+    eventId: 'e33',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(33),
+    createdAt: at(33),
+    districtId: 'residential',
+    plotIndex: 1,
+    buildingKey: 'cottage',
+    tier: 2,
+    cost: Loot(gems: 0, materials: MaterialBundle({MaterialKind.lumber: 90})),
+    goods: GoodsBundle({GoodsKind.planks: 10}),
+    completesAt: at(93),
+  ),
+  RefiningStarted(
+    eventId: 'e34',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(34),
+    createdAt: at(34),
+    districtId: 'marketRow',
+    plotIndex: 2,
+    recipeId: 'planks',
+    batches: 3,
+    input: MaterialBundle({MaterialKind.lumber: 30}),
+    output: GoodsBundle({GoodsKind.planks: 6}),
+    completesAt: at(124),
+  ),
+  GoodsCollected(
+    eventId: 'e35',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(135),
+    createdAt: at(135),
+    districtId: 'marketRow',
+    plotIndex: 2,
+    jobId: 'e34',
+    goods: GoodsBundle({GoodsKind.planks: 6}),
+  ),
+  CastleStageStarted(
+    eventId: 'e36',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(136),
+    createdAt: at(136),
+    stage: 1,
+    stageKey: 'foundation',
+    cost: Loot(gems: 200, materials: MaterialBundle({MaterialKind.stone: 1500})),
+    goods: GoodsBundle({GoodsKind.cutStone: 200}),
+    completesAt: at(136 + 7 * 24 * 60),
+  ),
 ];
 
 void main() {
@@ -366,6 +417,32 @@ void main() {
     }
   });
 
+  test('an older build sees the long road events as UnknownGameEvent and '
+      'relays them verbatim', () {
+    for (final event in _samples.where((event) =>
+        event is CivicBuildingStarted ||
+        event is RefiningStarted ||
+        event is GoodsCollected ||
+        event is CastleStageStarted)) {
+      final olderBuild = {...event.toJson(), 'type': 'Future${event.type}'};
+      final decoded = GameEvent.fromJson(olderBuild);
+      expect(decoded, isA<UnknownGameEvent>());
+      expect(decoded.toJson(), olderBuild);
+    }
+  });
+
+  test('a civic building this build lacks still decodes, verbatim, for the '
+      'projection to set aside', () {
+    final raw = _samples.whereType<CivicBuildingStarted>().single.toJson();
+    final newer = {
+      ...raw,
+      'payload': {...raw['payload'] as Map<String, dynamic>, 'buildingKey': 'skyTower'},
+    };
+    final decoded = GameEvent.fromJson(newer);
+    expect(decoded, isA<CivicBuildingStarted>());
+    expect(decoded.toJson(), newer);
+  });
+
   test('a district building or district this build lacks still decodes, '
       'verbatim, for the projection to set aside', () {
     final raw = _samples.whereType<DistrictBuildingStarted>().single.toJson();
@@ -380,6 +457,25 @@ void main() {
     final decoded = GameEvent.fromJson(newer);
     expect(decoded, isA<DistrictBuildingStarted>());
     expect(decoded.toJson(), newer);
+  });
+
+  test('goods of a kind this build lacks keep the whole event as UnknownGameEvent', () {
+    final raw = _samples.whereType<GoodsCollected>().single.toJson();
+    final newer = {
+      ...raw,
+      'payload': {...raw['payload'] as Map<String, dynamic>, 'goods': {'glass': 4}},
+    };
+    final decoded = GameEvent.fromJson(newer);
+    expect(decoded, isA<UnknownGameEvent>());
+    expect(decoded.toJson(), newer);
+  });
+
+  test('GoodsBundle drops zero entries and serializes by name', () {
+    final bundle = GoodsBundle({GoodsKind.planks: 3, GoodsKind.tools: 0});
+    expect(bundle.toJson(), {'planks': 3});
+    expect(GoodsBundle.fromJson({'planks': 3}), bundle);
+    expect(bundle.covers(GoodsBundle({GoodsKind.planks: 3})), isTrue);
+    expect(bundle.covers(GoodsBundle({GoodsKind.cloth: 1})), isFalse);
   });
 
   test('a tier this build lacks is kept as UnknownGameEvent', () {

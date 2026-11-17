@@ -20,9 +20,12 @@ class CameraControls {
     required this.worldHeight,
     int zoom = 3,
     this.margin = 0,
+    double? focusY,
+    this.focusBottom,
   }) : _zoom = zoom.clamp(minZoom, maxZoom),
+       focusY = focusY ?? worldHeight / 2,
        _centerX = worldWidth / 2,
-       _centerY = worldHeight / 2;
+       _centerY = focusY ?? worldHeight / 2;
 
   static const int minZoom = 1;
   static const int maxZoom = 6;
@@ -48,6 +51,27 @@ class CameraControls {
   /// World pixels of scenery drawn beyond every edge of the world.
   final double margin;
 
+  /// The height the view starts centred on, before the player pans: the
+  /// middle of the world, or of what matters most on it (a district's
+  /// plots and their names).
+  final double focusY;
+
+  /// When set, the first view (before the player pans) also keeps this
+  /// height above the bottom HUD: a district's lowest plot names stay
+  /// readable when not every plot fits the band at once.
+  final double? focusBottom;
+
+  /// Where the view starts, before the player pans.
+  double _restingCentreY() {
+    var centre = focusY + (_bottomInset - _topInset) / 2 / _zoom;
+    final bottom = focusBottom, viewport = _viewportHeight;
+    if (bottom != null && viewport != null) {
+      final lowestCentre = bottom - viewport / 2 / _zoom + _bottomInset / _zoom;
+      if (centre < lowestCentre) centre = lowestCentre;
+    }
+    return centre;
+  }
+
   int _zoom;
   double _centerX;
   double _centerY;
@@ -65,7 +89,7 @@ class CameraControls {
 
   void zoomTo(int zoom) {
     _zoom = zoom.clamp(minZoom, maxZoom);
-    if (!_panned) _centerY = worldHeight / 2 + (_bottomInset - _topInset) / 2 / _zoom;
+    if (!_panned) _centerY = _restingCentreY();
     _clampCentre();
   }
 
@@ -76,6 +100,7 @@ class CameraControls {
   void setViewport(double width, double height) {
     _viewportWidth = width;
     _viewportHeight = height;
+    if (!_panned && focusBottom != null) _centerY = _restingCentreY();
     _clampCentre();
   }
 
@@ -84,7 +109,7 @@ class CameraControls {
   void setInsets({required double top, required double bottom}) {
     _topInset = top;
     _bottomInset = bottom;
-    if (!_panned) _centerY = worldHeight / 2 + (bottom - top) / 2 / _zoom;
+    if (!_panned) _centerY = _restingCentreY();
     _clampCentre();
   }
 

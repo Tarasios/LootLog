@@ -143,6 +143,7 @@ class _TownShellState extends ConsumerState<TownShell>
     // A visit shows the neighbour's town read-only (`TownNeighbourWiring`).
     final visiting = visitingAmong(neighbours);
     final shownTown = visiting == null ? myTown : game.townOf(visiting.memberId);
+    final shownTier = game.person(visiting?.memberId ?? ledgerView.meId ?? '').townTier;
     final inOutpost = openDistrictId == kOutpostDistrictId && visiting == null;
 
     return AdventureSpriteScope(
@@ -222,7 +223,7 @@ class _TownShellState extends ConsumerState<TownShell>
                     loop: inOutpost ? loop.scene : TownLoopScene.none,
                     visitorTag: decorating || !inOutpost ? null : loop.visitorTag,
                     onVisitorTap: decorating || !inOutpost ? null : loop.onVisitorTap,
-                    onSwipePastEdge: decorating ? null : (direction) => openNeighbour(shownTown, direction),
+                    onSwipePastEdge: decorating ? null : (direction) => openNeighbour(shownTown, shownTier, direction),
                   ),
                   ),
                 ));
@@ -239,7 +240,7 @@ class _TownShellState extends ConsumerState<TownShell>
                       meId: ledgerView.meId ?? '',
                       now: now,
                       onLogPurchase: logPurchase,
-                      districtStrip: districtStrip(shownTown, growthLines, readOnly: true),
+                      districtStrip: districtStrip(shownTown, shownTier, growthLines, readOnly: true),
                       insets: _hudInsets,
                     )
                   : TownHomeHud(
@@ -257,7 +258,7 @@ class _TownShellState extends ConsumerState<TownShell>
                       onMenu: openTownMenu,
                       onDate: () => unawaited(TownBookScreen.open(context)),
                       onQuests: onQuests,
-                      districtStrip: decorating ? null : districtStrip(myTown, growthLines),
+                      districtStrip: decorating ? null : districtStrip(myTown, me.townTier, growthLines),
                       decoratePanel: decorating
                           ? TownDecoratePanel(
                               personId: ledgerView.meId ?? '',

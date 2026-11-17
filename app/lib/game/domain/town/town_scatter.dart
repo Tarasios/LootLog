@@ -137,6 +137,10 @@ Set<TownCell> _occupiedCells(TownLayout layout) => {
     for (var column = 0; column < landmark.columns; column++)
       for (var row = 0; row < landmark.rows; row++)
         TownCell(landmark.origin.column + column, landmark.origin.row + row),
+  if (layout.castleOrigin case final castle?)
+    for (var column = 0; column < layout.castleColumns; column++)
+      for (var row = 0; row < layout.castleRows; row++)
+        TownCell(castle.column + column, castle.row + row),
 };
 
 /// A scatter seed every device of a household agrees on: the 32-bit FNV-1a

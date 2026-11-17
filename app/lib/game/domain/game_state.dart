@@ -15,9 +15,11 @@ import 'decor/decor_state.dart';
 import 'game_event.dart';
 import 'game_projection.dart';
 import 'game_values.dart';
+import 'town/castle.dart';
 import 'town/cheers.dart';
 import 'town/districts.dart';
 import 'town/food.dart';
+import 'town/goods.dart';
 import 'town/town_ownership.dart';
 
 /// Why the projection recorded a [GameWarning]. Warnings never block: the
@@ -107,6 +109,32 @@ enum GameWarningCode {
   /// A district building on a district the town does not own; ignored.
   districtNotOwned,
 
+  /// A refining job on a workshop already busy (typically another device's
+  /// start); ignored, not charged.
+  workshopBusy,
+
+  /// A refining recipe this build does not know; set aside, not charged.
+  unknownRecipe,
+
+  /// A collect for a job that is not waiting done (already collected,
+  /// typically on another device, or not finished); credited nothing.
+  unknownJob,
+
+  /// An event wanting more goods than the town holds; not applied.
+  goodsShort,
+
+  /// A Castle stage out of order, begun before the last one finished, or
+  /// one this build lacks; ignored, not charged.
+  castleOutOfOrder,
+
+  /// A Castle stage already begun (typically another device's copy);
+  /// ignored, not charged.
+  duplicateCastleStage,
+
+  /// A Castle stage begun by a town that was not yet a city, or one set to
+  /// finish before its build days were up; ignored, not charged.
+  castleStageInvalid,
+
   /// A harvest that would overflow the granary; the excess stayed in the
   /// field.
   foodCapped,
@@ -133,6 +161,9 @@ class GameWarning {
   @override
   String toString() => 'GameWarning($eventId, ${code.name}, $detail)';
 }
+
+/// How every market trade's offer id begins (`town/market.dart`).
+const String kMarketOfferIdPrefix = 'market.trade:';
 
 /// The id of the building standing on hall plot [plotIndex]. Stable across
 /// upgrades, so production and collection keep their history.
@@ -198,6 +229,8 @@ class HallState {
     required this.lastCollectedAt,
     this.districts = TownDistricts.none,
     this.food = FoodStore.empty,
+    this.goods = TownGoods.empty,
+    this.castle = CastleState.none,
   });
 
   /// A brand-new town: the starting plots unlocked and empty, nothing
@@ -226,6 +259,12 @@ class HallState {
   /// The town's food stores.
   final FoodStore food;
 
+  /// The town's refined goods and workshop jobs.
+  final TownGoods goods;
+
+  /// The town's Castle.
+  final CastleState castle;
+
   /// The plot holding a building of [type] (lowest index), or null.
   PlotState? plotOf(BuildingType type) {
     final indices = plots.keys.toList()..sort();
@@ -249,6 +288,8 @@ class HallState {
     Map<String, DateTime>? lastCollectedAt,
     TownDistricts? districts,
     FoodStore? food,
+    TownGoods? goods,
+    CastleState? castle,
   }) =>
       HallState(
         plots: plots ?? this.plots,
@@ -256,6 +297,8 @@ class HallState {
         lastCollectedAt: lastCollectedAt ?? this.lastCollectedAt,
         districts: districts ?? this.districts,
         food: food ?? this.food,
+        goods: goods ?? this.goods,
+        castle: castle ?? this.castle,
       );
 
   @override
@@ -265,7 +308,9 @@ class HallState {
       other.materials == materials &&
       _mapsEqual(other.lastCollectedAt, lastCollectedAt) &&
       other.districts == districts &&
-      other.food == food;
+      other.food == food &&
+      other.goods == goods &&
+      other.castle == castle;
 
   @override
   int get hashCode => Object.hash(plots.length, materials);
@@ -749,10 +794,19 @@ class GameState {
 
   /// [personId]'s daily town event for [today], if one waits; null when none
   /// was offered or it was already taken or waved off. Earlier days' offers
-  /// are simply not today's.
+  /// are simply not today's, and the market trade is [marketOfferFor].
   DailyOffer? offerFor(String personId, GameDay today) {
     for (final offer in person(personId).dailyOffers.values) {
-      if (offer.day == today) return offer;
+      if (offer.day == today && !offer.offerId.startsWith(kMarketOfferIdPrefix)) return offer;
+    }
+    return null;
+  }
+
+  /// [personId]'s market trade for [today] (`town/market.dart`), if one
+  /// waits.
+  DailyOffer? marketOfferFor(String personId, GameDay today) {
+    for (final offer in person(personId).dailyOffers.values) {
+      if (offer.day == today && offer.offerId.startsWith(kMarketOfferIdPrefix)) return offer;
     }
     return null;
   }

@@ -13,6 +13,8 @@ import 'package:lootlog/domain/event.dart';
 import 'package:lootlog/domain/reducer.dart';
 import 'package:lootlog/domain/time.dart';
 import 'package:lootlog/domain/value_types.dart';
+import 'package:lootlog/game/domain/game_event.dart';
+import 'package:lootlog/game/domain/game_values.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _u1 = 'u1';
@@ -24,6 +26,42 @@ class _Seq {
 }
 
 DateTime _day(int y, int m, int d) => DateTime.utc(y, m, d, 18);
+
+/// [event] as the ledger would read it if it ever reached the ledger's log
+/// (game events live in a table of their own): the actor as the user.
+Event _intoLedger(GameEvent event) {
+  final json = event.toJson();
+  return Event.fromJson({...json, 'userId': json['actorId']}..remove('actorId'));
+}
+
+/// The long road's game events (stage 3): civic buildings, refining, goods
+/// collected and Castle stages.
+List<GameEvent> _longRoadGameEvents() {
+  final at = _day(2026, 1, 20);
+  return [
+    CivicBuildingStarted(
+      eventId: 'g1', deviceId: 'd', actorId: _u1, occurredAt: at, createdAt: at,
+      districtId: 'residential', plotIndex: 0, buildingKey: 'cottage', tier: 3,
+      cost: Loot(gems: 5, materials: MaterialBundle({MaterialKind.lumber: 210})),
+      goods: GoodsBundle({GoodsKind.planks: 10}), completesAt: at,
+    ),
+    RefiningStarted(
+      eventId: 'g2', deviceId: 'd', actorId: _u1, occurredAt: at, createdAt: at,
+      districtId: 'marketRow', plotIndex: 0, recipeId: 'planks', batches: 2,
+      input: MaterialBundle({MaterialKind.lumber: 20}),
+      output: GoodsBundle({GoodsKind.planks: 4}), completesAt: at,
+    ),
+    GoodsCollected(
+      eventId: 'g3', deviceId: 'd', actorId: _u1, occurredAt: at, createdAt: at,
+      districtId: 'marketRow', plotIndex: 0, jobId: 'g2', goods: GoodsBundle({GoodsKind.planks: 4}),
+    ),
+    CastleStageStarted(
+      eventId: 'g4', deviceId: 'd', actorId: _u1, occurredAt: at, createdAt: at,
+      stage: 1, stageKey: 'foundation', cost: const Loot(gems: 60),
+      goods: GoodsBundle({GoodsKind.cutStone: 400}), completesAt: at,
+    ),
+  ];
+}
 
 void main() {
   group('firewall: cosmetic events never move a cent', () {
@@ -295,7 +333,15 @@ void main() {
         sourceRef: 'ritual:1',
         grantedAt: _day(2026, 2, 2),
       ),
+      // The long road's game events, had one ever strayed into the ledger.
+      ..._longRoadGameEvents().map(_intoLedger),
     ];
+
+    test('the long road\'s game events read as unknown to the ledger', () {
+      final strays = _longRoadGameEvents().map(_intoLedger).toList();
+      expect(strays, hasLength(4));
+      expect(strays, everyElement(isA<UnknownEvent>()));
+    });
 
     final asOf = _day(2026, 2, 15);
 

@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 
 import '../../assets/asset_catalog.dart';
 import '../../assets/asset_key.dart';
-import '../../domain/town/districts.dart' show kOutpostDistrictId;
+import '../../domain/town/districts.dart' show kFarmlandDistrictId, kOutpostDistrictId;
 import '../../domain/town/town_layout.dart';
 import '../../domain/town/town_scatter.dart';
 import '../../domain/town/town_view.dart';
@@ -216,13 +216,22 @@ class TownStatuePicture extends GoalPictureFrame {
     : super(position: cellPosition(cell), size: Vector2.all(kTileSize));
 }
 
-/// The art key of the building on [plot] (an outpost building or a farm
+/// The art key of the building on [plot] (an outpost, farm or civic
 /// building), or null for a locked or empty plot.
 AssetKey? plotArtKey(TownPlotView plot) {
   if (plot.buildingType case final type?) return GameAssetKeys.building(type, plot.tier);
   if (plot.farmType case final type?) return GameAssetKeys.farmBuilding(type, plot.tier);
+  if (plot.civicType case final type?) return GameAssetKeys.civicBuilding(type, plot.tier);
   return null;
 }
+
+/// The art of an empty plot in [districtId]: the outpost's dirt lot, the
+/// farmland's tilled field, or the civic quarter's own lot.
+AssetKey emptyPlotKey(String districtId) => switch (districtId) {
+      kOutpostDistrictId => const AssetKey('town', 'plot', 'empty'),
+      kFarmlandDistrictId => GameAssetKeys.farmPlotEmpty,
+      _ => GameAssetKeys.civicPlotEmpty(districtId),
+    };
 
 /// Where art [artWidth] × [artHeight] is drawn on a plot [footprint] wide
 /// and tall, relative to the plot's top-left: square art fills the plot;
@@ -262,9 +271,13 @@ class PlotComponent extends PositionComponent {
     final String label;
     if (!plot.unlocked) {
       key = const AssetKey('town', 'plot', 'locked');
-      label = 'Locked';
+      // A field a later tier opens names that tier ("Town", "City").
+      label = switch (plot.opensAt) {
+        final tier? => AssetKey.humanize(tier.name),
+        null => 'Locked',
+      };
     } else if (buildingKey == null) {
-      key = plot.districtId == kOutpostDistrictId ? const AssetKey('town', 'plot', 'empty') : GameAssetKeys.farmPlotEmpty;
+      key = emptyPlotKey(plot.districtId);
       label = 'Build';
     } else {
       key = buildingKey;
@@ -298,8 +311,20 @@ class PlotComponent extends PositionComponent {
       );
     }
     add(_nameUnder(size, label));
-    if (plot.readyToCollect) {
-      add(ReadyBubble(position: Vector2(size.x - 4, -2)));
+    // Food grown before the farm rested still waits: the ready marker
+    // first, the calm sleep bubble (never a warning) beside it.
+    if (plot.readyToCollect) add(ReadyBubble(position: Vector2(size.x - 4, -2)));
+    if (plot.resting) {
+      add(
+        KeyedSprite(
+          atlas: atlas,
+          assetKey: GameAssetKeys.farmResting,
+          label: 'Zz',
+          position: Vector2(plot.readyToCollect ? 0 : size.x - kTileSize * 0.75, -kTileSize * 0.5),
+          size: Vector2.all(kTileSize * 0.75),
+          priority: 4,
+        ),
+      );
     }
   }
 }
