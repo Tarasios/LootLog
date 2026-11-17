@@ -168,7 +168,12 @@ class TownHud extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    if (cornerStrip != null) ...[cornerStrip, const SizedBox(height: AdventureTokens.gap)],
+                    if (cornerStrip != null) ...[
+                      // Kept to the corner: a long strip scrolls rather than
+                      // reach across the map.
+                      ConstrainedBox(constraints: const BoxConstraints(maxWidth: 300), child: cornerStrip),
+                      const SizedBox(height: AdventureTokens.gap),
+                    ],
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: _spaced(_cornerButtons()),

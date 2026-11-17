@@ -423,45 +423,539 @@
       2,
       3
     ],
-    "town.house.default.idle": [
+    "building.watchtower.t1.idle": [
       6,
       21,
       2,
       2
     ],
-    "town.plot.locked.idle": [
+    "building.watchtower.t2.idle": [
       8,
       21,
       2,
       2
     ],
-    "town.scaffold.default.idle": [
+    "building.watchtower.t3.idle": [
       10,
       21,
+      2,
+      3
+    ],
+    "building.watchtower.t4.idle": [
+      12,
+      21,
+      2,
+      3
+    ],
+    "building.watchtower.t5.idle": [
+      14,
+      21,
+      2,
+      3
+    ],
+    "building.barracks.t1.idle": [
+      0,
+      24,
+      2,
+      2
+    ],
+    "building.barracks.t2.idle": [
+      2,
+      24,
+      2,
+      2
+    ],
+    "building.barracks.t3.idle": [
+      4,
+      24,
+      2,
+      3
+    ],
+    "building.barracks.t4.idle": [
+      6,
+      24,
+      2,
+      3
+    ],
+    "building.barracks.t5.idle": [
+      8,
+      24,
+      2,
+      3
+    ],
+    "building.wall_section.t1.idle": [
+      10,
+      24,
+      2,
+      2
+    ],
+    "building.wall_section.t2.idle": [
+      12,
+      24,
+      2,
+      2
+    ],
+    "building.wall_section.t3.idle": [
+      14,
+      24,
+      2,
+      3
+    ],
+    "building.wall_section.t4.idle": [
+      0,
+      27,
+      2,
+      3
+    ],
+    "building.wall_section.t5.idle": [
+      2,
+      27,
+      2,
+      3
+    ],
+    "building.cottage.t1.idle": [
+      4,
+      27,
+      2,
+      2
+    ],
+    "building.cottage.t2.idle": [
+      6,
+      27,
+      2,
+      2
+    ],
+    "building.cottage.t3.idle": [
+      8,
+      27,
+      2,
+      3
+    ],
+    "building.cottage.t4.idle": [
+      10,
+      27,
+      2,
+      3
+    ],
+    "building.cottage.t5.idle": [
+      12,
+      27,
+      2,
+      3
+    ],
+    "building.rowhouse.t1.idle": [
+      14,
+      27,
+      2,
+      2
+    ],
+    "building.rowhouse.t2.idle": [
+      0,
+      30,
+      2,
+      2
+    ],
+    "building.rowhouse.t3.idle": [
+      2,
+      30,
+      2,
+      3
+    ],
+    "building.rowhouse.t4.idle": [
+      4,
+      30,
+      2,
+      3
+    ],
+    "building.rowhouse.t5.idle": [
+      6,
+      30,
+      2,
+      3
+    ],
+    "building.well.t1.idle": [
+      8,
+      30,
+      2,
+      2
+    ],
+    "building.well.t2.idle": [
+      10,
+      30,
+      2,
+      2
+    ],
+    "building.well.t3.idle": [
+      12,
+      30,
+      2,
+      3
+    ],
+    "building.well.t4.idle": [
+      14,
+      30,
+      2,
+      3
+    ],
+    "building.well.t5.idle": [
+      0,
+      33,
+      2,
+      3
+    ],
+    "building.garden.t1.idle": [
+      2,
+      33,
+      2,
+      2
+    ],
+    "building.garden.t2.idle": [
+      4,
+      33,
+      2,
+      2
+    ],
+    "building.garden.t3.idle": [
+      6,
+      33,
+      2,
+      3
+    ],
+    "building.garden.t4.idle": [
+      8,
+      33,
+      2,
+      3
+    ],
+    "building.garden.t5.idle": [
+      10,
+      33,
+      2,
+      3
+    ],
+    "building.bandstand.t1.idle": [
+      12,
+      33,
+      2,
+      2
+    ],
+    "building.bandstand.t2.idle": [
+      14,
+      33,
+      2,
+      2
+    ],
+    "building.bandstand.t3.idle": [
+      0,
+      36,
+      2,
+      3
+    ],
+    "building.bandstand.t4.idle": [
+      2,
+      36,
+      2,
+      3
+    ],
+    "building.bandstand.t5.idle": [
+      4,
+      36,
+      2,
+      3
+    ],
+    "building.fountain.t1.idle": [
+      6,
+      36,
+      2,
+      2
+    ],
+    "building.fountain.t2.idle": [
+      8,
+      36,
+      2,
+      2
+    ],
+    "building.fountain.t3.idle": [
+      10,
+      36,
+      2,
+      3
+    ],
+    "building.fountain.t4.idle": [
+      12,
+      36,
+      2,
+      3
+    ],
+    "building.fountain.t5.idle": [
+      14,
+      36,
+      2,
+      3
+    ],
+    "building.stall.t1.idle": [
+      0,
+      39,
+      2,
+      2
+    ],
+    "building.stall.t2.idle": [
+      2,
+      39,
+      2,
+      2
+    ],
+    "building.stall.t3.idle": [
+      4,
+      39,
+      2,
+      3
+    ],
+    "building.stall.t4.idle": [
+      6,
+      39,
+      2,
+      3
+    ],
+    "building.stall.t5.idle": [
+      8,
+      39,
+      2,
+      3
+    ],
+    "building.workshop.t1.idle": [
+      10,
+      39,
+      2,
+      2
+    ],
+    "building.workshop.t2.idle": [
+      12,
+      39,
+      2,
+      2
+    ],
+    "building.workshop.t3.idle": [
+      14,
+      39,
+      2,
+      3
+    ],
+    "building.workshop.t4.idle": [
+      0,
+      42,
+      2,
+      3
+    ],
+    "building.workshop.t5.idle": [
+      2,
+      42,
+      2,
+      3
+    ],
+    "building.guild_hall.t1.idle": [
+      4,
+      42,
+      2,
+      2
+    ],
+    "building.guild_hall.t2.idle": [
+      6,
+      42,
+      2,
+      2
+    ],
+    "building.guild_hall.t3.idle": [
+      8,
+      42,
+      2,
+      3
+    ],
+    "building.guild_hall.t4.idle": [
+      10,
+      42,
+      2,
+      3
+    ],
+    "building.guild_hall.t5.idle": [
+      12,
+      42,
+      2,
+      3
+    ],
+    "town.house.default.idle": [
+      14,
+      42,
+      2,
+      2
+    ],
+    "town.plot.locked.idle": [
+      0,
+      45,
+      2,
+      2
+    ],
+    "town.scaffold.default.idle": [
+      2,
+      45,
       2,
       2
     ],
     "town.plot.empty.idle": [
-      12,
-      21,
+      4,
+      45,
       2,
       2
     ],
     "farm.plot.empty.idle": [
-      14,
-      21,
+      6,
+      45,
       2,
       2
     ],
     "farm.barn.default.idle": [
-      0,
-      24,
+      8,
+      45,
       3,
       6
     ],
     "town.ground.water.idle": [
+      11,
+      45
+    ],
+    "farm.resting.sign.idle": [
+      12,
+      45
+    ],
+    "plot.guard_post.empty.idle": [
+      13,
+      45,
+      2,
+      2
+    ],
+    "plot.residential.empty.idle": [
+      0,
+      51,
+      2,
+      2
+    ],
+    "plot.park.empty.idle": [
+      2,
+      51,
+      2,
+      2
+    ],
+    "plot.market_row.empty.idle": [
+      4,
+      51,
+      2,
+      2
+    ],
+    "guard.wall.default.idle": [
+      6,
+      51
+    ],
+    "guard.tower.default.idle": [
+      7,
+      51,
+      2,
+      2
+    ],
+    "guard.gate.default.idle": [
+      9,
+      51,
+      2,
+      2
+    ],
+    "guard.rack.default.idle": [
+      11,
+      51
+    ],
+    "residential.garden.default.idle": [
+      12,
+      51,
+      4,
+      2
+    ],
+    "park.flowerbed.default.idle": [
+      0,
+      53,
+      1,
+      2
+    ],
+    "park.lamp.default.idle": [
+      1,
+      53
+    ],
+    "park.bench.default.idle": [
+      2,
+      53
+    ],
+    "market.stall.red.idle": [
       3,
-      24
+      53,
+      2,
+      2
+    ],
+    "market.stall.blue.idle": [
+      5,
+      53,
+      2,
+      2
+    ],
+    "market.stall.green.idle": [
+      7,
+      53,
+      2,
+      2
+    ],
+    "castle.hill.default.idle": [
+      0,
+      55,
+      10,
+      10
+    ],
+    "castle.stage.s0.idle": [
+      10,
+      55,
+      6,
+      6
+    ],
+    "castle.stage.s1.idle": [
+      0,
+      65,
+      6,
+      6
+    ],
+    "castle.stage.s2.idle": [
+      6,
+      65,
+      6,
+      6
+    ],
+    "castle.stage.s3.idle": [
+      0,
+      71,
+      6,
+      6
+    ],
+    "castle.stage.s4.idle": [
+      6,
+      71,
+      6,
+      6
+    ],
+    "castle.stage.s5.idle": [
+      0,
+      77,
+      6,
+      6
+    ],
+    "castle.scaffold.default.idle": [
+      6,
+      77,
+      6,
+      6
     ]
   }
 }

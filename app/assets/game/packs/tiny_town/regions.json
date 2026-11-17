@@ -27,6 +27,8 @@
     "town_decor.bench.default.idle": [10, 8],
     "town_decor.well.default.idle": [8, 8],
     "town_decor.well.fountain.idle": [11, 10],
-    "town.visitor.trader.idle": [9, 4]
+    "town.visitor.trader.idle": [9, 4],
+    "guard.target.default.idle": [11, 7],
+    "residential.beehive.default.idle": [10, 7]
   }
 }

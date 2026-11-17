@@ -1,8 +1,9 @@
-/// The district strip: a row of compact wood buttons, one per district with
-/// a map, for moving around the town. The open district is named; the
-/// others are icon-only, and a district the town does not own yet wears a
-/// padlock beside its tier's name. A last "map" button opens the district
-/// picker. On a phone it sits just above Log purchase, in thumb reach; on a
+/// The district strip: a row of compact wood buttons, one per district the
+/// town can walk into, for moving around the town. The open district is
+/// named; the others are icon-only, and the next district the town does not
+/// own yet is a padlock (its tier is in its tooltip and the picker). A last
+/// "map" button opens the district picker. Past four districts the strip
+/// scrolls sideways rather than squeeze its tap targets. On a phone it sits just above Log purchase, in thumb reach; on a
 /// desktop at the top centre under the HUD chips.
 library;
 
@@ -37,6 +38,7 @@ IconData districtIcon(String districtId) => switch (districtId) {
   'residential' => Icons.cottage,
   'park' => Icons.park,
   'marketRow' => Icons.storefront,
+  'castleHill' => Icons.fort,
   _ => Icons.place,
 };
 
@@ -58,14 +60,30 @@ class DistrictStrip extends StatelessWidget {
   /// Opens the district picker; no map button when null (a visit).
   final VoidCallback? onMap;
 
+  /// More entries than this scroll sideways instead of squeezing: icon
+  /// buttons cannot shrink below their tap size.
+  static const int _maxFitted = 4;
+
   @override
-  Widget build(BuildContext context) => Row(
+  Widget build(BuildContext context) {
+    if (entries.length <= _maxFitted) return _row(scrolls: false);
+    return SingleChildScrollView(
+      key: const ValueKey('district-strip-scroll'),
+      scrollDirection: Axis.horizontal,
+      child: _row(scrolls: true),
+    );
+  }
+
+  Widget _row({required bool scrolls}) => Row(
     key: const ValueKey('district-strip'),
     mainAxisSize: MainAxisSize.min,
     children: [
       for (final (index, entry) in entries.indexed) ...[
         if (index > 0) const SizedBox(width: 6),
-        Flexible(child: _districtButton(entry)),
+        if (scrolls)
+          ConstrainedBox(constraints: const BoxConstraints(maxWidth: 180), child: _districtButton(entry))
+        else
+          Flexible(child: _districtButton(entry)),
       ],
       if (onMap case final onMap?) ...[
         const SizedBox(width: 6),
@@ -87,7 +105,7 @@ class DistrictStrip extends StatelessWidget {
     final locked = !entry.owned;
     return WoodButton(
       key: ValueKey('district-${entry.districtId}'),
-      label: open ? entry.name : (locked ? entry.lockedLabel : ''),
+      label: open ? entry.name : '',
       icon: locked ? Icons.lock : entry.icon,
       dense: true,
       tone: open ? WoodButtonTone.primary : WoodButtonTone.secondary,

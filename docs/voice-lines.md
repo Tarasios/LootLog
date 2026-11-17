@@ -596,6 +596,41 @@ food only waits to grow: never say "lost", "missed", "starving" or
 | `castle.done.towers` | The towers were finished | Celebrate | Towers rise at every corner of the Castle. |
 | `castle.done.banners` | The last stage: the Castle is complete | The biggest celebration; credit the habit | Banners fly from every tower: the Castle is complete! A year of logging built this. |
 | `castle.titleEarned` | The castle title was granted | Celebrate | You are now Keeper of the Castle. |
+| `district.bought.guardPost` | The Guard Post was bought | Celebrate; name the first step | Stone walls and a watchful gate: the Guard Post is yours. A watchtower brings the first guards. |
+| `district.bought.residential` | The Residential Quarter was bought | Celebrate; name the first step | Garden gates and fresh paint: the Residential Quarter is yours. A cottage brings new neighbours. |
+| `district.bought.park` | The Park was bought | Celebrate; name the first step | Lawns, lamps and a quiet pond: the Park is yours. Plant a garden and the town takes a breath. |
+| `district.bought.marketRow` | Market Row was bought | Celebrate; name the first step | Awnings and cobbles: Market Row is yours. A workshop turns raw materials into fine goods. |
+| `district.castleOpen` | The district picker once the town is a city | Invite the long goal | Your city has a hill for its Castle. Visit it to raise the first stage. |
+| `civic.plot.empty` | An empty civic plot's sheet | Invite a build | An empty plot, ready for something new. What should go up here? |
+| `civic.plot.locked` | A plot in a quarter not bought yet ({district}) | Say what opens it | Buy the {district} to build here. |
+| `civic.adds.guards` | A guard building's sheet ({count}, {per}) | Plain facts: what it adds | Guards: {count}. Every {per} guards watch over one more farm field. |
+| `civic.adds.housing` | A house's sheet ({count}) | Plain facts: what it adds | Homes for {count} residents. |
+| `civic.adds.prosperity` | A park building or guild hall's sheet ({count}) | Plain facts: what it adds | Adds {count} prosperity. |
+| `civic.adds.trade` | A market stall's sheet | Plain facts: what it adds | A trader stops by your stall on every day you log. |
+| `civic.adds.refine` | A workshop's sheet ({count}: batches per job) | Plain facts: what it adds | Refines up to {count} batches in one job. |
+| `civic.built` | A civic building was started ({building}) | Celebrate | The {building} is going up! |
+| `civic.atTop` | A civic building at its top tier ({tier}) | Celebrate the top | Tier {tier}: as grand as it gets. |
+| `refine.takes` | The workshop sheet: a job's input ({materials}) | Plain facts | Takes {materials}. |
+| `refine.makes` | The workshop sheet: a job's output and time ({goods}, {time}) | Plain facts | Makes {goods} in {time}. |
+| `refine.started` | A workshop job was started ({goods}, {time}) | Anticipation | The workshop is making {goods}. Ready in {time}. |
+| `refine.noWorkshop` | The workshop sheet with no workshop built | Say what opens it | Build a workshop in Market Row and it will turn raw materials into goods. |
+| `refine.allBusy` | Every workshop holds a job | A next step, no pressure | Every workshop is at work. Collect what is ready, then start the next job. |
+| `castle.missing` | The Castle sheet: what the next stage still needs ({items}) | A reachable next step | Still to gather: {items}. |
+| `castle.ready` | The Castle sheet: everything for the next stage is gathered | Invite the start | Everything is gathered. The builders are waiting for your word. |
+| `castle.started` | A Castle stage was begun ({stage}, {time}) | Anticipation | The builders start on the {stage}. Done in {time}. |
+| `castle.complete` | The Castle sheet once every stage stands | Celebrate the whole road | The Castle is complete. Long may its banners fly! |
+| `castle.stageReached` | The celebration of a finished Castle stage ({stage}) | Celebrate | {stage} finished! |
+| `book.section.homes` | Town book: the homes section heading | Name it | Homes |
+| `book.homes` | Town book: residents housed ({count}) | Count what was built | {count} residents live in the houses you built. |
+| `book.section.guards` | Town book: the guards section heading | Name it | Guards and fields |
+| `book.fieldsOpen` | Town book: farm fields the tier opens ({count}) | Plain facts | Your town works {count} farm fields. |
+| `book.restingFarms` | Town book: farms resting for want of guards ({count}) | Calm; nothing is taken | {count} farms are resting until guards watch over their fields. |
+| `book.allGuarded` | Town book: no farm is resting | Reassure | Every farm is guarded and growing. |
+| `book.jobs` | Town book: workshop jobs ({working}, {done}) | Plain facts | Workshops: {working} at work, {done} ready to collect. |
+| `book.stat.homes` | Town book: the homes figure's label | Name it | Homes |
+| `book.stat.guards` | Town book: the guards figure's label | Name it | Guards |
+| `book.stat.fields` | Town book: the guarded fields figure's label | Name it | Fields |
+| `farm.fieldOpensAt` | A farmland field the tier has not opened yet ({tier}) | Say what opens it | This field opens when your town becomes a {tier}. |
 
 ## Neighbouring towns (`neighbours.json`)
 

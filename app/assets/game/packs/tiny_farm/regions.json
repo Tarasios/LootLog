@@ -22,6 +22,11 @@
     "npc.animal.sheep.idle": [0, 10],
     "npc.animal.cow.idle": [1, 10],
     "npc.animal.chicken.idle": [2, 10],
-    "npc.farmer.default.idle": [1, 9]
+    "npc.farmer.default.idle": [1, 9],
+    "guard.barrel.default.idle": [1, 7],
+    "residential.barrel.default.idle": [1, 6],
+    "market.crate.default.idle": [11, 3],
+    "market.sack.default.idle": [9, 0],
+    "market.barrel.default.idle": [1, 7]
   }
 }

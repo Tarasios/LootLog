@@ -1,2 +1,2 @@
-Composed from Kenney "Tiny Town" and "Tiny Farm" tiles (www.kenney.nl), Creative Commons Zero (CC0).
-See ../tiny_town/License.txt and ../tiny_farm/License.txt. Regenerate with tool/compose_town_buildings.dart.
+Composed from Kenney "Tiny Town", "Tiny Farm" and "Tiny Dungeon" tiles (www.kenney.nl), Creative Commons Zero (CC0), with a few hand-drawn pixels in their palette.
+See ../tiny_town/License.txt, ../tiny_farm/License.txt and ../tiny_dungeon/License.txt. Regenerate with tool/compose_town_buildings.dart.

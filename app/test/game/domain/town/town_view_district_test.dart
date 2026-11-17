@@ -20,8 +20,11 @@ void main() {
     final view = TownView.from(game, robin, _adults, at(5), districtId: kFarmlandDistrictId, dungeonOpen: true);
     expect(view.layout, TownLayout.farmland);
     expect(view.districtId, kFarmlandDistrictId);
-    expect(view.plots, hasLength(6));
-    expect(view.plots.every((plot) => plot.unlocked && plot.districtId == kFarmlandDistrictId), isTrue);
+    // Twelve fields on the map; a hamlet works the first six, and the town
+    // and the city open the rest.
+    expect(view.plots, hasLength(12));
+    expect(view.plots.every((plot) => plot.districtId == kFarmlandDistrictId), isTrue);
+    expect([for (final plot in view.plots) plot.unlocked], [...List.filled(6, true), ...List.filled(6, false)]);
     expect(view.residents, isEmpty);
     expect(view.townPlacements, isEmpty);
     expect(view.dungeonOpen, isFalse);

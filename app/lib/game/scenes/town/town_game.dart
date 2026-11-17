@@ -22,6 +22,7 @@ import '../../domain/town/town_view.dart';
 import '../camera_controls.dart';
 import '../pack_atlas.dart';
 import '../scene_effects.dart';
+import 'castle_component.dart';
 import 'town_components.dart';
 import 'town_loop_components.dart';
 
@@ -112,6 +113,8 @@ class TownGame extends FlameGame {
       AssetKey('town', 'plot', 'locked'),
       AssetKey('town', 'plot', 'empty'),
       GameAssetKeys.farmPlotEmpty,
+      GameAssetKeys.farmResting,
+      GameAssetKeys.castleScaffold,
       AssetKey('hero', 'body'),
       AssetKey('npc', 'pet', 'default'),
     ];
@@ -123,7 +126,9 @@ class TownGame extends FlameGame {
     }
     for (final plot in view.plots) {
       if (plotArtKey(plot) case final key?) yield key;
+      if (!plot.unlocked || plotArtKey(plot) == null) yield emptyPlotKey(plot.districtId);
     }
+    if (view.layout.castleOrigin != null) yield GameAssetKeys.castleStage(view.castleStagesDone);
     for (final placement in view.townPlacements) {
       final item = catalog.itemFor(placement.itemId);
       if (item != null) yield item.assetKey;
@@ -156,7 +161,8 @@ class TownGame extends FlameGame {
           label: landmark.label,
           position: cellPosition(landmark.origin),
           size: Vector2(landmark.columns * kTileSize, landmark.rows * kTileSize),
-          priority: 2,
+          // A hill or an arch over the lane lies under everything else.
+          priority: landmark.underlay ? 1 : 2,
         ),
       );
     }
@@ -298,7 +304,18 @@ class TownGame extends FlameGame {
       ..addAll([
         for (final resident in _view.residents) HouseComponent(atlas, resident),
       ])
-      ..addAll(_roadside());
+      ..addAll(_roadside())
+      ..addAll([
+        if (_view.layout.castleOrigin case final origin?)
+          CastleComponent(
+            atlas,
+            origin: origin,
+            columns: _view.layout.castleColumns,
+            rows: _view.layout.castleRows,
+            stagesDone: _view.castleStagesDone,
+            building: _view.castleUnderConstruction,
+          ),
+      ]);
     unawaited(world.addAll(_plotsAndHouses));
   }
 
