@@ -157,6 +157,15 @@ class GameCommandsService {
   Future<GameCommandResult> claimReward(String rewardId) =>
       run((c) => c.claimReward(rewardId));
 
+  // ---- Daily town event -----------------------------------------------------
+
+  /// Takes ([accept]) or waves off today's daily town event [offerId]
+  /// (`GameState.offerFor`). The `DailyEventResolved` event holds what moved.
+  Future<GameCommandResult> resolveDailyEvent(
+    String offerId, {
+    required bool accept,
+  }) => run((commands) => commands.resolveDailyEvent(offerId, accept: accept));
+
   // ---- Heroes ------------------------------------------------------------------
 
   /// Upgrades [heroId]'s gear in [slot] by one tier (this device's adult pays).

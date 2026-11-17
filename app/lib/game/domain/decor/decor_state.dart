@@ -103,6 +103,11 @@ class DecorState {
     );
   }
 
+  /// Records [acquisitionId] as seen without adding an item (a duplicate
+  /// that came as gems instead).
+  DecorState markSeen(String acquisitionId) =>
+      _copy(seenAcquisitionIds: {...seenAcquisitionIds, acquisitionId});
+
   DecorState place(Placement placement) => _copy(placements: {...placements, placement.placementId: placement});
 
   DecorState store(String placementId) => _copy(placements: {...placements}..remove(placementId));

@@ -49,6 +49,9 @@ const List<String> kGameEventTypes = [
   'ItemPlaced',
   'ItemStored',
   'ItemEquipped',
+  'DailyEventOffered',
+  'DailyEventResolved',
+  'FestivalHeld',
 ];
 
 /// Base class for every game event.
@@ -360,6 +363,37 @@ sealed class GameEvent {
           eventId: eventId, deviceId: deviceId, actorId: actorId,
           occurredAt: occurredAt, createdAt: createdAt, schemaVersion: schemaVersion,
           itemId: payload['itemId'] as String,
+        );
+      case 'DailyEventOffered':
+        return DailyEventOffered(
+          eventId: eventId, deviceId: deviceId, actorId: actorId,
+          occurredAt: occurredAt, createdAt: createdAt, schemaVersion: schemaVersion,
+          offerId: payload['offerId'] as String,
+          day: GameDay.parse(payload['day'] as String),
+          kind: gameEnumByName(
+              DailyEventKind.values, payload['kind'] as String, 'daily event kind'),
+          gives: _materials(payload['gives']),
+          receives: _loot(payload['receives']),
+          flavourKey: payload['flavourKey'] as String,
+          plotIndex: payload['plotIndex'] as int?,
+        );
+      case 'DailyEventResolved':
+        return DailyEventResolved(
+          eventId: eventId, deviceId: deviceId, actorId: actorId,
+          occurredAt: occurredAt, createdAt: createdAt, schemaVersion: schemaVersion,
+          offerId: payload['offerId'] as String,
+          accepted: payload['accepted'] as bool,
+          paid: _materials(payload['paid']),
+          received: _loot(payload['received']),
+        );
+      case 'FestivalHeld':
+        return FestivalHeld(
+          eventId: eventId, deviceId: deviceId, actorId: actorId,
+          occurredAt: occurredAt, createdAt: createdAt, schemaVersion: schemaVersion,
+          week: GameDay.parse(payload['week'] as String),
+          tier: gameEnumByName(
+              FestivalTier.values, payload['tier'] as String, 'festival tier'),
+          weekdaysLogged: payload['weekdaysLogged'] as int,
         );
       default:
         return UnknownGameEvent._(envelope, type, payload);
@@ -1005,6 +1039,132 @@ class ItemEquipped extends GameEvent {
 
   @override
   Map<String, dynamic> payload() => {'itemId': itemId};
+}
+
+/// Something turned up in town when [actorId] opened [day] with their first
+/// log or "no spend" check-in: a trader, a producer's good day, or a visitor
+/// (see `town/daily_event.dart`). Rolled once by the reward engine, seeded by
+/// the ledger event that opened the day, and stored here. [offerId] is
+/// `daily.event:<person>:<day>`, so a second device's copy is ignored.
+class DailyEventOffered extends GameEvent {
+  const DailyEventOffered({
+    required super.eventId,
+    required super.deviceId,
+    required super.actorId,
+    required super.occurredAt,
+    required super.createdAt,
+    super.schemaVersion,
+    required this.offerId,
+    required this.day,
+    required this.kind,
+    required this.gives,
+    required this.receives,
+    required this.flavourKey,
+    this.plotIndex,
+  });
+
+  final String offerId;
+
+  /// The household day the offer belongs to; it can be taken only that day.
+  final GameDay day;
+  final DailyEventKind kind;
+
+  /// What the player hands over from the shared pool (a trader only).
+  final MaterialBundle gives;
+
+  /// What the player gets: materials for the pool and/or gems.
+  final Loot receives;
+
+  /// Which line of `town_events.json` tells the story.
+  final String flavourKey;
+
+  /// A windfall's producer plot; null for the other kinds.
+  final int? plotIndex;
+
+  @override
+  String get type => 'DailyEventOffered';
+
+  @override
+  Map<String, dynamic> payload() => {
+        'offerId': offerId,
+        'day': day.toKey(),
+        'kind': kind.name,
+        'gives': gives.toJson(),
+        'receives': receives.toJson(),
+        'flavourKey': flavourKey,
+        if (plotIndex != null) 'plotIndex': plotIndex,
+      };
+}
+
+/// [actorId] took ([accepted]) or waved off today's offer. What actually
+/// moved was settled when the command ran and is stored here: [paid] left the
+/// shared pool and [received] arrived (materials trimmed to the Storehouse).
+/// Both are empty for a decline.
+class DailyEventResolved extends GameEvent {
+  const DailyEventResolved({
+    required super.eventId,
+    required super.deviceId,
+    required super.actorId,
+    required super.occurredAt,
+    required super.createdAt,
+    super.schemaVersion,
+    required this.offerId,
+    required this.accepted,
+    this.paid = const MaterialBundle.empty(),
+    this.received = Loot.none,
+  });
+
+  final String offerId;
+  final bool accepted;
+  final MaterialBundle paid;
+  final Loot received;
+
+  @override
+  String get type => 'DailyEventResolved';
+
+  @override
+  Map<String, dynamic> payload() => {
+        'offerId': offerId,
+        'accepted': accepted,
+        'paid': paid.toJson(),
+        'received': received.toJson(),
+      };
+}
+
+/// [actorId]'s town held its weekend festival for the Monday-to-Sunday
+/// [week] (keyed by its Monday), sized by the [weekdaysLogged] that week
+/// (see `town/festival.dart`). Granted once per person per week by the
+/// reward engine from that Saturday on, alongside a `RewardGranted` with the
+/// festival's loot; a second device's copy is ignored.
+class FestivalHeld extends GameEvent {
+  const FestivalHeld({
+    required super.eventId,
+    required super.deviceId,
+    required super.actorId,
+    required super.occurredAt,
+    required super.createdAt,
+    super.schemaVersion,
+    required this.week,
+    required this.tier,
+    required this.weekdaysLogged,
+  });
+
+  /// The Monday of the week the festival closes.
+  final GameDay week;
+  final FestivalTier tier;
+
+  /// Town spirit: the weekdays (Monday to Friday) the person logged, 0–5.
+  final int weekdaysLogged;
+
+  @override
+  String get type => 'FestivalHeld';
+
+  @override
+  Map<String, dynamic> payload() => {
+        'week': week.toKey(),
+        'tier': tier.name,
+        'weekdaysLogged': weekdaysLogged,
+      };
 }
 
 /// An event this build cannot interpret: an unknown type, or a known type

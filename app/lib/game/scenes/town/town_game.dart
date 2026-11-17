@@ -21,6 +21,7 @@ import '../camera_controls.dart';
 import '../pack_atlas.dart';
 import '../scene_effects.dart';
 import 'town_components.dart';
+import 'town_loop_components.dart';
 
 /// A dependent or pet who strolls the town, by name.
 typedef TownsfolkEntry = ({String name, bool isPet});
@@ -45,6 +46,7 @@ class TownGame extends FlameGame {
     this.catalog = DecorCatalog.empty,
     this.pictures = const {},
     this.scatter = const TownScatter(props: [], borderWidth: 0),
+    this.loopScene = TownLoopScene.none,
   }) : _view = view,
        cameraControls = CameraControls(
          worldWidth: view.layout.columns * kTileSize,
@@ -79,6 +81,10 @@ class TownGame extends FlameGame {
   final List<Component> _plotsAndHouses = [];
   final List<Component> _decorations = [];
   GateGlow? _gateGlow;
+
+  /// The day's visitor and the festival (see [TownLoopLayer]).
+  TownLoopScene loopScene;
+  late final TownLoopLayer _loopLayer = TownLoopLayer(atlas);
 
   /// Every key the scene can draw, for preloading.
   static Iterable<AssetKey> keysFor(TownView view, [DecorCatalog catalog = DecorCatalog.empty]) sync* {
@@ -162,7 +168,17 @@ class TownGame extends FlameGame {
     _addPlotsAndHouses();
     _addDecorations();
     _syncGateGlow();
+    world.add(_loopLayer);
+    await _loopLayer.show(loopScene);
     _syncCamera();
+  }
+
+  /// Shows [loop]'s visitor and festival. Before the scene has loaded, only
+  /// the scene is stored (the load draws it).
+  Future<void> updateLoop(TownLoopScene loop) async {
+    loopScene = loop;
+    if (!isLoaded) return;
+    await _loopLayer.show(loop);
   }
 
   /// Lights the gate while the dungeon is open, and puts the light out when

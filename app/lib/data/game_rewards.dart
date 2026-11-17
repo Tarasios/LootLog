@@ -16,6 +16,7 @@ import '../game/domain/clock.dart';
 import '../game/domain/decor/catalog.dart';
 import '../game/domain/game_projection.dart';
 import '../game/domain/party_sync.dart';
+import '../game/domain/rewards/festival_decorations.dart';
 import '../game/domain/rewards/reward_engine.dart';
 import '../game/domain/rewards/streak_milestones.dart';
 import 'db/database.dart';
@@ -124,8 +125,9 @@ class GameRewardRunner {
     ];
     if (out.isNotEmpty) await db.gameEventsDao.appendGameEvents(out);
 
-    // Streak milestones read the streaks the engine just extended. Granted
-    // once per person per milestone and never taken back.
+    // Streak milestones read the streaks the engine just extended, festival
+    // decorations the festivals it just held. Granted once per person per
+    // milestone or week and never taken back.
     // An empty catalogue (not loaded, or unreadable) is never kept: skip the
     // milestones this run and look again next run.
     var catalog = _catalog;
@@ -137,8 +139,13 @@ class GameRewardRunner {
     final afterEngine = out.isEmpty
         ? game
         : projectGameState(await db.gameEventsDao.allGameEvents());
-    final milestones = const StreakMilestones()
-        .evaluate(afterEngine, party, catalog, clock, stamp);
+    final milestones = [
+      ...const StreakMilestones()
+          .evaluate(afterEngine, party, catalog, clock, stamp),
+      // A grand festival's decoration, from the festivals the engine held.
+      ...const FestivalDecorations()
+          .evaluate(afterEngine, party, catalog, clock, stamp),
+    ];
     if (milestones.isNotEmpty) await db.gameEventsDao.appendGameEvents(milestones);
     return out.length + milestones.length;
   }

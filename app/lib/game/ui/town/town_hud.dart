@@ -62,6 +62,8 @@ class TownHud extends StatelessWidget {
     required this.onMenu,
     this.onQuests,
     this.decoratePanel,
+    this.spiritBar,
+    this.logHint,
   });
 
   final TownHudFigures figures;
@@ -79,6 +81,13 @@ class TownHud extends StatelessWidget {
 
   /// The decoration tray, while decorating; it replaces the buttons.
   final Widget? decoratePanel;
+
+  /// The week's town spirit, under the date chip.
+  final Widget? spiritBar;
+
+  /// Notes over the check-in: what the crews made, "Log today to open the
+  /// town".
+  final Widget? logHint;
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -185,6 +194,7 @@ class TownHud extends StatelessWidget {
 
   List<Widget> _timeChips(double maxWidth) => [
     HudChip(icon: Icons.calendar_today, value: figures.dateLabel, maxWidth: maxWidth),
+    ?spiritBar,
     HudChip(
       icon: Icons.local_fire_department,
       color: AdventureTokens.hpRed,
@@ -243,6 +253,7 @@ class TownHud extends StatelessWidget {
   Widget _logColumn() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
+      if (logHint case final hint?) ...[hint, const SizedBox(height: AdventureTokens.gap)],
       noSpendCheckIn,
       const SizedBox(height: AdventureTokens.gap),
       _logButton(),

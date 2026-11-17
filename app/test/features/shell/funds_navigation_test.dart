@@ -227,7 +227,10 @@ void main() {
     // Adventure dresses the shell in game chrome: wood tabs, a wood header.
     final nav = find.byType(AdventureTabStrip);
     expect(
-      find.descendant(of: nav, matching: find.text('Treasury')),
+      find.descendant(
+        of: nav,
+        matching: find.textContaining('Treasury', findRichText: true),
+      ),
       findsOneWidget,
     );
     expect(

@@ -121,7 +121,9 @@
     "ritual.bonus": "Bonus: month-end rituals on time",
     "month.gold": "Bonus: a budget finished on target",
     "vault.quest": "Savings goal milestone",
-    "vault.consistency": "Months of saving in a row"
+    "vault.consistency": "Months of saving in a row",
+    "festival.weekend": "The weekend festival",
+    "festival.joint": "Bonus: the party kept the week together"
   },
   "rejections": {
     "notEnoughGems": "A few more gems needed. They come from logging, so every entry brings this closer.",
@@ -168,6 +170,8 @@
     "unknownPlacement": "That piece isn't on display any more.",
     "notYourRoom": "This is someone else's room. Yours is waiting for you.",
     "notEquippable": "Only outfits and titles can be worn.",
-    "starterAlreadyClaimed": "Your starter set is already home."
+    "starterAlreadyClaimed": "Your starter set is already home.",
+    "unknownOffer": "That visitor has already been seen to.",
+    "offerExpired": "That visitor has moved on. Someone new turns up tomorrow when you log."
   }
 }

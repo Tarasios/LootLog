@@ -163,6 +163,16 @@ enum ChestType { wood, iron, gold, party, spoils }
 /// The id of the household's one adventuring party (`PartyJoined.partyId`).
 const String kHouseholdPartyId = 'household';
 
+/// What turned up in town when a person opened their day (see
+/// `town/daily_event.dart`): a visiting trader offering a swap, a producer
+/// having a good day, or a visitor with a gift.
+enum DailyEventKind { trader, windfall, visitor }
+
+/// How big a weekend festival is, by how many weekdays (Monday to Friday)
+/// the person logged that week: a market day (0–2), a fair (3–4) or a grand
+/// festival (all 5). See `town/festival.dart`.
+enum FestivalTier { marketDay, fair, grandFestival }
+
 /// The month-end spoils ritual steps that precede the seasonal boss fight.
 enum RitualStep { reconcile, review, plan, contribute }
 

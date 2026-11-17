@@ -43,14 +43,14 @@ void main() {
     expect(placed.single.worldY, 10 * kTileSize);
   });
 
-  test('goal tags take the statue spots in order', () {
+  test('goal tags take opposite corners of the square first', () {
     final placed = placeTownTags(const [
       TownTag(anchor: StatueAnchor('jacket'), text: 'Jacket 50%'),
       TownTag(anchor: StatueAnchor('canoe'), text: 'Canoe 10%'),
     ], _view);
     expect(placed.map((tag) => (tag.worldX, tag.worldY)), [
       (12 * kTileSize + kTileSize / 2, 8 * kTileSize),
-      (15 * kTileSize + kTileSize / 2, 8 * kTileSize),
+      (15 * kTileSize + kTileSize / 2, 11 * kTileSize),
     ]);
   });
 

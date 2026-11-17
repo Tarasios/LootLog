@@ -28,6 +28,7 @@ import 'hall_ledger_view.dart';
 import 'hall_names.dart';
 import 'hall_voice.dart';
 import 'kit/kit.dart';
+import 'town/shift_note.dart';
 import 'vault_screen.dart';
 
 /// Opens the sheet for [plotIndex]: a framed game dialog in the pixel tier,
@@ -287,8 +288,11 @@ class BuildingSheet extends ConsumerWidget {
     }
 
     if (spec.isProducer) {
-      final made = uncollectedProduction(hall, plotIndex, now);
-      final fits = collectableNow(hall, plotIndex, now);
+      final activeDays = c.game.townActiveDays;
+      final made = uncollectedProduction(hall, plotIndex, now,
+          activeDays: activeDays);
+      final fits =
+          collectableNow(hall, plotIndex, now, activeDays: activeDays);
       final rejection = c.preview((g) => g.collectMaterials(plotIndex));
       final rates = {
         for (final e in spec.productionPerHour.entries)
@@ -311,6 +315,7 @@ class BuildingSheet extends ConsumerWidget {
                   style: framedBodyStyle(context)),
               const SizedBox(height: AppSpacing.xs),
               MaterialLine(fits, prefix: 'Ready to collect: '),
+              if (inService >= 1) ShiftNote(game: c.game, plotIndex: plotIndex, now: now),
               if (made != fits && !made.isEmpty)
                 Text(
                     'The Storehouse has room for only part of the '

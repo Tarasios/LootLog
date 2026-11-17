@@ -106,8 +106,8 @@ void main() {
     expect(AdventureTokens.label(captured).fontFamily, AdventureTokens.pixelFont);
     expect(AdventureTokens.title(captured).color, AdventureTokens.ink);
     // The pixel font is crisp only at whole multiples of its native step.
-    expect(AdventureTokens.label(captured).fontSize, AdventureTokens.pixelFontStep);
-    expect(AdventureTokens.title(captured).fontSize, AdventureTokens.pixelFontStep * 2);
+    expect(AdventureTokens.label(captured).fontSize, AdventureTokens.pixelFontStep * 2);
+    expect(AdventureTokens.title(captured).fontSize, AdventureTokens.pixelFontStep * 3);
     final amount = AdventureTokens.amount(captured);
     expect(amount.fontFeatures, contains(const FontFeature.tabularFigures()));
     expect(amount.color, AdventureTokens.ink);

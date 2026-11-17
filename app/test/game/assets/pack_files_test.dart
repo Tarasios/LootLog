@@ -6,7 +6,12 @@ import 'package:image/image.dart' as img;
 import 'package:lootlog/game/assets/asset_catalog.dart';
 import 'package:lootlog/game/domain/game_values.dart';
 
-const packNames = ['tiny_town', 'tiny_dungeon', 'roguelike_indoors'];
+const packNames = [
+  'tiny_town',
+  'town_composed',
+  'tiny_dungeon',
+  'roguelike_indoors',
+];
 
 /// Non-building keys the town, dungeon and room scenes ask the packs for
 /// (the brief's Step 5 plus the Task 7 catalogue extras). There is no water
@@ -119,8 +124,8 @@ void main() {
   }
 
   group('required keys', () {
-    test('every building type has all five tiers in tiny_town', () {
-      final regions = readRegions('tiny_town');
+    test('every building type has all five tiers in town_composed', () {
+      final regions = readRegions('town_composed');
       for (final type in BuildingType.values) {
         for (var tier = 1; tier <= GameAssetKeys.buildingTiers; tier++) {
           final key = GameAssetKeys.building(type, tier).value;
@@ -151,7 +156,7 @@ void main() {
     });
 
     test('no two building types share the same tier cells', () {
-      final regions = readRegions('tiny_town');
+      final regions = readRegions('town_composed');
       final looks = <String, BuildingType>{};
       for (final type in BuildingType.values) {
         final cells = {

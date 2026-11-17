@@ -52,7 +52,14 @@ abstract final class AdventureTheme {
       borderRadius: BorderRadius.all(Radius.circular(_kCornerRadius)),
       side: outline,
     );
-    final buttonLabel = textTheme.labelLarge;
+    // Buttons get the pixel font here, not through the `labelLarge` role:
+    // Standard's widgets also draw money in that role.
+    final buttonLabel = textTheme.labelLarge?.copyWith(
+      fontFamily: AdventureTokens.pixelFont,
+      fontSize: AdventureTokens.pixelFontStep * 2,
+      height: _kPixelLineHeight,
+      letterSpacing: 0,
+    );
     final pixelTitle = textTheme.titleLarge!;
 
     return ThemeData(
@@ -171,10 +178,11 @@ abstract final class AdventureTheme {
     );
   }
 
-  /// [base] in ink, with the pixel font on the headline, large and small
-  /// title, and label roles at a crisp size. The display roles and
+  /// [base] in ink, with the pixel font on the headline and large title
+  /// roles at a crisp size. The display roles and
   /// `titleMedium` carry money (`AppText.amount`, `heroAmount`, `metricValue`
-  /// build on them, bold), so they keep the default face, as body roles do.
+  /// build on them, bold), and the small title and label roles carry
+  /// amounts and captions, so they keep the default face, as body roles do.
   static TextTheme _textTheme(TextTheme base) {
     const step = AdventureTokens.pixelFontStep;
     TextStyle? pixel(TextStyle? style, double size) => style?.copyWith(
@@ -185,14 +193,10 @@ abstract final class AdventureTheme {
         );
     return base
         .copyWith(
-          headlineLarge: pixel(base.headlineLarge, step * 2),
-          headlineMedium: pixel(base.headlineMedium, step * 2),
-          headlineSmall: pixel(base.headlineSmall, step * 2),
-          titleLarge: pixel(base.titleLarge, step * 2),
-          titleSmall: pixel(base.titleSmall, step),
-          labelLarge: pixel(base.labelLarge, step),
-          labelMedium: pixel(base.labelMedium, step),
-          labelSmall: pixel(base.labelSmall, step),
+          headlineLarge: pixel(base.headlineLarge, step * 3),
+          headlineMedium: pixel(base.headlineMedium, step * 3),
+          headlineSmall: pixel(base.headlineSmall, step * 3),
+          titleLarge: pixel(base.titleLarge, step * 3),
         )
         .apply(bodyColor: AdventureTokens.ink, displayColor: AdventureTokens.ink);
   }

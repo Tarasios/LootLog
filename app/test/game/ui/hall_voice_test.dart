@@ -41,6 +41,8 @@ void main() {
       GameReasonCodes.monthGold,
       GameReasonCodes.vaultQuest,
       GameReasonCodes.vaultSavingsStreak,
+      GameReasonCodes.festival,
+      GameReasonCodes.festivalJoint,
     ]) {
       expect(voice.reasons[code], isNotNull, reason: code);
     }

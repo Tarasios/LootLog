@@ -73,12 +73,14 @@ abstract final class AdventureTokens {
   /// The widest the shop counter gets, so its slots stay card-sized.
   static const double counterMaxWidth = 960;
 
-  /// The pixel fonts' native size: the LootPixel family renders crisp only at
-  /// whole multiples of this (16, 32, …) and soft in between, so every pixel
-  /// text size in the kit is a multiple of it.
-  static const double pixelFontStep = 16;
+  /// The pixel font's native size: the LootPixel family is drawn on an 8 px
+  /// grid, so it renders crisp only at whole multiples of this (16, 24, …)
+  /// and soft in between. Every pixel text size in the kit is a multiple of
+  /// it, and never below 16 (at 8 it is too small to read).
+  static const double pixelFontStep = 8;
 
-  /// Kenney Pixel, declared in pubspec as `LootPixel`.
+  /// Kenney Mini (a bold, wide pixel face that stays legible at 16 px),
+  /// declared in pubspec as `LootPixel`.
   static const String pixelFont = 'LootPixel';
 
   /// Kenney Mini Square, declared in pubspec as `LootPixelMono`.
@@ -87,7 +89,7 @@ abstract final class AdventureTokens {
   /// Screen and panel headings, in the pixel font.
   static TextStyle title(BuildContext context) => _base(context).copyWith(
         fontFamily: pixelFont,
-        fontSize: pixelFontStep * 2,
+        fontSize: pixelFontStep * 3,
         height: 1.1,
         color: ink,
       );
@@ -95,7 +97,7 @@ abstract final class AdventureTokens {
   /// Labels, chips and buttons, in the pixel font.
   static TextStyle label(BuildContext context) => _base(context).copyWith(
         fontFamily: pixelFont,
-        fontSize: pixelFontStep,
+        fontSize: pixelFontStep * 2,
         height: 1.1,
         color: ink,
       );

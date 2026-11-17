@@ -16,6 +16,10 @@
 /// - Streaks forgive: a freeze token covers a missed day automatically.
 /// - Party rewards only add. A quiet partner costs the other nothing.
 ///
+/// Opening a day also brings that day's town event (`town/daily_event.dart`),
+/// rolled once from the ledger event that opened it; every weekend brings a
+/// festival sized to the weekdays logged (`town/festival.dart`).
+///
 /// Pure Dart, zero Flutter imports.
 library;
 
@@ -28,6 +32,8 @@ import '../game_event_stamp.dart';
 import '../game_state.dart';
 import '../game_values.dart';
 import '../reason_codes.dart';
+import '../town/daily_event.dart';
+import '../town/festival.dart';
 import 'month_end_rewards.dart';
 
 export '../game_event_stamp.dart';
@@ -150,6 +156,12 @@ class RewardEngine {
       run.bridge(adult.memberId, today);
       run.tokens(adult.memberId);
     }
+    // Festivals are held for every Adventure adult on every run, not only
+    // for whoever just logged.
+    for (final adult in party.adventurers) {
+      run.festivals(adult.memberId, oldest);
+    }
+    run.jointFestivals(oldest);
 
     run.out.addAll(monthEnd.evaluate(ledger, gameState, clock,
         party: party, stamp: stamp, household: household));
@@ -171,6 +183,11 @@ class _Person {
         frontier = state.streak.lastDay,
         seenRewards = {...state.seenRewardIds},
         seenChests = {...state.seenChestIds},
+        seenOffers = {...state.seenOfferIds},
+        festivalTiers = {...state.festivals},
+        caravanDays = {
+          for (final rewardId in state.seenRewardIds) ?caravanRewardDay(rewardId),
+        },
         wallet = state.freezeTokens,
         waitingTokens = [
           for (final reward in state.unclaimedRewards.values)
@@ -184,6 +201,14 @@ class _Person {
   GameDay? frontier;
   final Set<String> seenRewards;
   final Set<String> seenChests;
+  final Set<String> seenOffers;
+
+  /// The Mondays of the weeks whose festival is held.
+  /// The festival tier held per week (by its Monday).
+  final Map<GameDay, FestivalTier> festivalTiers;
+
+  /// Days the person backed the party as a Standard adult.
+  final Set<GameDay> caravanDays;
 
   /// Claimed freeze tokens.
   int wallet;
@@ -255,6 +280,7 @@ class _Run {
       personRecord
         ..logged.add(day)
         ..cover(day);
+      _dailyEvent(who, day, event);
     }
 
     if (purchase != null) {
@@ -271,6 +297,103 @@ class _Run {
 
     tokens(who);
     _weekly(who, day.weekStart);
+  }
+
+  /// Today's town event, rolled from the ledger event that opened the day.
+  /// Only today gets one: an offer can only be taken on its own day, so a
+  /// catch-up over earlier days offers nothing.
+  void _dailyEvent(String who, GameDay day, Event opener) {
+    if (day != today) return;
+    final offerId = dailyEventOfferId(who, day);
+    if (!person(who).seenOffers.add(offerId)) return;
+    final offer = rollDailyOffer(
+      personId: who,
+      day: day,
+      seedEventId: opener.eventId,
+      hall: state.hall,
+      now: now,
+    );
+    out.add(DailyEventOffered(
+      eventId: stamp.newEventId(),
+      deviceId: stamp.deviceId,
+      actorId: who,
+      // Stamped with the logged instant, like the day's pouch.
+      occurredAt: opener.createdAt,
+      createdAt: now,
+      offerId: offer.offerId,
+      day: offer.day,
+      kind: offer.kind,
+      gives: offer.gives,
+      receives: offer.receives,
+      flavourKey: offer.flavourKey,
+      plotIndex: offer.plotIndex,
+    ));
+  }
+
+  /// Holds each weekend festival due for [who] (see `festivalWeeksDue`),
+  /// sized by the week's town spirit. A device that sees more logged
+  /// weekdays than the tier already held tops it up: a new `FestivalHeld`
+  /// and one reward per tier reached, each paying what that tier adds, so
+  /// every device ends with the same rewards whatever it saw first.
+  void festivals(String who, GameDay oldest) {
+    final record = person(who);
+    final due = festivalWeeksDue(
+      loggedDays: record.logged,
+      caravanDays: record.caravanDays,
+      today: today,
+      oldest: oldest,
+    );
+    for (final week in due) {
+      final weekdays = weekdaysLogged(record.logged, week);
+      final tier = festivalTierFor(weekdays);
+      final held = record.festivalTiers[week];
+      if (held == null || tier.index > held.index) {
+        record.festivalTiers[week] = tier;
+        out.add(FestivalHeld(
+          eventId: stamp.newEventId(),
+          deviceId: stamp.deviceId,
+          actorId: who,
+          occurredAt: now,
+          createdAt: now,
+          week: week,
+          tier: tier,
+          weekdaysLogged: weekdays,
+        ));
+      }
+      final reached = record.festivalTiers[week]!;
+      for (final step in FestivalTier.values.take(reached.index + 1)) {
+        if (festivalTierPaid(record.seenRewards, who, week, step)) continue;
+        final loot = festivalTierReward(step);
+        _grant(who,
+            rewardId: festivalRewardId(who, week, step),
+            kind: 'festival',
+            gems: loot.gems,
+            materials: loot.materials,
+            reasonCode: GameReasonCodes.festival);
+      }
+    }
+  }
+
+  /// The joint bonus for every Adventure adult at a fair or better in a
+  /// week at least one other Adventure adult also reached a fair. Additive:
+  /// someone alone simply has no bonus, and nobody is ever named.
+  void jointFestivals(GameDay oldest) {
+    for (final week in festivalWeeksInWindow(today: today, oldest: oldest)) {
+      final festive = [
+        for (final adult in party.adventurers)
+          if (weekdaysLogged(person(adult.memberId).logged, week) >=
+              Balance.festivalFairWeekdays)
+            adult.memberId,
+      ];
+      if (festive.length < 2) continue;
+      for (final who in festive) {
+        _grant(who,
+            rewardId: jointFestivalRewardId(who, week),
+            kind: 'gems',
+            gems: Balance.jointFestivalGems,
+            reasonCode: GameReasonCodes.festivalJoint);
+      }
+    }
   }
 
   /// Gems under the per-day cap, one per purchase per rule.
@@ -332,7 +455,7 @@ class _Run {
   /// at once (they never visit the hall to claim it).
   void _caravan(String who, GameDay day) {
     if (party.adventurers.isEmpty) return; // no party to supply
-    final rewardId = 'caravan:$who:${day.toKey()}';
+    final rewardId = caravanRewardId(who, day);
     if (person(who).seenRewards.contains(rewardId)) return;
     _grant(who,
         rewardId: rewardId,

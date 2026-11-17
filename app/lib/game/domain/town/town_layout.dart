@@ -29,8 +29,16 @@ class TownLayout {
   /// Plots and houses cover footprint × footprint cells from their origin.
   static const int footprint = 2;
 
+  /// The roads are two cells wide and cross in the middle of the square, so
+  /// they meet it centred on every side.
   static const int _pathRow = 10;
   static const int _pathColumn = 14;
+
+  static bool _onRoad(TownCell cell) =>
+      cell.row == _pathRow ||
+      cell.row == _pathRow - 1 ||
+      cell.column == _pathColumn ||
+      cell.column == _pathColumn - 1;
 
   int get columns => 28;
   int get rows => 20;
@@ -39,7 +47,7 @@ class TownLayout {
     final inSquare =
         cell.column >= 12 && cell.column <= 15 && cell.row >= 8 && cell.row <= 11;
     if (inSquare) return TownGround.square;
-    if (cell.row == _pathRow || cell.column == _pathColumn) return TownGround.path;
+    if (_onRoad(cell)) return TownGround.path;
     final inRiver = cell.column >= 22 && cell.row <= 4 && cell.column - cell.row >= 21;
     if (inRiver) return TownGround.water;
     return TownGround.grass;

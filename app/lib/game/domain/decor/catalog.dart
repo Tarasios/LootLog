@@ -10,6 +10,9 @@ enum DecorKind { furniture, outfit, title, townDecor, trophy, statue }
 
 enum DecorRarity { common, uncommon, rare }
 
+/// The catalogue tag of the items a grand weekend festival hands out.
+const String kFestivalDecorTag = 'festival';
+
 const String _trophyPrefix = 'trophy:';
 const String _statuePrefix = 'statue:';
 
@@ -38,6 +41,7 @@ class DecorItem {
     this.footprintColumns = 1,
     this.footprintRows = 1,
     this.exclusive = false,
+    this.tags = const {},
   });
 
   final String id;
@@ -53,6 +57,10 @@ class DecorItem {
 
   /// Only a milestone hands it out (never the shop or a chest).
   final bool exclusive;
+
+  /// Pools the item belongs to beyond shop and chests (`festival`: a grand
+  /// weekend festival may hand it out).
+  final Set<String> tags;
 
   bool get placeableInRoom => kind == DecorKind.furniture || kind == DecorKind.trophy;
   bool get placeableInTown => kind == DecorKind.townDecor || kind == DecorKind.statue;
@@ -98,6 +106,12 @@ class DecorCatalog {
           if (item.rarity == rarity && !item.exclusive) item,
       ];
 
+  /// The items a grand weekend festival hands out (tagged `festival`).
+  List<DecorItem> get festivalPool => [
+        for (final item in items)
+          if (item.tags.contains(kFestivalDecorTag)) item,
+      ];
+
   List<DecorItem> get starterSet => [
         for (final itemId in starterItemIds)
           if (itemFor(itemId) case final DecorItem item) item,
@@ -106,7 +120,8 @@ class DecorCatalog {
   /// Parses the catalogue file. An entry is skipped, never thrown on, when it
   /// is not a map, lacks a string id or name, has an unknown kind or rarity,
   /// an invalid asset key, a price that is not a positive int, a footprint
-  /// that is not one or two positive ints, or a non-bool `exclusive`, so one
+  /// that is not one or two positive ints, a non-bool `exclusive`, or `tags`
+  /// that is not a list of strings, so one
   /// typo never empties the shop. A non-list `items` or `starterSet` reads as
   /// empty, and non-string starter ids are ignored.
   static DecorCatalog fromJson(Map<String, dynamic> json) {
@@ -144,6 +159,10 @@ class DecorCatalog {
     if (price != null && (price is! int || price <= 0)) return null;
     final exclusive = entry['exclusive'];
     if (exclusive != null && exclusive is! bool) return null;
+    final tags = entry['tags'];
+    if (tags != null && (tags is! List || tags.any((tag) => tag is! String))) {
+      return null;
+    }
     final footprint = _parseFootprint(entry['footprint']);
     if (kind == null || rarity == null || assetKey == null || footprint == null) return null;
     return DecorItem(
@@ -156,6 +175,7 @@ class DecorCatalog {
       footprintColumns: footprint.columns,
       footprintRows: footprint.rows,
       exclusive: exclusive as bool? ?? false,
+      tags: Set.unmodifiable((tags as List?)?.cast<String>() ?? const <String>[]),
     );
   }
 

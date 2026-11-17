@@ -185,7 +185,7 @@ checks each set has 8+ lines and that nothing shames or blames.
 ### `collected`
 
 **Trigger:** Materials collected from a producer; `{building}`.  
-**Intended outcome:** Small tactile satisfaction; never tied to logging (rule 10).
+**Intended outcome:** Small tactile satisfaction; collecting is never gated on logging (rule 10).
 
 | Current line |
 |---|
@@ -302,6 +302,8 @@ shortfalls at buildings and expeditions.
 | `notYourRoom` | This is someone else's room. Yours is waiting for you. |
 | `notEquippable` | Only outfits and titles can be worn. |
 | `starterAlreadyClaimed` | Your starter set is already home. |
+| `unknownOffer` | That visitor has already been seen to. |
+| `offerExpired` | That visitor has moved on. Someone new turns up tomorrow when you log. |
 
 ### `reasons`
 
@@ -324,6 +326,8 @@ was earned (by reward reason code).
 | `month.gold` | Bonus: a budget finished on target | A category finished the month on target (bonus only) |
 | `vault.quest` | Savings goal milestone | A savings goal reaches a percent milestone |
 | `vault.consistency` | Months of saving in a row | Consecutive months with a savings choice |
+| `festival.weekend` | The weekend festival | The weekend festival's loot, sized by the weekdays logged: one reward per tier reached, each adding what that tier adds, so a festival topped up by late-syncing logs shows as more than one line |
+| `festival.joint` | Bonus: the party kept the week together | Two or more Adventure adults each logged at least three weekdays (additive; never names anyone) |
 
 
 ## Month-end dungeon lines (`dungeon_lines.json`)
@@ -382,3 +386,61 @@ goal), `{days}`, `{percent}`.
 | `goalProgress` | A savings goal has some progress (the goals furthest along, one per statue spot) | The goal's statue spot | Keep the goal vivid and celebrate how far it has come (a percent, never dollars) | {name} {percent}% |
 | `chestWaiting` | An unopened chest waits in the inbox | The Central Hall | Point at the reward | Chest waiting |
 | `upgradeReady` | A building can be upgraded right now | That building's plot | Point at something fun to do next | Ready to upgrade |
+
+## Town events (`town_events.json`)
+
+Adventure-only: the daily town event and the weekend festival. When a
+person opens their day with a first log or a "no spend" check-in, something
+turns up in town: a trader, a
+producer having a good day, or a visitor with a gift. The amounts are rolled
+once and stored; the line only frames them. Taking it is a choice and waving
+it off costs nothing, so no line ever pressures or scolds. Each key holds one
+line; the engine picks one of a kind's keys (`trader.1`–`trader.3` and so
+on). A missing or empty key falls back to the built-in line in
+`app/lib/game/domain/town/town_event_lines.dart`, and
+`app/test/game/domain/town/town_event_lines_test.dart` checks the shipped
+file matches those built-in lines and that nothing shames. Placeholders:
+`{gives}` and `{receives}` (amounts in game words), `{building}` (the
+producer). Every weekend the town also holds a festival sized to the
+weekdays (Monday to Friday) the person logged; the `festival.*` keys
+announce it and take no placeholders. The town loop's lines (`away.*`,
+`tag.*`, `spirit.*`, `festival.name.*`, `festival.reward`,
+`festival.claimed`) take `{count}`, `{quietDays}`, `{building}`, `{logged}`, `{more}`,
+`{festival}` and `{reward}` as noted.
+
+| Key | Trigger | Intended outcome | Current line |
+|-----|---------|------------------|--------------|
+| `trader.1` | A trader offers to swap the pool's most plentiful material for its scarcest | A fair, friendly deal the player can take or leave | A travelling trader sets up by the well. Swap {gives} for {receives}? |
+| `trader.2` | As `trader.1` | Same | A cart rolls in with just what the yard is short of: {receives} for {gives}. |
+| `trader.3` | As `trader.1` | Same | A merchant tips her hat. "I'll take {gives} off your hands for {receives}." |
+| `windfall.1` | A producer has a good day: four hours of its output, free | Celebrate the town working well because the day was logged | The {building} crew is in fine form today: {receives} extra, ready to bring in. |
+| `windfall.2` | As `windfall.1` | Same | A lucky find at the {building}! {receives} waiting to be stacked. |
+| `windfall.3` | As `windfall.1` | Same | The {building} had a cracking morning. {receives} more for the stores. |
+| `visitor.1` | A visitor brings a small gift (a few materials, or two gems) | A warm surprise for showing up | An old friend stops by with a gift: {receives}. |
+| `visitor.2` | As `visitor.1` | Same | A neighbour leaves a parcel at your door: {receives}. |
+| `visitor.3` | As `visitor.1` | Same | A wandering bard pays for supper with {receives}. |
+| `festival.marketDay` | The weekend festival after a week with 0–2 weekdays logged (a quiet week is held once the person shows up that weekend or later, if they had already been around by its Sunday; never for a week before someone first came) | Celebrate the town every weekend: a quiet week is still a market day, never a loss | It's market day! Stalls line the square and the whole town turns out. |
+| `festival.fair` | The weekend festival after 3–4 weekdays logged | Celebrate a well-kept week | A fair fills the square this weekend. The town is in high spirits after a well-kept week. |
+| `festival.grandFestival` | The weekend festival after all 5 weekdays logged (with a festival decoration when the catalogue has one) | The big weekly celebration | A grand festival! Lanterns, music and dancing: every weekday kept, and the whole town celebrates. |
+| `festival.joint` | The joint festival bonus: two or more Adventure adults reached a fair the same week | Celebrate the party together without naming anyone | The whole party kept the week together, and the festival is all the merrier for it. |
+| `festival.name.marketDay` | The festival's name: the celebration's ribbon, the spirit dialog and the text home (title-cased on a ribbon) | Name the weekend warmly | market day |
+| `festival.name.fair` | As `festival.name.marketDay` | Same | fair |
+| `festival.name.grandFestival` | As `festival.name.marketDay` | Same | grand festival |
+| `festival.reward` | The festival celebration, while its gifts wait in the inbox ({reward}: what they hold) | Point at the gifts; `Claim` takes them through the inbox's claim | The festival brings {reward}. |
+| `festival.claimed` | The festival celebration after its gifts were claimed | Keep the moment happy with nothing left to do | Its gifts are already in your stores. |
+| `away.chip` | A small HUD chip over the check-in while producers hold something to collect ({count}: how many materials fit) | Point at the crews' work without ever standing between the player and Log purchase; tapping opens the summary | Crews made {count}: collect |
+| `away.welcome` | The "while you were away" summary's ribbon, opened from the `away.chip` chip | A warm hello | Welcome back! |
+| `away.title` | The heading of that pop-up's summary (and its text-home section) | Show what the town did on its own | While you were away |
+| `away.fullDays` | The summary (or a producer's sheet) when every day since the last collection was logged | Credit the kept ledger for the full days | Full days: the ledger was kept. |
+| `away.shortShifts` | The summary (or a producer's sheet) when the stretch held a quiet day and today is not logged yet ({quietDays}: "2 quiet days") | Frame the short shift as the town working harder when the ledger is kept; never "lost", "missed" or "penalty" | Short shifts on {quietDays}. Log today and the crews work the full day. |
+| `away.shortShiftsLogged` | As `away.shortShifts`, when today is already logged | Same, acknowledging today | Short shifts on {quietDays}. Today is logged, so the crews are on the full day. |
+| `away.storehouseFull` | A summary row whose producer has nothing more that fits | Say plainly why it waits | Storehouse full |
+| `tag.trader` | The sign over a trader standing by the square | Invite a look | Trader in town |
+| `tag.windfall` | The sign over a producer's foreman having a good day ({building}) | Same | Good day at the {building} |
+| `tag.visitor` | The sign over a visitor with a gift | Same | A visitor |
+| `tag.openTown` | A muted note over the Log purchase button before this adult has logged today | Invite the day's first log (it brings the visitor) | Log today to open the town |
+| `spirit.title` | The town spirit dialog's ribbon (tap the pips under the date) and its text-home heading | Name the weekly meter | Town spirit |
+| `spirit.logged` | The spirit dialog ({logged}: weekdays logged, 0–5) | Count what was done, never what wasn't | {logged} of 5 weekdays logged this week. |
+| `spirit.weekday` | The spirit dialog on a weekday ({festival}: the festival earned so far) | Show the weekend is already something | Every weekday you log lifts the town. So far the weekend holds a {festival}. |
+| `spirit.next` | The spirit dialog on a weekday when a bigger festival is still reachable ({more}: "1 more weekday") | A gentle, reachable next step | Log {more} for a {festival}. |
+| `spirit.weekend` | The spirit dialog at the weekend | Celebrate | The weekend is here and the {festival} is on! |

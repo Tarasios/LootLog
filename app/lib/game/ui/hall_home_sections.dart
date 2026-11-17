@@ -726,7 +726,8 @@ class PlotTile extends StatelessWidget {
       if (!complete) {
         status = 'Ready in ${HallNames.duration(b.completesAt.difference(now))}';
       } else if (Balance.buildings[b.type]!.isProducer) {
-        final ready = collectableNow(data.game.hall, index, now);
+        final ready = collectableNow(data.game.hall, index, now,
+            activeDays: data.game.townActiveDays);
         status = ready.isEmpty ? 'Working…' : '+${HallNames.bundle(ready)}';
       } else {
         status = 'Tier ${b.tier}';

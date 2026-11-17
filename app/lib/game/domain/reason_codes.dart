@@ -2,6 +2,41 @@
 /// Pure Dart, zero Flutter imports.
 library;
 
+import 'game_values.dart';
+
+/// The reward id of [who]'s supply caravan for household day [day]. One per
+/// Standard adult per active day, so the id doubles as the record that the
+/// caravan adult showed up that day.
+String caravanRewardId(String who, GameDay day) =>
+    '$_caravanRewardPrefix$who:${day.toKey()}';
+
+/// The household day a caravan reward id was granted for, or null when
+/// [rewardId] is not a caravan reward.
+GameDay? caravanRewardDay(String rewardId) {
+  if (!rewardId.startsWith(_caravanRewardPrefix)) return null;
+  final dayKey = rewardId.substring(rewardId.lastIndexOf(':') + 1);
+  try {
+    return GameDay.parse(dayKey);
+  } on FormatException {
+    return null;
+  }
+}
+
+const String _caravanRewardPrefix = 'caravan:';
+
+/// The acquisition id of [personId]'s grand-festival decoration for the
+/// week starting [week].
+String festivalDecorAcquisitionId(String personId, GameDay week) =>
+    '$_festivalDecorPrefix$personId:${week.toKey()}';
+
+/// Whether [acquisitionId] is a grand-festival decoration, which the
+/// projection turns into gems when the item is already owned (so devices
+/// that disagreed about ownership converge).
+bool isFestivalDecorAcquisition(String acquisitionId) =>
+    acquisitionId.startsWith(_festivalDecorPrefix);
+
+const String _festivalDecorPrefix = 'festival.decor:';
+
 /// The `reasonCode`s with meaning to the projection. Other codes are free-form.
 abstract final class GameReasonCodes {
   /// The once-a-day reward for logging at least one purchase.
@@ -46,6 +81,13 @@ abstract final class GameReasonCodes {
 
   /// Gems for consecutive closed months with a savings allocation.
   static const String vaultSavingsStreak = 'vault.consistency';
+
+  /// The weekend festival's loot, sized by the week's town spirit.
+  static const String festival = 'festival.weekend';
+
+  /// Bonus gems when two or more Adventure adults reached a fair or better
+  /// the same week (additive; never names anyone).
+  static const String festivalJoint = 'festival.joint';
 
   /// Rewards whose grant marks their household-local day as covered in the
   /// person's streak. The reward engine must grant at most one per person per

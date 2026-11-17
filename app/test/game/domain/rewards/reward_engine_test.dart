@@ -123,8 +123,12 @@ class _Device {
         rewardId: rewardId,
       ));
 
-  List<RewardGranted> grants([List<GameEvent>? events]) =>
-      (events ?? log).whereType<RewardGranted>().toList();
+  /// The day-to-day grants. Weekend festivals (which a first log after an
+  /// idle week also holds) are covered in `festival_engine_test.dart`.
+  List<RewardGranted> grants([List<GameEvent>? events]) => (events ?? log)
+      .whereType<RewardGranted>()
+      .where((grant) => !grant.reasonCode.startsWith('festival'))
+      .toList();
 
   List<ChestGranted> chests([List<GameEvent>? events]) =>
       (events ?? log).whereType<ChestGranted>().toList();
@@ -157,6 +161,7 @@ void main() {
       expect(pouch.actorId, _ada);
       expect(pouch.gems, 5);
       final p = dev.state.person(_ada);
+      // A first-ever log holds no festival for the week before: exact keys.
       expect(p.unclaimedRewards.keys, [pouch.rewardId]);
       expect(p.gems, 0); // not in the wallet until tapped in the hall
       expect(p.streak.loggedDays, {_day(10, 1)});
@@ -468,7 +473,13 @@ void main() {
       final out = dev.run(daily(5, 5), _at(9, 5));
       expect(out.whereType<StreakFreezeUsed>(), isEmpty);
       // Nothing negative is emitted — only the new day's rewards.
-      expect(out.every((e) => e is RewardGranted || e is ChestGranted), isTrue);
+      expect(
+          out.every((e) =>
+              e is RewardGranted ||
+              e is ChestGranted ||
+              e is DailyEventOffered ||
+              e is FestivalHeld),
+          isTrue);
       expect(dev.state.person(_ada).streak.count, 1);
     });
 
@@ -592,7 +603,9 @@ void main() {
               e is RewardGranted ||
               e is ChestGranted ||
               e is RewardClaimed ||
-              e is StreakFreezeUsed),
+              e is StreakFreezeUsed ||
+              e is DailyEventOffered ||
+              e is FestivalHeld),
           isTrue);
       expect(dev.state.warnings, isEmpty);
     });

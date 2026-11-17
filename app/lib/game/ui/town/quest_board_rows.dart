@@ -53,7 +53,7 @@ class _BoardCard extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 6),
     child: ParchmentCard(
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      padding: const EdgeInsets.fromLTRB(12, 8, 14, 8),
       onTap: onTap,
       child: child,
     ),
@@ -196,15 +196,17 @@ class MonsterRow extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Expanded(child: _name(context, monster.name)),
-              const SizedBox(width: 6),
-              Flexible(
-                child: _figure(
-                  context,
-                  status,
-                  color: enraged ? AdventureTokens.hpRed : AdventureTokens.inkMuted,
-                ),
-              ),
             ],
+          ),
+          // The status has a line to itself, so neither it nor a long name is
+          // cut short on the narrow board.
+          Align(
+            alignment: Alignment.centerRight,
+            child: _figure(
+              context,
+              status,
+              color: enraged ? AdventureTokens.hpRed : AdventureTokens.inkMuted,
+            ),
           ),
           const SizedBox(height: 4),
           MeterBar(

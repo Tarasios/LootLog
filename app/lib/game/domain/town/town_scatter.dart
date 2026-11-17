@@ -19,14 +19,28 @@ class TownScatter {
   static const String treeKey = 'town.tree.default.idle';
   static const String bushKey = 'town.bush.default.idle';
 
-  /// Share of the border ring drawn as trees; the rest are bushes.
-  static const double borderTreeShare = 0.75;
+  /// The dense forest that frames the town: its body, and the edge tiles
+  /// where it meets the town on each side (named by the side of the forest
+  /// they are, so the forest south of the town shows its north edge).
+  static const String forestKey = 'town.forest.centre.idle';
+  static const String forestNorthEdgeKey = 'town.forest.north.idle';
+  static const String forestSouthEdgeKey = 'town.forest.south.idle';
+  static const String forestWestEdgeKey = 'town.forest.west.idle';
+  static const String forestEastEdgeKey = 'town.forest.east.idle';
+
+  /// What grows on free grass inside the town, most common first: each
+  /// entry's share of the in-town props.
+  static const List<(String, double)> inTownProps = [
+    ('town.ground.tuft.idle', 0.34),
+    ('town.ground.flowers.idle', 0.2),
+    (bushKey, 0.18),
+    (treeKey, 0.14),
+    ('town.tree.autumn.idle', 0.08),
+    ('town.mushroom.default.idle', 0.06),
+  ];
 
   /// Share of free in-town grass that gets a prop.
-  static const double inTownDensity = 0.06;
-
-  /// Share of in-town props drawn as bushes; the rest are trees.
-  static const double inTownBushShare = 0.6;
+  static const double inTownDensity = 0.12;
 
   /// Border props first (row by row, top to bottom), then in-town ones.
   final List<TownProp> props;
@@ -36,7 +50,8 @@ class TownScatter {
 }
 
 /// Scatters scenery for [layout] with [seed]: every cell of a [borderWidth]
-/// ring outside the grid gets a tree or a bush, and about
+/// ring outside the grid gets forest (an edge tile where it meets the town),
+/// and about
 /// [TownScatter.inTownDensity] of the free grass inside gets one too. Free
 /// grass is grass not covered by a plot, a house, the gate, a statue spot or
 /// one of the layout's own trees, so props never land on a path or a
@@ -61,9 +76,7 @@ TownScatter scatterTown(
           row >= 0 &&
           row < layout.rows;
       if (insideGrid) continue;
-      final key = random.nextDouble() < TownScatter.borderTreeShare
-          ? TownScatter.treeKey
-          : TownScatter.bushKey;
+      final key = _forestKey(layout, column, row);
       props.add((column: column, row: row, assetKey: key));
     }
   }
@@ -76,9 +89,7 @@ TownScatter scatterTown(
           layout.groundAt(cell) == TownGround.grass && !occupied.contains(cell);
       if (!freeGrass) continue;
       if (random.nextDouble() >= TownScatter.inTownDensity) continue;
-      final key = random.nextDouble() < TownScatter.inTownBushShare
-          ? TownScatter.bushKey
-          : TownScatter.treeKey;
+      final key = _inTownKey(random.nextDouble());
       props.add((column: column, row: row, assetKey: key));
     }
   }
@@ -87,6 +98,30 @@ TownScatter scatterTown(
 }
 
 /// Every cell something already stands on.
+/// The forest tile for a border cell: an edge tile on the ring's innermost
+/// cells (not its corners, which the pack has no tile for), body elsewhere.
+String _forestKey(TownLayout layout, int column, int row) {
+  final besideColumns = column >= 0 && column < layout.columns;
+  final besideRows = row >= 0 && row < layout.rows;
+  if (besideColumns && row == -1) return TownScatter.forestSouthEdgeKey;
+  if (besideColumns && row == layout.rows) return TownScatter.forestNorthEdgeKey;
+  if (besideRows && column == -1) return TownScatter.forestEastEdgeKey;
+  if (besideRows && column == layout.columns) {
+    return TownScatter.forestWestEdgeKey;
+  }
+  return TownScatter.forestKey;
+}
+
+/// The in-town prop a [roll] in [0, 1) picks from [TownScatter.inTownProps].
+String _inTownKey(double roll) {
+  var threshold = 0.0;
+  for (final (key, share) in TownScatter.inTownProps) {
+    threshold += share;
+    if (roll < threshold) return key;
+  }
+  return TownScatter.inTownProps.first.$1;
+}
+
 Set<TownCell> _occupiedCells(TownLayout layout) => {
   for (final origin in [...layout.plotOrigins, ...layout.houseOrigins])
     for (var column = 0; column < TownLayout.footprint; column++)
