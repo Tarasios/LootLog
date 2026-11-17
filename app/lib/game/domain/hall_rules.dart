@@ -117,6 +117,9 @@ DateTime? producerStretchStart(HallState hall, int plotIndex) =>
   return (building: building, spec: spec, from: from);
 }
 
+/// The instant (UTC) household [day] starts: its midnight.
+DateTime householdDayStart(GameDay day) => _dayStartUtc(day);
+
 /// The instant (UTC) [day] starts: household midnight. The offset is read
 /// half a day earlier, as [Month.startInstantUtc] does, so a midnight next to
 /// a daylight-saving change uses the offset in force at that midnight.

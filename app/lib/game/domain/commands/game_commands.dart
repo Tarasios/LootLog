@@ -34,6 +34,7 @@ import '../town/cheers.dart';
 import '../town/districts.dart';
 import '../town/farmland.dart';
 import '../town/gifts.dart';
+import '../town/quarters.dart';
 
 /// Why a command was refused. The UI maps each to friendly copy.
 enum GameRejection {
@@ -214,6 +215,9 @@ enum GameRejection {
 
   /// The granary has no room for any of the harvest.
   granaryFull,
+
+  /// That building stands in another district.
+  wrongDistrict,
 }
 
 /// What a command decided: the events to append, or why not.
@@ -404,6 +408,30 @@ class GameCommands {
         occurredAt: _now,
         createdAt: _now,
         districtId: kFarmlandDistrictId,
+        plotIndex: plotIndex,
+        buildingKey: type.name,
+        tier: plan.tier,
+        cost: plan.cost,
+        completesAt: _now.add(Balance.buildTimeByTier[plan.tier - 1]),
+      ),
+    ]);
+  }
+
+  /// Builds civic building [type] on an empty plot of [districtId] (tier 1)
+  /// or upgrades the [type] standing there by one tier
+  /// (`town/quarters.dart`).
+  GameCommandResult startCivicBuilding(String districtId, int plotIndex, CivicBuildingType type) {
+    final plan = planCivicBuilding(state, actorId, districtId, plotIndex, type, _now);
+    final rejection = plan.rejection;
+    if (rejection != null) return _reject(rejection);
+    return _accept([
+      CivicBuildingStarted(
+        eventId: stamp.newEventId(),
+        deviceId: stamp.deviceId,
+        actorId: actorId,
+        occurredAt: _now,
+        createdAt: _now,
+        districtId: districtId,
         plotIndex: plotIndex,
         buildingKey: type.name,
         tier: plan.tier,

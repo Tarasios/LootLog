@@ -134,6 +134,9 @@ class GameWarning {
   String toString() => 'GameWarning($eventId, ${code.name}, $detail)';
 }
 
+/// How every market trade's offer id begins (`town/market.dart`).
+const String kMarketOfferIdPrefix = 'market.trade:';
+
 /// The id of the building standing on hall plot [plotIndex]. Stable across
 /// upgrades, so production and collection keep their history.
 String buildingIdForPlot(int plotIndex) => 'plot-$plotIndex';
@@ -749,10 +752,19 @@ class GameState {
 
   /// [personId]'s daily town event for [today], if one waits; null when none
   /// was offered or it was already taken or waved off. Earlier days' offers
-  /// are simply not today's.
+  /// are simply not today's, and the market trade is [marketOfferFor].
   DailyOffer? offerFor(String personId, GameDay today) {
     for (final offer in person(personId).dailyOffers.values) {
-      if (offer.day == today) return offer;
+      if (offer.day == today && !offer.offerId.startsWith(kMarketOfferIdPrefix)) return offer;
+    }
+    return null;
+  }
+
+  /// [personId]'s market trade for [today] (`town/market.dart`), if one
+  /// waits.
+  DailyOffer? marketOfferFor(String personId, GameDay today) {
+    for (final offer in person(personId).dailyOffers.values) {
+      if (offer.day == today && offer.offerId.startsWith(kMarketOfferIdPrefix)) return offer;
     }
     return null;
   }

@@ -32,6 +32,14 @@ MaterialBundle _m({
       MaterialKind.trophy: trophy,
     });
 
+GoodsBundle _g({int planks = 0, int cutStone = 0, int tools = 0, int cloth = 0}) =>
+    GoodsBundle({
+      GoodsKind.planks: planks,
+      GoodsKind.cutStone: cutStone,
+      GoodsKind.tools: tools,
+      GoodsKind.cloth: cloth,
+    });
+
 /// Guild-hall balance numbers.
 abstract final class Balance {
   // ---- Reward engine ------------------------------------------------------
@@ -514,6 +522,264 @@ abstract final class Balance {
   /// only a food-secure town grows past the hamlet. A short town loses
   /// nothing: it only waits.
   static const int foodSecureDays = 3;
+
+  // ---- The long road: guard post, residential quarter, park, market row ------
+  //
+  // Pace targets for an adult who logs daily and collects once a day (held
+  // by `test/game/domain/town/long_road_pace_test.dart`, 400 simulated days
+  // through the real engine and commands): Village about day 30, Town in
+  // month 4 (day 90–150), City in month 7–10 (day 200–300), the first
+  // Castle stage soon after, and the finished Castle after a year. A player
+  // who logs four days a week still reaches Town before day 220.
+
+  /// The Guard Post (opens at the village): a few weeks of a village's gems
+  /// and stores. Its buildings add guard capacity for farms past the first
+  /// [unguardedFarmPlots].
+  static const int guardPostGemPrice = 80;
+  static const Map<MaterialKind, int> guardPostMaterialPrice = {
+    MaterialKind.lumber: 300,
+    MaterialKind.stone: 300,
+  };
+  static const int guardPostPlotCount = 4;
+
+  /// The Residential Quarter (opens at the village): its houses hold the
+  /// residents a town and a city need ([housingForTier]).
+  static const int residentialGemPrice = 80;
+  static const Map<MaterialKind, int> residentialMaterialPrice = {
+    MaterialKind.lumber: 400,
+    MaterialKind.stone: 200,
+  };
+  static const int residentialPlotCount = 6;
+
+  /// The Park (opens at the town): prosperity and a happier festival.
+  static const int parkGemPrice = 150;
+  static const Map<MaterialKind, int> parkMaterialPrice = {
+    MaterialKind.lumber: 600,
+    MaterialKind.stone: 600,
+    MaterialKind.herbs: 200,
+  };
+  static const int parkPlotCount = 4;
+
+  /// Market Row (opens at the town): the market trade and the workshops
+  /// that refine goods for the Castle and the top tiers.
+  static const int marketRowGemPrice = 150;
+  static const Map<MaterialKind, int> marketRowMaterialPrice = {
+    MaterialKind.lumber: 600,
+    MaterialKind.stone: 600,
+    MaterialKind.ore: 200,
+  };
+  static const int marketRowPlotCount = 5;
+
+  /// The civic buildings. Tiers cost like hall buildings
+  /// ([buildingCostMultiplierByTier], [buildingGemCostByTier], built in
+  /// [buildTimeByTier]); from [civicGoodsFromTier] on they also want refined
+  /// goods, so the top tiers come with the Market Row.
+  static final Map<CivicBuildingType, CivicBuildingSpec> civicBuildings = {
+    CivicBuildingType.watchtower: CivicBuildingSpec(
+      districtId: 'guardPost',
+      upgradeBase: _m(lumber: 30, stone: 30),
+      goodsBase: _g(planks: 10),
+      guardsByTier: const [2, 4, 6, 8, 10],
+    ),
+    CivicBuildingType.barracks: CivicBuildingSpec(
+      districtId: 'guardPost',
+      upgradeBase: _m(lumber: 40, ore: 20),
+      goodsBase: _g(tools: 5),
+      guardsByTier: const [3, 6, 9, 12, 15],
+      unique: true,
+    ),
+    CivicBuildingType.wallSection: CivicBuildingSpec(
+      districtId: 'guardPost',
+      upgradeBase: _m(stone: 50),
+      goodsBase: _g(cutStone: 10),
+      guardsByTier: const [1, 2, 3, 4, 5],
+    ),
+    CivicBuildingType.cottage: CivicBuildingSpec(
+      districtId: 'residential',
+      upgradeBase: _m(lumber: 30, stone: 15),
+      goodsBase: _g(planks: 10),
+      housingByTier: const [4, 8, 13, 19, 26],
+    ),
+    CivicBuildingType.rowhouse: CivicBuildingSpec(
+      districtId: 'residential',
+      upgradeBase: _m(lumber: 40, stone: 40),
+      goodsBase: _g(planks: 10, cutStone: 10),
+      housingByTier: const [8, 16, 24, 34, 45],
+    ),
+    CivicBuildingType.well: CivicBuildingSpec(
+      districtId: 'residential',
+      upgradeBase: _m(stone: 30),
+      goodsBase: _g(cutStone: 10),
+      housingByTier: const [2, 4, 6, 8, 10],
+      unique: true,
+    ),
+    CivicBuildingType.garden: CivicBuildingSpec(
+      districtId: 'park',
+      upgradeBase: _m(lumber: 20, herbs: 20),
+      goodsBase: _g(planks: 5),
+      prosperityByTier: const [5, 10, 15, 20, 25],
+    ),
+    CivicBuildingType.bandstand: CivicBuildingSpec(
+      districtId: 'park',
+      upgradeBase: _m(lumber: 40, ore: 10),
+      goodsBase: _g(planks: 10, cloth: 5),
+      prosperityByTier: const [10, 20, 30, 40, 50],
+      unique: true,
+    ),
+    CivicBuildingType.fountain: CivicBuildingSpec(
+      districtId: 'park',
+      upgradeBase: _m(stone: 50, crystal: 5),
+      goodsBase: _g(cutStone: 10),
+      prosperityByTier: const [8, 16, 24, 32, 40],
+    ),
+    CivicBuildingType.stall: CivicBuildingSpec(
+      districtId: 'marketRow',
+      upgradeBase: _m(lumber: 30, hide: 10),
+      goodsBase: _g(cloth: 5),
+    ),
+    CivicBuildingType.workshop: CivicBuildingSpec(
+      districtId: 'marketRow',
+      upgradeBase: _m(lumber: 40, stone: 40, ore: 10),
+      goodsBase: _g(tools: 5),
+    ),
+    CivicBuildingType.guildHall: CivicBuildingSpec(
+      districtId: 'marketRow',
+      upgradeBase: _m(stone: 60, ore: 30, crystal: 10),
+      goodsBase: _g(tools: 5, cloth: 5),
+      prosperityByTier: const [15, 30, 45, 60, 75],
+      unique: true,
+    ),
+  };
+
+  /// Civic tiers from this one on want goods: `goodsBase ×`
+  /// [civicGoodsMultiplierByTier] (index tier − 1).
+  static const int civicGoodsFromTier = 3;
+  static const List<int> civicGoodsMultiplierByTier = [0, 0, 1, 2, 4];
+
+  /// What civic building [type] to [tier] costs, and the goods it wants.
+  static ({Loot cost, GoodsBundle goods}) civicBuildingCost(CivicBuildingType type, int tier) {
+    final spec = civicBuildings[type]!;
+    return (
+      cost: Loot(
+        gems: buildingGemCostByTier[tier - 1],
+        materials: spec.upgradeBase.scaled(buildingCostMultiplierByTier[tier - 1]),
+      ),
+      goods: tier < civicGoodsFromTier
+          ? const GoodsBundle.empty()
+          : spec.goodsBase.scaled(civicGoodsMultiplierByTier[tier - 1]),
+    );
+  }
+
+  /// Housing a town needs (beyond the residents of its tier) to grow into
+  /// each tier: houses for the people a town and a city draw in. A tier not
+  /// listed needs none.
+  static const Map<TownTier, int> housingForTier = {
+    TownTier.town: 40,
+    TownTier.city: 120,
+  };
+
+  /// Farm plots that work with no guards at all; each farm plot past them
+  /// needs [guardsPerFarmPlot] guard capacity, or its farm rests (it keeps
+  /// its building and grows again once guarded).
+  static const int unguardedFarmPlots = 4;
+  static const int guardsPerFarmPlot = 2;
+
+  /// The farmland's plots by town tier: more fields open at the town and
+  /// the city.
+  static const Map<TownTier, int> farmlandPlotsByTier = {
+    TownTier.outpost: farmlandPlotCount,
+    TownTier.hamlet: farmlandPlotCount,
+    TownTier.village: farmlandPlotCount,
+    TownTier.town: 9,
+    TownTier.city: 12,
+  };
+
+  /// The market trade: on a day the town's adult logged, a town with a stall
+  /// in service gets one extra trader offer. What the trader asks for and
+  /// hands back, by the best stall tier in service (index 0 = none).
+  static const List<int> marketGiveByStallTier = [0, 30, 45, 60, 80, 100];
+  static const List<int> marketReceiveByStallTier = [0, 15, 24, 33, 45, 60];
+
+  // ---- Refined goods ---------------------------------------------------------
+
+  /// The workshop recipes by id: planks from lumber, cut stone from stone,
+  /// tools from ore and lumber, cloth from hide and herbs.
+  static final Map<String, RefiningRecipe> refiningRecipes = {
+    'planks': RefiningRecipe(
+      input: _m(lumber: 10),
+      output: GoodsKind.planks,
+      outputPerBatch: 2,
+      minutesPerBatch: 30,
+    ),
+    'cutStone': RefiningRecipe(
+      input: _m(stone: 10),
+      output: GoodsKind.cutStone,
+      outputPerBatch: 2,
+      minutesPerBatch: 30,
+    ),
+    'tools': RefiningRecipe(
+      input: _m(ore: 6, lumber: 4),
+      output: GoodsKind.tools,
+      outputPerBatch: 1,
+      minutesPerBatch: 60,
+    ),
+    'cloth': RefiningRecipe(
+      input: _m(hide: 6, herbs: 4),
+      output: GoodsKind.cloth,
+      outputPerBatch: 1,
+      minutesPerBatch: 60,
+    ),
+  };
+
+  /// The most batches one job may hold, by the workshop's tier in service
+  /// (index 0 = not built).
+  static const List<int> workshopMaxBatchesByTier = [0, 6, 10, 16, 24, 32];
+
+  // ---- The Castle ------------------------------------------------------------
+
+  /// The Castle's five stages, built in order once the town is a city. Each
+  /// takes a long build and a large bill of goods, so the Castle is the
+  /// work of the year after the city.
+  static final List<CastleStageSpec> castleStages = [
+    CastleStageSpec(
+      key: 'foundation',
+      cost: Loot(gems: 200, materials: _m(stone: 1500, lumber: 1000)),
+      goods: _g(cutStone: 200, planks: 100),
+      buildDays: 7,
+      prosperity: 100,
+    ),
+    CastleStageSpec(
+      key: 'keep',
+      cost: Loot(gems: 250, materials: _m(stone: 2000, ore: 600)),
+      goods: _g(cutStone: 300, tools: 80),
+      buildDays: 10,
+      prosperity: 150,
+    ),
+    CastleStageSpec(
+      key: 'walls',
+      cost: Loot(gems: 300, materials: _m(stone: 2500, lumber: 1000)),
+      goods: _g(cutStone: 400, planks: 200),
+      buildDays: 12,
+      prosperity: 200,
+    ),
+    CastleStageSpec(
+      key: 'towers',
+      cost: Loot(gems: 350, materials: _m(stone: 2500, ore: 800, crystal: 100)),
+      goods: _g(cutStone: 400, tools: 150),
+      buildDays: 14,
+      prosperity: 250,
+    ),
+    CastleStageSpec(
+      key: 'banners',
+      cost: Loot(gems: 400, materials: _m(hide: 1000, herbs: 1000, essence: 100)),
+      goods: _g(cloth: 300, planks: 200),
+      buildDays: 14,
+      prosperity: 300,
+    ),
+  ];
+
+  /// What finishing each Castle stage brings, claimed through the inbox.
+  static const int castleStageRewardGems = 50;
 
   // ---- Hero gear ----------------------------------------------------------
 

@@ -162,3 +162,42 @@ List<GameEvent> hamletWith({int gems = 0, int lumber = 0, int stone = 0, String 
           materials: MaterialBundle({MaterialKind.lumber: lumber, MaterialKind.stone: stone})),
       claimed('funds-claim-$actor', 'funds-$actor', when: at(-1), actor: actor),
     ];
+
+CivicBuildingStarted civicBuilt(String id, String districtId, int plotIndex, CivicBuildingType type,
+        {required DateTime when,
+        String actor = robin,
+        int tier = 1,
+        Loot cost = Loot.none,
+        DateTime? completesAt}) =>
+    CivicBuildingStarted(
+      eventId: id,
+      deviceId: 'dev-1',
+      actorId: actor,
+      occurredAt: when,
+      createdAt: when,
+      districtId: districtId,
+      plotIndex: plotIndex,
+      buildingKey: type.name,
+      tier: tier,
+      cost: cost,
+      completesAt: completesAt ?? when,
+    );
+
+/// [actor] at [tier] with [gems] gems and [materials] in the town, all
+/// claimed, and (from tier 1 up to [hallTier]) a Central Hall on plot 0 and
+/// a Storehouse on plot 1, so upgrades and big stores fit.
+List<GameEvent> tierWith(TownTier tier,
+        {int gems = 0,
+        MaterialBundle materials = const MaterialBundle.empty(),
+        int hallTier = 5,
+        String actor = robin}) =>
+    [
+      for (final reached in TownTier.values.skip(1).take(tier.index))
+        tierReached('${reached.name}-$actor', reached, when: at(-3), actor: actor),
+      for (var level = 1; level <= hallTier; level++) ...[
+        built('hall-$actor-$level', 0, BuildingType.centralHall, when: at(-10 + level), tier: level, actor: actor),
+        built('store-$actor-$level', 1, BuildingType.storehouse, when: at(-10 + level), tier: level, actor: actor),
+      ],
+      granted('funds-$actor', when: at(-2), actor: actor, rewardId: 'funds-$actor', gems: gems, materials: materials),
+      claimed('funds-claim-$actor', 'funds-$actor', when: at(-1), actor: actor),
+    ];

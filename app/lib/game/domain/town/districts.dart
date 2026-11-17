@@ -8,134 +8,20 @@
 /// outpost's plots are the hall plots of stage 1 (`HallState.plots`), and
 /// every older event, which names no district, means the outpost. Other
 /// districts' buildings live in [TownDistricts] and are built through
-/// `DistrictBuildingStarted`, which names its district and building by key,
-/// so a building or district a newer build adds is set aside here rather
-/// than hiding the whole event.
+/// `DistrictBuildingStarted` (farmland) or `CivicBuildingStarted` (the
+/// civic quarters), which name their district and building by key, so a
+/// building or district a newer build adds is set aside here rather than
+/// hiding the whole event. The catalogue itself is `district_catalog.dart`.
 ///
 /// Pure Dart, zero Flutter imports.
 library;
 
-import '../../config/balance.dart';
 import '../game_event.dart';
 import '../game_state.dart';
 import '../game_values.dart';
+import 'district_catalog.dart';
 
-const String kOutpostDistrictId = 'outpost';
-const String kFarmlandDistrictId = 'farmland';
-
-/// One district in the catalogue.
-class DistrictSpec {
-  const DistrictSpec({
-    required this.id,
-    required this.requiredTier,
-    required this.plotCount,
-    required this.buildingKeys,
-    required this.tilesetKey,
-    this.gemPrice = 0,
-    this.materialPrice = const {},
-    this.purchasable = true,
-  });
-
-  final String id;
-
-  /// The town tier at which it can be bought.
-  final TownTier requiredTier;
-  final int gemPrice;
-  final Map<MaterialKind, int> materialPrice;
-  final int plotCount;
-
-  /// The building keys allowed on its plots ([BuildingType] names in the
-  /// outpost, [FarmBuildingType] names in the farmland).
-  final List<String> buildingKeys;
-
-  /// The asset key of its ground tiles.
-  final String tilesetKey;
-
-  /// False for a district listed as a teaser: shown with its tier, not yet
-  /// for sale.
-  final bool purchasable;
-
-  /// Owned by every town from the start (the outpost).
-  bool get ownedFromStart => id == kOutpostDistrictId;
-
-  /// What buying it costs.
-  Loot get price => Loot(gems: gemPrice, materials: MaterialBundle(materialPrice));
-
-  bool allows(String buildingKey) => buildingKeys.contains(buildingKey);
-}
-
-/// Every district, in the order a town grows into them.
-const List<DistrictSpec> kDistricts = [
-  DistrictSpec(
-    id: kOutpostDistrictId,
-    requiredTier: TownTier.outpost,
-    plotCount: Balance.maxPlots,
-    buildingKeys: [
-      'centralHall', 'scribesDesk', 'storehouse', 'forge', 'vault', 'lumberyard',
-      'quarry', 'mine', 'herbGarden', 'huntersLodge', 'arcaneWell',
-    ],
-    tilesetKey: 'district.outpost.ground',
-  ),
-  DistrictSpec(
-    id: kFarmlandDistrictId,
-    requiredTier: TownTier.hamlet,
-    gemPrice: Balance.farmlandGemPrice,
-    materialPrice: Balance.farmlandMaterialPrice,
-    plotCount: Balance.farmlandPlotCount,
-    buildingKeys: ['farm', 'orchard', 'granary'],
-    tilesetKey: 'district.farmland.ground',
-  ),
-  // Teasers: listed with the tier that will open them; they arrive in a
-  // later stage with their buildings and prices.
-  DistrictSpec(
-    id: 'guardPost',
-    requiredTier: TownTier.village,
-    plotCount: 0,
-    buildingKeys: [],
-    tilesetKey: 'district.guardPost.ground',
-    purchasable: false,
-  ),
-  DistrictSpec(
-    id: 'residential',
-    requiredTier: TownTier.village,
-    plotCount: 0,
-    buildingKeys: [],
-    tilesetKey: 'district.residential.ground',
-    purchasable: false,
-  ),
-  DistrictSpec(
-    id: 'park',
-    requiredTier: TownTier.town,
-    plotCount: 0,
-    buildingKeys: [],
-    tilesetKey: 'district.park.ground',
-    purchasable: false,
-  ),
-  DistrictSpec(
-    id: 'marketRow',
-    requiredTier: TownTier.town,
-    plotCount: 0,
-    buildingKeys: [],
-    tilesetKey: 'district.marketRow.ground',
-    purchasable: false,
-  ),
-];
-
-/// The catalogue entry for [id], or null for a district this build lacks.
-DistrictSpec? districtById(String id) {
-  for (final district in kDistricts) {
-    if (district.id == id) return district;
-  }
-  return null;
-}
-
-/// The farm building named [key], or null for a key this build lacks.
-FarmBuildingType? farmBuildingByKey(String key) {
-  for (final type in FarmBuildingType.values) {
-    if (type.name == key) return type;
-  }
-  return null;
-}
+export 'district_catalog.dart';
 
 /// A plot in a district.
 class PlotAddress {
@@ -175,6 +61,9 @@ class DistrictBuildingState {
   /// The farm building it is, or null when it is not one.
   FarmBuildingType? get farmType => farmBuildingByKey(key);
 
+  /// The civic building it is, or null when it is not one.
+  CivicBuildingType? get civicType => civicBuildingByKey(key);
+
   bool isCompleteAt(DateTime at) => !at.isBefore(completesAt);
 
   /// The tier in service at [at]: the previous tier while an upgrade is
@@ -195,19 +84,22 @@ class DistrictBuildingState {
 
 /// The districts a town owns beyond the outpost, and their buildings.
 class TownDistricts {
-  const TownDistricts({this.purchased = const {}, this.buildings = const {}});
+  const TownDistricts({this.purchasedAt = const {}, this.buildings = const {}});
 
   static const TownDistricts none = TownDistricts();
 
-  /// Bought district ids (the outpost is owned from the start and is never
-  /// listed).
-  final Set<String> purchased;
+  /// When each bought district was bought (the outpost is owned from the
+  /// start and is never listed). The earliest purchase stands.
+  final Map<String, DateTime> purchasedAt;
+
+  /// Bought district ids.
+  Iterable<String> get purchased => purchasedAt.keys;
 
   /// Buildings on district plots beyond the outpost.
   final Map<PlotAddress, DistrictBuildingState> buildings;
 
   bool owns(String districtId) =>
-      districtId == kOutpostDistrictId || purchased.contains(districtId);
+      districtId == kOutpostDistrictId || purchasedAt.containsKey(districtId);
 
   DistrictBuildingState? buildingAt(PlotAddress address) => buildings[address];
 
@@ -226,30 +118,42 @@ class TownDistricts {
   int completedTiersAt(DateTime at) =>
       buildings.values.fold(0, (sum, building) => sum + building.tierAt(at));
 
+  /// The highest tier in service at [at] of any [type] building (0 if none).
+  int completedCivicTier(CivicBuildingType type, DateTime at) {
+    var best = 0;
+    for (final building in buildings.values) {
+      if (building.civicType != type) continue;
+      final tier = building.tierAt(at);
+      if (tier > best) best = tier;
+    }
+    return best;
+  }
+
   TownDistricts copyWith({
-    Set<String>? purchased,
+    Map<String, DateTime>? purchasedAt,
     Map<PlotAddress, DistrictBuildingState>? buildings,
   }) =>
       TownDistricts(
-        purchased: purchased ?? this.purchased,
+        purchasedAt: purchasedAt ?? this.purchasedAt,
         buildings: buildings ?? this.buildings,
       );
 
   @override
   bool operator ==(Object other) =>
       other is TownDistricts &&
-      other.purchased.length == purchased.length &&
-      other.purchased.containsAll(purchased) &&
+      other.purchasedAt.length == purchasedAt.length &&
+      purchasedAt.entries.every((entry) => other.purchasedAt[entry.key] == entry.value) &&
       other.buildings.length == buildings.length &&
       buildings.entries.every((entry) => other.buildings[entry.key] == entry.value);
 
   @override
-  int get hashCode => Object.hash(purchased.length, buildings.length);
+  int get hashCode => Object.hash(purchasedAt.length, buildings.length);
 }
 
 /// Whether [address] is a plot [town] can build on: an unlocked outpost
-/// plot, or any plot of a district it owns.
-bool plotIsOpen(HallState town, PlotAddress address) {
+/// plot, or any plot of a district it owns (as many as a [tier] town has;
+/// with no tier, the district's base plots).
+bool plotIsOpen(HallState town, PlotAddress address, [TownTier? tier]) {
   if (address.districtId == kOutpostDistrictId) {
     return town.plots.containsKey(address.plotIndex);
   }
@@ -257,7 +161,7 @@ bool plotIsOpen(HallState town, PlotAddress address) {
   return district != null &&
       town.districts.owns(address.districtId) &&
       address.plotIndex >= 0 &&
-      address.plotIndex < district.plotCount;
+      address.plotIndex < districtPlotCount(district, tier);
 }
 
 /// [town]'s districts after [purchase], or why it changes nothing: a
@@ -274,41 +178,66 @@ bool plotIsOpen(HallState town, PlotAddress address) {
   }
   return (
     districts: town.districts.copyWith(
-        purchased: Set.unmodifiable({...town.districts.purchased, district.id})),
+        purchasedAt: Map.unmodifiable(
+            {...town.districts.purchasedAt, district.id: purchase.occurredAt})),
     warning: null,
   );
 }
 
-/// [town]'s districts after [started], or why it changes nothing (and is
-/// not charged): a district or building this build lacks, a district the
+/// [town]'s districts after [started] (a farmland building), or why it
+/// changes nothing (and is not charged); see [placeDistrictBuilding].
+({TownDistricts? districts, GameWarningCode? warning}) applyDistrictBuilding(
+        HallState town, DistrictBuildingStarted started) =>
+    placeDistrictBuilding(
+      town,
+      districtId: started.districtId,
+      plotIndex: started.plotIndex,
+      buildingKey: started.buildingKey,
+      tier: started.tier,
+      startedAt: started.occurredAt,
+      completesAt: started.completesAt,
+      knownKey: (key) => farmBuildingByKey(key) != null,
+    );
+
+/// [town]'s districts with [buildingKey] at [tier] on [plotIndex] of
+/// [districtId], or why it changes nothing (and is not charged): a district
+/// or building this build lacks (or one [knownKey] rejects), a district the
 /// town does not own, a plot off the district, another building on the
 /// plot, or a tier that does not follow from the plot (a repeat, or a stale
 /// upgrade from another device).
-({TownDistricts? districts, GameWarningCode? warning}) applyDistrictBuilding(
-    HallState town, DistrictBuildingStarted started) {
-  final district = districtById(started.districtId);
+({TownDistricts? districts, GameWarningCode? warning}) placeDistrictBuilding(
+  HallState town, {
+  required String districtId,
+  required int plotIndex,
+  required String buildingKey,
+  required int tier,
+  required DateTime startedAt,
+  required DateTime completesAt,
+  required bool Function(String key) knownKey,
+}) {
+  final district = districtById(districtId);
   if (district == null ||
       district.ownedFromStart ||
-      !district.allows(started.buildingKey) ||
-      farmBuildingByKey(started.buildingKey) == null) {
+      !district.allows(buildingKey) ||
+      !knownKey(buildingKey)) {
     return (districts: null, warning: GameWarningCode.unknownDistrict);
   }
   if (!town.districts.owns(district.id)) {
     return (districts: null, warning: GameWarningCode.districtNotOwned);
   }
-  if (started.plotIndex < 0 || started.plotIndex >= district.plotCount) {
+  if (plotIndex < 0 || plotIndex >= districtMaxPlotCount(district)) {
     return (districts: null, warning: GameWarningCode.plotLocked);
   }
-  final address = PlotAddress(district.id, started.plotIndex);
+  final address = PlotAddress(district.id, plotIndex);
   final existing = town.districts.buildingAt(address);
-  if (existing != null && existing.key != started.buildingKey) {
+  if (existing != null && existing.key != buildingKey) {
     return (districts: null, warning: GameWarningCode.plotOccupied);
   }
   final standingTier = existing?.tier ?? 0;
-  if (standingTier >= started.tier) {
+  if (standingTier >= tier) {
     return (districts: null, warning: GameWarningCode.duplicateBuild);
   }
-  if (started.tier != standingTier + 1) {
+  if (tier != standingTier + 1) {
     return (districts: null, warning: GameWarningCode.unknownBuilding);
   }
   return (
@@ -316,10 +245,10 @@ bool plotIsOpen(HallState town, PlotAddress address) {
       buildings: Map.unmodifiable({
         ...town.districts.buildings,
         address: DistrictBuildingState(
-          key: started.buildingKey,
-          tier: started.tier,
-          startedAt: started.occurredAt,
-          completesAt: started.completesAt,
+          key: buildingKey,
+          tier: tier,
+          startedAt: startedAt,
+          completesAt: completesAt,
         ),
       }),
     ),

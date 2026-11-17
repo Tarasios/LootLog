@@ -210,6 +210,19 @@ final List<GameEvent> _samples = [
     day: GameDay.fromInstant(at(0)),
     amount: 10,
   ),
+  CivicBuildingStarted(
+    eventId: 'e33',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(33),
+    createdAt: at(33),
+    districtId: 'residential',
+    plotIndex: 1,
+    buildingKey: 'cottage',
+    tier: 2,
+    cost: Loot(gems: 0, materials: MaterialBundle({MaterialKind.lumber: 90})),
+    completesAt: at(93),
+  ),
 ];
 
 void main() {
@@ -364,6 +377,28 @@ void main() {
       expect(decoded, isA<UnknownGameEvent>());
       expect(decoded.toJson(), olderBuild);
     }
+  });
+
+  test('an older build sees the long road events as UnknownGameEvent and '
+      'relays them verbatim', () {
+    for (final event in _samples.whereType<CivicBuildingStarted>()) {
+      final olderBuild = {...event.toJson(), 'type': 'Future${event.type}'};
+      final decoded = GameEvent.fromJson(olderBuild);
+      expect(decoded, isA<UnknownGameEvent>());
+      expect(decoded.toJson(), olderBuild);
+    }
+  });
+
+  test('a civic building this build lacks still decodes, verbatim, for the '
+      'projection to set aside', () {
+    final raw = _samples.whereType<CivicBuildingStarted>().single.toJson();
+    final newer = {
+      ...raw,
+      'payload': {...raw['payload'] as Map<String, dynamic>, 'buildingKey': 'skyTower'},
+    };
+    final decoded = GameEvent.fromJson(newer);
+    expect(decoded, isA<CivicBuildingStarted>());
+    expect(decoded.toJson(), newer);
   });
 
   test('a district building or district this build lacks still decodes, '

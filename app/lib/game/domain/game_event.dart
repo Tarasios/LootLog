@@ -22,6 +22,7 @@ import '../../domain/time.dart';
 import 'decor/decor_values.dart';
 import 'game_values.dart';
 
+part 'game_event_city.dart';
 part 'game_event_growth.dart';
 part 'game_event_social.dart';
 
@@ -59,6 +60,7 @@ const List<String> kGameEventTypes = [
   'GiftSent',
   ..._kGrowthEventTypes,
   ..._kSocialEventTypes,
+  ..._kCityEventTypes,
 ];
 
 /// Base class for every game event.
@@ -419,6 +421,7 @@ sealed class GameEvent {
       default:
         return _decodeGrowth(envelope, type, payload) ??
             _decodeSocial(envelope, type, payload) ??
+            _decodeCity(envelope, type, payload) ??
             UnknownGameEvent._(envelope, type, payload);
     }
   }

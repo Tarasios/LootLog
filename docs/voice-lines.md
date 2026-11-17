@@ -314,8 +314,9 @@ shortfalls at buildings and expeditions.
 | `districtAlreadyOwned` | That district is already part of your town. |
 | `townTierTooLow` | That district opens as the town grows. Keep logging and it will come. |
 | `districtNotOpenYet` | That district is still being surveyed. It opens in a later season. |
-| `districtNotOwned` | Buy the farmland first, then the fields are yours to plant. |
+| `districtNotOwned` | Buy that district first, then its plots are yours to build on. |
 | `granaryFull` | The granary is full. Build or raise a granary to store more food. |
+| `wrongDistrict` | That building belongs in another district. Each district has its own buildings. |
 
 ### `reasons`
 
@@ -470,7 +471,8 @@ file matches those built-in lines and that nothing shames. A town short of
 food only waits to grow: never say "lost", "missed", "starving" or
 "penalty". Placeholders: `{tier}`, `{prosperity}`, `{needed}`, `{stored}`,
 `{capacity}`, `{need}`, `{food}`, `{days}`, `{missing}`, `{population}`,
-`{count}`, `{price}`, `{date}`, `{district}`, `{building}`.
+`{count}`, `{price}`, `{date}`, `{district}`, `{building}`, `{guards}`,
+`{plots}`, `{housing}`.
 
 | Key | Trigger | Intended outcome | Current line |
 |-----|---------|------------------|--------------|
@@ -539,6 +541,31 @@ food only waits to grow: never say "lost", "missed", "starving" or
 | `tier.cheer` | The tier celebration's close button | Celebrate with the player | Hooray! |
 | `book.stat.residents` / `book.stat.foodNeed` / `book.stat.foodStored` | The people-and-food card's figures | Name each number plainly | Residents / Food a day / Food in store |
 | `farm.atTop` | A farm building at the top tier ({tier}) | Admire it; nothing left to buy | At its finest: tier {tier} is the top. |
+| `district.name.castleHill` | Castle Hill's name | Name the place | Castle Hill |
+| `district.blurb.castleHill` | Castle Hill's card (a teaser until the city) | Make the long goal vivid | A hilltop waiting for a castle. Once your town is a city, raise it stage by stage. |
+| `civic.name.<building>` | A civic building's name (watchtower, barracks, wallSection, cottage, rowhouse, well, garden, bandstand, fountain, stall, workshop, guildHall) | Name it | Watchtower / Barracks / Wall section / Cottage / Rowhouse / Well / Garden / Bandstand / Fountain / Market stall / Workshop / Guild hall |
+| `civic.blurb.watchtower` | The watchtower's card in the Guard Post | Say what it does | A lookout over the fields. Its guards watch over more farmland. |
+| `civic.blurb.barracks` | The barracks' card | Same | Home to the town guard. The most guards of any building. |
+| `civic.blurb.wallSection` | The wall section's card | Same | A stretch of stone wall. A few more guards, and a safer town. |
+| `civic.blurb.cottage` | The cottage's card in the Residential Quarter | Same | A snug home with a garden. More residents come to live in town. |
+| `civic.blurb.rowhouse` | The rowhouse's card | Same | Homes in a row, for a town on the rise. Houses the most residents. |
+| `civic.blurb.well` | The well's card | Same | Fresh water for the quarter. A few more families settle nearby. |
+| `civic.blurb.garden` | The garden's card in the Park | Same | Flower beds and shady paths. The town grows more prosperous. |
+| `civic.blurb.bandstand` | The bandstand's card | Same | Music on summer evenings. Adds the most prosperity in the park. |
+| `civic.blurb.fountain` | The fountain's card | Same | A splashing fountain where neighbours meet. Adds prosperity. |
+| `civic.blurb.stall` | The market stall's card on Market Row | Same | A trader sets up shop. Brings a market trade on every day you log. |
+| `civic.blurb.workshop` | The workshop's card | Same | Craftsfolk turn raw materials into planks, cut stone, tools and cloth. |
+| `civic.blurb.guildHall` | The guild hall's card | Same | Where the guilds meet. Adds prosperity to Market Row. |
+| `guards.capacity` | The Guard Post and the farmland ({guards}: guard capacity, {plots}: fields that work) | Plain facts | {guards} guards watch over {plots} fields. |
+| `guards.resting` | A farm or orchard past the guards (it grows nothing until guarded) | Say it rests and keeps everything; never a loss | This farm is resting until guards watch over its field. It keeps everything and grows again once guarded. |
+| `guards.whatToBuild` | Under `guards.resting`, and in the town book while any farm rests | Say exactly what to build | Build or raise a watchtower, barracks or wall section in the Guard Post to guard more fields. |
+| `guards.resumed` | A resting farm's field is guarded again | Celebrate | Guards are on watch: the farm is growing again. |
+| `housing.line` | The people card ({housing}: residents the houses hold) | Plain facts | {housing} residents live in your houses. |
+| `book.housingDone` | The next tier needs homes and the houses hold them ({tier}, {housing}, {needed}) | Tick it off | Homes for a {tier}: {housing} of {needed}. Ready! |
+| `book.housingToGo` | The next tier needs more homes than the houses hold ({tier}, {housing}, {needed}) | Say what to build; never a wall | Homes for a {tier}: {housing} of {needed}. Build or raise cottages and rowhouses in the Residential Quarter. |
+| `book.waitingOnHomes` | The prosperity is enough but the homes are short | Reassure, and point at the houses | New families are on their way. The town keeps everything while the homes go up. |
+| `market.trade` | The market trade's card (an extra trader on a logged day, with a stall) | Invite a swap; waving it off costs nothing | A trader at your market stall has a swap for you. |
+| `park.festival` | The weekend festival when the Park lifted it one size | Credit the park | The park puts everyone in a festive mood: this weekend's festival is one size grander. |
 
 ## Neighbouring towns (`neighbours.json`)
 

@@ -39,11 +39,14 @@ import '../game_event.dart';
 import '../game_event_stamp.dart';
 import '../game_state.dart';
 import '../game_values.dart';
+import '../hall_rules.dart';
 import '../reason_codes.dart';
 import '../town/daily_event.dart';
 import '../town/festival.dart';
 import '../town/food.dart';
+import '../town/market.dart';
 import '../town/prosperity.dart';
+import '../town/residents.dart';
 import '../town/town_ownership.dart';
 import '../town/trade_road.dart';
 import 'month_end_rewards.dart';
@@ -337,6 +340,7 @@ class _Run {
         ..logged.add(day)
         ..cover(day);
       _dailyEvent(who, day, event);
+      _marketTrade(who, day, event);
     }
 
     if (purchase != null) {
@@ -386,6 +390,32 @@ class _Run {
     ));
   }
 
+  /// Today's market trade (`town/market.dart`) for a town with a stall, rolled
+  /// from the ledger event that opened the day. Only today gets one.
+  void _marketTrade(String who, GameDay day, Event opener) {
+    if (day != today) return;
+    final offerId = marketOfferId(who, day);
+    if (person(who).seenOffers.contains(offerId)) return;
+    final offer = rollMarketOffer(
+        personId: who, day: day, seedEventId: opener.eventId, hall: townOf(who), now: now);
+    if (offer == null) return;
+    person(who).seenOffers.add(offerId);
+    out.add(DailyEventOffered(
+      eventId: stamp.newEventId(),
+      deviceId: stamp.deviceId,
+      actorId: who,
+      occurredAt: opener.createdAt,
+      createdAt: now,
+      offerId: offer.offerId,
+      day: offer.day,
+      kind: offer.kind,
+      gives: offer.gives,
+      receives: offer.receives,
+      flavourKey: offer.flavourKey,
+      plotIndex: offer.plotIndex,
+    ));
+  }
+
   /// Holds each weekend festival due for [who] (see `festivalWeeksDue`),
   /// sized by the week's town spirit. A device that sees more logged
   /// weekdays than the tier already held tops it up: a new `FestivalHeld`
@@ -401,7 +431,8 @@ class _Run {
     );
     for (final week in due) {
       final weekdays = weekdaysLogged(record.logged, week);
-      final tier = festivalTierFor(weekdays);
+      final tier = liftedByPark(festivalTierFor(weekdays),
+          parkLifts: parkLiftsFestival(townOf(who), week));
       final held = record.festivalTiers[week];
       if (held == null || tier.index > held.index) {
         record.festivalTiers[week] = tier;
@@ -513,7 +544,8 @@ class _Run {
     for (final reached in tiersDue(
       current: tier,
       peak: peak,
-      foodSecureFor: (target) => foodSecure(town, target),
+      foodSecureFor: (target) => foodSecure(town, target, at: now),
+      housedFor: (target) => housedFor(town, target, now),
     )) {
       tier = reached;
       out.add(TierReached(
@@ -538,6 +570,9 @@ class _Run {
     for (final meal in foodConsumptionDue(
       food: town.food,
       tierOn: personState.tierOn,
+      // The houses in service as the day ended.
+      housingOn: (day) =>
+          housingAt(town, householdDayStart(day.next()).subtract(const Duration(seconds: 1))),
       oldest: oldest,
       today: today,
     )) {

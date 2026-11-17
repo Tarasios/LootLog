@@ -152,7 +152,11 @@ MaterialBundle _windfall(PlotState plot, DateTime now) {
 }
 
 /// The pool's most plentiful trade material and its scarcest other one
-/// (ties go to the earlier material in [Balance.tradeMaterials]).
+/// (ties go to the earlier material in [Balance.tradeMaterials]): what a
+/// trader asks for and what it brings. The market trade deals the same way.
+({MaterialKind plentiful, MaterialKind scarce}) tradePairOf(MaterialBundle pool) =>
+    _tradePair(pool);
+
 ({MaterialKind plentiful, MaterialKind scarce}) _tradePair(
   MaterialBundle pool,
 ) {

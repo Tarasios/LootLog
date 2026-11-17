@@ -184,6 +184,92 @@ enum TownTier { outpost, hamlet, village, town, city }
 /// there, so a new value would hide the whole event from it.
 enum FarmBuildingType { farm, orchard, granary }
 
+/// The buildings of the Guard Post, Residential Quarter, Park and Market
+/// Row (`town/quarters.dart`). Like farm buildings they are named by key,
+/// and only `CivicBuildingStarted`, a type older builds do not know,
+/// carries them.
+enum CivicBuildingType {
+  watchtower,
+  barracks,
+  wallSection,
+  cottage,
+  rowhouse,
+  well,
+  garden,
+  bandstand,
+  fountain,
+  stall,
+  workshop,
+  guildHall,
+}
+
+/// Refined goods a Market Row workshop makes from raw materials
+/// (`town/goods.dart`). Their own counters, never a [MaterialKind]: only the
+/// goods event types, which older builds do not know, carry them.
+enum GoodsKind { planks, cutStone, tools, cloth }
+
+/// An immutable amount of each refined good. Zero entries are dropped, like
+/// [MaterialBundle]'s.
+class GoodsBundle {
+  const GoodsBundle.empty() : _amounts = const {};
+
+  GoodsBundle(Map<GoodsKind, int> amounts)
+      : _amounts = Map.unmodifiable({
+          for (final kind in GoodsKind.values)
+            if ((amounts[kind] ?? 0) != 0) kind: amounts[kind]!,
+        });
+
+  final Map<GoodsKind, int> _amounts;
+
+  /// The amount of [kind] (0 when absent).
+  int operator [](GoodsKind kind) => _amounts[kind] ?? 0;
+
+  /// The non-zero entries, in [GoodsKind] declaration order.
+  Map<GoodsKind, int> get amounts => _amounts;
+
+  bool get isEmpty => _amounts.isEmpty;
+
+  /// The sum of both bundles, kind by kind.
+  GoodsBundle operator +(GoodsBundle other) =>
+      GoodsBundle({for (final kind in GoodsKind.values) kind: this[kind] + other[kind]});
+
+  /// This bundle less [other], kind by kind, never below zero.
+  GoodsBundle less(GoodsBundle other) => GoodsBundle({
+        for (final kind in GoodsKind.values)
+          kind: this[kind] - other[kind] < 0 ? 0 : this[kind] - other[kind],
+      });
+
+  /// Every amount multiplied by [factor].
+  GoodsBundle scaled(int factor) =>
+      GoodsBundle({for (final entry in _amounts.entries) entry.key: entry.value * factor});
+
+  /// Whether this bundle holds at least [cost] of every kind.
+  bool covers(GoodsBundle cost) =>
+      cost.amounts.entries.every((entry) => this[entry.key] >= entry.value);
+
+  Map<String, int> toJson() => {
+        for (final entry in _amounts.entries) entry.key.name: entry.value,
+      };
+
+  static GoodsBundle fromJson(Map<String, dynamic> json) => GoodsBundle({
+        for (final entry in json.entries)
+          gameEnumByName(GoodsKind.values, entry.key, 'goods'): entry.value as int,
+      });
+
+  @override
+  bool operator ==(Object other) =>
+      other is GoodsBundle &&
+      other._amounts.length == _amounts.length &&
+      _amounts.entries.every((entry) => other[entry.key] == entry.value);
+
+  @override
+  int get hashCode => Object.hashAll(
+      [for (final entry in _amounts.entries) Object.hash(entry.key, entry.value)]);
+
+  @override
+  String toString() => 'GoodsBundle(${toJson()})';
+}
+
 /// The month-end spoils ritual steps that precede the seasonal boss fight.
 enum RitualStep { reconcile, review, plan, contribute }
 

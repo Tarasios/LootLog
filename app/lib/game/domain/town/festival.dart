@@ -14,6 +14,7 @@ library;
 import '../../config/balance.dart';
 import '../game_state.dart';
 import '../game_values.dart';
+import 'districts.dart';
 
 export '../game_values.dart' show FestivalTier;
 
@@ -100,6 +101,22 @@ FestivalTier festivalTierFor(int weekdaysLogged) {
   }
   if (weekdaysLogged >= Balance.festivalFairWeekdays) return FestivalTier.fair;
   return FestivalTier.marketDay;
+}
+
+/// Whether the Park's happiness lifts [town]'s festival for [week]: the
+/// town owned the Park by that week's Sunday, so whatever day a device
+/// holds the festival it reaches the same tier.
+bool parkLiftsFestival(HallState town, GameDay week) {
+  final bought = town.districts.purchasedAt[kParkDistrictId];
+  return bought != null && GameDay.fromInstant(bought) <= week.weekStart.addDays(6);
+}
+
+/// [tier] one step up when the Park lifts it ([parkLiftsFestival]): a
+/// market day becomes a fair, a fair a grand festival, and a grand
+/// festival stays grand. Only ever adds.
+FestivalTier liftedByPark(FestivalTier tier, {required bool parkLifts}) {
+  if (!parkLifts || tier == FestivalTier.grandFestival) return tier;
+  return FestivalTier.values[tier.index + 1];
 }
 
 /// Whether [today] is a festival day (Saturday or Sunday).

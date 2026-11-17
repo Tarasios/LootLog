@@ -185,7 +185,8 @@
     "districtAlreadyOwned": "That district is already part of your town.",
     "townTierTooLow": "That district opens as the town grows. Keep logging and it will come.",
     "districtNotOpenYet": "That district is still being surveyed. It opens in a later season.",
-    "districtNotOwned": "Buy the farmland first, then the fields are yours to plant.",
-    "granaryFull": "The granary is full. Build or raise a granary to store more food."
+    "districtNotOwned": "Buy that district first, then its plots are yours to build on.",
+    "granaryFull": "The granary is full. Build or raise a granary to store more food.",
+    "wrongDistrict": "That building belongs in another district. Each district has its own buildings."
   }
 }

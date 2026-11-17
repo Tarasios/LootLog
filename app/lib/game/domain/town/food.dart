@@ -4,8 +4,10 @@
 ///
 /// Farms grow food by the hour under the same working shift as every
 /// producer (`hall_rules.dart`): the whole day on days the town's adult
-/// logged, the short shift on the rest. Harvesting banks it, up to the
-/// granary's capacity. Each household day since the first harvest the
+/// logged, the short shift on the rest, and only while their plot is
+/// guarded (`guards.dart`; a farm past the guards rests). Harvesting banks
+/// it, up to the granary's capacity. The need follows the population: the
+/// tier's residents and everyone the houses hold (`residents.dart`). Each household day since the first harvest the
 /// residents eat their need (`FoodConsumed`, written by the reward engine
 /// once per day; a larger copy for the same day tops up the difference). The
 /// stores never go below zero, and a hungry town loses nothing else: it only
@@ -19,6 +21,8 @@ import '../game_state.dart';
 import '../game_values.dart';
 import '../hall_rules.dart';
 import 'districts.dart';
+import 'guards.dart';
+import 'residents.dart';
 
 /// A town's food stores.
 class FoodStore {
@@ -69,24 +73,29 @@ class FoodStore {
   int get hashCode => Object.hash(stored, since, eatenByDay.length);
 }
 
-/// Residents of a [tier] town.
+/// Residents of a [tier] town before any houses.
 int populationOf(TownTier tier) => Balance.populationByTier[tier]!;
 
-/// Food a [tier] town eats a day: its residents times what each eats.
-int dailyFoodNeed(TownTier tier) => populationOf(tier) * Balance.foodPerResident[tier]!;
+/// Food a [tier] town with [housing] housed residents eats a day: its
+/// residents times what each eats.
+int dailyFoodNeed(TownTier tier, {int housing = 0}) =>
+    (populationOf(tier) + housing) * Balance.foodPerResident[tier]!;
 
 /// How much food [town] can store at [at], by its granary's completed tier.
 int foodCapacityAt(HallState town, DateTime at) => Balance.granaryFoodCapacityByTier[
     town.districts.completedFarmTier(FarmBuildingType.granary, at)];
 
 /// Whether [town]'s stores hold [Balance.foodSecureDays] days of a [tier]
-/// town's need.
-bool foodSecure(HallState town, TownTier tier) =>
-    town.food.stored >= Balance.foodSecureDays * dailyFoodNeed(tier);
+/// town's need, counting the residents its houses hold at [at] (with no
+/// instant, the tier's residents alone).
+bool foodSecure(HallState town, TownTier tier, {DateTime? at}) =>
+    town.food.stored >=
+    Balance.foodSecureDays * dailyFoodNeed(tier, housing: at == null ? 0 : housingAt(town, at));
 
 /// The food the farm building on [address] grew since its last harvest (or
 /// its first completion), as of [now], before the granary's cap: only the
-/// minutes the crew worked count (see `workedMinutes`), at the old tier
+/// minutes the crew worked count (see `workedMinutes`), only from when its
+/// plot was guarded (a resting farm grows nothing), and at the old tier
 /// until an upgrade completes. Zero for an empty plot or a granary.
 int uncollectedFood(
   HallState town,
@@ -99,8 +108,11 @@ int uncollectedFood(
   if (building == null || type == null) return 0;
   final rates = Balance.farmBuildings[type]!.foodPerHour;
   if (rates.isEmpty) return 0;
-  final from = town.food.lastHarvestedAt[address] ??
+  final guardedSince = farmPlotGuardedSince(town, address.plotIndex);
+  if (guardedSince == null) return 0;
+  final lastHarvest = town.food.lastHarvestedAt[address] ??
       (building.tier == 1 ? building.completesAt : building.startedAt);
+  final from = guardedSince.isAfter(lastHarvest) ? guardedSince : lastHarvest;
   if (!now.isAfter(from)) return 0;
   final completesAt = building.completesAt;
   final oldTierEnd = now.isBefore(completesAt) ? now : completesAt;
@@ -127,10 +139,12 @@ int harvestableFood(
 /// The days the residents still have to eat, with what each needs: every
 /// household day from the first harvest (or [oldest], if later) up to, not
 /// including, [today], whose recorded need is below the need of the tier the
-/// town held that day ([tierOn]).
+/// town held that day ([tierOn]) with the residents housed that day
+/// ([housingOn]; none when not given).
 List<({GameDay day, int amount})> foodConsumptionDue({
   required FoodStore food,
   required TownTier Function(GameDay day) tierOn,
+  int Function(GameDay day)? housingOn,
   required GameDay oldest,
   required GameDay today,
 }) {
@@ -138,7 +152,7 @@ List<({GameDay day, int amount})> foodConsumptionDue({
   if (since == null) return const [];
   final due = <({GameDay day, int amount})>[];
   for (var day = since > oldest ? since : oldest; day < today; day = day.next()) {
-    final need = dailyFoodNeed(tierOn(day));
+    final need = dailyFoodNeed(tierOn(day), housing: housingOn?.call(day) ?? 0);
     if (need > (food.eatenByDay[day] ?? 0)) due.add((day: day, amount: need));
   }
   return due;

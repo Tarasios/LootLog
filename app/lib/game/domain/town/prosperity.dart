@@ -14,6 +14,7 @@ library;
 import '../../config/balance.dart';
 import '../game_state.dart';
 import '../game_values.dart';
+import 'quarters.dart';
 
 /// [town]'s prosperity at [at]:
 /// - [Balance.prosperityPerBuildingTier] for every completed building tier
@@ -22,7 +23,8 @@ import '../game_values.dart';
 ///   outpost,
 /// - [Balance.prosperityPerDecoration] for each town decoration on display,
 ///   up to [Balance.prosperityDecorationCap] of them,
-/// - [Balance.prosperityPerFestival] for every weekend festival held.
+/// - [Balance.prosperityPerFestival] for every weekend festival held,
+/// - what the park's buildings and the guild hall add ([civicProsperityAt]).
 int townProsperity(
   HallState town, {
   required int townDecorationsPlaced,
@@ -38,7 +40,8 @@ int townProsperity(
   return buildingTiers * Balance.prosperityPerBuildingTier +
       town.districts.purchased.length * Balance.prosperityPerDistrict +
       decorations * Balance.prosperityPerDecoration +
-      festivalsHeld * Balance.prosperityPerFestival;
+      festivalsHeld * Balance.prosperityPerFestival +
+      civicProsperityAt(town, at);
 }
 
 /// [personId]'s town prosperity at [at]: the person's own town and
@@ -73,18 +76,21 @@ bool tierNeedsFood(TownTier tier) => tier.index >= TownTier.village.index;
 /// The tiers a town at [current] grows into now, in order: each one whose
 /// threshold the [peak] meets, stopping at the first that needs food when
 /// [foodSecureFor] (asked with the tier being grown into: a village needs a
-/// village's stock) says the stores are short. A short town keeps
-/// everything it has; it only waits.
+/// village's stock) says the stores are short, or that needs housing
+/// (`residents.dart`) when [housedFor] says the houses are too few. A short
+/// town keeps everything it has; it only waits.
 List<TownTier> tiersDue({
   required TownTier current,
   required int peak,
   required bool Function(TownTier target) foodSecureFor,
+  bool Function(TownTier target)? housedFor,
 }) {
   final due = <TownTier>[];
   var from = current;
   for (var next = nextTier(from); next != null; next = nextTier(from)) {
     if (peak < tierThreshold(next)) break;
     if (tierNeedsFood(next) && !foodSecureFor(next)) break;
+    if (housedFor != null && !housedFor(next)) break;
     due.add(next);
     from = next;
   }

@@ -25,6 +25,7 @@ import 'town/cheers.dart';
 import 'town/districts.dart';
 import 'town/food.dart';
 import 'town/gifts.dart';
+import 'town/quarters.dart';
 import 'town/town_ownership.dart';
 
 /// Canonical event order: `occurredAt`, then `eventId` as the tiebreak.
@@ -494,6 +495,19 @@ void _apply(_GameStateDraft draft, GameEvent event) {
     case DistrictBuildingStarted started:
       final town = draft.town(actor);
       final outcome = applyDistrictBuilding(town, started);
+      final districts = outcome.districts;
+      if (districts == null) {
+        draft.warn(outcome.warning!,
+            '${started.buildingKey} tier ${started.tier} on ${started.districtId} ${started.plotIndex}');
+        return;
+      }
+      if (draft.cannotPay(actor, started.cost)) return;
+      draft.setTown(actor, town.copyWith(districts: districts));
+      draft.pay(actor, started.cost);
+
+    case CivicBuildingStarted started:
+      final town = draft.town(actor);
+      final outcome = applyCivicBuilding(town, started);
       final districts = outcome.districts;
       if (districts == null) {
         draft.warn(outcome.warning!,

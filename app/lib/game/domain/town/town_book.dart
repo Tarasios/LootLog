@@ -11,6 +11,7 @@ import '../game_values.dart';
 import 'districts.dart';
 import 'food.dart';
 import 'prosperity.dart';
+import 'residents.dart';
 
 /// One catalogue district as a town sees it.
 class DistrictListing {
@@ -95,18 +96,19 @@ TownBook townBook(GameState state, String personId, DateTime now) {
   final next = nextTier(tier);
   final prosperity = prosperityOf(state, personId, now);
   final foodTier = next ?? tier;
+  final housing = housingAt(town, now);
   return TownBook(
     tier: tier,
     prosperity: prosperity,
     peakProsperity: prosperity > person.peakProsperity ? prosperity : person.peakProsperity,
     nextTier: next,
     nextTierProsperity: next == null ? null : tierThreshold(next),
-    population: populationOf(tier),
-    dailyFoodNeed: dailyFoodNeed(tier),
+    population: populationOf(tier) + housing,
+    dailyFoodNeed: dailyFoodNeed(tier, housing: housing),
     foodStored: town.food.stored,
     foodCapacity: foodCapacityAt(town, now),
-    foodSecureTarget: Balance.foodSecureDays * dailyFoodNeed(foodTier),
-    foodSecure: foodSecure(town, foodTier),
+    foodSecureTarget: Balance.foodSecureDays * dailyFoodNeed(foodTier, housing: housing),
+    foodSecure: foodSecure(town, foodTier, at: now),
     hasGranary: town.districts.completedFarmTier(FarmBuildingType.granary, now) > 0,
     districts: [
       for (final spec in kDistricts)
