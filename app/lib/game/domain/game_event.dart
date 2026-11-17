@@ -22,6 +22,9 @@ import '../../domain/time.dart';
 import 'decor/decor_values.dart';
 import 'game_values.dart';
 
+part 'game_event_growth.dart';
+part 'game_event_social.dart';
+
 /// The payload schema version this build writes. Bump it when a payload gains
 /// or changes a field, and keep decoding older versions.
 const int kGameEventSchemaVersion = 1;
@@ -52,6 +55,10 @@ const List<String> kGameEventTypes = [
   'DailyEventOffered',
   'DailyEventResolved',
   'FestivalHeld',
+  'TownsSplit',
+  'GiftSent',
+  ..._kGrowthEventTypes,
+  ..._kSocialEventTypes,
 ];
 
 /// Base class for every game event.
@@ -395,8 +402,24 @@ sealed class GameEvent {
               FestivalTier.values, payload['tier'] as String, 'festival tier'),
           weekdaysLogged: payload['weekdaysLogged'] as int,
         );
+      case 'TownsSplit':
+        return TownsSplit(
+          eventId: eventId, deviceId: deviceId, actorId: actorId,
+          occurredAt: occurredAt, createdAt: createdAt, schemaVersion: schemaVersion,
+          ownerId: payload['ownerId'] as String,
+          welcome: _materials(payload['welcome']),
+        );
+      case 'GiftSent':
+        return GiftSent(
+          eventId: eventId, deviceId: deviceId, actorId: actorId,
+          occurredAt: occurredAt, createdAt: createdAt, schemaVersion: schemaVersion,
+          toPersonId: payload['toPersonId'] as String,
+          bundle: _materials(payload['bundle']),
+        );
       default:
-        return UnknownGameEvent._(envelope, type, payload);
+        return _decodeGrowth(envelope, type, payload) ??
+            _decodeSocial(envelope, type, payload) ??
+            UnknownGameEvent._(envelope, type, payload);
     }
   }
 }
@@ -1164,6 +1187,72 @@ class FestivalHeld extends GameEvent {
         'week': week.toKey(),
         'tier': tier.name,
         'weekdaysLogged': weekdaysLogged,
+      };
+}
+
+/// The household's one shared town became one town per adult (see
+/// `town/town_ownership.dart`): the shared town, whole, went to [ownerId],
+/// and every other adult's town starts from the starter town plus
+/// [welcome]. Written once by the reward engine with the fixed
+/// [splitId]; when two devices each wrote one, the earliest by
+/// `(occurredAt, eventId)` stands on every device and the rest are ignored.
+class TownsSplit extends GameEvent {
+  const TownsSplit({
+    required super.eventId,
+    required super.deviceId,
+    required super.actorId,
+    required super.occurredAt,
+    required super.createdAt,
+    super.schemaVersion,
+    required this.ownerId,
+    required this.welcome,
+  });
+
+  /// The idempotency key every split shares: there is only ever one.
+  static const String splitId = 'towns.split';
+
+  /// The adult who keeps the shared town.
+  final String ownerId;
+
+  /// What every other adult's new town starts with.
+  final MaterialBundle welcome;
+
+  @override
+  String get type => 'TownsSplit';
+
+  @override
+  Map<String, dynamic> payload() => {
+        'splitId': splitId,
+        'ownerId': ownerId,
+        'welcome': welcome.toJson(),
+      };
+}
+
+/// [actorId] sent [bundle] from their town to [toPersonId]'s, a
+/// neighbouring town. [bundle] is what actually moved, settled when the
+/// command ran (trimmed to the room in the neighbour's Storehouse).
+class GiftSent extends GameEvent {
+  const GiftSent({
+    required super.eventId,
+    required super.deviceId,
+    required super.actorId,
+    required super.occurredAt,
+    required super.createdAt,
+    super.schemaVersion,
+    required this.toPersonId,
+    required this.bundle,
+  });
+
+  final String toPersonId;
+  final MaterialBundle bundle;
+
+  @override
+  String get type => 'GiftSent';
+
+  @override
+  Map<String, dynamic> payload() => {
+        'toPersonId': toPersonId,
+        'bundle': bundle.toJson(),
       };
 }
 

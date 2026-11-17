@@ -30,7 +30,7 @@ const _adults = [
 
 final _now = DateTime.utc(2026, 10, 1);
 
-TownView sampleView() => TownView.from(GameState.initial(), _adults, _now);
+TownView sampleView() => TownView.from(GameState.initial(), 'alex', _adults, _now);
 
 TownView viewWithLumberyard() {
   final game = projectGameState([
@@ -47,7 +47,7 @@ TownView viewWithLumberyard() {
       completesAt: _now,
     ),
   ]);
-  return TownView.from(game, _adults, _now);
+  return TownView.from(game, 'alex', _adults, _now);
 }
 
 final shippedCatalog = DecorCatalog.fromJson(
@@ -95,7 +95,7 @@ TownView viewWithPlaced(String itemId, int column, int row, {Map<String, String>
       row: row,
     ),
   ]);
-  return TownView.from(game, _adults, _now, goalPictures: goalPictures);
+  return TownView.from(game, 'alex', _adults, _now, goalPictures: goalPictures);
 }
 
 late ui.Image statuePicture;
@@ -264,7 +264,7 @@ void main() {
       await game.ready();
       expect(game.world.children.whereType<GateGlow>(), isEmpty);
       await game.updateView(
-        TownView.from(GameState.initial(), _adults, _now, dungeonOpen: true),
+        TownView.from(GameState.initial(), 'alex', _adults, _now, dungeonOpen: true),
       );
       await game.ready();
       final glow = game.world.children.whereType<GateGlow>().single;
@@ -280,7 +280,7 @@ void main() {
   testWithGame<TownGame>(
     'an open dungeon glows from the first frame',
     () => buildGame(
-      view: TownView.from(GameState.initial(), _adults, _now, dungeonOpen: true),
+      view: TownView.from(GameState.initial(), 'alex', _adults, _now, dungeonOpen: true),
     ),
     (game) async {
       await game.ready();

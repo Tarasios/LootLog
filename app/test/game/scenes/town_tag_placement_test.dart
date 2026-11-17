@@ -12,6 +12,7 @@ const _adults = [
 
 final TownView _view = TownView.from(
   GameState.initial(),
+  'alex',
   _adults,
   DateTime.utc(2026, 10, 1),
 );

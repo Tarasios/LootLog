@@ -33,6 +33,8 @@ import 'package:lootlog/game/ui/dungeon/dungeon_providers.dart';
 import 'package:lootlog/game/ui/hall_habits.dart';
 import 'package:lootlog/game/ui/hall_ledger_view.dart';
 import 'package:lootlog/game/domain/town/town_event_lines.dart';
+import 'package:lootlog/game/domain/town/town_growth_lines.dart';
+import 'package:lootlog/game/ui/town/town_growth_providers.dart';
 import 'package:lootlog/game/ui/town/town_ledger_provider.dart';
 import 'package:lootlog/game/ui/town/town_loop_providers.dart';
 import 'package:lootlog/game/ui/town/town_townsfolk.dart';
@@ -132,6 +134,7 @@ List<Override> townTestOverrides({
     townBillsProvider.overrideWith((ref, today) => billsOn?.call(today) ?? const []),
     townTagLinesProvider.overrideWith((ref) async => TownTagLines.defaults),
     townEventLinesProvider.overrideWith((ref) async => TownEventLines.defaults),
+    townGrowthLinesProvider.overrideWith((ref) async => TownGrowthLines.defaults),
     townLoopShownProvider.overrideWith(() => MemoryTownLoopShown(popups: loopPopups)),
   ];
 }

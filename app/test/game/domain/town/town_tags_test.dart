@@ -10,7 +10,7 @@ import 'package:lootlog/game/domain/town/town_view.dart';
 
 final now = DateTime.utc(2026, 10, 3, 18);
 
-final town = TownView.from(GameState.initial(), const [
+final town = TownView.from(GameState.initial(), 'alex', const [
   TownAdult(memberId: 'alex', name: 'Alex', inAdventure: true),
   TownAdult(memberId: 'sam', name: 'Sam', inAdventure: false),
 ], now);

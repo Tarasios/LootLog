@@ -13,12 +13,17 @@ Widget _hud({
   required TownHudFigures figures,
   VoidCallback? onLogPurchase,
   Widget? decoratePanel,
+  List<Widget> logNotes = const [],
+  Widget noSpendCheckIn = const Text('No spend today'),
+  Widget? districtStrip,
 }) =>
     MaterialApp(
       home: Scaffold(
         body: TownHud(
           figures: figures,
-          noSpendCheckIn: const Text('No spend today'),
+          noSpendCheckIn: noSpendCheckIn,
+          logNotes: logNotes,
+          districtStrip: districtStrip,
           onLogPurchase: onLogPurchase ?? () {},
           onShop: () {},
           onInbox: () {},
@@ -113,4 +118,52 @@ void main() {
       expect(logged, 1);
     });
   }
+
+  /// A chip stand-in [width] wide, as tall as a HUD chip.
+  Widget chip(String key, double width) =>
+      SizedBox(key: ValueKey(key), width: width, height: 28, child: const ColoredBox(color: Colors.amber));
+
+  testWidgets('on a phone the crews chip and the check-in share one row when they fit', (tester) async {
+    await _pumpAt(
+      tester,
+      const Size(390, 844),
+      _hud(
+        figures: _everyday,
+        logNotes: [chip('crews', 170)],
+        noSpendCheckIn: chip('check-in', 170),
+        districtStrip: chip('strip', 300),
+      ),
+    );
+    expect(tester.takeException(), isNull);
+    final crews = tester.getRect(find.byKey(const ValueKey('crews')));
+    final checkIn = tester.getRect(find.byKey(const ValueKey('check-in')));
+    final strip = tester.getRect(find.byKey(const ValueKey('strip')));
+    final log = tester.getRect(find.textContaining('Log purchase'));
+    expect(checkIn.top, crews.top, reason: 'one row: $crews / $checkIn');
+    expect(checkIn.left, greaterThan(crews.right));
+    expect(strip.top, greaterThan(crews.bottom));
+    expect(log.top, greaterThan(strip.bottom));
+  });
+
+  testWidgets('at 360x780 chips too wide for one row wrap without overflow', (tester) async {
+    var logged = 0;
+    await _pumpAt(
+      tester,
+      const Size(360, 780),
+      _hud(
+        figures: _everyday,
+        onLogPurchase: () => logged++,
+        logNotes: [chip('crews', 220), chip('open-town', 200)],
+        noSpendCheckIn: chip('check-in', 220),
+        districtStrip: chip('strip', 300),
+      ),
+    );
+    expect(tester.takeException(), isNull);
+    final crews = tester.getRect(find.byKey(const ValueKey('crews')));
+    final checkIn = tester.getRect(find.byKey(const ValueKey('check-in')));
+    expect(checkIn.top, greaterThan(crews.top), reason: 'wrapped to a second row');
+    expect(checkIn.right, lessThanOrEqualTo(360));
+    await tester.tap(find.textContaining('Log purchase'));
+    expect(logged, 1);
+  });
 }

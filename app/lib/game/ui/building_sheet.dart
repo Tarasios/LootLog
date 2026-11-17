@@ -95,7 +95,7 @@ class BuildingSheet extends ConsumerWidget {
         voice: voice,
         preview: (cmd) => previewRejection(game, view.meId, clock, cmd),
       );
-      final plot = game.hall.plots[plotIndex];
+      final plot = ctx.town.plots[plotIndex];
       final _SheetContent content;
       if (plot == null) {
         content = _locked(context, ref, ctx);
@@ -188,7 +188,7 @@ class BuildingSheet extends ConsumerWidget {
   _SheetContent _empty(BuildContext context, WidgetRef ref, _SheetContext c) {
     final options = [
       for (final t in BuildingType.values)
-        if (c.game.hall.plotOf(t) == null) t,
+        if (c.town.plotOf(t) == null) t,
     ];
     return (
       title: 'Plot ${plotIndex + 1} — empty',
@@ -219,7 +219,7 @@ class BuildingSheet extends ConsumerWidget {
     final inService = b.tierAt(now);
     final spec = Balance.buildings[b.type]!;
     final next = b.tier + 1;
-    final hall = c.game.hall;
+    final hall = c.town;
 
     final widgets = <Widget>[];
 
@@ -288,7 +288,7 @@ class BuildingSheet extends ConsumerWidget {
     }
 
     if (spec.isProducer) {
-      final activeDays = c.game.townActiveDays;
+      final activeDays = c.activeDays;
       final made = uncollectedProduction(hall, plotIndex, now,
           activeDays: activeDays);
       final fits =
@@ -315,7 +315,7 @@ class BuildingSheet extends ConsumerWidget {
                   style: framedBodyStyle(context)),
               const SizedBox(height: AppSpacing.xs),
               MaterialLine(fits, prefix: 'Ready to collect: '),
-              if (inService >= 1) ShiftNote(game: c.game, plotIndex: plotIndex, now: now),
+              if (inService >= 1) ShiftNote(game: c.game, personId: c.meId ?? '', plotIndex: plotIndex, now: now),
               if (made != fits && !made.isEmpty)
                 Text(
                     'The Storehouse has room for only part of the '
@@ -434,7 +434,7 @@ String? _detail(GameRejection? r, _SheetContext c, Loot cost, BuildingType type,
     case GameRejection.notEnoughMaterials:
       final short = MaterialBundle({
         for (final e in cost.materials.amounts.entries)
-          e.key: (e.value - c.game.hall.materials[e.key]).clamp(0, e.value),
+          e.key: (e.value - c.town.materials[e.key]).clamp(0, e.value),
       });
       return 'Still to gather: ${HallNames.bundle(short)}.';
     default:
@@ -459,6 +459,12 @@ class _SheetContext {
       GameCommandResult Function(GameCommands commands) command) preview;
 
   PersonState get me => game.person(meId ?? '');
+
+  /// The viewing adult's own town.
+  HallState get town => game.townOf(meId ?? '');
+
+  /// The days the viewing adult's crews worked the full shift.
+  Set<GameDay> get activeDays => game.townActiveDaysOf(meId ?? '');
 }
 
 class _Header extends StatelessWidget {

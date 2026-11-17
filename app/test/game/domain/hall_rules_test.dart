@@ -246,23 +246,23 @@ void main() {
     });
   });
 
-  group('GameState.townActiveDays', () {
-    test('is worked out once per state and follows a new state', () {
+  group('GameState.townActiveDaysOf', () {
+    test('is worked out once per streak and follows a new state', () {
       final first = projectGameState([
         granted('g1', when: octoberLocal(5, 9), reasonCode: GameReasonCodes.dailyLog,
             rewardId: 'log.daily:$robin:2026-10-05'),
       ]);
-      expect(identical(first.townActiveDays, first.townActiveDays), isTrue);
+      expect(identical(first.townActiveDaysOf(robin), first.townActiveDaysOf(robin)), isTrue);
       final next = first.apply(
         granted('g2', when: octoberLocal(6, 9), reasonCode: GameReasonCodes.dailyLog,
             rewardId: 'log.daily:$robin:2026-10-06'),
       );
-      expect(next.townActiveDays, {october5, october6});
-      expect(first.townActiveDays, {october5});
+      expect(next.townActiveDaysOf(robin), {october5, october6});
+      expect(first.townActiveDaysOf(robin), {october5});
     });
 
     test(
-      'unions everyone\'s logged days and leaves freeze-covered days out',
+      "holds only the town's own adult's logged days, freeze-covered days out",
       () {
         final state = projectGameState([
           granted(
@@ -280,7 +280,8 @@ void main() {
           ),
           freezeUsed('f1', october6, when: octoberLocal(7, 10)),
         ]);
-        expect(state.townActiveDays, {october5, october7});
+        expect(state.townActiveDaysOf(robin), {october5});
+        expect(state.townActiveDaysOf(sam), {october7});
 
         // The frozen day works only the short shift.
         final hall = hallWith(BuildingType.quarry, from: octoberMidnight(6));
@@ -288,7 +289,7 @@ void main() {
           hall,
           0,
           octoberMidnight(7),
-          activeDays: state.townActiveDays,
+          activeDays: state.townActiveDaysOf(robin),
         );
         expect(
           made[MaterialKind.stone],
@@ -298,7 +299,7 @@ void main() {
       },
     );
 
-    test('a Standard partner\'s caravan day counts too', () {
+    test("a Standard partner's caravan day no longer extends anyone's shift", () {
       final state = projectGameState([
         granted(
           'g1',
@@ -309,7 +310,8 @@ void main() {
           rewardId: caravanRewardId(sam, october6),
         ),
       ]);
-      expect(state.townActiveDays, {october6});
+      expect(state.townActiveDaysOf(robin), isEmpty);
+      expect(state.townActiveDaysOf(sam), isEmpty);
     });
 
     test('caravanRewardDay reads back only caravan reward ids', () {

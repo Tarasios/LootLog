@@ -93,7 +93,7 @@ void main() {
       expect(e.gemCost, Balance.plotUnlockCost(3));
       expect(e.actorId, robin);
       expect(e.occurredAt, h.now);
-      expect(h.state.hall.plots, contains(3));
+      expect(h.state.townOf(robin).plots, contains(3));
       expect(h.person().gems, 100 - Balance.plotUnlockCost(3)!);
       expect(h.state.warnings, isEmpty);
     });
@@ -117,7 +117,7 @@ void main() {
       expect(e.tier, 1);
       expect(e.cost, Loot.none);
       expect(e.completesAt, h.now);
-      expect(h.state.hall.plots[0]!.building!.type, BuildingType.lumberyard);
+      expect(h.state.townOf(robin).plots[0]!.building!.type, BuildingType.lumberyard);
     });
 
     test('pays materials from the pool; rejects when the pool is short', () {
@@ -127,7 +127,7 @@ void main() {
       h.stock(Balance.buildingCost(BuildingType.mine, 1).materials);
       expect(h.run((c) => c.startBuilding(0, BuildingType.mine)).accepted,
           isTrue);
-      expect(h.state.hall.materials.isEmpty, isTrue);
+      expect(h.state.townOf(robin).materials.isEmpty, isTrue);
     });
 
     test('rejects a locked plot, an occupied plot and a second of a kind', () {
@@ -176,7 +176,7 @@ void main() {
       h.logToday();
       h.advance(const Duration(hours: 2));
       h.stock(Balance.buildingCost(BuildingType.lumberyard, 2).materials);
-      final before = h.state.hall.materials[MaterialKind.lumber];
+      final before = h.state.townOf(robin).materials[MaterialKind.lumber];
       final r = h.run((c) => c.startBuilding(1, BuildingType.lumberyard));
       final bank = r.events.first as MaterialsCollected;
       final rate = Balance.buildings[BuildingType.lumberyard]!
@@ -184,9 +184,9 @@ void main() {
       expect(bank.amounts[MaterialKind.lumber], 2 * rate);
       expect(r.events.last, isA<BuildingStarted>());
       final cost = Balance.buildingCost(BuildingType.lumberyard, 2);
-      expect(h.state.hall.materials[MaterialKind.lumber],
+      expect(h.state.townOf(robin).materials[MaterialKind.lumber],
           before + 2 * rate - cost.materials[MaterialKind.lumber]);
-      expect(h.state.hall.lastCollectedAt['plot-1'], h.now);
+      expect(h.state.townOf(robin).lastCollectedAt['plot-1'], h.now);
     });
 
     test('an upgrade banks by the same shift rule as collecting', () {
@@ -255,7 +255,7 @@ void main() {
       expect(e.amounts[MaterialKind.stone], rate * 90 ~/ 60);
       h.advance(const Duration(hours: 1));
       h.run((c) => c.collectMaterials(0));
-      expect(h.state.hall.materials[MaterialKind.stone],
+      expect(h.state.townOf(robin).materials[MaterialKind.stone],
           rate * 90 ~/ 60 + rate);
     });
 
@@ -272,7 +272,7 @@ void main() {
       final rate = Balance.buildings[BuildingType.quarry]!
           .productionPerHour[MaterialKind.stone]![0];
       h.run((c) => c.collectMaterials(0));
-      expect(h.state.hall.materials[MaterialKind.stone],
+      expect(h.state.townOf(robin).materials[MaterialKind.stone],
           Balance.shortShiftHours * rate);
       expectRejected(
           h.run((c) => c.collectMaterials(0)), GameRejection.nothingToCollect);
@@ -291,9 +291,23 @@ void main() {
       expect(e.amounts[MaterialKind.stone], 3 * Balance.shortShiftHours * rate);
     });
 
-    test('a day anyone logged works the full day, even logged after', () {
-      // Sam logs at the end of the day; Robin collects later the same day and
-      // gets the whole day so far.
+    test('a day the collector logged works the full day, even logged after',
+        () {
+      // Robin logs at the end of the day and collects later the same day:
+      // the whole day so far.
+      final midnight = DateTime.utc(2026, 10, 5, 7);
+      final h = _Hall()..now = midnight;
+      h.run((c) => c.startBuilding(0, BuildingType.quarry));
+      h.advance(const Duration(hours: 22));
+      h.logToday();
+      final rate = Balance.buildings[BuildingType.quarry]!
+          .productionPerHour[MaterialKind.stone]![0];
+      final e = h.run((c) => c.collectMaterials(0)).events.single
+          as MaterialsCollected;
+      expect(e.amounts[MaterialKind.stone], 22 * rate);
+    });
+
+    test("a neighbour's logged day does not lengthen this town's shift", () {
       final midnight = DateTime.utc(2026, 10, 5, 7);
       final h = _Hall()..now = midnight;
       h.run((c) => c.startBuilding(0, BuildingType.quarry));
@@ -303,7 +317,7 @@ void main() {
           .productionPerHour[MaterialKind.stone]![0];
       final e = h.run((c) => c.collectMaterials(0)).events.single
           as MaterialsCollected;
-      expect(e.amounts[MaterialKind.stone], 22 * rate);
+      expect(e.amounts[MaterialKind.stone], Balance.shortShiftHours * rate);
     });
 
     test('is capped by the room left in the storehouse', () {
@@ -315,7 +329,7 @@ void main() {
       final e = h.run((c) => c.collectMaterials(0)).events.single
           as MaterialsCollected;
       expect(e.amounts[MaterialKind.lumber], 7);
-      expect(h.state.hall.materials[MaterialKind.lumber], cap);
+      expect(h.state.townOf(robin).materials[MaterialKind.lumber], cap);
       expect(h.state.warnings, isEmpty);
       h.advance(const Duration(hours: 5));
       expectRejected(
@@ -444,7 +458,7 @@ void main() {
       expect((r2.events.single as GearUpgraded).tier, 2);
       expect(h.person().hero.gear['armor'], const GearPiece('mail', 2));
       expect(h.person().hero.power, 2);
-      expect(h.state.hall.materials.isEmpty, isTrue);
+      expect(h.state.townOf(robin).materials.isEmpty, isTrue);
       expectRejected(
           h.run((c) => c.upgradeGear(heroId: robin, slot: 'armor', gearType: 'mail')),
           GameRejection.needsForge);
@@ -509,7 +523,7 @@ void main() {
       expect(resolved.loot[MaterialKind.herbs], inInclusiveRange(4, 8));
       expect(resolved.reportLines, isNotEmpty);
       expect(h.person().activeExpedition, isNull);
-      expect(h.state.hall.materials[MaterialKind.herbs],
+      expect(h.state.townOf(robin).materials[MaterialKind.herbs],
           resolved.loot[MaterialKind.herbs]);
       expectRejected(
           h.run((c) => c.resolveExpedition()), GameRejection.noActiveExpedition);
@@ -684,7 +698,7 @@ void main() {
     h.run((c) => c.collectMaterials(1));
     h.run((c) => c.resolveExpedition());
     h.run((c) => c.joinParty());
-    expect(h.state.hall.plots.values.where((p) => p.building != null),
+    expect(h.state.townOf(robin).plots.values.where((p) => p.building != null),
         hasLength(4));
     expect(h.state.warnings, isEmpty);
   });

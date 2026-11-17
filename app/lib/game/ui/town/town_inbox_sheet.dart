@@ -19,6 +19,7 @@ import '../hall_home_sections.dart';
 import '../hall_ledger_view.dart';
 import '../hall_voice.dart';
 import '../kit/kit.dart';
+import 'neighbour_inbox.dart';
 
 /// Opens the Inbox: a framed game dialog in the pixel tier, the original
 /// bottom sheet in the text tier.
@@ -70,7 +71,11 @@ class TownInboxSheet extends ConsumerWidget {
           return SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [InboxPanel(data), _ThisWeek(data)],
+              children: [
+                NeighbourCheers(game: game, view: view, now: data.now),
+                InboxPanel(data),
+                _ThisWeek(data),
+              ],
             ),
           );
         }
@@ -83,6 +88,7 @@ class TownInboxSheet extends ConsumerWidget {
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              NeighbourCheers(game: game, view: view, now: data.now),
               InboxPanel(data, framed: true),
               _ThisWeek(data),
             ],

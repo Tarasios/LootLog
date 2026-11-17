@@ -20,17 +20,106 @@ Nothing here may write ledger events except through the existing ledger API.
   slots, regions, seasonal bosses). The numbers are in `../config/balance.dart`.
 - `hall_rules.dart` — read-side rules shared by commands and UI:
   `workedMinutes`, `uncollectedProduction`, `collectableNow`,
-  `shiftSummary`, `fitInStorehouse`, `maxTierAllowed`. Production follows
-  the working shift: the whole household day on `GameState.townActiveDays`
-  (anyone's logged days plus Standard caravan days; freeze-covered days do
-  not count), the first `Balance.shortShiftHours` of any other day.
+  `shiftSummary`, `fitInStorehouse`, `maxTierAllowed`,
+  `maxTierUnderCentralHall` (the gate for every non-hall building, district
+  buildings included). Production follows
+  the working shift: the whole household day on
+  `GameState.townActiveDaysOf(personId)` (that town's own adult's logged
+  days; freeze-covered days do not count, and a Standard caravan day extends
+  nobody's shift), the first `Balance.shortShiftHours` of any other day.
+  Two devices that collect (or harvest) the same producer while both are
+  offline each bank the hours since the last collection they saw, so the
+  overlap counts twice once they sync. That is the existing collect
+  behaviour, kept deliberately: each copy is still bounded by the
+  storehouse (or granary) cap, so the extra is at most one cap's worth.
+- `town/town_ownership.dart` — one town per Adventure adult. Until the
+  one-time `TownsSplit` (written by the reward engine, owner = the Adventure
+  adult with the most `PlotUnlocked`/`BuildingStarted`/`MaterialsCollected`,
+  ties to the smallest member id) the household shares one town; at the split
+  it goes whole to the owner and everyone else starts from
+  `HallState.starter()` plus `Balance.welcomeGrant`. Read a town with
+  `GameState.townOf(personId)`; town events apply to their actor's town; the
+  earliest split by `(occurredAt, eventId)` stands on every device.
+  The engine writes the split only when its caller says this device is not
+  waiting on sync (`mayMigrateTowns`: no paired hub, or a clean cycle with
+  every paired hub since the app started); until then the shared town keeps
+  working. If two unsynced devices still split with different owners, the
+  earlier split wins everywhere, and the later device's interim town events
+  replay against the winning towns: an event that fits the actor's own town
+  there (an open plot, the next tier, a building that town has, a cost it
+  can pay) applies and is charged once; one that does not (a collect from
+  a building that went to the other owner, an upgrade of it, a build its
+  own town cannot pay for) is recorded as a warning and moves nothing.
+  Rewards and gems are never affected (pinned in `town_ownership_test`,
+  "device B acted between two competing splits").
+- After the split a `BuildingStarted`, `PlotUnlocked`, `DistrictPurchased`
+  or `DistrictBuildingStarted` whose cost the actor's own town and wallet
+  cannot pay at that point is not applied (`gemsClamped` /
+  `materialsClamped` warning), so a stale or older-build event never lands
+  nearly free through the pool clamp.
+- `town/trade_road.dart` — on each day two or more adults were active, every
+  active Adventure adult gets a caravan (`RewardGranted`
+  `trade.road:<who>:<day>:<neighbour>`) from every other active neighbour:
+  `Balance.tradeRoadAmount` of that neighbour's busiest material (highest
+  hourly rate, ties by enum order) scaled by its producer tier, or
+  `Balance.caravanTradeBundle` from a Standard neighbour. Generated, never
+  taken; one per neighbour so a late-syncing log tops the day up.
+- `town/gifts.dart` — `GameCommands.sendGift(to, bundle)` moves materials to
+  an Adventure neighbour's town (`GiftSent` stores what fits their
+  Storehouse); the projection re-trims on a race so materials are always
+  conserved and any overflow stays with the sender.
+- `town/prosperity.dart` — each town's growth. `townProsperity` counts
+  completed building tiers, town decorations on display (capped) and
+  festivals held. The reward engine stores a new peak in `ProsperityReached`
+  (the projection keeps the highest, so a decoration stored away never
+  lowers it) and each tier the peak opens in `TierReached` (`TownTier`
+  outpost, hamlet, village, town, city; thresholds `Balance.tierProsperity`),
+  with its reward `tier:<who>:<tier>` (`Balance.tierRewards`). The village
+  and beyond also wait for food in store (`town/food.dart`); a short town
+  only waits, nothing is taken. Prosperity also counts districts bought
+  (`Balance.prosperityPerDistrict`) and district building tiers. The daily gem cap is `Balance.dailyGemCapFor(tier)` of the tier held ON the day of the log (`PersonState.tierOn(day)`), so a late-syncing purchase is judged by its own day's cap.
+- `town/districts.dart` — the district catalogue `kDistricts` (data: id,
+  required tier, price, plot count, allowed building keys, tileset key):
+  the outpost (the eleven hall plots, owned from the start), the farmland
+  (hamlet, six plots, farm buildings only) and teasers not yet for sale.
+  Plots are addressed by `PlotAddress(districtId, plotIndex)`; every older
+  event, which names no district, means the outpost. Districts beyond it are
+  bought with `DistrictPurchased` and built on with `DistrictBuildingStarted`
+  (district and building by key, so a newer build's district is set aside,
+  not hidden); their state is `HallState.districts`.
+- `town/food.dart` — farms and orchards grow food by the hour under the
+  working shift; harvesting (`FoodHarvested`) banks it up to the granary
+  (`Balance.granaryFoodCapacityByTier`) into `HallState.food`. From the
+  first harvest the engine writes `FoodConsumed {day, amount}` for each
+  finished day: the need of the tier held that day
+  (`Balance.populationByTier` × `Balance.foodPerResident`); a day is eaten
+  once, a larger copy tops up the difference, the stores stop at zero.
+  `foodSecure` (`Balance.foodSecureDays` of the TARGET tier's need) gates
+  the village and beyond: a village needs a village's stock, more than the
+  fields' edge holds without a granary; a short town loses nothing.
+- `town/farmland.dart` — the plans behind `buyDistrict`, `startFarmBuilding`
+  (one granary per town; tiers follow the Central Hall; an upgrade banks
+  food first) and `harvestFood`.
+- `town/neighbours.dart` — `neighboursOf(state, viewerId, adults)`: the
+  other adults as the outpost's road sees them (an Adventure adult whose town
+  stands can be visited through the signpost, `TownLayout.signpost`; a
+  Standard adult is the unnamed caravan camp, `TownLayout.caravanCamp`), and
+  `giftRoom` (what a gift of one material can fill).
+- `town/cheers.dart` + `CheerSent {toPersonId, day}` (`game_event_social.dart`)
+  — a cosmetic cheer to a neighbour's town, once a day per sender and
+  neighbour (`cheerId`; the earliest copy stands, `GameState.cheers`). It
+  moves no gem or material; `cheersFor` feeds the inbox. Words in
+  `town/neighbour_lines.dart` (`assets/game/text/neighbours.json`).
+- `town/town_book.dart` — `townBook(state, personId, now)`: the UI's read
+  model of a town's growth. `town/town_growth_lines.dart` holds its words
+  (`assets/game/text/town_growth.json`).
 - `commands/game_commands.dart` — `GameCommands(state, clock, actorId,
   stamp)`: every guild-hall action as a pure function returning a
   `GameCommandResult` (events to append, or a `GameRejection`). Anything
   random or time-dependent is computed once here and stored in the event:
   - `unlockPlot(i)` — gem price from `Balance.plotUnlockCost`.
   - `startBuilding(i, type)` — build on an empty plot or upgrade the same
-    type by one tier; one of each building per hall; other buildings never
+    type by one tier; one of each building per town (the actor's own); other buildings never
     outrank the Central Hall; upgrades wait for construction to finish; a
     producer's upgrade banks its production first (`MaterialsCollected`),
     by the same working-shift rule as collecting.

@@ -97,7 +97,6 @@ TownScatter scatterTown(
   return TownScatter(props: List.unmodifiable(props), borderWidth: borderWidth);
 }
 
-/// Every cell something already stands on.
 /// The forest tile for a border cell: an edge tile on the ring's innermost
 /// cells (not its corners, which the pack has no tile for), body elsewhere.
 String _forestKey(TownLayout layout, int column, int row) {
@@ -122,14 +121,22 @@ String _inTownKey(double roll) {
   return TownScatter.inTownProps.first.$1;
 }
 
+/// Every cell something already stands on (or overhangs).
 Set<TownCell> _occupiedCells(TownLayout layout) => {
   for (final origin in [...layout.plotOrigins, ...layout.houseOrigins])
     for (var column = 0; column < TownLayout.footprint; column++)
-      for (var row = 0; row < TownLayout.footprint; row++)
+      // A tall building overhangs the row above its plot.
+      for (var row = -1; row < TownLayout.footprint; row++)
         TownCell(origin.column + column, origin.row + row),
-  layout.gate,
+  if (layout.hasGate) layout.gate,
+  ?layout.signpost,
+  ?layout.caravanCamp,
   ...layout.statueSpots,
   ...layout.treeCells,
+  for (final landmark in layout.landmarks)
+    for (var column = 0; column < landmark.columns; column++)
+      for (var row = 0; row < landmark.rows; row++)
+        TownCell(landmark.origin.column + column, landmark.origin.row + row),
 };
 
 /// A scatter seed every device of a household agrees on: the 32-bit FNV-1a

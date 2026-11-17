@@ -18,7 +18,7 @@ void main() {
   testWidgets('a zero-height first layout still ends at the fitted zoom', (
     tester,
   ) async {
-    final view = TownView.from(GameState.initial(), _adults, DateTime.utc(2026, 10, 1));
+    final view = TownView.from(GameState.initial(), 'alex', _adults, DateTime.utc(2026, 10, 1));
     final worldHeight = view.layout.rows * kTileSize;
     // Room for the town four times over: a fit above the smallest fit zoom.
     final windowHeight = worldHeight * 4;

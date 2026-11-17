@@ -63,8 +63,13 @@ abstract final class GameReasonCodes {
   /// A freeze token earned by the streak.
   static const String streakToken = 'streak.token';
 
-  /// A Standard-mode partner's supply caravan for the party pool.
+  /// A Standard-mode partner's active day (the supply caravan). Its goods
+  /// travel the trade road ([tradeRoad]).
   static const String caravan = 'caravan.supply';
+
+  /// A neighbour's caravan on the trade road, on a day you were both active
+  /// (additive; never names anyone).
+  static const String tradeRoad = 'trade.road';
 
   /// The spoils chest for finishing a month's ritual (win or lose).
   static const String ritualSpoils = 'ritual.spoils';
@@ -88,6 +93,9 @@ abstract final class GameReasonCodes {
   /// Bonus gems when two or more Adventure adults reached a fair or better
   /// the same week (additive; never names anyone).
   static const String festivalJoint = 'festival.joint';
+
+  /// The town grew into a new tier (one reward per person per tier).
+  static const String townTier = 'town.tier';
 
   /// Rewards whose grant marks their household-local day as covered in the
   /// person's streak. The reward engine must grant at most one per person per

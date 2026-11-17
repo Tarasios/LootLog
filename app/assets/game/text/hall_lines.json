@@ -75,7 +75,7 @@
     "Stacked, counted and stored.",
     "A fine haul from the {building}.",
     "The {building} delivers.",
-    "Fresh materials for the party pool.",
+    "Fresh materials for the town's stores.",
     "The yard is cleared and the stores are fuller.",
     "Collected. The {building} hums back to work.",
     "Hauled in from the {building}."
@@ -98,14 +98,14 @@
   "dungeonPlaceReadyOne": ["{n} month ready for the dungeon"],
   "dungeonPlaceReadyMany": ["{n} months ready for the dungeon"],
   "caravan": [
-    "The supply caravan keeps the party's stores stocked.",
+    "The supply caravan keeps the neighbouring towns stocked.",
     "Supply carts roll in, courtesy of the caravan.",
     "The caravan backs the party from the road.",
     "Wagons of lumber and stone, sent by the caravan.",
     "The caravan keeps the hall supplied.",
     "The caravan's wheels never stop turning.",
     "Fresh supplies from the caravan reach the yard.",
-    "The caravan is the backbone of the party's stores."
+    "The caravan is the backbone of the trade road."
   ],
   "reasons": {
     "log.daily": "Showed up today",
@@ -123,7 +123,9 @@
     "vault.quest": "Savings goal milestone",
     "vault.consistency": "Months of saving in a row",
     "festival.weekend": "The weekend festival",
-    "festival.joint": "Bonus: the party kept the week together"
+    "festival.joint": "Bonus: the party kept the week together",
+    "trade.road": "A caravan from a neighbouring town",
+    "town.tier": "The town grew into a new tier"
   },
   "rejections": {
     "notEnoughGems": "A few more gems needed. They come from logging, so every entry brings this closer.",
@@ -172,6 +174,18 @@
     "notEquippable": "Only outfits and titles can be worn.",
     "starterAlreadyClaimed": "Your starter set is already home.",
     "unknownOffer": "That visitor has already been seen to.",
-    "offerExpired": "That visitor has moved on. Someone new turns up tomorrow when you log."
+    "offerExpired": "That visitor has moved on. Someone new turns up tomorrow when you log.",
+    "giftToSelf": "Gifts travel to a neighbouring town. Your own stores are already yours.",
+    "notANeighbour": "That road doesn't lead to a town yet.",
+    "emptyGift": "Choose something to send first.",
+    "neighbourStorehouseFull": "Their Storehouse is full right now. Try again once they have room.",
+    "cheerToSelf": "Cheers travel to a neighbouring town. Your own town hears you anyway!",
+    "alreadyCheeredToday": "You cheered them today. Come back tomorrow to cheer again!",
+    "unknownDistrict": "That district isn't on the map yet.",
+    "districtAlreadyOwned": "That district is already part of your town.",
+    "townTierTooLow": "That district opens as the town grows. Keep logging and it will come.",
+    "districtNotOpenYet": "That district is still being surveyed. It opens in a later season.",
+    "districtNotOwned": "Buy the farmland first, then the fields are yours to plant.",
+    "granaryFull": "The granary is full. Build or raise a granary to store more food."
   }
 }

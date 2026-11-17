@@ -1,12 +1,16 @@
-/// The town's read model: what stands on each plot, who lives in each house,
-/// and what a tap on a cell means. Derived from the game state and the
-/// household roster on every build; never stored. Pure Dart.
+/// The town's read model for one district: what stands on each plot, who
+/// lives in each house (the outpost), and what a tap on a cell means.
+/// Derived from the game state and the household roster on every build;
+/// never stored. Pure Dart.
 library;
 
 import '../decor/decor_state.dart' show Placement;
 import '../game_state.dart';
 import '../game_values.dart';
 import '../hall_rules.dart';
+import 'districts.dart';
+import 'food.dart';
+import 'neighbours.dart';
 import 'town_layout.dart';
 
 sealed class TownTarget {
@@ -14,14 +18,18 @@ sealed class TownTarget {
 }
 
 class PlotTarget extends TownTarget {
-  const PlotTarget(this.plotIndex);
+  const PlotTarget(this.plotIndex, {this.districtId = kOutpostDistrictId});
   final int plotIndex;
 
-  @override
-  bool operator ==(Object other) => other is PlotTarget && other.plotIndex == plotIndex;
+  /// The district the plot is in (the outpost's plots are the hall plots).
+  final String districtId;
 
   @override
-  int get hashCode => plotIndex.hashCode;
+  bool operator ==(Object other) =>
+      other is PlotTarget && other.plotIndex == plotIndex && other.districtId == districtId;
+
+  @override
+  int get hashCode => Object.hash(plotIndex, districtId);
 }
 
 class HouseTarget extends TownTarget {
@@ -33,6 +41,17 @@ class HouseTarget extends TownTarget {
 
   @override
   int get hashCode => personId.hashCode;
+}
+
+/// The signpost to the neighbouring towns.
+class SignpostTarget extends TownTarget {
+  const SignpostTarget();
+
+  @override
+  bool operator ==(Object other) => other is SignpostTarget;
+
+  @override
+  int get hashCode => 1;
 }
 
 class GateTarget extends TownTarget {
@@ -58,7 +77,9 @@ class TownPlotView {
     required this.plotIndex,
     required this.origin,
     required this.unlocked,
+    this.districtId = kOutpostDistrictId,
     this.buildingType,
+    this.farmType,
     this.tier = 0,
     this.underConstruction = false,
     this.completesAt,
@@ -68,7 +89,13 @@ class TownPlotView {
   final int plotIndex;
   final TownCell origin;
   final bool unlocked;
+  final String districtId;
+
+  /// What stands on an outpost plot.
   final BuildingType? buildingType;
+
+  /// What stands on a farmland plot.
+  final FarmBuildingType? farmType;
   final int tier;
   final bool underConstruction;
   final DateTime? completesAt;
@@ -80,7 +107,9 @@ class TownPlotView {
       other.plotIndex == plotIndex &&
       other.origin == origin &&
       other.unlocked == unlocked &&
+      other.districtId == districtId &&
       other.buildingType == buildingType &&
+      other.farmType == farmType &&
       other.tier == tier &&
       other.underConstruction == underConstruction &&
       other.completesAt == completesAt &&
@@ -91,7 +120,9 @@ class TownPlotView {
         plotIndex,
         origin,
         unlocked,
+        districtId,
         buildingType,
+        farmType,
         tier,
         underConstruction,
         completesAt,
@@ -135,11 +166,15 @@ class TownView {
     this.dungeonOpen = false,
     this.townPlacements = const [],
     this.goalPictures = const {},
+    this.neighbours = const [],
   });
 
   final List<TownPlotView> plots;
   final List<TownResident> residents;
   final TownLayout layout;
+
+  /// The district this view draws.
+  String get districtId => layout.districtId;
 
   /// A month-end ritual is waiting below the gate, so the gate glows.
   final bool dungeonOpen;
@@ -151,18 +186,44 @@ class TownView {
   /// their own picture.
   final Map<String, String> goalPictures;
 
+  /// The other adults, for the signpost and the caravan camp (outpost).
+  final List<TownNeighbour> neighbours;
+
+  /// The signpost stands when a neighbour's town can be visited.
+  bool get showsSignpost => layout.signpost != null && neighbours.any((n) => n.canVisit);
+
+  /// A Standard adult's supply caravan camps beside the road.
+  bool get showsCaravanCamp => layout.caravanCamp != null && neighbours.any((n) => n.isCaravan);
+
+  /// The district [districtId] of the town [viewerId] sees: their own
+  /// town's plots, with (in the outpost) the household's residents and town
+  /// decorations. A district with no map yet draws the outpost.
   static TownView from(
     GameState game,
+    String viewerId,
     List<TownAdult> adults,
     DateTime now, {
-    TownLayout layout = TownLayout.standard,
+    String districtId = kOutpostDistrictId,
     bool dungeonOpen = false,
     Map<String, String> goalPictures = const {},
+    List<TownNeighbour> neighbours = const [],
   }) {
-    final activeDays = game.townActiveDays;
+    final activeDays = game.townActiveDaysOf(viewerId);
+    final town = game.townOf(viewerId);
+    final layout = TownLayout.forDistrict(districtId) ?? TownLayout.standard;
+    if (layout != TownLayout.standard) {
+      return TownView(
+        layout: layout,
+        plots: List.unmodifiable([
+          for (var index = 0; index < layout.plotOrigins.length; index++)
+            _districtPlotView(town, PlotAddress(layout.districtId, index), layout.plotOrigins[index], now, activeDays),
+        ]),
+        residents: const [],
+      );
+    }
     final plots = <TownPlotView>[
       for (var index = 0; index < layout.plotOrigins.length; index++)
-        _plotView(game.hall, index, layout.plotOrigins[index], now, activeDays),
+        _plotView(town, index, layout.plotOrigins[index], now, activeDays),
     ];
     final residents = <TownResident>[
       for (var slot = 0; slot < adults.length && slot < layout.houseOrigins.length; slot++)
@@ -182,6 +243,7 @@ class TownView {
         game.decor.townPlacements..sort((first, second) => first.placementId.compareTo(second.placementId)),
       ),
       goalPictures: Map.unmodifiable(goalPictures),
+      neighbours: List.unmodifiable(neighbours),
     );
   }
 
@@ -210,6 +272,30 @@ class TownView {
     );
   }
 
+  static TownPlotView _districtPlotView(
+    HallState town,
+    PlotAddress address,
+    TownCell origin,
+    DateTime now,
+    Set<GameDay> activeDays,
+  ) {
+    final building = town.districts.buildingAt(address);
+    final underConstruction = building != null && !building.isCompleteAt(now);
+    return TownPlotView(
+      plotIndex: address.plotIndex,
+      origin: origin,
+      unlocked: plotIsOpen(town, address),
+      districtId: address.districtId,
+      farmType: building?.farmType,
+      tier: building?.tier ?? 0,
+      underConstruction: underConstruction,
+      completesAt: building?.completesAt,
+      readyToCollect: building != null &&
+          !underConstruction &&
+          uncollectedFood(town, address, now, activeDays: activeDays) > 0,
+    );
+  }
+
   static bool _covers(TownCell origin, TownCell cell) =>
       cell.column >= origin.column &&
       cell.column < origin.column + TownLayout.footprint &&
@@ -226,6 +312,7 @@ class TownView {
       _sameItems(other.plots, plots) &&
       _sameItems(other.residents, residents) &&
       _sameItems(other.townPlacements, townPlacements) &&
+      _sameItems(other.neighbours, neighbours) &&
       _samePictures(other.goalPictures, goalPictures);
 
   @override
@@ -235,6 +322,7 @@ class TownView {
         Object.hashAll(plots),
         Object.hashAll(residents),
         Object.hashAll(townPlacements),
+        Object.hashAll(neighbours),
         Object.hashAll(goalPictures.entries.map((entry) => Object.hash(entry.key, entry.value))),
       );
 
@@ -256,9 +344,10 @@ class TownView {
 
   /// What a tap on [cell] means, or null for scenery.
   TownTarget? targetAt(TownCell cell) {
-    if (cell == layout.gate) return const GateTarget();
+    if (layout.hasGate && cell == layout.gate) return const GateTarget();
+    if (showsSignpost && cell == layout.signpost) return const SignpostTarget();
     for (final plot in plots) {
-      if (_covers(plot.origin, cell)) return PlotTarget(plot.plotIndex);
+      if (_covers(plot.origin, cell)) return PlotTarget(plot.plotIndex, districtId: plot.districtId);
     }
     for (final resident in residents) {
       if (_covers(resident.houseOrigin, cell)) return HouseTarget(resident.personId);

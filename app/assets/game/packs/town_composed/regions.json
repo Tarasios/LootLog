@@ -16,350 +16,452 @@
       2
     ],
     "building.central_hall.t3.idle": [
-      0,
+      2,
       0,
       2,
-      2
+      3
     ],
     "building.central_hall.t4.idle": [
-      0,
+      4,
       0,
       2,
-      2
+      3
     ],
     "building.central_hall.t5.idle": [
-      0,
+      6,
       0,
       2,
-      2
+      3
     ],
     "building.scribes_desk.t1.idle": [
-      2,
+      8,
       0,
       2,
       2
     ],
     "building.scribes_desk.t2.idle": [
-      2,
+      8,
       0,
       2,
       2
     ],
     "building.scribes_desk.t3.idle": [
-      2,
+      10,
       0,
       2,
-      2
+      3
     ],
     "building.scribes_desk.t4.idle": [
-      2,
+      12,
       0,
       2,
-      2
+      3
     ],
     "building.scribes_desk.t5.idle": [
-      2,
+      14,
       0,
       2,
-      2
+      3
     ],
     "building.storehouse.t1.idle": [
-      4,
       0,
+      3,
       2,
       2
     ],
     "building.storehouse.t2.idle": [
-      4,
       0,
+      3,
       2,
       2
     ],
     "building.storehouse.t3.idle": [
-      4,
-      0,
       2,
-      2
+      3,
+      2,
+      3
     ],
     "building.storehouse.t4.idle": [
       4,
-      0,
+      3,
       2,
-      2
+      3
     ],
     "building.storehouse.t5.idle": [
-      4,
-      0,
+      6,
+      3,
       2,
-      2
+      3
     ],
     "building.forge.t1.idle": [
-      6,
-      0,
+      8,
+      3,
       2,
       2
     ],
     "building.forge.t2.idle": [
-      6,
-      0,
+      8,
+      3,
       2,
       2
     ],
     "building.forge.t3.idle": [
-      6,
-      0,
+      10,
+      3,
       2,
-      2
+      3
     ],
     "building.forge.t4.idle": [
-      6,
-      0,
+      12,
+      3,
       2,
-      2
+      3
     ],
     "building.forge.t5.idle": [
-      6,
-      0,
+      14,
+      3,
       2,
-      2
+      3
     ],
     "building.vault.t1.idle": [
-      8,
       0,
+      6,
       2,
       2
     ],
     "building.vault.t2.idle": [
-      8,
       0,
+      6,
       2,
       2
     ],
     "building.vault.t3.idle": [
-      8,
-      0,
       2,
-      2
+      6,
+      2,
+      3
     ],
     "building.vault.t4.idle": [
-      8,
-      0,
+      4,
+      6,
       2,
-      2
+      3
     ],
     "building.vault.t5.idle": [
-      8,
-      0,
+      6,
+      6,
       2,
-      2
+      3
     ],
     "building.lumberyard.t1.idle": [
-      10,
-      0,
+      8,
+      6,
       2,
       2
     ],
     "building.lumberyard.t2.idle": [
-      10,
-      0,
+      8,
+      6,
       2,
       2
     ],
     "building.lumberyard.t3.idle": [
       10,
-      0,
+      6,
       2,
-      2
+      3
     ],
     "building.lumberyard.t4.idle": [
-      10,
-      0,
+      12,
+      6,
       2,
-      2
+      3
     ],
     "building.lumberyard.t5.idle": [
-      10,
-      0,
+      14,
+      6,
       2,
-      2
+      3
     ],
     "building.quarry.t1.idle": [
-      12,
       0,
+      9,
       2,
       2
     ],
     "building.quarry.t2.idle": [
-      12,
       0,
+      9,
       2,
       2
     ],
     "building.quarry.t3.idle": [
-      12,
-      0,
       2,
-      2
+      9,
+      2,
+      3
     ],
     "building.quarry.t4.idle": [
-      12,
-      0,
+      4,
+      9,
       2,
-      2
+      3
     ],
     "building.quarry.t5.idle": [
-      12,
-      0,
+      6,
+      9,
       2,
-      2
+      3
     ],
     "building.mine.t1.idle": [
-      14,
-      0,
+      8,
+      9,
       2,
       2
     ],
     "building.mine.t2.idle": [
-      14,
-      0,
+      8,
+      9,
       2,
       2
     ],
     "building.mine.t3.idle": [
-      14,
-      0,
+      10,
+      9,
       2,
-      2
+      3
     ],
     "building.mine.t4.idle": [
-      14,
-      0,
+      12,
+      9,
       2,
-      2
+      3
     ],
     "building.mine.t5.idle": [
       14,
-      0,
+      9,
       2,
-      2
+      3
     ],
     "building.herb_garden.t1.idle": [
       0,
-      2,
+      12,
       2,
       2
     ],
     "building.herb_garden.t2.idle": [
       0,
-      2,
+      12,
       2,
       2
     ],
     "building.herb_garden.t3.idle": [
-      0,
       2,
+      12,
       2,
-      2
+      3
     ],
     "building.herb_garden.t4.idle": [
-      0,
+      4,
+      12,
       2,
-      2,
-      2
+      3
     ],
     "building.herb_garden.t5.idle": [
-      0,
+      6,
+      12,
       2,
-      2,
-      2
+      3
     ],
     "building.hunters_lodge.t1.idle": [
-      2,
-      2,
+      8,
+      12,
       2,
       2
     ],
     "building.hunters_lodge.t2.idle": [
-      2,
-      2,
+      8,
+      12,
       2,
       2
     ],
     "building.hunters_lodge.t3.idle": [
+      10,
+      12,
       2,
-      2,
-      2,
-      2
+      3
     ],
     "building.hunters_lodge.t4.idle": [
+      12,
+      12,
       2,
-      2,
-      2,
-      2
+      3
     ],
     "building.hunters_lodge.t5.idle": [
+      14,
+      12,
       2,
-      2,
-      2,
-      2
+      3
     ],
     "building.arcane_well.t1.idle": [
-      4,
-      2,
+      0,
+      15,
       2,
       2
     ],
     "building.arcane_well.t2.idle": [
-      4,
-      2,
+      0,
+      15,
       2,
       2
     ],
     "building.arcane_well.t3.idle": [
-      4,
       2,
+      15,
       2,
-      2
+      3
     ],
     "building.arcane_well.t4.idle": [
       4,
+      15,
       2,
+      3
+    ],
+    "building.arcane_well.t5.idle": [
+      6,
+      15,
+      2,
+      3
+    ],
+    "building.farm.t1.idle": [
+      8,
+      15,
       2,
       2
     ],
-    "building.arcane_well.t5.idle": [
-      4,
-      2,
+    "building.farm.t2.idle": [
+      10,
+      15,
       2,
       2
+    ],
+    "building.farm.t3.idle": [
+      12,
+      15,
+      2,
+      3
+    ],
+    "building.farm.t4.idle": [
+      14,
+      15,
+      2,
+      3
+    ],
+    "building.farm.t5.idle": [
+      0,
+      18,
+      2,
+      3
+    ],
+    "building.orchard.t1.idle": [
+      2,
+      18,
+      2,
+      2
+    ],
+    "building.orchard.t2.idle": [
+      4,
+      18,
+      2,
+      2
+    ],
+    "building.orchard.t3.idle": [
+      6,
+      18,
+      2,
+      3
+    ],
+    "building.orchard.t4.idle": [
+      8,
+      18,
+      2,
+      3
+    ],
+    "building.orchard.t5.idle": [
+      10,
+      18,
+      2,
+      3
+    ],
+    "building.granary.t1.idle": [
+      12,
+      18,
+      2,
+      2
+    ],
+    "building.granary.t2.idle": [
+      14,
+      18,
+      2,
+      2
+    ],
+    "building.granary.t3.idle": [
+      0,
+      21,
+      2,
+      3
+    ],
+    "building.granary.t4.idle": [
+      2,
+      21,
+      2,
+      3
+    ],
+    "building.granary.t5.idle": [
+      4,
+      21,
+      2,
+      3
     ],
     "town.house.default.idle": [
       6,
-      2,
+      21,
       2,
       2
     ],
     "town.plot.locked.idle": [
       8,
-      2,
+      21,
       2,
       2
     ],
     "town.scaffold.default.idle": [
       10,
-      2,
+      21,
       2,
       2
     ],
     "town.plot.empty.idle": [
       12,
-      2,
+      21,
       2,
       2
     ],
-    "town.ground.water.idle": [
+    "farm.plot.empty.idle": [
+      14,
+      21,
+      2,
+      2
+    ],
+    "farm.barn.default.idle": [
       0,
-      4
+      24,
+      3,
+      6
+    ],
+    "town.ground.water.idle": [
+      3,
+      24
     ]
   }
 }

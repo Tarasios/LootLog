@@ -2,7 +2,8 @@
 /// whole-number zoom, and taps become [TownTarget]s. On the first layout with
 /// a real height the zoom is the largest whole number that fits the town's
 /// height in the window, and the town's tags float over it as Flutter signs
-/// that follow the camera.
+/// that follow the camera. A sideways drag that keeps pushing once the map's
+/// edge is reached asks for the neighbouring district ([onSwipePastEdge]).
 library;
 
 import 'dart:async';
@@ -25,6 +26,7 @@ import '../pack_atlas.dart';
 import '../scene_pictures.dart';
 import 'town_game.dart';
 import 'town_loop_components.dart';
+import 'town_tag_layout.dart';
 import 'town_tag_placement.dart';
 
 export 'town_game.dart' show LogPulse, TownsfolkEntry;
@@ -47,6 +49,8 @@ class TownSceneView extends StatefulWidget {
     this.loop = TownLoopScene.none,
     this.visitorTag,
     this.onVisitorTap,
+    this.onSwipePastEdge,
+    this.hudInsets = EdgeInsets.zero,
   });
 
   final TownView view;
@@ -84,6 +88,16 @@ class TownSceneView extends StatefulWidget {
   final String? visitorTag;
   final VoidCallback? onVisitorTap;
 
+  /// A drag pushed on past the map's west (-1) or east (+1) edge.
+  final void Function(int direction)? onSwipePastEdge;
+
+  /// The screen pixels a phone HUD covers at the top and bottom: the camera
+  /// centres the district between them and pans far enough to clear them.
+  final EdgeInsets hudInsets;
+
+  /// How far a drag must push past the edge to change district.
+  static const double edgeSwipeDistance = 72;
+
   @override
   State<TownSceneView> createState() => _TownSceneViewState();
 }
@@ -101,6 +115,9 @@ class _TownSceneViewState extends State<TownSceneView> {
     loopScene: widget.loop,
   );
   int _zoomAtPinchStart = 3;
+
+  /// Sideways drag past the map's edge in this gesture, in screen pixels.
+  double _pastEdge = 0;
 
   /// Whether the zoom has been fitted to the window yet (the first layout
   /// with a real height only, so a zoom the player chose survives resizes).
@@ -121,6 +138,7 @@ class _TownSceneViewState extends State<TownSceneView> {
   /// already moved (a post-frame fit would draw one frame at the wrong zoom).
   void _fitViewport(BoxConstraints constraints) {
     _camera.setViewport(constraints.maxWidth, constraints.maxHeight);
+    _applyInsets();
     if (_zoomFitted) return;
     final height = constraints.maxHeight;
     if (!height.isFinite || height <= 0) return;
@@ -131,6 +149,18 @@ class _TownSceneViewState extends State<TownSceneView> {
         worldHeight: widget.view.layout.rows * kTileSize,
       ),
     );
+    _appliedInsets = null;
+    _applyInsets();
+  }
+
+  EdgeInsets? _appliedInsets;
+
+  /// Tells the camera what the HUD covers, once per change.
+  void _applyInsets() {
+    final insets = widget.hudInsets;
+    if (insets == _appliedInsets) return;
+    _appliedInsets = insets;
+    _camera.setInsets(top: insets.top, bottom: insets.bottom);
   }
 
   @override
@@ -180,7 +210,7 @@ class _TownSceneViewState extends State<TownSceneView> {
             Positioned.fill(
               child: IgnorePointer(
                 child: CustomSingleChildLayout(
-                  delegate: _TagLayout(_screenPoint(placed, constraints)),
+                  delegate: TownTagLayout(_screenPoint(placed, constraints)),
                   child: FloatingTag(
                     placed.tag.text,
                     urgent: placed.tag.urgent,
@@ -206,7 +236,7 @@ class _TownSceneViewState extends State<TownSceneView> {
     );
     return Positioned.fill(
       child: CustomSingleChildLayout(
-        delegate: _TagLayout(Offset(point.x, point.y)),
+        delegate: TownTagLayout(Offset(point.x, point.y)),
         child: GestureDetector(
           key: const ValueKey('town-visitor-tag'),
           onTap: widget.onVisitorTap,
@@ -236,7 +266,18 @@ class _TownSceneViewState extends State<TownSceneView> {
     },
     child: GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onScaleStart: (details) => _zoomAtPinchStart = _camera.zoom,
+      onScaleStart: (details) {
+        _zoomAtPinchStart = _camera.zoom;
+        _pastEdge = 0;
+      },
+      onScaleEnd: (details) {
+        final onSwipe = widget.onSwipePastEdge;
+        if (onSwipe != null && _pastEdge.abs() >= TownSceneView.edgeSwipeDistance) {
+          // Dragging the map leftwards walks east, to the next district.
+          onSwipe(_pastEdge < 0 ? 1 : -1);
+        }
+        _pastEdge = 0;
+      },
       onScaleUpdate: (details) {
         if (details.pointerCount > 1) {
           _moveCamera(
@@ -244,12 +285,15 @@ class _TownSceneViewState extends State<TownSceneView> {
                 camera.zoomTo((_zoomAtPinchStart * details.scale).round()),
           );
         } else {
+          final centreBefore = _camera.centerX;
           _moveCamera(
             (camera) => camera.panByScreen(
               details.focalPointDelta.dx,
               details.focalPointDelta.dy,
             ),
           );
+          final stuck = _camera.centerX == centreBefore;
+          _pastEdge = stuck ? _pastEdge + details.focalPointDelta.dx : 0;
         }
       },
       onTapUp: (details) {
@@ -275,32 +319,4 @@ class _TownSceneViewState extends State<TownSceneView> {
       child: GameWidget(game: _game),
     ),
   );
-}
-
-/// Hangs a tag with its pointer's tip on [anchor], then nudges it inside the
-/// viewport so a sign near an edge is never cut off.
-class _TagLayout extends SingleChildLayoutDelegate {
-  _TagLayout(this.anchor);
-
-  final Offset anchor;
-
-  @override
-  BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
-      constraints.loosen();
-
-  @override
-  Offset getPositionForChild(Size size, Size childSize) {
-    final left = (anchor.dx - childSize.width / 2).clamp(
-      0.0,
-      (size.width - childSize.width).clamp(0.0, double.infinity),
-    );
-    final top = (anchor.dy - childSize.height).clamp(
-      0.0,
-      (size.height - childSize.height).clamp(0.0, double.infinity),
-    );
-    return Offset(left.roundToDouble(), top.roundToDouble());
-  }
-
-  @override
-  bool shouldRelayout(_TagLayout oldDelegate) => oldDelegate.anchor != anchor;
 }

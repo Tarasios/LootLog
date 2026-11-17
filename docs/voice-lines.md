@@ -193,7 +193,7 @@ checks each set has 8+ lines and that nothing shames or blames.
 | Stacked, counted and stored. |
 | A fine haul from the {building}. |
 | The {building} delivers. |
-| Fresh materials for the party pool. |
+| Fresh materials for the town's stores. |
 | The yard is cleared and the stores are fuller. |
 | Collected. The {building} hums back to work. |
 | Hauled in from the {building}. |
@@ -221,14 +221,14 @@ checks each set has 8+ lines and that nothing shames or blames.
 
 | Current line |
 |---|
-| The supply caravan keeps the party's stores stocked. |
+| The supply caravan keeps the neighbouring towns stocked. |
 | Supply carts roll in, courtesy of the caravan. |
 | The caravan backs the party from the road. |
 | Wagons of lumber and stone, sent by the caravan. |
 | The caravan keeps the hall supplied. |
 | The caravan's wheels never stop turning. |
 | Fresh supplies from the caravan reach the yard. |
-| The caravan is the backbone of the party's stores. |
+| The caravan is the backbone of the trade road. |
 
 ### Month-end dungeon entrance (`dungeonCallout`, `dungeonCalloutButton`, `dungeonPlace*`)
 
@@ -304,6 +304,18 @@ shortfalls at buildings and expeditions.
 | `starterAlreadyClaimed` | Your starter set is already home. |
 | `unknownOffer` | That visitor has already been seen to. |
 | `offerExpired` | That visitor has moved on. Someone new turns up tomorrow when you log. |
+| `giftToSelf` | Gifts travel to a neighbouring town. Your own stores are already yours. |
+| `notANeighbour` | That road doesn't lead to a town yet. |
+| `emptyGift` | Choose something to send first. |
+| `neighbourStorehouseFull` | Their Storehouse is full right now. Try again once they have room. |
+| `cheerToSelf` | Cheers travel to a neighbouring town. Your own town hears you anyway! |
+| `alreadyCheeredToday` | You cheered them today. Come back tomorrow to cheer again! |
+| `unknownDistrict` | That district isn't on the map yet. |
+| `districtAlreadyOwned` | That district is already part of your town. |
+| `townTierTooLow` | That district opens as the town grows. Keep logging and it will come. |
+| `districtNotOpenYet` | That district is still being surveyed. It opens in a later season. |
+| `districtNotOwned` | Buy the farmland first, then the fields are yours to plant. |
+| `granaryFull` | The granary is full. Build or raise a granary to store more food. |
 
 ### `reasons`
 
@@ -320,7 +332,8 @@ was earned (by reward reason code).
 | `week.reconcile` | Reconciled the week | The weekly reconcile chest |
 | `week.party` | The whole party showed up | Everyone in the party logged this week (additive; never names anyone) |
 | `streak.token` | Streak milestone | A streak milestone reward (freeze token or decoration) |
-| `caravan.supply` | Supply caravan | A Standard-mode partner's budgeting feeding the party |
+| `caravan.supply` | Supply caravan | A Standard-mode partner's active day (its goods travel the trade road) |
+| `trade.road` | A caravan from a neighbouring town | A neighbour (Adventure or Standard) was active the same day as you: generated goods, never taken from them (additive; never names anyone) |
 | `ritual.spoils` | Finished the month's ritual | The month-end dungeon is finished: the spoils chest |
 | `ritual.bonus` | Bonus: month-end rituals on time | On-time month-end ritual bonus gems |
 | `month.gold` | Bonus: a budget finished on target | A category finished the month on target (bonus only) |
@@ -328,6 +341,7 @@ was earned (by reward reason code).
 | `vault.consistency` | Months of saving in a row | Consecutive months with a savings choice |
 | `festival.weekend` | The weekend festival | The weekend festival's loot, sized by the weekdays logged: one reward per tier reached, each adding what that tier adds, so a festival topped up by late-syncing logs shows as more than one line |
 | `festival.joint` | Bonus: the party kept the week together | Two or more Adventure adults each logged at least three weekdays (additive; never names anyone) |
+| `town.tier` | The town grew into a new tier | The town's peak prosperity reached the next tier (and, from the village on, its food stores were enough): gems and building materials, once per tier, never taken back |
 
 
 ## Month-end dungeon lines (`dungeon_lines.json`)
@@ -428,7 +442,7 @@ announce it and take no placeholders. The town loop's lines (`away.*`,
 | `festival.name.grandFestival` | As `festival.name.marketDay` | Same | grand festival |
 | `festival.reward` | The festival celebration, while its gifts wait in the inbox ({reward}: what they hold) | Point at the gifts; `Claim` takes them through the inbox's claim | The festival brings {reward}. |
 | `festival.claimed` | The festival celebration after its gifts were claimed | Keep the moment happy with nothing left to do | Its gifts are already in your stores. |
-| `away.chip` | A small HUD chip over the check-in while producers hold something to collect ({count}: how many materials fit) | Point at the crews' work without ever standing between the player and Log purchase; tapping opens the summary | Crews made {count}: collect |
+| `away.chip` | A small HUD chip over the check-in while producers hold something to collect ({count}: how many materials fit) | Point at the crews' work without ever standing between the player and Log purchase; tapping opens the summary (kept short, so it shares a row with the check-in on a phone) | Crews made {count} |
 | `away.welcome` | The "while you were away" summary's ribbon, opened from the `away.chip` chip | A warm hello | Welcome back! |
 | `away.title` | The heading of that pop-up's summary (and its text-home section) | Show what the town did on its own | While you were away |
 | `away.fullDays` | The summary (or a producer's sheet) when every day since the last collection was logged | Credit the kept ledger for the full days | Full days: the ledger was kept. |
@@ -444,3 +458,123 @@ announce it and take no placeholders. The town loop's lines (`away.*`,
 | `spirit.weekday` | The spirit dialog on a weekday ({festival}: the festival earned so far) | Show the weekend is already something | Every weekday you log lifts the town. So far the weekend holds a {festival}. |
 | `spirit.next` | The spirit dialog on a weekday when a bigger festival is still reachable ({more}: "1 more weekday") | A gentle, reachable next step | Log {more} for a {festival}. |
 | `spirit.weekend` | The spirit dialog at the weekend | Celebrate | The weekend is here and the {festival} is on! |
+
+## Town growth (`town_growth.json`)
+
+Adventure-only: the names and lines of a town's growth, read by the town
+book and the tier celebration. Each key holds one line; a missing or empty
+key falls back to the built-in line in
+`app/lib/game/domain/town/town_growth_lines.dart`, and
+`app/test/game/domain/town/town_growth_lines_test.dart` checks the shipped
+file matches those built-in lines and that nothing shames. A town short of
+food only waits to grow: never say "lost", "missed", "starving" or
+"penalty". Placeholders: `{tier}`, `{prosperity}`, `{needed}`, `{stored}`,
+`{capacity}`, `{need}`, `{food}`, `{days}`, `{missing}`, `{population}`,
+`{count}`, `{price}`, `{date}`, `{district}`, `{building}`.
+
+| Key | Trigger | Intended outcome | Current line |
+|-----|---------|------------------|--------------|
+| `tier.name.outpost` … `tier.name.city` | A tier's name, wherever the town's size is shown | Name the town's size warmly | Outpost / Hamlet / Village / Town / City |
+| `tier.reached.hamlet` | The town grew into a hamlet (`TierReached`) | Celebrate, and credit the logging that built it | Smoke from new chimneys: the outpost is a hamlet now. Every day you logged built this. |
+| `tier.reached.village` | The town grew into a village | Same | Bells ring over full granaries. The hamlet has grown into a village! |
+| `tier.reached.town` | The town grew into a town | Same | Market stalls, cobbled streets, a town hall: your village is a town. |
+| `tier.reached.city` | The town grew into a city | Same | Towers on the skyline and lights in every window. Welcome to your city. |
+| `district.name.<id>` | A district's name (outpost, farmland, guardPost, residential, park, marketRow) | Name the place | The Outpost / Farmland / Guard Post / Residential Quarter / Park / Market Row |
+| `district.blurb.outpost` | The outpost's card in the town book | Say what it is | Where the town began: the hall, the yards and the workshops. |
+| `district.blurb.farmland` | The farmland's card | Make the next goal vivid | Six fields beyond the wall. Farms and orchards grow food; a granary keeps it. |
+| `district.blurb.guardPost` | A teaser card (village) | A glimpse of what is ahead | Watchtowers for a village that has something worth guarding. |
+| `district.blurb.residential` | A teaser card (village) | Same | Cottages and gardens for the people your town draws in. |
+| `district.blurb.park` | A teaser card (town) | Same | Lawns, a pond and a bandstand for a town at ease. |
+| `district.blurb.marketRow` | A teaser card (town) | Same | A street of shopfronts for a town that trades. |
+| `district.opensAt` | A district card before its tier ({tier}) | A reachable next step | Opens at {tier} |
+| `district.comingLater` | A teaser card | Promise, no pressure | Arrives in a later season |
+| `farm.name.farm` / `farm.name.orchard` / `farm.name.granary` | A farmland building's name | Name it | Farm / Orchard / Granary |
+| `book.title` | The town book's heading | Name the page | Town book |
+| `book.prosperity` | The book, below a city ({prosperity}, {tier}: the next tier, {needed}) | Show progress and the next goal | Prosperity {prosperity}. A {tier} needs {needed}. |
+| `book.top` | The book for a city | Celebrate the top | Prosperity {prosperity}. The town has grown as grand as it can, for now. |
+| `book.food` | The book's food line ({stored}, {capacity}, {need}) | Plain facts | {stored} of {capacity} food in store. The residents eat {need} a day. |
+| `book.foodNeeded` | The peak is enough for the next tier but the stores are short ({tier}, {food}, {days}) | Say exactly what is needed, and that nothing is taken meanwhile | To grow into a {tier}, the stores need {food} food: {days} days of meals. The town keeps everything while it waits. |
+| `book.foodSecure` | The stores are enough to grow | Reassure | The stores are well stocked. |
+| `district.locked` | Tapping a locked district on the strip, or its picker card ({tier}) | A reachable next step, never a wall | Grows into reach at {tier}. Keep logging and building to get there. |
+| `district.forSale` | A district card the town can buy now ({price}) | Make the next purchase clear | Ready to buy: {price} |
+| `district.owned` | A district card the town owns | Invite a visit | Yours. Tap to visit. |
+| `district.bought.farmland` | The farmland was just bought | Celebrate, and say what to do first | Fresh furrows and a red barn: the farmland is yours. Plant a farm to start the harvest. |
+| `district.bought` | Any other district was just bought ({district}) | Celebrate | The {district} is yours. Come and see! |
+| `picker.title` | The district picker's heading | Name the page | Districts |
+| `picker.intro` | The district picker, above the cards | Explain districts in a line | Each district is its own corner of town, with plots of its own. |
+| `farm.blurb.farm` | The farm's card on an empty field | Say what it does | Rows of wheat and carrots that grow food every hour the crews work. |
+| `farm.blurb.orchard` | The orchard's card on an empty field | Same | Fruit trees and berry bushes. They grow the most food, planted with herbs. |
+| `farm.blurb.granary` | The granary's card | Same | Keeps the harvest. A bigger granary stores more food. |
+| `farm.empty` | Tapping an empty farmland field | Invite a build | An empty field, ready for planting. Choose what to grow. |
+| `farm.locked` | Tapping a field of farmland the town does not own | A next step | Buy the farmland to start farming these fields. |
+| `farm.grows` | A farm or orchard's sheet ({food}) | Plain facts | Grows {food} food an hour while the crews work. |
+| `farm.ready` | A farm or orchard with food grown ({food}) | Invite a harvest | {food} food ready to harvest. |
+| `farm.growing` | A farm or orchard with nothing grown yet | Encourage coming back | The crops are growing. Check back after your next log. |
+| `farm.harvested` | A harvest ({food}) | Celebrate | Harvested {food} food. The stores are filling up! |
+| `farm.granaryHolds` | The granary's sheet ({capacity}) | Plain facts | The stores hold up to {capacity} food. |
+| `farm.built` | A farm building was started ({building}) | Celebrate | Work has begun on the {building}. |
+| `book.section.prosperity` | The town book's first card | Name the section | Prosperity |
+| `book.section.next` | The town book's second card | Same | Next tier |
+| `book.section.people` | The town book's third card | Same | People and food |
+| `book.section.history` | The town book's fourth card | Same | History |
+| `book.section.album` | The town book's last card | Same | Album |
+| `book.counts` | Under the prosperity meter | Say what counts | Every building tier, district, decoration on show and festival held adds to it. |
+| `book.nextTier` | The next-tier card's heading ({tier}) | Name the goal | Growing into a {tier} |
+| `book.prosperityDone` | The next tier's prosperity is met ({needed}) | Tick it off | Prosperity {needed}: reached! |
+| `book.prosperityToGo` | The next tier's prosperity is not met yet ({needed}, {missing}) | Phrase it as what to do next | Prosperity {needed}: {missing} to go. Build, upgrade and decorate to get there. |
+| `book.foodDone` | The next tier needs food and the stores have it ({tier}: the next tier, {stored}, {food}: three days of the NEXT tier's meals) | Tick it off | Food for a {tier}: {stored} of {food} stored. Ready! |
+| `book.foodToGo` | The next tier needs food the stores could hold but do not yet ({tier}, {stored}, {food}, {missing}) | Say what is needed, what is stored, and what to do next; never a failure | Food for a {tier}: {stored} of {food} stored. Harvest your farms to fill the stores. |
+| `book.foodToGoGranary` | As above, with no granary and the stores too small to hold it | Same, and point at the granary | Food for a {tier}: {stored} of {food} stored. Harvest your farms and build a granary to hold it. |
+| `book.foodToGoBiggerGranary` | As above, with a granary too small to hold it | Same, and point at raising the granary | Food for a {tier}: {stored} of {food} stored. Harvest your farms and raise the granary to hold it. |
+| `book.waitingOnHarvest` | The prosperity is enough but the stores are short | Reassure, and point at the farms | The town is waiting on the harvest. It keeps everything while it waits. |
+| `book.people` | The people-and-food card ({population}, {need}) | Plain facts | {population} residents eat {need} food a day. |
+| `book.daysCovered` | The people-and-food card ({days}: whole days the stores cover) | Plain facts | Enough for {days} days of meals. |
+| `book.noFarmsYet` | The people-and-food card before the farmland | A next step | Farms come with the farmland. Food is waiting there. |
+| `book.tierReachedOn` | A history entry ({tier}, {date}) | Remember the milestones | {tier}: {date} |
+| `book.founded` | The history card before any tier-up | Credit the start | The outpost was founded. Every log since has built on it. |
+| `book.festivals` | The history card ({count}) | Count what was done | Festivals held: {count} |
+| `book.decorations` | The album card ({count}) | Count what was earned | Decorations owned: {count} |
+| `book.noDecorations` | The album card with nothing owned | A next step | No decorations yet. The shop and chests bring them. |
+| `tier.gifts` | The tier celebration, under its line ({tier}) | Point at the reward | Gifts for the new {tier} wait in your inbox. |
+| `tier.cheer` | The tier celebration's close button | Celebrate with the player | Hooray! |
+| `book.stat.residents` / `book.stat.foodNeed` / `book.stat.foodStored` | The people-and-food card's figures | Name each number plainly | Residents / Food a day / Food in store |
+| `farm.atTop` | A farm building at the top tier ({tier}) | Admire it; nothing left to buy | At its finest: tier {tier} is the top. |
+
+## Neighbouring towns (`neighbours.json`)
+
+Adventure-only: the road between neighbouring towns, read by the signpost,
+a visit to a neighbour's town, the gift dialog, cheers and the inbox. Each
+key holds one line; a missing or empty key falls back to the built-in line
+in `app/lib/game/domain/town/neighbour_lines.dart`, and
+`app/test/game/domain/town/neighbour_lines_test.dart` checks the shipped
+file matches, that nothing shames, and that every key is listed here. A
+neighbour is never named as inactive or blamed, and a Standard adult's
+caravan is never named. Placeholders: `{name}`, `{tier}`, `{goods}`,
+`{capacity}`, `{prosperity}`.
+
+| Key | Trigger | Intended outcome | Current line |
+|-----|---------|------------------|--------------|
+| `signpost.title` | The signpost chooser's heading (several neighbours) | Name the road | The road to the neighbours |
+| `signpost.body` | The signpost chooser, above the neighbours | Invite a visit | Neighbouring towns lie down the east road. Whose town will you visit? |
+| `signpost.caravan` | The chooser, when a Standard adult camps by the road (never named) | Credit the caravan warmly | A supply caravan is camped by the road. It keeps the neighbouring towns stocked. |
+| `visit.header` | The compact header while visiting ({name}) | Say whose town this is | Visiting {name} |
+| `visit.welcome` | The visit's welcome note and the text tier ({name}, {tier}) | Make the visit feel friendly; say what a guest can do | You're a guest in {name}'s {tier}. Look around, send a gift or cheer them on! |
+| `visit.empty` | A tap on an empty plot while visiting ({name}) | Plain, warm facts | An open plot, ready for {name}'s next build. |
+| `visit.locked` | A tap on an unopened plot while visiting | Plain facts | Wild ground, not cleared yet. |
+| `visit.building` | A tap on a finished building while visiting ({tier}) | Admire it | Tier {tier}. Built with care. |
+| `visit.underConstruction` | A tap on a building under way while visiting ({tier}) | Plain facts | Under construction: tier {tier} is on its way. |
+| `gift.title` | The gift dialog's title (short: it sits on the ribbon) | Name the action | Send a gift |
+| `gift.intro` | The gift dialog, top ({name}) | Say what happens | Choose what to send from your stores. It travels the road to {name}'s town. |
+| `gift.room` | The gift dialog, under the intro ({name}, {capacity}) | Say how much fits, so nothing surprises | {name}'s storehouse holds up to {capacity} of each material. Each row shows the room left. |
+| `gift.nothing` | The gift dialog with empty stores | A next step, never a failure | Your stores are empty for now. Collect from your buildings, then send a gift. |
+| `gift.sent` | A gift arrived in full ({goods}, {name}) | Celebrate generosity | Sent {goods} to {name}'s town. What a neighbour! |
+| `gift.trimmed` | A gift partly fit the neighbour's storehouse ({name}, {goods}: what moved) | Say exactly what moved; the rest is safe | {name}'s storehouse took {goods}. The rest is still in yours. |
+| `cheer.sent` | After cheering a neighbour ({name}) | Celebrate | You cheered {name}'s town! |
+| `cheer.done` | The Cheer button once today's cheer is sent | Show it counted | Cheered today |
+| `cheer.received` | The inbox, for each cheer received in the last week ({name}) | Warmth from a neighbour | {name} cheered your town |
+| `cheer.section` | The inbox section listing cheers | Name the section | Cheers from the neighbours |
+| `trade.fromTown` | A trade-road caravan in the inbox from an Adventure neighbour ({name}, {goods}) | Name the goods and where they came from; positive only | A caravan from {name}'s town brought {goods} |
+| `trade.fromCaravan` | A trade-road caravan from the supply caravan (a Standard adult, never named; {goods}) | Same | The supply caravan brought {goods} down the trade road |
+| `text.title` | The text tier's neighbours section | Name the section | Neighbouring towns |
+| `text.town` | The text tier, per Adventure neighbour ({name}, {tier}, {prosperity}) | Plain, admiring facts | {name}'s {tier}: prosperity {prosperity}. |
+| `text.caravan` | The text tier, when a Standard adult runs the caravan (never named) | Credit the caravan | The supply caravan camps by the road, keeping the neighbouring towns stocked. |

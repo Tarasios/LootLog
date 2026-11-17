@@ -114,6 +114,7 @@ flutter:
     # Kenney CC0 16x16 art packs (nested folders must be listed explicitly).
     - assets/game/packs/tiny_town/
     - assets/game/packs/town_composed/
+    - assets/game/packs/tiny_farm/
     - assets/game/packs/tiny_dungeon/
     - assets/game/packs/roguelike_indoors/
     # Kenney CC0 UI Pack - Pixel Adventure (32px frames, banners, buttons).

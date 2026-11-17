@@ -1,6 +1,6 @@
 /// The town's Menu: a framed game dialog of wood buttons for everything that
-/// is not a daily action — settings, switching to Standard, text mode,
-/// decorating the town and the trophy hall. Each button closes the menu,
+/// is not a daily action — the town book, settings, switching to Standard,
+/// text mode, decorating the town and the trophy hall. Each button closes the menu,
 /// then does its thing; the shell supplies what each one does.
 library;
 
@@ -16,6 +16,7 @@ class TownMenuActions {
     required this.toggleTextMode,
     required this.toggleDecorating,
     required this.openTrophies,
+    this.openTownBook,
     this.decorating = false,
   });
 
@@ -24,6 +25,9 @@ class TownMenuActions {
   final VoidCallback toggleTextMode;
   final VoidCallback toggleDecorating;
   final VoidCallback openTrophies;
+
+  /// Opens the town book (its growth, the next tier, food and history).
+  final VoidCallback? openTownBook;
 
   /// Whether the town is being decorated (the button then finishes it).
   final bool decorating;
@@ -53,7 +57,9 @@ class TownMenuDialog extends StatelessWidget {
       close();
       action();
     };
+    final openTownBook = actions.openTownBook;
     final entries = <(String, IconData, VoidCallback)>[
+      if (openTownBook != null) ('Town book', Icons.auto_stories, openTownBook),
       ('Settings', Icons.settings, actions.openSettings),
       ('Switch to Standard', Icons.swap_horiz, actions.switchToStandard),
       ('Text mode', Icons.notes, actions.toggleTextMode),

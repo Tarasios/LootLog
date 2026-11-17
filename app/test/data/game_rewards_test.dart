@@ -65,6 +65,44 @@ void main() {
     expect(me.streak.loggedDays, {today});
   });
 
+  group('the towns split only when this device is not waiting on sync', () {
+    Future<void> pairHub() => db.pairedHubDao.upsert(const PairedHubRow(
+          hubId: 'hub-a',
+          baseUrl: 'http://192.168.1.20:8080',
+          deviceToken: 'tok',
+          name: 'Desktop',
+        ));
+
+    test('with no paired hub the first run splits', () async {
+      await actions.addPurchase(target: const VaultCharge(), amountCents: 500);
+      expect((await gameLog()).whereType<TownsSplit>(), hasLength(1));
+    });
+
+    test('a paired device with no clean sync yet keeps the shared town', () async {
+      await pairHub();
+      await actions.addPurchase(target: const VaultCharge(), amountCents: 500);
+      final log = await gameLog();
+      expect(log.whereType<TownsSplit>(), isEmpty);
+      expect(log.whereType<RewardGranted>(), isNotEmpty);
+    });
+
+    test('a paired device splits once a clean sync cycle says so', () async {
+      await pairHub();
+      await actions.addPurchase(target: const VaultCharge(), amountCents: 500);
+      var synced = false;
+      runner = GameRewardRunner(
+        db: db,
+        deviceId: 'dev',
+        mayMigrateTowns: () async => synced || (await db.pairedHubDao.all()).isEmpty,
+      );
+      await runner.run();
+      expect((await db.gameEventsDao.allGameEvents()).whereType<TownsSplit>(), isEmpty);
+      synced = true;
+      await runner.run();
+      expect((await db.gameEventsDao.allGameEvents()).whereType<TownsSplit>(), hasLength(1));
+    });
+  });
+
   test('rewards live in the game log, never the ledger', () async {
     await actions.addPurchase(target: const VaultCharge(), amountCents: 500);
     expect(await gameLog(), isNotEmpty);

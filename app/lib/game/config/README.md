@@ -17,7 +17,7 @@ and nowhere else. Each table carries a doc comment saying what it is for.
   gems from tier 3; Lumberyard, Quarry, Central Hall and Scribe's Desk are
   free at tier 1 (bootstrap, and the ledger is never gated); hourly
   production per producer and tier; the working shift (full day on days
-  anyone logged, `shortShiftHours` = 8 otherwise); Storehouse capacity by tier (caps the
+  the town's own adult logged, `shortShiftHours` = 8 otherwise); Storehouse capacity by tier (caps the
   pool and each collection); the Central Hall's tier caps everything else.
 - **Gear** — three slots (weapon, armor, trinket) with their gear types,
   per-tier costs; gear never outranks the Forge.

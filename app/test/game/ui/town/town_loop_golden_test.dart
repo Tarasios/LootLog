@@ -103,4 +103,20 @@ void main() {
       openAwaySummary: true,
     );
   });
+
+  testWidgets('the crews chip and the check-in share a row above the strip', (tester) async {
+    await _golden(
+      tester,
+      'town_hud_chips_phone',
+      events: [
+        ...sampleEvents(),
+        built('x0001', 2, BuildingType.quarry, when: before(const Duration(hours: 4))),
+      ],
+    );
+    expect(find.byKey(const ValueKey('town-away-chip')), findsOneWidget);
+    expect(find.text('Today counts'), findsOneWidget);
+    final crews = tester.getRect(find.byKey(const ValueKey('town-away-chip')));
+    final checkIn = tester.getRect(find.byKey(const ValueKey('town-no-spend')));
+    expect(checkIn.center.dy, closeTo(crews.center.dy, 1), reason: 'one row: $crews / $checkIn');
+  });
 }

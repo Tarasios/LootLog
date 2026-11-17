@@ -17,18 +17,27 @@ import 'town_loop_providers.dart';
 import 'town_loop_view.dart';
 
 class ShiftNote extends ConsumerWidget {
-  const ShiftNote({super.key, required this.game, required this.plotIndex, required this.now});
+  const ShiftNote({
+    super.key,
+    required this.game,
+    required this.personId,
+    required this.plotIndex,
+    required this.now,
+  });
 
   final GameState game;
+
+  /// Whose town the building stands in (the viewing adult).
+  final String personId;
   final int plotIndex;
   final DateTime now;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final start = producerStretchStart(game.hall, plotIndex);
+    final start = producerStretchStart(game.townOf(personId), plotIndex);
     if (start == null || !now.isAfter(start)) return const SizedBox.shrink();
     final lines = ref.watch(townEventLinesProvider).value ?? TownEventLines.defaults;
-    final activeDays = game.townActiveDays;
+    final activeDays = game.townActiveDaysOf(personId);
     return Text(
       lines.shiftNote(
         quietDays: quietDaysSince(start, now, activeDays),

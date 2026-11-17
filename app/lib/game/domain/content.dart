@@ -49,6 +49,21 @@ class BuildingSpec {
   bool get isProducer => productionPerHour.isNotEmpty;
 }
 
+/// One farmland building kind: what building it costs and the food it grows.
+class FarmBuildingSpec {
+  const FarmBuildingSpec({required this.upgradeBase, this.foodPerHour = const []});
+
+  /// The materials one cost unit takes, scaled per tier like a hall
+  /// building's.
+  final MaterialBundle upgradeBase;
+
+  /// Food grown per hour, indexed by tier − 1. Empty for a building that
+  /// grows nothing (the granary stores it).
+  final List<int> foodPerHour;
+
+  bool get growsFood => foodPerHour.isNotEmpty;
+}
+
 /// One hero gear slot: the gear types it accepts and its cost unit.
 class GearSlotSpec {
   const GearSlotSpec({required this.gearTypes, required this.baseCost});

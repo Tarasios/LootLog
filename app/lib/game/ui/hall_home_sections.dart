@@ -21,6 +21,8 @@ import '../domain/game_event.dart';
 import '../domain/game_state.dart';
 import '../domain/game_values.dart';
 import '../domain/hall_rules.dart';
+import '../domain/reason_codes.dart';
+import '../domain/town/neighbour_lines.dart';
 import '../game_sprite.dart';
 import 'building_sheet.dart';
 import 'decor/room_screen.dart';
@@ -37,6 +39,8 @@ import 'hall_names.dart';
 import 'hall_status.dart';
 import 'hall_voice.dart';
 import 'kit/kit.dart';
+import 'town/neighbour_inbox.dart';
+import 'town/neighbour_providers.dart';
 import 'town/town_decor_text_screen.dart';
 import 'vault_screen.dart';
 
@@ -60,6 +64,9 @@ class HallHomeData {
 
   PersonState get me => game.person(view.meId ?? '');
   GameDay get today => GameDay.fromInstant(now);
+
+  /// The viewing adult's own town.
+  HallState get town => game.townOf(view.meId ?? '');
 }
 
 // ---------------------------------------------------------------------------
@@ -258,7 +265,7 @@ class _ScribeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tier = data.game.hall.completedTier(BuildingType.scribesDesk, data.now);
+    final tier = data.town.completedTier(BuildingType.scribesDesk, data.now);
     return Row(
       children: [
         GameSprite.fromKey(
@@ -406,7 +413,10 @@ class InboxPanel extends ConsumerWidget {
                               ? MaterialKind.lumber
                               : r.loot.materials.amounts.keys.first),
               scale: framed ? 2 : 1),
-          title: data.voice.reason(r.reasonCode),
+          title: r.reasonCode == GameReasonCodes.tradeRoad
+              ? tradeRoadInboxTitle(r.rewardId, r.loot, data.view,
+                  ref.watch(neighbourLinesProvider).value ?? NeighbourLines.defaults)
+              : data.voice.reason(r.reasonCode),
           subtitle: HallNames.loot(r.loot),
           action: 'Claim',
           onPressed: () => _claim(context, ref, r),
@@ -608,11 +618,11 @@ class StoresPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hall = data.game.hall;
+    final hall = data.town;
     final capacity = hall.storageCapacityAt(data.now);
     final text = hallTextTier(context);
     return HallSection(
-      title: 'Party stores',
+      title: 'Town stores',
       icon: Icons.inventory_2_outlined,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -695,7 +705,7 @@ class PlotTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final plot = data.game.hall.plots[index];
+    final plot = data.town.plots[index];
     final b = plot?.building;
     final now = data.now;
     final text = hallTextTier(context);
@@ -726,8 +736,8 @@ class PlotTile extends StatelessWidget {
       if (!complete) {
         status = 'Ready in ${HallNames.duration(b.completesAt.difference(now))}';
       } else if (Balance.buildings[b.type]!.isProducer) {
-        final ready = collectableNow(data.game.hall, index, now,
-            activeDays: data.game.townActiveDays);
+        final ready = collectableNow(data.town, index, now,
+            activeDays: data.game.townActiveDaysOf(data.view.meId ?? ''));
         status = ready.isEmpty ? 'Working…' : '+${HallNames.bundle(ready)}';
       } else {
         status = 'Tier ${b.tier}';
@@ -792,7 +802,7 @@ class PlacesPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final me = data.me;
-    final hall = data.game.hall;
+    final hall = data.town;
     final forgeTier = hall.completedTier(BuildingType.forge, data.now);
     final trip = me.activeExpedition;
     final String tripStatus;

@@ -173,4 +173,30 @@ void main() {
       expect(townScatterSeed(const []), 0);
     });
   });
+
+  test('the farmland scatters around its fields, landmarks and the row above each field', () {
+    const farmland = TownLayout.farmland;
+    final blocked = <TownCell>{
+      for (final origin in farmland.plotOrigins)
+        for (var column = 0; column < TownLayout.footprint; column++)
+          for (var row = -1; row < TownLayout.footprint; row++)
+            TownCell(origin.column + column, origin.row + row),
+      ...farmland.treeCells,
+      for (final landmark in farmland.landmarks)
+        for (var column = 0; column < landmark.columns; column++)
+          for (var row = 0; row < landmark.rows; row++)
+            TownCell(landmark.origin.column + column, landmark.origin.row + row),
+    };
+    final scatter = scatterTown(farmland, seed: 3);
+    final inside = [
+      for (final prop in scatter.props)
+        if (prop.column >= 0 && prop.column < farmland.columns && prop.row >= 0 && prop.row < farmland.rows) prop,
+    ];
+    expect(inside, isNotEmpty);
+    for (final prop in inside) {
+      final cell = TownCell(prop.column, prop.row);
+      expect(farmland.groundAt(cell), TownGround.grass, reason: '$cell');
+      expect(blocked.contains(cell), isFalse, reason: '$cell');
+    }
+  });
 }

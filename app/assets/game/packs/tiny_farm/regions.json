@@ -1,0 +1,27 @@
+{
+  "sheet": "tilemap_packed.png",
+  "cellSize": 16,
+  "spacing": 0,
+  "regions": {
+    "farm.crop.sprout.idle": [4, 5],
+    "farm.crop.wheat.idle": [6, 5],
+    "farm.crop.carrot.idle": [6, 0],
+    "farm.crop.turnip.idle": [6, 1],
+    "farm.crop.corn.idle": [6, 2],
+    "farm.crop.tomato.idle": [6, 3],
+    "farm.crop.cabbage.idle": [6, 4],
+    "farm.bush.berry.idle": [6, 6],
+    "farm.hay.default.idle": [0, 8],
+    "farm.hay.wrapped.idle": [1, 8],
+    "farm.barrel.default.idle": [1, 7],
+    "farm.trough.water.idle": [2, 9, 2, 1],
+    "farm.crate.tomato.idle": [11, 3],
+    "farm.crate.corn.idle": [11, 2],
+    "farm.sunflower.default.idle": [11, 6],
+    "farm.rock.default.idle": [5, 7],
+    "npc.animal.sheep.idle": [0, 10],
+    "npc.animal.cow.idle": [1, 10],
+    "npc.animal.chicken.idle": [2, 10],
+    "npc.farmer.default.idle": [1, 9]
+  }
+}

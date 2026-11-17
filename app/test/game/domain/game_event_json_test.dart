@@ -126,6 +126,90 @@ final List<GameEvent> _samples = [
     tier: FestivalTier.fair,
     weekdaysLogged: 4,
   ),
+  TownsSplit(
+    eventId: 'e25',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(25),
+    createdAt: at(25),
+    ownerId: robin,
+    welcome: MaterialBundle({MaterialKind.lumber: 40, MaterialKind.stone: 40}),
+  ),
+  GiftSent(
+    eventId: 'e26',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(26),
+    createdAt: at(26),
+    toPersonId: sam,
+    bundle: MaterialBundle({MaterialKind.ore: 12}),
+  ),
+  CheerSent(
+    eventId: 'e26b',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(26),
+    createdAt: at(26),
+    toPersonId: sam,
+    day: GameDay.fromInstant(at(26)),
+  ),
+  ProsperityReached(
+    eventId: 'e27',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(27),
+    createdAt: at(27),
+    value: 85,
+  ),
+  TierReached(
+    eventId: 'e28',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(28),
+    createdAt: at(28),
+    tier: TownTier.hamlet,
+  ),
+  DistrictPurchased(
+    eventId: 'e29',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(29),
+    createdAt: at(29),
+    districtId: 'farmland',
+    cost: Loot(gems: 40, materials: MaterialBundle({MaterialKind.lumber: 120})),
+  ),
+  DistrictBuildingStarted(
+    eventId: 'e30',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(30),
+    createdAt: at(30),
+    districtId: 'farmland',
+    plotIndex: 2,
+    buildingKey: 'farm',
+    tier: 1,
+    cost: Loot(materials: MaterialBundle({MaterialKind.lumber: 20})),
+    completesAt: at(30),
+  ),
+  FoodHarvested(
+    eventId: 'e31',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(31),
+    createdAt: at(31),
+    districtId: 'farmland',
+    plotIndex: 2,
+    amount: 48,
+  ),
+  FoodConsumed(
+    eventId: 'e32',
+    deviceId: 'dev-1',
+    actorId: robin,
+    occurredAt: at(32),
+    createdAt: at(32),
+    day: GameDay.fromInstant(at(0)),
+    amount: 10,
+  ),
 ];
 
 void main() {
@@ -226,6 +310,98 @@ void main() {
     final decoded = GameEvent.fromJson(olderBuild);
     expect(decoded, isA<UnknownGameEvent>());
     expect(decoded.toJson(), olderBuild);
+  });
+
+  test('an older build sees the town split as UnknownGameEvent and relays it '
+      'verbatim', () {
+    final raw = _samples.whereType<TownsSplit>().single.toJson();
+    expect((raw['payload'] as Map<String, dynamic>)['splitId'], 'towns.split');
+    final olderBuild = {...raw, 'type': 'FutureTownsSplit'};
+    final decoded = GameEvent.fromJson(olderBuild);
+    expect(decoded, isA<UnknownGameEvent>());
+    expect(decoded.toJson(), olderBuild);
+  });
+
+  test('an older build sees a gift as UnknownGameEvent and relays it verbatim',
+      () {
+    final raw = _samples.whereType<GiftSent>().single.toJson();
+    final olderBuild = {...raw, 'type': 'FutureGiftSent'};
+    final decoded = GameEvent.fromJson(olderBuild);
+    expect(decoded, isA<UnknownGameEvent>());
+    expect(decoded.toJson(), olderBuild);
+  });
+
+  test('an older build sees a cheer as UnknownGameEvent and relays it verbatim',
+      () {
+    final raw = _samples.whereType<CheerSent>().single.toJson();
+    expect(raw['payload'], {'toPersonId': sam, 'day': GameDay.fromInstant(at(26)).toKey()});
+    final olderBuild = {...raw, 'type': 'FutureCheerSent'};
+    final decoded = GameEvent.fromJson(olderBuild);
+    expect(decoded, isA<UnknownGameEvent>());
+    expect(decoded.toJson(), olderBuild);
+  });
+
+  test('an older build sees prosperity and tiers as UnknownGameEvent and relays '
+      'them verbatim', () {
+    for (final event in _samples.where(
+        (event) => event is ProsperityReached || event is TierReached)) {
+      final olderBuild = {...event.toJson(), 'type': 'Future${event.type}'};
+      final decoded = GameEvent.fromJson(olderBuild);
+      expect(decoded, isA<UnknownGameEvent>());
+      expect(decoded.toJson(), olderBuild);
+    }
+  });
+
+  test('an older build sees districts and food as UnknownGameEvent and relays '
+      'them verbatim', () {
+    for (final event in _samples.where((event) =>
+        event is DistrictPurchased ||
+        event is DistrictBuildingStarted ||
+        event is FoodHarvested ||
+        event is FoodConsumed)) {
+      final olderBuild = {...event.toJson(), 'type': 'Future${event.type}'};
+      final decoded = GameEvent.fromJson(olderBuild);
+      expect(decoded, isA<UnknownGameEvent>());
+      expect(decoded.toJson(), olderBuild);
+    }
+  });
+
+  test('a district building or district this build lacks still decodes, '
+      'verbatim, for the projection to set aside', () {
+    final raw = _samples.whereType<DistrictBuildingStarted>().single.toJson();
+    final newer = {
+      ...raw,
+      'payload': {
+        ...raw['payload'] as Map<String, dynamic>,
+        'districtId': 'residential',
+        'buildingKey': 'cottage',
+      },
+    };
+    final decoded = GameEvent.fromJson(newer);
+    expect(decoded, isA<DistrictBuildingStarted>());
+    expect(decoded.toJson(), newer);
+  });
+
+  test('a tier this build lacks is kept as UnknownGameEvent', () {
+    final raw = _samples.whereType<TierReached>().single.toJson();
+    final newer = {
+      ...raw,
+      'payload': {...raw['payload'] as Map<String, dynamic>, 'tier': 'metropolis'},
+    };
+    expect(GameEvent.fromJson(newer), isA<UnknownGameEvent>());
+  });
+
+  test('a split naming a material this build lacks is kept as UnknownGameEvent',
+      () {
+    final raw = _samples.whereType<TownsSplit>().single.toJson();
+    final newer = {
+      ...raw,
+      'payload': {
+        ...raw['payload'] as Map<String, dynamic>,
+        'welcome': {'moonstone': 3},
+      },
+    };
+    expect(GameEvent.fromJson(newer), isA<UnknownGameEvent>());
   });
 
   test('a windfall-free offer omits its plot, and a decline its amounts', () {
