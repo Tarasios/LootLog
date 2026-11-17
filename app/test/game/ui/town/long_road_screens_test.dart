@@ -152,6 +152,36 @@ void main() {
     expect(_scene(tester).view.castleUnderConstruction, isTrue);
   });
 
+  testWidgets('a double tap on Start starts one workshop job and one Castle stage', (tester) async {
+    final store = await storeWith(longRoadEvents(TownTier.city, goods: true, extra: [
+      civicBuilt('workshop', kMarketRowDistrictId, 1, CivicBuildingType.workshop, when: before(const Duration(days: 3))),
+      civicBuilt('workshop-2', kMarketRowDistrictId, 3, CivicBuildingType.workshop, when: before(const Duration(days: 3))),
+    ]));
+    await _pump(tester, longRoadHost(store));
+    await _openDistrict(tester, kMarketRowDistrictId);
+    await _tapPlot(tester, 1);
+    final start = find.byKey(const ValueKey('workshop-start'));
+    await tester.ensureVisible(start);
+    await tester.tap(start);
+    await tester.tap(start, warnIfMissed: false);
+    await _frames(tester);
+    final jobs = (await store.all()).whereType<RefiningStarted>().where((event) => event.eventId != 'crates');
+    expect(jobs, hasLength(1), reason: 'two idle workshops, one tap that counts');
+    await tester.tap(find.text('Close').last);
+    await _frames(tester);
+
+    await _openDistrict(tester, kCastleHillDistrictId);
+    final scene = _scene(tester);
+    scene.onTarget(scene.view.targetAt(scene.view.layout.castleOrigin!)!);
+    await _frames(tester);
+    final castle = find.byKey(const ValueKey('castle-start'));
+    await tester.ensureVisible(castle);
+    await tester.tap(castle);
+    await tester.tap(castle, warnIfMissed: false);
+    await _frames(tester);
+    expect((await store.all()).whereType<CastleStageStarted>(), hasLength(1));
+  });
+
   testWidgets('the Castle sheet says what is still to gather', (tester) async {
     await _pump(tester, longRoadHost(await storeWith(longRoadEvents(TownTier.city))));
     await _openDistrict(tester, kCastleHillDistrictId);

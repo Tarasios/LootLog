@@ -113,8 +113,10 @@ int castleProsperityAt(CastleState castle, DateTime at) {
 /// [town]'s Castle after [started] (paid by the caller), or why it changes
 /// nothing: a copy of a stage already begun; a stage out of order (or
 /// begun before the last one finished, or one this build lacks); or a stage
-/// begun while the town held [tier] below the city, or set to finish before
-/// its build days were up.
+/// begun while the town held [tier] below the city, or one that finishes no
+/// later than it begins. The build days are the command's to settle and are
+/// stored in the event: history keeps the finish it was given, so a later
+/// balance change never unbuilds (or refunds) a stage already synced.
 ({CastleState? castle, GameWarningCode? warning}) applyCastleStage(
     HallState town, CastleStageStarted started, {required TownTier tier}) {
   final castle = town.castle;
@@ -129,8 +131,7 @@ int castleProsperityAt(CastleState castle, DateTime at) {
       !previousDone) {
     return (castle: null, warning: GameWarningCode.castleOutOfOrder);
   }
-  final earliestFinish = started.occurredAt.add(Duration(days: spec.buildDays));
-  if (tier != TownTier.city || started.completesAt.isBefore(earliestFinish)) {
+  if (tier != TownTier.city || !started.completesAt.isAfter(started.occurredAt)) {
     return (castle: null, warning: GameWarningCode.castleStageInvalid);
   }
   return (

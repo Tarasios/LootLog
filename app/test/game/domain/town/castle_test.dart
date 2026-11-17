@@ -175,16 +175,35 @@ void main() {
       expect(state.warnings.single.code, GameWarningCode.castleStageInvalid);
     });
 
-    test('a stage that would finish before its build days are up is ignored and not charged', () {
+    test('a stage begun under older build days keeps its own finish when the balance changes', () {
+      // Synced history: a stage stored with a shorter build than today's
+      // Balance says. It stands as stored, and is charged once.
+      final shorter = at(10).add(_days(1)).subtract(const Duration(days: 1));
       final state = projectGameState([
         ..._city(),
-        castleStageStarted('rushed', 1,
-            when: at(10), completesAt: at(10).add(_days(1)).subtract(const Duration(minutes: 1)),
-            cost: const Loot(gems: 10)),
+        castleStageStarted('older', 1, when: at(10), completesAt: shorter, cost: const Loot(gems: 10)),
+      ]);
+      expect(state.townOf(robin).castle.stagesStarted, 1);
+      expect(state.townOf(robin).castle.stages.single.completesAt, shorter);
+      expect(state.person(robin).gems, 4990);
+      expect(state.warnings, isEmpty);
+    });
+
+    test('a stage that finishes no later than it begins is ignored and not charged', () {
+      final state = projectGameState([
+        ..._city(),
+        castleStageStarted('instant', 1, when: at(10), completesAt: at(10), cost: const Loot(gems: 10)),
       ]);
       expect(state.townOf(robin).castle.stagesStarted, 0);
       expect(state.person(robin).gems, 5000);
       expect(state.warnings.single.code, GameWarningCode.castleStageInvalid);
+    });
+
+    test('the command still asks for the full build days', () {
+      final state = projectGameState(_city());
+      final result = commandsFor(state, at(10)).startCastleStage();
+      final started = result.events.whereType<CastleStageStarted>().single;
+      expect(started.completesAt, started.occurredAt.add(_days(1)));
     });
   });
 

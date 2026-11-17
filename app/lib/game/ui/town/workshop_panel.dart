@@ -83,7 +83,7 @@ class _WorkshopPanelState extends ConsumerState<WorkshopPanel> {
         children: [
           for (final job in jobs) _jobRow(job, now, lines),
           if (anyDone)
-            sheetButton(
+            commandButton(
               'Collect',
               previewRejection(game, meId, clock, (commands) => commands.collectGoods()) == null ? _collect : null,
               key: const ValueKey('workshop-collect'),
@@ -187,7 +187,7 @@ class _WorkshopPanelState extends ConsumerState<WorkshopPanel> {
           ),
           const SizedBox(height: AppSpacing.xs),
           gateLine(context, voice, rejection),
-          sheetButton('Start', rejection == null ? () => _start(batches, output, lines) : null,
+          commandButton('Start', rejection == null ? () => _start(batches, output, lines) : null,
               key: const ValueKey('workshop-start')),
         ],
       ),

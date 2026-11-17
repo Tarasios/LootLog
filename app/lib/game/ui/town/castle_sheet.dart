@@ -114,7 +114,7 @@ class CastleSheet extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           gateLine(context, voice, missing.isEmpty ? rejection : null),
-          sheetButton('Start the $name', rejection == null ? () => _start(context, ref, spec, lines) : null,
+          commandButton('Start the $name', rejection == null ? () => _start(context, ref, spec, lines) : null,
               key: const ValueKey('castle-start')),
         ],
       ),

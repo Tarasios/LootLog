@@ -279,4 +279,12 @@ void main() {
       Balance.prosperityPerDistrict + 3 * Balance.prosperityPerBuildingTier,
     );
   });
+
+  test('the first finish of a building is part of its identity and its hash', () {
+    DistrictBuildingState building(DateTime first) => DistrictBuildingState(
+        key: 'cottage', tier: 2, startedAt: at(10), completesAt: at(20), firstCompletedAt: first);
+    expect(building(at(5)), isNot(building(at(6))));
+    expect(building(at(5)).hashCode, building(at(5)).hashCode);
+    expect(building(at(5)).hashCode, isNot(building(at(6)).hashCode));
+  });
 }

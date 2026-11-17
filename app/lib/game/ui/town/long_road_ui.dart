@@ -52,6 +52,48 @@ Widget gateLine(BuildContext context, HallVoice voice, GameRejection? rejection)
 Widget sheetButton(String label, VoidCallback? onPressed, {Key? key}) =>
     Align(alignment: Alignment.centerLeft, child: FramedButton(key: key, label: label, onPressed: onPressed));
 
+/// A left-aligned framed button for a command: off while [run] is under way
+/// and for a moment after, until the sheet has caught up with what it
+/// wrote, so a double tap starts (and charges) one job, not two.
+Widget commandButton(String label, Future<void> Function()? run, {Key? key}) =>
+    _CommandButton(buttonKey: key, label: label, run: run);
+
+class _CommandButton extends StatefulWidget {
+  const _CommandButton({required this.buttonKey, required this.label, required this.run});
+
+  /// The key of the button itself, so a tap on it lands on it.
+  final Key? buttonKey;
+
+  final String label;
+  final Future<void> Function()? run;
+
+  @override
+  State<_CommandButton> createState() => _CommandButtonState();
+}
+
+class _CommandButtonState extends State<_CommandButton> {
+  /// How long the button stays off after its command, for the second tap
+  /// of a double tap.
+  static const Duration _settle = Duration(milliseconds: 500);
+
+  bool _running = false;
+
+  Future<void> _press() async {
+    if (_running) return;
+    setState(() => _running = true);
+    try {
+      await widget.run!();
+      await Future<void>.delayed(_settle);
+    } finally {
+      if (mounted) setState(() => _running = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      sheetButton(widget.label, widget.run == null || _running ? null : _press, key: widget.buttonKey);
+}
+
 /// Opens [sheet]: a framed game dialog in the pixel tier, a scrolling
 /// bottom sheet in the text tier.
 Future<void> showLongRoadSheet(BuildContext context, Widget sheet) {

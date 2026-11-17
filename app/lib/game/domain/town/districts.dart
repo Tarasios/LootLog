@@ -88,7 +88,7 @@ class DistrictBuildingState {
       other.firstCompletedAt == firstCompletedAt;
 
   @override
-  int get hashCode => Object.hash(key, tier, startedAt, completesAt);
+  int get hashCode => Object.hash(key, tier, startedAt, completesAt, firstCompletedAt);
 }
 
 /// The districts a town owns beyond the outpost, and their buildings.
