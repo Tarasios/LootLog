@@ -46,19 +46,19 @@ bool farmResting(HallState town, PlotAddress address, DateTime at) {
 }
 
 /// The instant farmland plot [plotIndex] became guarded, by the guard
-/// buildings as they stand: [kAlwaysGuarded] for a plot guarded from the
-/// start (or before any guard building changed), null for one not guarded
-/// yet. Capacity changes only when a guard building finishes, so those are
-/// the only instants to look at.
+/// buildings as they stand: [kAlwaysGuarded] for a plot that needs no
+/// guards, null for one not guarded yet. Capacity changes only when a guard
+/// building first finishes or an upgrade finishes, so those are the only
+/// instants to look at (a guard building counts for nothing before its
+/// first build finished).
 DateTime? farmPlotGuardedSince(HallState town, int plotIndex) {
   if (plotIndex < Balance.unguardedFarmPlots) return kAlwaysGuarded;
   final changes = <DateTime>[
     for (final building in town.districts.buildings.values)
       if (building.civicType case final type?
           when Balance.civicBuildings[type]!.guardsByTier.isNotEmpty)
-        building.completesAt,
+        ...[building.firstCompletedAt, building.completesAt],
   ]..sort();
-  if (farmPlotGuarded(town, plotIndex, kAlwaysGuarded)) return kAlwaysGuarded;
   for (final change in changes) {
     if (farmPlotGuarded(town, plotIndex, change)) return change;
   }

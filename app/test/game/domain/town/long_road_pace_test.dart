@@ -1,5 +1,5 @@
 /// The long road's pace, held so balance edits can't silently break it: a
-/// simulated adult on 400 days of the real engine and commands
+/// simulated adult on 500 days of the real engine and commands
 /// (`long_road_sim.dart`), logging every day, and another logging four days
 /// a week.
 library;
@@ -24,7 +24,7 @@ String _summary(List<SimDay> days) {
 
 void main() {
   test('a daily player walks the long road to the castle', () {
-    final days = simulateLongRoad(400);
+    final days = simulateLongRoad(500);
     final summary = _summary(days);
     // ignore: avoid_print
     print('daily: $summary');
@@ -35,18 +35,18 @@ void main() {
     final castle = _firstDay(days, (d) => d.castleComplete);
     expect(village, inInclusiveRange(21, 45), reason: summary);
     expect(town, inInclusiveRange(90, 150), reason: summary);
-    expect(city, inInclusiveRange(200, 300), reason: summary);
+    expect(city, inInclusiveRange(220, 290), reason: summary);
     expect(firstStage, inInclusiveRange(city, city + 30), reason: 'soon after the city. $summary');
-    // The Castle stands finished after a year, and before day 500 (the
-    // simulation runs 400 days, so day 999 means not yet).
-    expect(castle, greaterThan(365), reason: summary);
-    if (castle != 999) expect(castle, lessThan(500), reason: summary);
+    // The Castle takes at least four months after the City, and stands
+    // finished before day 500.
+    expect(castle, inInclusiveRange(city + 120, 500), reason: summary);
 
     final quiet = <int>[];
-    for (var start = village; start + 10 <= days.length; start += 10) {
+    // Every window from the Village to the finished Castle, the road's end.
+    for (var start = village; start + 10 <= castle; start += 10) {
       if (days.skip(start).take(10).every((d) => d.steps == 0)) quiet.add(start + 1);
     }
-    expect(quiet, isEmpty, reason: 'every 10 days after the village brings a step. quiet from $quiet. $summary');
+    expect(quiet, isEmpty, reason: 'every 10 days from the village to the castle brings a step. quiet from $quiet. $summary');
   });
 
   test('a player who logs four days a week still reaches the town', () {

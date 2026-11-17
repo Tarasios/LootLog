@@ -51,12 +51,17 @@ class DistrictBuildingState {
     required this.tier,
     required this.startedAt,
     required this.completesAt,
-  });
+    DateTime? firstCompletedAt,
+  }) : firstCompletedAt = firstCompletedAt ?? completesAt;
 
   final String key;
   final int tier;
   final DateTime startedAt;
   final DateTime completesAt;
+
+  /// When its tier-1 build finished: before then it stood at no tier at
+  /// all, however far it has been upgraded since.
+  final DateTime firstCompletedAt;
 
   /// The farm building it is, or null when it is not one.
   FarmBuildingType? get farmType => farmBuildingByKey(key);
@@ -66,9 +71,12 @@ class DistrictBuildingState {
 
   bool isCompleteAt(DateTime at) => !at.isBefore(completesAt);
 
-  /// The tier in service at [at]: the previous tier while an upgrade is
-  /// under way (0 while first being built).
-  int tierAt(DateTime at) => isCompleteAt(at) ? tier : tier - 1;
+  /// The tier in service at [at]: 0 before its first build finished, the
+  /// previous tier while an upgrade is under way.
+  int tierAt(DateTime at) {
+    if (at.isBefore(firstCompletedAt)) return 0;
+    return isCompleteAt(at) ? tier : tier - 1;
+  }
 
   @override
   bool operator ==(Object other) =>
@@ -76,7 +84,8 @@ class DistrictBuildingState {
       other.key == key &&
       other.tier == tier &&
       other.startedAt == startedAt &&
-      other.completesAt == completesAt;
+      other.completesAt == completesAt &&
+      other.firstCompletedAt == firstCompletedAt;
 
   @override
   int get hashCode => Object.hash(key, tier, startedAt, completesAt);
@@ -249,6 +258,8 @@ bool plotIsOpen(HallState town, PlotAddress address, [TownTier? tier]) {
           tier: tier,
           startedAt: startedAt,
           completesAt: completesAt,
+          // An upgrade keeps the instant its first build finished.
+          firstCompletedAt: existing?.firstCompletedAt ?? completesAt,
         ),
       }),
     ),

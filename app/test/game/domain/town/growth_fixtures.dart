@@ -3,6 +3,7 @@
 library;
 
 import 'package:lootlog/game/domain/decor/decor_values.dart';
+import 'package:lootlog/game/config/balance.dart';
 import 'package:lootlog/game/domain/game_event.dart';
 import 'package:lootlog/game/domain/game_values.dart';
 
@@ -241,9 +242,11 @@ GoodsCollected goodsCollected(String id, int plotIndex, String jobId, GoodsBundl
       goods: goods,
     );
 
+/// Castle stage [stage] begun at [when]; it finishes after the stage's
+/// build days unless [completesAt] says otherwise.
 CastleStageStarted castleStageStarted(String id, int stage,
         {required DateTime when,
-        required DateTime completesAt,
+        DateTime? completesAt,
         String? stageKey,
         Loot cost = Loot.none,
         GoodsBundle goods = const GoodsBundle.empty(),
@@ -259,5 +262,6 @@ CastleStageStarted castleStageStarted(String id, int stage,
       stageKey: stageKey ?? const ['foundation', 'keep', 'walls', 'towers', 'banners'][stage - 1],
       cost: cost,
       goods: goods,
-      completesAt: completesAt,
+      completesAt: completesAt ??
+          when.add(Duration(days: Balance.castleStages[(stage - 1).clamp(0, 4)].buildDays)),
     );

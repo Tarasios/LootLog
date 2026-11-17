@@ -86,7 +86,7 @@ void main() {
 
     test('building on a plot past the guards is allowed', () {
       final state = projectGameState([
-        ...tierWith(TownTier.village,
+        ...tierWith(TownTier.town,
             materials: MaterialBundle({MaterialKind.lumber: 500, MaterialKind.stone: 500})),
         districtPurchased('farmland', kFarmlandDistrictId, when: at(-1)),
       ]);
@@ -111,6 +111,25 @@ void main() {
       expect((harvest.events.single as FoodHarvested).amount, _farmRate(1));
     });
 
+    test('a watchtower upgraded since counts for nothing before its first build finished', () {
+      // The farm finishes at kBase; the watchtower's first build only two
+      // hours later, and it has been raised to tier 2 since.
+      final state = projectGameState([
+        ...farmPastTheEdge(),
+        civicBuilt('t1', kGuardPostDistrictId, 0, CivicBuildingType.watchtower,
+            when: at(60), completesAt: at(120)),
+        civicBuilt('t2', kGuardPostDistrictId, 0, CivicBuildingType.watchtower,
+            when: at(150), tier: 2, completesAt: at(210)),
+      ]);
+      final town = state.townOf(robin);
+      final address = PlotAddress(kFarmlandDistrictId, _firstGuardedPlot);
+      expect(town.districts.buildingAt(const PlotAddress(kGuardPostDistrictId, 0))!.firstCompletedAt, at(120));
+      expect(guardCapacityAt(town, at(119)), 0);
+      expect(farmPlotGuardedSince(town, _firstGuardedPlot), at(120));
+      expect(uncollectedFood(town, address, at(180), activeDays: state.townActiveDaysOf(robin)), _farmRate(1),
+          reason: 'only the hour since the first watch began');
+    });
+
     test('a farm within the unguarded plots never rests', () {
       final state = projectGameState([
         ...tierWith(TownTier.village),
@@ -122,6 +141,27 @@ void main() {
       const address = PlotAddress(kFarmlandDistrictId, 0);
       expect(uncollectedFood(town, address, at(60), activeDays: state.townActiveDaysOf(robin)),
           _farmRate(1));
+    });
+  });
+
+  group('a stage-2 farmland', () {
+    test('farms on all six fields keep growing with no Guard Post', () {
+      final state = projectGameState([
+        ...tierWith(TownTier.village),
+        granted('log', when: at(-5), rewardId: 'log', reasonCode: GameReasonCodes.dailyLog),
+        districtPurchased('farmland', kFarmlandDistrictId, when: at(-1)),
+        for (var plot = 0; plot < Balance.farmlandPlotCount; plot++)
+          farmBuilt('farm-$plot', plot, FarmBuildingType.farm, when: at(0)),
+      ]);
+      final town = state.townOf(robin);
+      expect(town.districts.owns(kGuardPostDistrictId), isFalse);
+      for (var plot = 0; plot < Balance.farmlandPlotCount; plot++) {
+        final address = PlotAddress(kFarmlandDistrictId, plot);
+        expect(farmResting(town, address, at(60)), isFalse, reason: 'plot $plot');
+        expect(uncollectedFood(town, address, at(60), activeDays: state.townActiveDaysOf(robin)), _farmRate(1),
+            reason: 'plot $plot');
+        expect(commandsFor(state, at(60)).harvestFood(plot).accepted, isTrue, reason: 'plot $plot');
+      }
     });
   });
 

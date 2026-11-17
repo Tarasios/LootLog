@@ -34,6 +34,18 @@ List<GameEvent> _city({TownTier tier = TownTier.city}) => [
 
 Duration _days(int stage) => Duration(days: Balance.castleStages[stage - 1].buildDays);
 
+/// All five stages, each begun the moment the last one finished, from
+/// [start]; and the instant the last one finishes.
+({List<CastleStageStarted> stages, DateTime done}) _wholeCastle(DateTime start) {
+  final stages = <CastleStageStarted>[];
+  var at = start;
+  for (var stage = 1; stage <= 5; stage++) {
+    stages.add(castleStageStarted('stage-$stage', stage, when: at));
+    at = at.add(_days(stage));
+  }
+  return (stages: stages, done: at);
+}
+
 void main() {
   var ids = 0;
   GameCommands commandsFor(GameState state, DateTime now) => GameCommands(
@@ -112,9 +124,9 @@ void main() {
     test('a stage out of order, or started before the last one finished, is ignored and not charged', () {
       final state = projectGameState([
         ..._city(),
-        castleStageStarted('skip', 2, when: at(10), completesAt: at(20), cost: const Loot(gems: 10)),
-        castleStageStarted('one', 1, when: at(11), completesAt: at(100), cost: const Loot(gems: 10)),
-        castleStageStarted('early', 2, when: at(50), completesAt: at(200), cost: const Loot(gems: 10)),
+        castleStageStarted('skip', 2, when: at(10), cost: const Loot(gems: 10)),
+        castleStageStarted('one', 1, when: at(11), cost: const Loot(gems: 10)),
+        castleStageStarted('early', 2, when: at(50), cost: const Loot(gems: 10)),
       ]);
       expect(state.townOf(robin).castle.stagesStarted, 1);
       expect(state.person(robin).gems, 4990);
@@ -125,12 +137,12 @@ void main() {
     test('two devices starting the same stage: the earlier stands, once, in any order', () {
       final events = [
         ..._city(),
-        castleStageStarted('on-a', 1, when: at(10), completesAt: at(100), cost: const Loot(gems: 10), device: 'a'),
-        castleStageStarted('on-b', 1, when: at(12), completesAt: at(102), cost: const Loot(gems: 10), device: 'b'),
+        castleStageStarted('on-a', 1, when: at(10), cost: const Loot(gems: 10), device: 'a'),
+        castleStageStarted('on-b', 1, when: at(12), cost: const Loot(gems: 10), device: 'b'),
       ];
       final state = projectGameState(events);
       expect(projectGameState(events.reversed), state);
-      expect(state.townOf(robin).castle.stages.single.completesAt, at(100));
+      expect(state.townOf(robin).castle.stages.single.completesAt, at(10).add(_days(1)));
       expect(state.person(robin).gems, 4990);
       expect(state.warnings.single.code, GameWarningCode.duplicateCastleStage);
     });
@@ -138,7 +150,7 @@ void main() {
     test('a stage the goods cannot pay for is not applied', () {
       final state = projectGameState([
         ...tierWith(TownTier.city, gems: 5000),
-        castleStageStarted('one', 1, when: at(10), completesAt: at(20), goods: GoodsBundle({GoodsKind.planks: 1})),
+        castleStageStarted('one', 1, when: at(10), goods: GoodsBundle({GoodsKind.planks: 1})),
       ]);
       expect(state.townOf(robin).castle.stagesStarted, 0);
       expect(state.warnings.single.code, GameWarningCode.goodsShort);
@@ -147,10 +159,32 @@ void main() {
     test('a stage key this build does not know is set aside', () {
       final state = projectGameState([
         ..._city(),
-        castleStageStarted('moat', 1, stageKey: 'moat', when: at(10), completesAt: at(20)),
+        castleStageStarted('moat', 1, stageKey: 'moat', when: at(10)),
       ]);
       expect(state.townOf(robin).castle.stagesStarted, 0);
       expect(state.warnings.single.code, GameWarningCode.castleOutOfOrder);
+    });
+
+    test('a stage begun before the town was a city is ignored and not charged', () {
+      final state = projectGameState([
+        ..._city(tier: TownTier.town),
+        castleStageStarted('one', 1, when: at(10), cost: const Loot(gems: 10)),
+      ]);
+      expect(state.townOf(robin).castle.stagesStarted, 0);
+      expect(state.person(robin).gems, 5000);
+      expect(state.warnings.single.code, GameWarningCode.castleStageInvalid);
+    });
+
+    test('a stage that would finish before its build days are up is ignored and not charged', () {
+      final state = projectGameState([
+        ..._city(),
+        castleStageStarted('rushed', 1,
+            when: at(10), completesAt: at(10).add(_days(1)).subtract(const Duration(minutes: 1)),
+            cost: const Loot(gems: 10)),
+      ]);
+      expect(state.townOf(robin).castle.stagesStarted, 0);
+      expect(state.person(robin).gems, 5000);
+      expect(state.warnings.single.code, GameWarningCode.castleStageInvalid);
     });
   });
 
@@ -158,25 +192,23 @@ void main() {
     test('each finished stage adds its prosperity', () {
       final state = projectGameState([
         ..._city(),
-        castleStageStarted('one', 1, when: at(10), completesAt: at(100)),
+        castleStageStarted('one', 1, when: at(10)),
       ]);
-      final before = prosperityOf(state, robin, at(99));
-      expect(prosperityOf(state, robin, at(100)) - before, Balance.castleStages.first.prosperity);
-      expect(castleProsperityAt(state.townOf(robin).castle, at(100)), Balance.castleStages.first.prosperity);
+      final done = at(10).add(_days(1));
+      final before = prosperityOf(state, robin, done.subtract(const Duration(minutes: 1)));
+      expect(prosperityOf(state, robin, done) - before, Balance.castleStages.first.prosperity);
+      expect(castleProsperityAt(state.townOf(robin).castle, done), Balance.castleStages.first.prosperity);
     });
 
     test('the engine rewards each finished stage once, and the banners bring a trophy', () {
-      final log = <GameEvent>[
-        ..._city(),
-        for (var stage = 1; stage <= 5; stage++)
-          castleStageStarted('stage-$stage', stage, when: at(10 + stage), completesAt: at(10 + stage)),
-      ];
+      final castle = _wholeCastle(at(10));
+      final log = <GameEvent>[..._city(), ...castle.stages];
       const party = Party([PartyAdult(robin, inAdventure: true)]);
       List<GameEvent> run() {
         final out = const RewardEngine(monthEnd: NoMonthEndRewards()).evaluate(
           const [],
           projectGameState(log),
-          FixedClock(at(60)),
+          FixedClock(castle.done),
           party: party,
           stamp: GameEventStamp(deviceId: 'e', newEventId: () => 'e-${(ids++).toString().padLeft(4, '0')}'),
         );
@@ -199,21 +231,17 @@ void main() {
         ],
       });
       const party = Party([PartyAdult(robin, inAdventure: true)]);
-      final unfinished = projectGameState([
-        ..._city(),
-        castleStageStarted('one', 1, when: at(10), completesAt: at(11)),
-      ]);
+      final castle = _wholeCastle(at(10));
       GameEventStamp stamp() => GameEventStamp(deviceId: 't', newEventId: () => 't-${ids++}');
-      expect(const CastleTitle().evaluate(unfinished, party, catalog, FixedClock(at(60)), stamp()), isEmpty);
-      final finished = projectGameState([
-        ..._city(),
-        for (var stage = 1; stage <= 5; stage++)
-          castleStageStarted('stage-$stage', stage, when: at(10 + stage), completesAt: at(10 + stage)),
-      ]);
-      final grants = const CastleTitle().evaluate(finished, party, catalog, FixedClock(at(60)), stamp());
+      final finished = projectGameState([..._city(), ...castle.stages]);
+      final almost = castle.done.subtract(const Duration(minutes: 1));
+      expect(const CastleTitle().evaluate(finished, party, catalog, FixedClock(almost), stamp()), isEmpty);
+      final grants = const CastleTitle().evaluate(finished, party, catalog, FixedClock(castle.done), stamp());
       final title = grants.single as ItemAcquired;
       expect(title.itemId, kCastleTitleItemId);
-      expect(const CastleTitle().evaluate(finished.apply(title), party, catalog, FixedClock(at(61)), stamp()),
+      expect(
+          const CastleTitle().evaluate(
+              finished.apply(title), party, catalog, FixedClock(castle.done.add(const Duration(minutes: 1))), stamp()),
           isEmpty);
     });
   });

@@ -131,6 +131,10 @@ enum GameWarningCode {
   /// ignored, not charged.
   duplicateCastleStage,
 
+  /// A Castle stage begun by a town that was not yet a city, or one set to
+  /// finish before its build days were up; ignored, not charged.
+  castleStageInvalid,
+
   /// A harvest that would overflow the granary; the excess stayed in the
   /// field.
   foodCapped,

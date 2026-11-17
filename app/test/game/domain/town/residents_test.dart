@@ -48,6 +48,19 @@ void main() {
           _housing(CivicBuildingType.cottage, 2) + _housing(CivicBuildingType.cottage, 1));
     });
 
+    test('a house upgraded since housed nobody before its first build finished', () {
+      final town = projectGameState([
+        ...quarter,
+        civicBuilt('c1', kResidentialDistrictId, 0, CivicBuildingType.cottage,
+            when: at(2), completesAt: at(60)),
+        civicBuilt('c2', kResidentialDistrictId, 0, CivicBuildingType.cottage,
+            when: at(90), tier: 2, completesAt: at(150)),
+      ]).townOf(robin);
+      expect(housingAt(town, at(59)), 0);
+      expect(housingAt(town, at(60)), _housing(CivicBuildingType.cottage, 1));
+      expect(housingAt(town, at(150)), _housing(CivicBuildingType.cottage, 2));
+    });
+
     test('other districts\' buildings house nobody', () {
       final town = projectGameState([
         ...tierWith(TownTier.village),

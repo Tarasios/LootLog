@@ -547,7 +547,7 @@ void _apply(_GameStateDraft draft, GameEvent event) {
 
     case CastleStageStarted started:
       final town = draft.town(actor);
-      final outcome = applyCastleStage(town, started);
+      final outcome = applyCastleStage(town, started, tier: draft.person(actor).townTier);
       final castle = outcome.castle;
       if (castle == null) {
         draft.warn(outcome.warning!, '${started.stage} ${started.stageKey}');

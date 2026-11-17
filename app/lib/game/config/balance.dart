@@ -689,12 +689,11 @@ abstract final class Balance {
     TownTier.city: 120,
   };
 
-  /// Farm plots that work with no guards at all; each farm plot past them
-  /// needs [guardsPerFarmPlot] guard capacity, or its farm rests (it keeps
-  /// its building and grows again once guarded). A tier-1 watchtower guards
-  /// the farmland's last two fields, so the Guard Post is the village's
-  /// first step.
-  static const int unguardedFarmPlots = 4;
+  /// Farm plots that work with no guards at all: the farmland's six
+  /// stage-2 fields, so no farm already planted ever goes quiet. Each field
+  /// the Town and the City add needs [guardsPerFarmPlot] guard capacity, or
+  /// its farm rests (it keeps its building and grows again once guarded).
+  static const int unguardedFarmPlots = farmlandPlotCount;
   static const int guardsPerFarmPlot = 2;
 
   /// The farmland's plots by town tier: more fields open at the town and
@@ -757,43 +756,44 @@ abstract final class Balance {
   /// The Castle's five stages, built in order once the town is a city. The
   /// gems stay modest (a week or so of logging each) so the town keeps
   /// growing alongside; the bill is mostly refined goods, which only the
-  /// workshops make, a job a day, so the goods set the pace; and each stage
-  /// takes [CastleStageSpec.buildDays] days to raise. Together they make the
-  /// Castle the work of the months after the city.
+  /// workshops make, a job a day; and each stage takes
+  /// [CastleStageSpec.buildDays] days to raise (125 in all), which sets the
+  /// pace: the Castle is the work of the four to five months after the City
+  /// (simulated: finished around day 415).
   static final List<CastleStageSpec> castleStages = [
     CastleStageSpec(
       key: 'foundation',
       cost: Loot(gems: 60, materials: _m(stone: 2000, lumber: 1500)),
       goods: _g(cutStone: 400, planks: 300),
-      buildDays: 14,
+      buildDays: 16,
       prosperity: 100,
     ),
     CastleStageSpec(
       key: 'keep',
       cost: Loot(gems: 80, materials: _m(stone: 2500, ore: 1000)),
       goods: _g(cutStone: 600, tools: 200),
-      buildDays: 18,
+      buildDays: 21,
       prosperity: 150,
     ),
     CastleStageSpec(
       key: 'walls',
       cost: Loot(gems: 100, materials: _m(stone: 2500, lumber: 1500)),
       goods: _g(cutStone: 800, planks: 500),
-      buildDays: 21,
+      buildDays: 25,
       prosperity: 200,
     ),
     CastleStageSpec(
       key: 'towers',
       cost: Loot(gems: 120, materials: _m(stone: 2500, ore: 1500)),
       goods: _g(cutStone: 800, tools: 400),
-      buildDays: 25,
+      buildDays: 28,
       prosperity: 250,
     ),
     CastleStageSpec(
       key: 'banners',
       cost: Loot(gems: 150, materials: _m(hide: 2000, herbs: 2000)),
       goods: _g(cloth: 500, planks: 600),
-      buildDays: 30,
+      buildDays: 35,
       prosperity: 300,
     ),
   ];
