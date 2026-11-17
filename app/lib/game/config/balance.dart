@@ -396,7 +396,8 @@ abstract final class Balance {
   // by `test/game/domain/town/growth_pace_test.dart`): a build or upgrade
   // most days in the first two weeks, the Hamlet within the first week, the
   // Farmland affordable shortly after, the Village in about a month (it needs
-  // farms), and Town and City far beyond (their districts come later).
+  // farms). Town and City are held by `long_road_pace_test.dart` (see the
+  // long road section below).
 
   /// Prosperity per completed building tier, in every district: the town's
   /// growth is mostly what has been built.
@@ -414,13 +415,17 @@ abstract final class Balance {
   static const int prosperityPerFestival = 15;
 
   /// The peak prosperity each tier needs. Going past the Hamlet also needs
-  /// food in store (see the food numbers below).
+  /// food in store (see the food numbers below), and the Town and City need
+  /// houses ([housingForTier]). The Town's 1150 is about four months of a
+  /// daily player's building (simulated: day ~122); the City's 2100 needs
+  /// the Park and Market Row built up and lands in month 8–9 (day ~262),
+  /// which leaves the Castle's stages for the months after.
   static const Map<TownTier, int> tierProsperity = {
     TownTier.outpost: 0,
     TownTier.hamlet: 80,
     TownTier.village: 450,
-    TownTier.town: 1500,
-    TownTier.city: 4000,
+    TownTier.town: 1150,
+    TownTier.city: 2100,
   };
 
   /// What reaching each tier brings, claimed through the inbox: gems and a
@@ -532,8 +537,8 @@ abstract final class Balance {
   // Castle stage soon after, and the finished Castle after a year. A player
   // who logs four days a week still reaches Town before day 220.
 
-  /// The Guard Post (opens at the village): a few weeks of a village's gems
-  /// and stores. Its buildings add guard capacity for farms past the first
+  /// The Guard Post (opens at the village): about a week of a village's
+  /// gems and stores. Its buildings add guard capacity for farms past the first
   /// [unguardedFarmPlots].
   static const int guardPostGemPrice = 80;
   static const Map<MaterialKind, int> guardPostMaterialPrice = {
@@ -651,6 +656,11 @@ abstract final class Balance {
     ),
   };
 
+  /// Gems per civic tier (index tier − 1): lighter than a hall building's,
+  /// since by the village gems are what everything wants and the stores
+  /// overflow; the materials and goods carry the cost instead.
+  static const List<int> civicGemCostByTier = [0, 0, 5, 15, 30];
+
   /// Civic tiers from this one on want goods: `goodsBase ×`
   /// [civicGoodsMultiplierByTier] (index tier − 1).
   static const int civicGoodsFromTier = 3;
@@ -661,7 +671,7 @@ abstract final class Balance {
     final spec = civicBuildings[type]!;
     return (
       cost: Loot(
-        gems: buildingGemCostByTier[tier - 1],
+        gems: civicGemCostByTier[tier - 1],
         materials: spec.upgradeBase.scaled(buildingCostMultiplierByTier[tier - 1]),
       ),
       goods: tier < civicGoodsFromTier
@@ -672,7 +682,8 @@ abstract final class Balance {
 
   /// Housing a town needs (beyond the residents of its tier) to grow into
   /// each tier: houses for the people a town and a city draw in. A tier not
-  /// listed needs none.
+  /// listed needs none. 40 is a few cottages raised to tier 2; 120 wants the
+  /// quarter's six plots near tier 3, which goods (Market Row) unlock.
   static const Map<TownTier, int> housingForTier = {
     TownTier.town: 40,
     TownTier.city: 120,
@@ -680,7 +691,9 @@ abstract final class Balance {
 
   /// Farm plots that work with no guards at all; each farm plot past them
   /// needs [guardsPerFarmPlot] guard capacity, or its farm rests (it keeps
-  /// its building and grows again once guarded).
+  /// its building and grows again once guarded). A tier-1 watchtower guards
+  /// the farmland's last two fields, so the Guard Post is the village's
+  /// first step.
   static const int unguardedFarmPlots = 4;
   static const int guardsPerFarmPlot = 2;
 
@@ -695,7 +708,8 @@ abstract final class Balance {
   };
 
   /// The market trade: on a day the town's adult logged, a town with a stall
-  /// in service gets one extra trader offer. What the trader asks for and
+  /// in service gets one extra trader offer: a little richer than the daily
+  /// trader, so the stall is worth raising. What the trader asks for and
   /// hands back, by the best stall tier in service (index 0 = none).
   static const List<int> marketGiveByStallTier = [0, 30, 45, 60, 80, 100];
   static const List<int> marketReceiveByStallTier = [0, 15, 24, 33, 45, 60];
@@ -703,7 +717,9 @@ abstract final class Balance {
   // ---- Refined goods ---------------------------------------------------------
 
   /// The workshop recipes by id: planks from lumber, cut stone from stone,
-  /// tools from ore and lumber, cloth from hide and herbs.
+  /// tools from ore and lumber, cloth from hide and herbs. Five raw
+  /// materials make one good (the stores overflow by the town, so goods are
+  /// where the surplus goes); tools and cloth take twice as long.
   static final Map<String, RefiningRecipe> refiningRecipes = {
     'planks': RefiningRecipe(
       input: _m(lumber: 10),
@@ -732,53 +748,59 @@ abstract final class Balance {
   };
 
   /// The most batches one job may hold, by the workshop's tier in service
-  /// (index 0 = not built).
+  /// (index 0 = not built): a tier-1 job is three hours of planks, a tier-5
+  /// one most of a day, so one visit a day keeps a workshop busy.
   static const List<int> workshopMaxBatchesByTier = [0, 6, 10, 16, 24, 32];
 
   // ---- The Castle ------------------------------------------------------------
 
-  /// The Castle's five stages, built in order once the town is a city. Each
-  /// takes a long build and a large bill of goods, so the Castle is the
-  /// work of the year after the city.
+  /// The Castle's five stages, built in order once the town is a city. The
+  /// gems stay modest (a week or so of logging each) so the town keeps
+  /// growing alongside; the bill is mostly refined goods, which only the
+  /// workshops make, a job a day, so the goods set the pace; and each stage
+  /// takes [CastleStageSpec.buildDays] days to raise. Together they make the
+  /// Castle the work of the months after the city.
   static final List<CastleStageSpec> castleStages = [
     CastleStageSpec(
       key: 'foundation',
-      cost: Loot(gems: 200, materials: _m(stone: 1500, lumber: 1000)),
-      goods: _g(cutStone: 200, planks: 100),
-      buildDays: 7,
+      cost: Loot(gems: 60, materials: _m(stone: 2000, lumber: 1500)),
+      goods: _g(cutStone: 400, planks: 300),
+      buildDays: 14,
       prosperity: 100,
     ),
     CastleStageSpec(
       key: 'keep',
-      cost: Loot(gems: 250, materials: _m(stone: 2000, ore: 600)),
-      goods: _g(cutStone: 300, tools: 80),
-      buildDays: 10,
+      cost: Loot(gems: 80, materials: _m(stone: 2500, ore: 1000)),
+      goods: _g(cutStone: 600, tools: 200),
+      buildDays: 18,
       prosperity: 150,
     ),
     CastleStageSpec(
       key: 'walls',
-      cost: Loot(gems: 300, materials: _m(stone: 2500, lumber: 1000)),
-      goods: _g(cutStone: 400, planks: 200),
-      buildDays: 12,
+      cost: Loot(gems: 100, materials: _m(stone: 2500, lumber: 1500)),
+      goods: _g(cutStone: 800, planks: 500),
+      buildDays: 21,
       prosperity: 200,
     ),
     CastleStageSpec(
       key: 'towers',
-      cost: Loot(gems: 350, materials: _m(stone: 2500, ore: 800, crystal: 100)),
-      goods: _g(cutStone: 400, tools: 150),
-      buildDays: 14,
+      cost: Loot(gems: 120, materials: _m(stone: 2500, ore: 1500)),
+      goods: _g(cutStone: 800, tools: 400),
+      buildDays: 25,
       prosperity: 250,
     ),
     CastleStageSpec(
       key: 'banners',
-      cost: Loot(gems: 400, materials: _m(hide: 1000, herbs: 1000, essence: 100)),
-      goods: _g(cloth: 300, planks: 200),
-      buildDays: 14,
+      cost: Loot(gems: 150, materials: _m(hide: 2000, herbs: 2000)),
+      goods: _g(cloth: 500, planks: 600),
+      buildDays: 30,
       prosperity: 300,
     ),
   ];
 
-  /// What finishing each Castle stage brings, claimed through the inbox.
+  /// What finishing each Castle stage brings, claimed through the inbox (the
+  /// last stage adds a trophy, `town/castle.dart`): a few days of gems, so
+  /// each stage is felt without paying for the next.
   static const int castleStageRewardGems = 50;
 
   // ---- Hero gear ----------------------------------------------------------
