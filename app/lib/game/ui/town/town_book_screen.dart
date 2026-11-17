@@ -1,9 +1,10 @@
 /// The town book: a full screen of the town's growth, under the compact
 /// wood header. Prosperity with a meter to the next tier and what counts
 /// toward it; what the next tier needs (prosperity and, from the village,
-/// food), each ticked off or phrased as what to do next; the people and
-/// their food; the town's history; and the album of decorations and
-/// trophies. Every number is the rules' own (`townBook`). Reached from the
+/// food, and homes for the town and the city), each ticked off or phrased
+/// as what to do next; the people and their food; homes, guards and the
+/// fields they cover, goods and the Castle (`town_book_long_road_sections`);
+/// the town's history; and the album of decorations and trophies. Every number is the rules' own (`townBook`). Reached from the
 /// town Menu and by tapping the date chip; the text tier shows the same
 /// sections as text panels.
 library;
@@ -12,12 +13,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/game_providers.dart';
+import '../../domain/town/long_road_book.dart';
 import '../../domain/town/town_book.dart';
 import '../../domain/town/town_growth_lines.dart';
 import '../hall_common.dart';
 import '../hall_framed.dart';
 import '../hall_ledger_view.dart';
 import '../kit/kit.dart';
+import 'town_book_long_road_sections.dart';
 import 'town_book_sections.dart';
 import 'town_growth_providers.dart';
 import 'town_loop_view.dart' show fillLine;
@@ -36,12 +39,17 @@ class TownBookScreen extends ConsumerWidget {
     return HallTicker(builder: (context) {
       final now = clock.now();
       final book = townBook(game, meId, now);
+      final longRoad = longRoadBook(game, meId, now);
       return FramedHallScreen(
         title: lines.line('book.title'),
         children: [
           ProsperitySection(book: book, lines: lines),
-          NextTierSection(book: book, lines: lines),
+          NextTierSection(book: book, lines: lines, homes: longRoad),
           PeopleSection(book: book, lines: lines),
+          HomesSection(book: longRoad, lines: lines),
+          GuardsSection(book: longRoad, lines: lines),
+          GoodsSection(book: longRoad, lines: lines),
+          CastleSection(book: longRoad, lines: lines),
           HistorySection(person: game.person(meId), lines: lines),
           AlbumSection(game: game, personId: meId, lines: lines),
         ],
@@ -108,10 +116,13 @@ class ProsperitySection extends StatelessWidget {
 /// What growing into the next tier needs, each need ticked off or phrased
 /// as the next thing to do. A town short of food only waits.
 class NextTierSection extends StatelessWidget {
-  const NextTierSection({super.key, required this.book, required this.lines});
+  const NextTierSection({super.key, required this.book, required this.lines, this.homes});
 
   final TownBook book;
   final TownGrowthLines lines;
+
+  /// The homes the next tier needs (the town and the city need some).
+  final LongRoadBook? homes;
 
   @override
   Widget build(BuildContext context) {
@@ -150,6 +161,19 @@ class NextTierSection extends StatelessWidget {
                 'missing': '${food - book.foodStored}',
               }),
             ),
+          if (homes case final homes? when homes.nextTierNeedsHomes)
+            NeedLine(
+              met: homes.housed,
+              text: fillLine(lines.line(homes.housed ? 'book.housingDone' : 'book.housingToGo'), {
+                'tier': lines.line(tierNameKey(next)),
+                'housing': '${homes.housing}',
+                'needed': '${homes.housingNeeded}',
+              }),
+            ),
+          if (homes case final homes? when homes.nextTierNeedsHomes && !homes.housed && prosperityMet) ...[
+            const SizedBox(height: AdventureTokens.gap),
+            Text(lines.line('book.waitingOnHomes'), style: framedMutedStyle(context)),
+          ],
           if (book.waitingOnFood) ...[
             const SizedBox(height: AdventureTokens.gap),
             Text(lines.line('book.waitingOnHarvest'), style: framedMutedStyle(context)),

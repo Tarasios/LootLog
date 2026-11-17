@@ -1,7 +1,7 @@
 /// Riverpod wiring for the town loop: the wording of the town's events
 /// (`town_events.json`), and this device's memory of the weekends whose
-/// festival celebration it has already shown and of the last town tier it
-/// celebrated. The memory is per device: held for
+/// festival celebration it has already shown, of the last town tier it
+/// celebrated and of how many Castle stages it has celebrated. The memory is per device: held for
 /// the app session and kept in a tiny file in the app documents directory,
 /// like the quest board's fold (`quest_board_prefs.dart`). It never syncs.
 library;
@@ -17,6 +17,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../domain/game_state.dart' show PersonState;
 import '../../domain/game_values.dart';
+import '../../domain/town/castle.dart' show CastleState;
 import '../../domain/town/town_event_lines.dart';
 
 /// The writers' file of town event wording.
@@ -34,15 +35,34 @@ final townEventLinesProvider = FutureProvider<TownEventLines>((ref) async {
 const Duration kTierCelebrationWindow = Duration(days: 14);
 
 /// What this device has already shown: the week (its Monday) of the last
-/// festival celebration, and the last town tier celebrated. [loaded] is
-/// false until the stored memory has been read, and nothing pops up before
-/// then.
+/// festival celebration, the last town tier celebrated and how many Castle
+/// stages it has celebrated. [loaded] is false until the stored memory has
+/// been read, and nothing pops up before then.
 class TownLoopShown {
-  const TownLoopShown({this.loaded = false, this.festivalWeek, this.tierShown});
+  const TownLoopShown({this.loaded = false, this.festivalWeek, this.tierShown, this.castleShown});
 
   final bool loaded;
   final GameDay? festivalWeek;
   final TownTier? tierShown;
+  final int? castleShown;
+
+  /// How many Castle stages stand finished that this device has not
+  /// celebrated yet, if the newest finished recently; null when there is
+  /// nothing to show.
+  int? castleDue(CastleState castle, DateTime now) {
+    if (!loaded) return null;
+    final done = castle.stagesCompleteAt(now);
+    if (done == 0 || done <= (castleShown ?? 0)) return null;
+    final finishedAt = castle.stages[done - 1].completesAt;
+    return now.difference(finishedAt) <= kTierCelebrationWindow ? done : null;
+  }
+
+  TownLoopShown copyWith({GameDay? festivalWeek, TownTier? tierShown, int? castleShown}) => TownLoopShown(
+        loaded: loaded,
+        festivalWeek: festivalWeek ?? this.festivalWeek,
+        tierShown: tierShown ?? this.tierShown,
+        castleShown: castleShown ?? this.castleShown,
+      );
 
   /// Whether the festival celebration may open on [today]'s weekend.
   bool festivalDue(GameDay today) => loaded && festivalWeek != today.weekStart;
@@ -60,12 +80,14 @@ class TownLoopShown {
   String encode() => [
     if (festivalWeek != null) 'festival=${festivalWeek!.toKey()}',
     if (tierShown != null) 'tier=${tierShown!.name}',
+    if (castleShown != null) 'castle=$castleShown',
   ].join('\n');
 
   /// Reads [encode]'s text; lines it does not know are ignored.
   static TownLoopShown decode(String text) {
     GameDay? festivalWeek;
     TownTier? tierShown;
+    int? castleShown;
     for (final line in const LineSplitter().convert(text)) {
       final separator = line.indexOf('=');
       if (separator <= 0) continue;
@@ -75,9 +97,11 @@ class TownLoopShown {
           festivalWeek = _parseDay(value);
         case 'tier':
           tierShown = TownTier.values.where((tier) => tier.name == value).firstOrNull;
+        case 'castle':
+          castleShown = int.tryParse(value);
       }
     }
-    return TownLoopShown(loaded: true, festivalWeek: festivalWeek, tierShown: tierShown);
+    return TownLoopShown(loaded: true, festivalWeek: festivalWeek, tierShown: tierShown, castleShown: castleShown);
   }
 
   /// A stored day, or null when the line is damaged.
@@ -112,6 +136,7 @@ class TownLoopShownNotifier extends Notifier<TownLoopShown> {
       loaded: true,
       festivalWeek: state.festivalWeek ?? restored.festivalWeek,
       tierShown: state.tierShown ?? restored.tierShown,
+      castleShown: state.castleShown ?? restored.castleShown,
     );
   }
 
@@ -133,11 +158,11 @@ class TownLoopShownNotifier extends Notifier<TownLoopShown> {
     return File(p.join(directory.path, 'town_loop_shown.txt'));
   }
 
-  void markFestivalShown(GameDay today) =>
-      _update(TownLoopShown(loaded: state.loaded, festivalWeek: today.weekStart, tierShown: state.tierShown));
+  void markFestivalShown(GameDay today) => _update(state.copyWith(festivalWeek: today.weekStart));
 
-  void markTierShown(TownTier tier) =>
-      _update(TownLoopShown(loaded: state.loaded, festivalWeek: state.festivalWeek, tierShown: tier));
+  void markTierShown(TownTier tier) => _update(state.copyWith(tierShown: tier));
+
+  void markCastleShown(int stagesDone) => _update(state.copyWith(castleShown: stagesDone));
 
   void _update(TownLoopShown next) {
     state = next;

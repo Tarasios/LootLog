@@ -1,7 +1,8 @@
 /// The town loop wired into the town shell: what the HUD and the scene show
 /// (the spirit bar, the "crews made" chip, the "Log today" note, the day's
 /// visitor, the festival bunting), and the celebrations on entering: a new
-/// town tier first, otherwise the weekend festival (one per entry).
+/// town tier first, then a finished Castle stage, otherwise the weekend
+/// festival (one per entry).
 ///
 /// Logging is never blocked or delayed: what the crews made waits behind a
 /// small chip that opens the summary only when tapped, and the festival
@@ -25,6 +26,7 @@ import '../../domain/town/town_growth_lines.dart';
 import '../../scenes/town/town_scene_view.dart' show TownLoopScene;
 import '../kit/kit.dart' show HudChip, AdventureTokens;
 import 'away_summary_dialog.dart';
+import 'castle_celebration.dart';
 import 'daily_event_dialog.dart';
 import 'festival_dialog.dart';
 import 'tier_up_dialog.dart';
@@ -85,6 +87,7 @@ mixin TownLoopWiring<Shell extends ConsumerStatefulWidget> on ConsumerState<Shel
       shown,
       lines,
       tierDue: shown.tierDue(game.person(meId), now),
+      castleDue: shown.castleDue(game.townOf(meId).castle, now),
       // Never over a neighbour's town: the entry waits until the visit ends.
       ready: !visiting && meId.isNotEmpty && ref.read(gameStateProvider).hasValue,
     );
@@ -136,6 +139,7 @@ mixin TownLoopWiring<Shell extends ConsumerStatefulWidget> on ConsumerState<Shel
     TownLoopShown shown,
     TownEventLines lines, {
     required TownTier? tierDue,
+    required int? castleDue,
     required bool ready,
   }) {
     if (!_enteringTown || !ready || !shown.loaded) return;
@@ -154,6 +158,19 @@ mixin TownLoopWiring<Shell extends ConsumerStatefulWidget> on ConsumerState<Shel
             openBook: () => unawaited(TownBookScreen.open(context)),
           ),
         );
+      });
+      return;
+    }
+    if (castleDue != null) {
+      if (!(ModalRoute.of(context)?.isCurrent ?? true)) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !(ModalRoute.of(context)?.isCurrent ?? true)) return;
+        ref.read(townLoopShownProvider.notifier).markCastleShown(castleDue);
+        unawaited(showCastleStageCelebration(
+          context,
+          stagesDone: castleDue,
+          lines: ref.read(townGrowthLinesProvider).value ?? TownGrowthLines.defaults,
+        ));
       });
       return;
     }

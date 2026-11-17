@@ -34,6 +34,7 @@ import 'hall_ledger_view.dart';
 import 'hall_voice.dart';
 import 'kit/adventure_tokens.dart';
 import 'town/neighbour_text_panel.dart';
+import 'town/long_road_text_panel.dart';
 import 'town/town_growth_text_panel.dart';
 import 'town/town_loop_text_panel.dart';
 
@@ -145,6 +146,7 @@ class _HallBody extends ConsumerWidget {
       final right = [
         PlotsPanel(data),
         TownGrowthPanel(data),
+        LongRoadTextPanel(data),
         NeighbourTextPanel(data),
         StoresPanel(data),
         PlacesPanel(data),
