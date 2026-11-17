@@ -168,6 +168,7 @@ CivicBuildingStarted civicBuilt(String id, String districtId, int plotIndex, Civ
         String actor = robin,
         int tier = 1,
         Loot cost = Loot.none,
+        GoodsBundle goods = const GoodsBundle.empty(),
         DateTime? completesAt}) =>
     CivicBuildingStarted(
       eventId: id,
@@ -180,6 +181,7 @@ CivicBuildingStarted civicBuilt(String id, String districtId, int plotIndex, Civ
       buildingKey: type.name,
       tier: tier,
       cost: cost,
+      goods: goods,
       completesAt: completesAt ?? when,
     );
 
@@ -201,3 +203,61 @@ List<GameEvent> tierWith(TownTier tier,
       granted('funds-$actor', when: at(-2), actor: actor, rewardId: 'funds-$actor', gems: gems, materials: materials),
       claimed('funds-claim-$actor', 'funds-$actor', when: at(-1), actor: actor),
     ];
+
+RefiningStarted refiningStarted(String id, int plotIndex, String recipeId,
+        {required DateTime when,
+        required DateTime completesAt,
+        int batches = 1,
+        MaterialBundle input = const MaterialBundle.empty(),
+        GoodsBundle output = const GoodsBundle.empty(),
+        String actor = robin,
+        String device = 'dev-1'}) =>
+    RefiningStarted(
+      eventId: id,
+      deviceId: device,
+      actorId: actor,
+      occurredAt: when,
+      createdAt: when,
+      districtId: 'marketRow',
+      plotIndex: plotIndex,
+      recipeId: recipeId,
+      batches: batches,
+      input: input,
+      output: output,
+      completesAt: completesAt,
+    );
+
+GoodsCollected goodsCollected(String id, int plotIndex, String jobId, GoodsBundle goods,
+        {required DateTime when, String actor = robin, String device = 'dev-1'}) =>
+    GoodsCollected(
+      eventId: id,
+      deviceId: device,
+      actorId: actor,
+      occurredAt: when,
+      createdAt: when,
+      districtId: 'marketRow',
+      plotIndex: plotIndex,
+      jobId: jobId,
+      goods: goods,
+    );
+
+CastleStageStarted castleStageStarted(String id, int stage,
+        {required DateTime when,
+        required DateTime completesAt,
+        String? stageKey,
+        Loot cost = Loot.none,
+        GoodsBundle goods = const GoodsBundle.empty(),
+        String actor = robin,
+        String device = 'dev-1'}) =>
+    CastleStageStarted(
+      eventId: id,
+      deviceId: device,
+      actorId: actor,
+      occurredAt: when,
+      createdAt: when,
+      stage: stage,
+      stageKey: stageKey ?? const ['foundation', 'keep', 'walls', 'towers', 'banners'][stage - 1],
+      cost: cost,
+      goods: goods,
+      completesAt: completesAt,
+    );

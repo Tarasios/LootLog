@@ -152,6 +152,21 @@ class GameCommandsService {
   Future<GameCommandResult> harvestFood(int plotIndex) =>
       run((commands) => commands.harvestFood(plotIndex));
 
+  /// Builds civic building [type] on plot [plotIndex] of [districtId], or
+  /// upgrades the [type] standing there.
+  Future<GameCommandResult> startCivicBuilding(String districtId, int plotIndex, CivicBuildingType type) =>
+      run((commands) => commands.startCivicBuilding(districtId, plotIndex, type));
+
+  /// Starts [batches] batches of [recipeId] on the best idle workshop.
+  Future<GameCommandResult> startRefining(String recipeId, int batches) =>
+      run((commands) => commands.startRefining(recipeId, batches));
+
+  /// Collects every finished workshop job's goods.
+  Future<GameCommandResult> collectGoods() => run((commands) => commands.collectGoods());
+
+  /// Begins the Castle's next stage.
+  Future<GameCommandResult> startCastleStage() => run((commands) => commands.startCastleStage());
+
   // ---- Chests and rewards ----------------------------------------------------
 
   /// Opens a waiting chest; the [ChestOpened] event holds what it rolled.

@@ -41,6 +41,7 @@ import '../game_state.dart';
 import '../game_values.dart';
 import '../hall_rules.dart';
 import '../reason_codes.dart';
+import '../town/castle.dart';
 import '../town/daily_event.dart';
 import '../town/festival.dart';
 import '../town/food.dart';
@@ -567,6 +568,7 @@ class _Run {
           tokens: loot.tokens,
           reasonCode: GameReasonCodes.townTier);
     }
+    _castleStages(who, town);
     for (final meal in foodConsumptionDue(
       food: town.food,
       tierOn: personState.tierOn,
@@ -585,6 +587,22 @@ class _Run {
         day: meal.day,
         amount: meal.amount,
       ));
+    }
+  }
+
+  /// A reward for each Castle stage [who]'s town has finished, once each.
+  void _castleStages(String who, HallState town) {
+    final castle = town.castle;
+    for (var stage = 1; stage <= castle.stagesStarted; stage++) {
+      final record = castle.stages[stage - 1];
+      if (!record.isCompleteAt(now)) break;
+      final loot = castleStageReward(stage);
+      _grant(who,
+          rewardId: castleStageRewardId(who, record.key),
+          kind: 'castleStage',
+          gems: loot.gems,
+          materials: loot.materials,
+          reasonCode: GameReasonCodes.castleStage);
     }
   }
 

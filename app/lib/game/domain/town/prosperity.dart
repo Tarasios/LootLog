@@ -14,6 +14,7 @@ library;
 import '../../config/balance.dart';
 import '../game_state.dart';
 import '../game_values.dart';
+import 'castle.dart';
 import 'quarters.dart';
 
 /// [town]'s prosperity at [at]:
@@ -24,7 +25,8 @@ import 'quarters.dart';
 /// - [Balance.prosperityPerDecoration] for each town decoration on display,
 ///   up to [Balance.prosperityDecorationCap] of them,
 /// - [Balance.prosperityPerFestival] for every weekend festival held,
-/// - what the park's buildings and the guild hall add ([civicProsperityAt]).
+/// - what the park's buildings and the guild hall add ([civicProsperityAt]),
+/// - each finished Castle stage's prosperity ([castleProsperityAt]).
 int townProsperity(
   HallState town, {
   required int townDecorationsPlaced,
@@ -41,7 +43,8 @@ int townProsperity(
       town.districts.purchased.length * Balance.prosperityPerDistrict +
       decorations * Balance.prosperityPerDecoration +
       festivalsHeld * Balance.prosperityPerFestival +
-      civicProsperityAt(town, at);
+      civicProsperityAt(town, at) +
+      castleProsperityAt(town.castle, at);
 }
 
 /// [personId]'s town prosperity at [at]: the person's own town and

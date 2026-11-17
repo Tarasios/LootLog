@@ -317,6 +317,13 @@ shortfalls at buildings and expeditions.
 | `districtNotOwned` | Buy that district first, then its plots are yours to build on. |
 | `granaryFull` | The granary is full. Build or raise a granary to store more food. |
 | `wrongDistrict` | That building belongs in another district. Each district has its own buildings. |
+| `notEnoughGoods` | A few more goods are needed. Your Market Row workshops can make them. |
+| `noWorkshop` | Goods are made in a workshop. Build one on Market Row first. |
+| `unknownRecipe` | The workshops don't know that recipe yet. |
+| `invalidBatches` | Choose how many batches: at least one, and no more than the workshop can take. |
+| `workshopBusy` | Every workshop is busy. Collect the finished goods, or build another workshop. |
+| `castleUnderConstruction` | The builders are still at work on this stage. The next one follows when it's done. |
+| `castleComplete` | The Castle stands complete, banners and all! |
 
 ### `reasons`
 
@@ -343,6 +350,7 @@ was earned (by reward reason code).
 | `festival.weekend` | The weekend festival | The weekend festival's loot, sized by the weekdays logged: one reward per tier reached, each adding what that tier adds, so a festival topped up by late-syncing logs shows as more than one line |
 | `festival.joint` | Bonus: the party kept the week together | Two or more Adventure adults each logged at least three weekdays (additive; never names anyone) |
 | `town.tier` | The town grew into a new tier | The town's peak prosperity reached the next tier (and, from the village on, its food stores were enough): gems and building materials, once per tier, never taken back |
+| `castle.stage` | A stage of the Castle was finished | A Castle stage's build time passed: gems (and a trophy with the banners), once per stage, never taken back |
 
 
 ## Month-end dungeon lines (`dungeon_lines.json`)
@@ -472,7 +480,7 @@ food only waits to grow: never say "lost", "missed", "starving" or
 "penalty". Placeholders: `{tier}`, `{prosperity}`, `{needed}`, `{stored}`,
 `{capacity}`, `{need}`, `{food}`, `{days}`, `{missing}`, `{population}`,
 `{count}`, `{price}`, `{date}`, `{district}`, `{building}`, `{guards}`,
-`{plots}`, `{housing}`.
+`{plots}`, `{housing}`, `{goods}`, `{time}`, `{stage}`.
 
 | Key | Trigger | Intended outcome | Current line |
 |-----|---------|------------------|--------------|
@@ -566,6 +574,28 @@ food only waits to grow: never say "lost", "missed", "starving" or
 | `book.waitingOnHomes` | The prosperity is enough but the homes are short | Reassure, and point at the houses | New families are on their way. The town keeps everything while the homes go up. |
 | `market.trade` | The market trade's card (an extra trader on a logged day, with a stall) | Invite a swap; waving it off costs nothing | A trader at your market stall has a swap for you. |
 | `park.festival` | The weekend festival when the Park lifted it one size | Credit the park | The park puts everyone in a festive mood: this weekend's festival is one size grander. |
+| `goods.name.<kind>` | A refined good's name (planks, cutStone, tools, cloth) | Name it | Planks / Cut stone / Tools / Cloth |
+| `goods.title` | The goods card's heading | Name the section | Goods |
+| `goods.stored` | The goods card ({goods}: the goods in store) | Plain facts | In the workshop lofts: {goods}. |
+| `goods.none` | The goods card with nothing stored | A next step | No goods yet. A Market Row workshop turns raw materials into them. |
+| `refine.title` | A workshop's sheet heading | Name it | Workshop |
+| `refine.choose` | An idle workshop's recipe picker | Invite a job | What should the workshop make? |
+| `refine.working` | A workshop with a job under way ({goods}, {time}) | Plain facts; come back later | Making {goods}. Ready {time}. |
+| `refine.ready` | A workshop with a finished job ({goods}) | Invite a collect | {goods} ready to collect! |
+| `refine.collected` | Goods were collected ({goods}) | Celebrate | Collected {goods}. The lofts are filling up! |
+| `refine.idle` | A workshop with no job | Invite a job | The workshop is ready for a new job. |
+| `castle.title` | Castle Hill's heading | Name the goal | The Castle |
+| `castle.teaser` | Castle Hill before the city | Make the long goal vivid, no pressure | When your town becomes a city, a castle can rise on the hill. |
+| `castle.stage.<stage>` | A Castle stage's name (foundation, keep, walls, towers, banners) | Name it | Foundation / Keep / Walls / Towers / Banners |
+| `castle.next` | Castle Hill when the next stage can begin ({stage}) | A reachable next step | Next: the {stage}. |
+| `castle.building` | A stage under way ({stage}, {time}) | Plain facts; anticipation | The builders are raising the {stage}. Done {time}. |
+| `castle.progress` | Castle Hill ({count}: stages built) | Count what was done | {count} of 5 stages built. |
+| `castle.done.foundation` | The foundation was finished | Celebrate | The foundation is laid! Stone by stone, the Castle begins. |
+| `castle.done.keep` | The keep was finished | Celebrate | The keep stands tall over the town. |
+| `castle.done.walls` | The walls were finished | Celebrate | Walls ring the hill. The Castle takes shape. |
+| `castle.done.towers` | The towers were finished | Celebrate | Towers rise at every corner of the Castle. |
+| `castle.done.banners` | The last stage: the Castle is complete | The biggest celebration; credit the habit | Banners fly from every tower: the Castle is complete! A year of logging built this. |
+| `castle.titleEarned` | The castle title was granted | Celebrate | You are now Keeper of the Castle. |
 
 ## Neighbouring towns (`neighbours.json`)
 

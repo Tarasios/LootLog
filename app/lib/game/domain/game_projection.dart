@@ -21,10 +21,12 @@ import 'game_event.dart';
 import 'game_state.dart';
 import 'game_values.dart';
 import 'reason_codes.dart';
+import 'town/castle.dart';
 import 'town/cheers.dart';
 import 'town/districts.dart';
 import 'town/food.dart';
 import 'town/gifts.dart';
+import 'town/goods.dart';
 import 'town/quarters.dart';
 import 'town/town_ownership.dart';
 
@@ -514,9 +516,49 @@ void _apply(_GameStateDraft draft, GameEvent event) {
             '${started.buildingKey} tier ${started.tier} on ${started.districtId} ${started.plotIndex}');
         return;
       }
-      if (draft.cannotPay(actor, started.cost)) return;
+      if (draft.cannotPay(actor, started.cost) || draft.lacksGoods(actor, started.goods)) return;
       draft.setTown(actor, town.copyWith(districts: districts));
       draft.pay(actor, started.cost);
+      draft.payGoods(actor, started.goods);
+
+    case RefiningStarted started:
+      final town = draft.town(actor);
+      final outcome = applyRefiningStarted(town, started);
+      final goods = outcome.goods;
+      if (goods == null) {
+        draft.warn(outcome.warning!, '${started.recipeId} on ${started.districtId} ${started.plotIndex}');
+        return;
+      }
+      // New to stage 3, so no older event relies on clamping: a job the
+      // stores cannot pay is never applied.
+      if (draft.cannotPay(actor, Loot(materials: started.input), always: true)) return;
+      draft.setTown(actor, town.copyWith(goods: goods));
+      draft.pay(actor, Loot(materials: started.input));
+
+    case GoodsCollected collected:
+      final town = draft.town(actor);
+      final outcome = applyGoodsCollected(town, collected);
+      final goods = outcome.goods;
+      if (goods == null) {
+        draft.warn(outcome.warning!, collected.jobId);
+        return;
+      }
+      draft.setTown(actor, town.copyWith(goods: goods));
+
+    case CastleStageStarted started:
+      final town = draft.town(actor);
+      final outcome = applyCastleStage(town, started);
+      final castle = outcome.castle;
+      if (castle == null) {
+        draft.warn(outcome.warning!, '${started.stage} ${started.stageKey}');
+        return;
+      }
+      if (draft.cannotPay(actor, started.cost, always: true) || draft.lacksGoods(actor, started.goods)) {
+        return;
+      }
+      draft.setTown(actor, town.copyWith(castle: castle));
+      draft.pay(actor, started.cost);
+      draft.payGoods(actor, started.goods);
 
     case FoodHarvested harvest:
       final town = draft.town(actor);
@@ -651,8 +693,11 @@ class _GameStateDraft {
   /// recorded with the clamp warnings. A stale or older-build event never
   /// lands nearly free by clamping the pool. Before the split, pools clamp
   /// as they always did.
-  bool cannotPay(String personId, Loot cost) {
-    if (!ownership.isSplit) return false;
+  ///
+  /// With [always], the check holds before the split too: for the long
+  /// road's event types, which no older event relies on clamping for.
+  bool cannotPay(String personId, Loot cost, {bool always = false}) {
+    if (!always && !ownership.isSplit) return false;
     final gems = person(personId).gems;
     if (gems < cost.gems) {
       warn(GameWarningCode.gemsClamped, '$personId short ${cost.gems - gems}');
@@ -672,6 +717,26 @@ class _GameStateDraft {
       return true;
     }
     return false;
+  }
+
+  /// Whether [goods] is more than [personId]'s town holds; if so the event
+  /// is not applied (goods events are all new, so never clamped).
+  bool lacksGoods(String personId, GoodsBundle goods) {
+    if (goods.isEmpty) return false;
+    final held = town(personId).goods.stored;
+    if (held.covers(goods)) return false;
+    warn(GameWarningCode.goodsShort, [
+      for (final entry in goods.amounts.entries)
+        if (held[entry.key] < entry.value) '${entry.key.name} ${entry.value - held[entry.key]}',
+    ].join(', '));
+    return true;
+  }
+
+  /// Takes [goods] (already checked by [lacksGoods]) from [personId]'s town.
+  void payGoods(String personId, GoodsBundle goods) {
+    if (goods.isEmpty) return;
+    final hall = town(personId);
+    setTown(personId, hall.copyWith(goods: hall.goods.copyWith(stored: hall.goods.stored.less(goods))));
   }
 
   void credit(String personId, Loot loot) {

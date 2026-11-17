@@ -25,8 +25,8 @@ import 'districts.dart';
 
 /// Whether [actorId] may build [type] on plot [plotIndex] of [districtId]
 /// now (tier 1 on an empty plot, or the next tier of the same building),
-/// and the tier and its cost.
-({GameRejection? rejection, int tier, Loot cost}) planCivicBuilding(
+/// and the tier, its cost and the goods it wants.
+({GameRejection? rejection, int tier, Loot cost, GoodsBundle goods}) planCivicBuilding(
   GameState state,
   String actorId,
   String districtId,
@@ -34,8 +34,8 @@ import 'districts.dart';
   CivicBuildingType type,
   DateTime now,
 ) {
-  ({GameRejection? rejection, int tier, Loot cost}) refuse(GameRejection why) =>
-      (rejection: why, tier: 0, cost: Loot.none);
+  ({GameRejection? rejection, int tier, Loot cost, GoodsBundle goods}) refuse(GameRejection why) =>
+      (rejection: why, tier: 0, cost: Loot.none, goods: const GoodsBundle.empty());
   final district = districtById(districtId);
   if (district == null) return refuse(GameRejection.unknownDistrict);
   final spec = Balance.civicBuildings[type]!;
@@ -58,10 +58,11 @@ import 'districts.dart';
   }
   // Civic buildings follow the Central Hall like every other building.
   if (tier > maxTierUnderCentralHall(town, now)) return refuse(GameRejection.needsCentralHall);
-  final cost = Balance.civicBuildingCost(type, tier).cost;
+  final (:cost, :goods) = Balance.civicBuildingCost(type, tier);
   if (state.person(actorId).gems < cost.gems) return refuse(GameRejection.notEnoughGems);
   if (!town.materials.covers(cost.materials)) return refuse(GameRejection.notEnoughMaterials);
-  return (rejection: null, tier: tier, cost: cost);
+  if (!town.goods.stored.covers(goods)) return refuse(GameRejection.notEnoughGoods);
+  return (rejection: null, tier: tier, cost: cost, goods: goods);
 }
 
 /// [town]'s districts after [started], or why it changes nothing (and is
